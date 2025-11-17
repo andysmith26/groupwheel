@@ -3,7 +3,7 @@
         import HorizontalGroupLayout from '$lib/components/group/HorizontalGroupLayout.svelte';
         import VerticalGroupLayout from '$lib/components/group/VerticalGroupLayout.svelte';
         import Inspector from '$lib/components/inspector/Inspector.svelte';
-        import UnassignedHorizontal from '$lib/components/roster/UnassignedHorizontal.svelte';
+        import UnassignedSidebar from '$lib/components/roster/UnassignedSidebar.svelte';
 	import { ensurePreferences } from '$lib/data/roster';
 	import { getDisplayName } from '$lib/utils/friends';
 	import { initializeDragMonitor, type DropState } from '$lib/utils/pragmatic-dnd';
@@ -71,6 +71,9 @@
 
         // Flash state for success feedback
         let flashingContainer = $state<string | null>(null);
+
+        // Sidebar collapse state
+        let sidebarCollapsed = $state(false);
 
         // Trigger flash animation on successful drop
         function triggerFlash(containerId: string) {
@@ -585,59 +588,64 @@
 
 	<!-- GROUP EDITOR -->
 	{#if groups.length > 0}
-		<section class="space-y-3">
-			<!-- Unassigned students horizontal list -->
-			<UnassignedHorizontal
+		<section class="flex gap-3">
+			<!-- Unassigned students sidebar -->
+			<UnassignedSidebar
 				studentIds={unassigned}
 				{selectedStudentId}
 				{currentlyDragging}
 				{flashingContainer}
+				isCollapsed={sidebarCollapsed}
 				onDrop={handleDrop}
 				onDragStart={handleDragStart}
 				onClick={handleStudentClick}
+				onToggleCollapse={() => (sidebarCollapsed = !sidebarCollapsed)}
 			/>
 
-			<div class="flex items-center justify-between">
-				<h2 class="text-lg font-medium">Groups</h2>
-				<button
-					class="rounded-md border px-2 py-1 text-sm hover:bg-gray-50"
-					on:click={() =>
-						groups.push({
-							id: uid(),
-							name: `Group ${groups.length + 1}`,
-							capacity: null,
-							memberIds: []
-						})}
-				>
-					+ Add group
-				</button>
-			</div>
+			<!-- Groups area -->
+			<div class="flex-1 space-y-3">
+				<div class="flex items-center justify-between">
+					<h2 class="text-lg font-medium">Groups</h2>
+					<button
+						class="rounded-md border px-2 py-1 text-sm hover:bg-gray-50"
+						on:click={() =>
+							groups.push({
+								id: uid(),
+								name: `Group ${groups.length + 1}`,
+								capacity: null,
+								memberIds: []
+							})}
+					>
+						+ Add group
+					</button>
+				</div>
 
-			{#if useVerticalLayout}
-				<VerticalGroupLayout
-					{groups}
-					{selectedStudentId}
-					{currentlyDragging}
-					{collapsedGroups}
-					{flashingContainer}
-					onDrop={handleDrop}
-					onDragStart={handleDragStart}
-					onClick={handleStudentClick}
-					onUpdateGroup={handleUpdateGroup}
-					onToggleCollapse={toggleCollapse}
-				/>
-			{:else}
-				<HorizontalGroupLayout
-					{groups}
-					{selectedStudentId}
-					{currentlyDragging}
-					{flashingContainer}
-					onDrop={handleDrop}
-					onDragStart={handleDragStart}
-					onClick={handleStudentClick}
-					onUpdateGroup={handleUpdateGroup}
-				/>
-			{/if}
+				{#if useVerticalLayout}
+					<VerticalGroupLayout
+						{groups}
+						{selectedStudentId}
+						{currentlyDragging}
+						{collapsedGroups}
+						{flashingContainer}
+						onDrop={handleDrop}
+						onDragStart={handleDragStart}
+						onClick={handleStudentClick}
+						onUpdateGroup={handleUpdateGroup}
+						onToggleCollapse={toggleCollapse}
+					/>
+				{:else}
+					<HorizontalGroupLayout
+						{groups}
+						{selectedStudentId}
+						{currentlyDragging}
+						{flashingContainer}
+						onDrop={handleDrop}
+						onDragStart={handleDragStart}
+						onClick={handleStudentClick}
+						onUpdateGroup={handleUpdateGroup}
+					/>
+				{/if}
+			</div>
 		</section>
 	{/if}
 	<Inspector {selectedStudentId} />
