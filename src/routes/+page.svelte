@@ -48,6 +48,22 @@
 
         let isLoadingFromSheet = $state(false);
         let sheetLoadError = $state('');
+        let sheetLoadGuidance = $state<string[]>([]);
+
+        const SHEET_DATA_GUIDANCE = [
+                '"Students" tab: columns A–D should be ID, First Name, Last Name, Gender (with a header row).',
+                '"Connections" tab: each row must start with the same student ID/email used on the Students tab followed by friend IDs in additional columns.',
+                'Friend IDs have to match the IDs from the Students tab exactly (case-insensitive).'
+        ];
+
+        class SheetDataError extends Error {
+                guidance: string[];
+                constructor(message: string, guidance: string[] = SHEET_DATA_GUIDANCE) {
+                        super(message);
+                        this.name = 'SheetDataError';
+                        this.guidance = guidance;
+                }
+        }
 
         // Add after other state declarations (around line 40)
         let currentlyDragging = $state<string | null>(null); // student ID being dragged
@@ -134,6 +150,8 @@
         // ---------- TEST DATA ----------
         function loadTestData() {
                 console.log('🧪 loadTestData called');
+                sheetLoadError = '';
+                sheetLoadGuidance = [];
 
                 // Test data with non-numeric IDs (avoids leading-zero parsing issues)
                 const testStudents = [
@@ -200,38 +218,109 @@
         }
         // ---------- LOAD FROM SHEETS API ----------
 
+        interface SheetStudentPayload {
+                id?: string;
+                firstName?: string;
+                lastName?: string;
+                gender?: string;
+        }
+
+        interface SheetApiPayload {
+                success?: boolean;
+                students?: SheetStudentPayload[];
+                connections?: Record<string, unknown>;
+        }
+
         async function loadFromSheets() {
                 isLoadingFromSheet = true;
                 sheetLoadError = '';
+                sheetLoadGuidance = [];
 
                 try {
                         const response = await fetch('/api/data');
 
                         if (!response.ok) {
-                                const errorData = await response.json();
+                                const errorData = await response.json().catch(() => ({}));
                                 throw new Error(errorData.error || 'Failed to load from Google Sheets');
                         }
 
                         const result = await response.json();
 
-                        if (!result.success || !result.students) {
-                                throw new Error('Invalid response from Google Sheets API');
+                        if (!result.success) {
+                                throw new SheetDataError('Google Sheets did not return a successful response.');
                         }
 
+                        const { students: normalizedStudents, connections: normalizedConnections } = normalizeSheetResponse(result);
+
                         // Parse the structured data
-                        parseFromSheets(result.students, result.connections);
+                        parseFromSheets(normalizedStudents, normalizedConnections);
+
+                        if (parseError) {
+                                throw new SheetDataError(parseError);
+                        }
 
                         initGroups();
+                        sheetLoadGuidance = [];
 
                         console.log(`✅ Loaded ${result.studentCount} students from Google Sheets`);
                 } catch (error) {
                         console.error('Failed to load from Google Sheets:', error);
-                        sheetLoadError = error instanceof Error ? error.message : 'Unknown error';
+                        if (error instanceof SheetDataError) {
+                                sheetLoadError = error.message;
+                                sheetLoadGuidance = error.guidance;
+                        } else {
+                                sheetLoadError = error instanceof Error ? error.message : 'Unknown error';
+                                sheetLoadGuidance = [];
+                        }
                 } finally {
                         isLoadingFromSheet = false;
                 }
         }
 
+        function normalizeSheetResponse(payload: unknown) {
+                const data = (payload ?? {}) as SheetApiPayload;
+                const students = Array.isArray(data.students) ? data.students : [];
+
+                if (students.length === 0) {
+                        throw new SheetDataError('No student rows were returned from Google Sheets.', SHEET_DATA_GUIDANCE);
+                }
+
+                const validStudents: Array<{ id: string; firstName: string; lastName: string; gender: string }> = [];
+                for (const student of students) {
+                        if (!student || typeof student !== 'object') continue;
+                        const id = typeof student.id === 'string' ? student.id.trim() : '';
+                        if (!id) continue;
+                        validStudents.push({
+                                id,
+                                firstName: typeof student.firstName === 'string' ? student.firstName : '',
+                                lastName: typeof student.lastName === 'string' ? student.lastName : '',
+                                gender: typeof student.gender === 'string' ? student.gender : ''
+                        });
+                }
+
+                if (validStudents.length === 0) {
+                        throw new SheetDataError(
+                                'No IDs were found in the Students tab. Column A must contain each student\'s email or unique ID.',
+                                SHEET_DATA_GUIDANCE
+                        );
+                }
+
+                const normalizedConnections: Record<string, string[]> = {};
+                const rawConnections = data.connections && typeof data.connections === 'object' ? data.connections : {};
+                for (const [rawKey, rawValue] of Object.entries(rawConnections)) {
+                        const key = rawKey.trim().toLowerCase();
+                        if (!key) continue;
+                        if (!Array.isArray(rawValue)) continue;
+                        const cleaned = rawValue
+                                .map((fid) => (typeof fid === 'string' ? fid.trim().toLowerCase() : ''))
+                                .filter((fid) => fid.length > 0);
+                        if (cleaned.length > 0) {
+                                normalizedConnections[key] = cleaned;
+                        }
+                }
+
+                return { students: validStudents, connections: normalizedConnections };
+        }
         // ---------- PARSING ----------
         /**
          * Expected headers (order-insensitive, minimal):
@@ -245,6 +334,8 @@
          */
         function parsePasted(text: string) {
                 resetAll();
+                sheetLoadError = '';
+                sheetLoadGuidance = [];
 
                 const lines = text
                         .trim()
@@ -395,7 +486,9 @@
                         }
 
                         // Get friend IDs for this student from connections (treat as likeStudentIds)
-                        const friendIds = (connections[student.id] || []).map((fid) => fid.toLowerCase());
+                        const friendList =
+                                connections[student.id] || connections[id] || connections[student.id.toUpperCase()] || [];
+                        const friendIds = friendList.map((fid) => fid.toLowerCase());
 
                         // Create Student without friendIds
                         map[id] = {
@@ -430,6 +523,11 @@
                                 }
                         }
                         pref.likeStudentIds = validFriends;
+                }
+
+                if (order.length === 0) {
+                        parseError = 'No students with IDs were found in the Google Sheet.';
+                        return;
                 }
 
                 // Update state
@@ -873,7 +971,16 @@
                                         🧪 Load Test Data
                                 </button>
                                 {#if sheetLoadError}
-                                        <span class="text-sm text-red-600">{sheetLoadError}</span>
+                                        <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                                                <p class="font-semibold">{sheetLoadError}</p>
+                                                {#if sheetLoadGuidance.length > 0}
+                                                        <ul class="mt-2 list-disc space-y-1 pl-5 text-red-700">
+                                                                {#each sheetLoadGuidance as tip}
+                                                                        <li>{tip}</li>
+                                                                {/each}
+                                                        </ul>
+                                                {/if}
+                                        </div>
                                 {:else if parseError}
                                         <span class="text-sm text-red-600">{parseError}</span>
                                 {:else if totalStudents > 0}
