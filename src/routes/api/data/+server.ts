@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { google } from 'googleapis';
 import { env } from '$env/dynamic/private';
+import { parseSheetRows } from '$lib/data/roster';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
@@ -43,43 +44,14 @@ export const GET: RequestHandler = async () => {
 			})
 		]);
 
-		const studentsRows = studentsResponse.data.values;
-		const connectionsRows = connectionsResponse.data.values;
+                const { students, connections } = parseSheetRows(
+                        studentsResponse.data.values,
+                        connectionsResponse.data.values
+                );
 
-		if (!studentsRows || studentsRows.length < 2) {
-			return json({ error: 'No student data found' }, { status: 404 });
-		}
-
-		// Parse Students tab (skip header row)
-		const students = studentsRows.slice(1).map((row) => ({
-			id: row[0]?.trim() || '',
-			firstName: row[1]?.trim() || '',
-			lastName: row[2]?.trim() || '',
-			gender: row[3]?.trim() || ''
-		}));
-
-		// Parse Connections tab
-		// Expected format: id, friendids comma separated
-		const connections: Record<string, string[]> = {};
-
-		if (connectionsRows && connectionsRows.length > 1) {
-			for (let i = 1; i < connectionsRows.length; i++) {
-				const row = connectionsRows[i];
-				const studentId = row[0]?.trim(); // Column B is id
-
-				if (!studentId) continue;
-
-				const friendIds: string[] = [];
-				for (let j = 1; j < row.length; j++) {
-					const friendId = row[j]?.trim();
-					if (friendId) {
-						friendIds.push(friendId);
-					}
-				}
-
-				connections[studentId] = friendIds;
-			}
-		}
+                if (students.length === 0) {
+                        return json({ error: 'No student data found' }, { status: 404 });
+                }
 
 		return json({
 			success: true,

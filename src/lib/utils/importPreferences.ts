@@ -1,5 +1,6 @@
 import type { Student, Group } from '$lib/types';
 import type { StudentPreference } from '$lib/types/preferences';
+import { ensurePreferences } from '$lib/data/roster';
 
 /**
  * Represents a single row from a teacher‑provided sheet. Keys are column
@@ -336,5 +337,8 @@ export function importPreferences(
                 preferences.push(preference);
         });
 
-        return { preferences, warnings };
+        const rosterStudents = Array.from(rosterIndex.byId.values());
+        const ensuredPreferences = Object.values(ensurePreferences(rosterStudents, preferences));
+
+        return { preferences: ensuredPreferences, warnings };
 }

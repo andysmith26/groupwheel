@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { buildRosterIndex, buildGroupIndex, importPreferences, type RawSheetRow, type PreferenceMappingConfig } from './importPreferences';
+import {
+        buildRosterIndex,
+        buildGroupIndex,
+        importPreferences,
+        type RawSheetRow,
+        type PreferenceMappingConfig
+} from './importPreferences';
 import type { Student, Group } from '$lib/types';
 
 describe('importPreferences', () => {
@@ -15,6 +21,9 @@ describe('importPreferences', () => {
         ];
         const rosterIndex = buildRosterIndex(students);
         const groupIndex = buildGroupIndex(groups);
+
+        const findPref = (prefs: ReturnType<typeof importPreferences>['preferences'], id: string) =>
+                prefs.find((pref) => pref.studentId === id);
 
         it('maps simple like preferences by id', () => {
                 const rows: RawSheetRow[] = [
@@ -34,13 +43,12 @@ describe('importPreferences', () => {
                 };
                 const result = importPreferences(rows, rosterIndex, groupIndex, mapping);
                 expect(result.warnings).toEqual([]);
-                expect(result.preferences.length).toBe(1);
-                const pref = result.preferences[0];
-                expect(pref.studentId).toBe('alice@example.com');
-                expect(pref.likeStudentIds).toEqual(['bob@example.com']);
-                expect(pref.avoidStudentIds).toEqual([]);
-                expect(pref.likeGroupIds).toEqual([]);
-                expect(pref.avoidGroupIds).toEqual([]);
+                expect(result.preferences.length).toBe(students.length);
+                const pref = findPref(result.preferences, 'alice@example.com');
+                expect(pref?.likeStudentIds).toEqual(['bob@example.com']);
+                expect(pref?.avoidStudentIds).toEqual([]);
+                expect(pref?.likeGroupIds).toEqual([]);
+                expect(pref?.avoidGroupIds).toEqual([]);
         });
 
         it('resolves students by display name and handles duplicates and unknowns', () => {
@@ -51,22 +59,22 @@ describe('importPreferences', () => {
                                 second: 'Unknown Student'
                         }
                 ];
-                        const mapping: PreferenceMappingConfig = {
-                                subjectColumn: 'subject',
-                                subjectKeyKind: 'displayName',
-                                likeStudentColumns: ['first', 'second'],
-                                avoidStudentColumns: [],
-                                likeGroupColumns: [],
-                                avoidGroupColumns: [],
-                                metaColumns: {}
-                        };
+                const mapping: PreferenceMappingConfig = {
+                        subjectColumn: 'subject',
+                        subjectKeyKind: 'displayName',
+                        likeStudentColumns: ['first', 'second'],
+                        avoidStudentColumns: [],
+                        likeGroupColumns: [],
+                        avoidGroupColumns: [],
+                        metaColumns: {}
+                };
                 const result = importPreferences(rows, rosterIndex, groupIndex, mapping);
                 // Should warn about unknown student
                 expect(result.warnings.length).toBe(1);
                 expect(result.warnings[0].column).toBe('second');
                 // Duplicate names should not duplicate entries
-                const pref = result.preferences[0];
-                expect(pref.likeStudentIds).toEqual(['bob@example.com']);
+                const pref = findPref(result.preferences, 'alice@example.com');
+                expect(pref?.likeStudentIds).toEqual(['bob@example.com']);
         });
 
         it('maps group preferences and avoid lists', () => {
@@ -92,11 +100,11 @@ describe('importPreferences', () => {
                 // One warning for the unknown group 'Missing'
                 expect(result.warnings.length).toBe(1);
                 expect(result.warnings[0].column).toBe('avoid2');
-                const pref = result.preferences[0];
+                const pref = findPref(result.preferences, 'bob@example.com');
                 // likeGroupIds should resolve names and ids equivalently
-                expect(pref.likeGroupIds).toEqual(['group-1', 'group-2']);
+                expect(pref?.likeGroupIds).toEqual(['group-1', 'group-2']);
                 // avoidGroupIds should include only the known group-2 once
-                expect(pref.avoidGroupIds).toEqual(['group-2']);
+                expect(pref?.avoidGroupIds).toEqual(['group-2']);
         });
 
         it('parses meta values with correct types', () => {
@@ -123,8 +131,8 @@ describe('importPreferences', () => {
                 };
                 const result = importPreferences(rows, rosterIndex, groupIndex, mapping);
                 expect(result.warnings).toEqual([]);
-                const pref = result.preferences[0];
-                expect(pref.meta).toEqual({
+                const pref = findPref(result.preferences, 'carol@example.com');
+                expect(pref?.meta).toEqual({
                         wantsAtLeastOneFriend: true,
                         preferredGroupSize: 3,
                         notes: 'Enjoys math'
