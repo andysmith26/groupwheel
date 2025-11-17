@@ -4,7 +4,8 @@
 	import VerticalGroupLayout from '$lib/components/VerticalGroupLayout.svelte';
 	import Inspector from '$lib/components/Inspector/Inspector.svelte';
 	import UnassignedHorizontal from '$lib/components/UnassignedHorizontal.svelte';
-	import { getDisplayName } from '$lib/utils/friends';
+        import { ensurePreferences } from '$lib/data/roster';
+        import { getDisplayName } from '$lib/utils/friends';
 	import { initializeDragMonitor, type DropState } from '$lib/utils/pragmatic-dnd';
 	import type { Student, Group, Mode } from '$lib/types';
 	import type { StudentPreference } from '$lib/types/preferences';
@@ -428,27 +429,29 @@
 			};
 		}
 
-		// now that all ids are known, check unknown friend ids and remove unknowns from preferences
-		for (const id of Object.keys(prefMap)) {
-			const pref = prefMap[id];
-			const validFriends: string[] = [];
-			for (const fid of pref.likeStudentIds) {
-				if (map[fid]) {
-					validFriends.push(fid);
-				} else {
-					unknownSet.add(fid);
-				}
-			}
-			pref.likeStudentIds = validFriends;
-		}
+                // now that all ids are known, check unknown friend ids and remove unknowns from preferences
+                for (const id of Object.keys(prefMap)) {
+                        const pref = prefMap[id];
+                        const validFriends: string[] = [];
+                        for (const fid of pref.likeStudentIds) {
+                                if (map[fid]) {
+                                        validFriends.push(fid);
+                                } else {
+                                        unknownSet.add(fid);
+                                }
+                        }
+                        pref.likeStudentIds = validFriends;
+                }
 
-		// Clear existing entries
-		Object.keys(studentsById).forEach((key) => delete studentsById[key]);
-		Object.keys(preferencesById).forEach((key) => delete preferencesById[key]);
+                const ensuredPreferences = ensurePreferences(Object.values(map), Object.values(prefMap));
 
-		// Add new entries (mutate, don't replace)
-		Object.assign(studentsById, map);
-		Object.assign(preferencesById, prefMap);
+                // Clear existing entries
+                Object.keys(studentsById).forEach((key) => delete studentsById[key]);
+                Object.keys(preferencesById).forEach((key) => delete preferencesById[key]);
+
+                // Add new entries (mutate, don't replace)
+                Object.assign(studentsById, map);
+                Object.assign(preferencesById, ensuredPreferences);
 
 		studentOrder = order;
 		unknownFriendIds = unknownSet;
@@ -522,27 +525,29 @@
 			order.push(id);
 		}
 
-		// Validate friend IDs: remove unknowns and record them
-		for (const id of Object.keys(prefMap)) {
-			const pref = prefMap[id];
-			const validFriends: string[] = [];
-			for (const fid of pref.likeStudentIds) {
-				if (map[fid]) {
-					validFriends.push(fid);
-				} else {
-					unknownSet.add(fid);
-				}
-			}
-			pref.likeStudentIds = validFriends;
-		}
+                // Validate friend IDs: remove unknowns and record them
+                for (const id of Object.keys(prefMap)) {
+                        const pref = prefMap[id];
+                        const validFriends: string[] = [];
+                        for (const fid of pref.likeStudentIds) {
+                                if (map[fid]) {
+                                        validFriends.push(fid);
+                                } else {
+                                        unknownSet.add(fid);
+                                }
+                        }
+                        pref.likeStudentIds = validFriends;
+                }
 
-		// Update state
-		// Clear existing entries
-		Object.keys(studentsById).forEach((key) => delete studentsById[key]);
-		Object.keys(preferencesById).forEach((key) => delete preferencesById[key]);
-		// Add new entries (mutate, don't replace)
-		Object.assign(studentsById, map);
-		Object.assign(preferencesById, prefMap);
+                const ensuredPreferences = ensurePreferences(Object.values(map), Object.values(prefMap));
+
+                // Update state
+                // Clear existing entries
+                Object.keys(studentsById).forEach((key) => delete studentsById[key]);
+                Object.keys(preferencesById).forEach((key) => delete preferencesById[key]);
+                // Add new entries (mutate, don't replace)
+                Object.assign(studentsById, map);
+                Object.assign(preferencesById, ensuredPreferences);
 
 		studentOrder = order;
 		unknownFriendIds = unknownSet;
