@@ -608,20 +608,20 @@
 			}
 		}
 
-		// Auto-expand on drop if target is collapsed
-		if (collapsedGroups.has(targetContainer)) {
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity
-			const newSet = new Set(collapsedGroups);
-			newSet.delete(targetContainer);
-			collapsedGroups = newSet;
-		}
+        // Auto-expand on drop if target is collapsed
+        if (collapsedGroups.has(targetContainer)) {
+                // eslint-disable-next-line svelte/prefer-svelte-reactivity
+                const newSet = new Set(collapsedGroups);
+                newSet.delete(targetContainer);
+                collapsedGroups = newSet;
+        }
 
-		commandStore.dispatch({
-			type: 'ASSIGN_STUDENT',
-			studentId,
-			groupId: targetContainer,
-			previousGroupId: sourceContainer
-		});
+        commandStore.dispatch({
+                type: 'ASSIGN_STUDENT',
+                studentId,
+                groupId: targetContainer,
+                previousGroupId: sourceContainer ?? undefined
+        });
 
 		// unassigned automatically updates via derivation
 		currentlyDragging = null;

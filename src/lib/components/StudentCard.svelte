@@ -6,10 +6,10 @@
 	 * Happiness shows ratio of friends in same group (e.g., [2/3])
 	 */
 
-	import { draggable } from '$lib/utils/pragmatic-dnd';
-	import { getAppDataContext } from '$lib/contexts/appData';
-	import { commandStore } from '$lib/stores/commands.svelte';
-	import { getFriendLocations, resolveFriendNames } from '$lib/utils/friends';
+        import { draggable } from '$lib/utils/pragmatic-dnd';
+        import { getAppDataContext } from '$lib/contexts/appData';
+        import { commandStore } from '$lib/stores/commands.svelte';
+        import { getDisplayName, getFriendLocations, resolveFriendNames } from '$lib/utils/friends';
 	import type { Student } from '$lib/types';
 	import type { StudentPreference } from '$lib/types/preferences';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
@@ -43,7 +43,7 @@
 	const groups = $derived(commandStore.groups);
 
 	// Derive display values
-	const displayName = $derived(`${student.firstName} ${student.lastName}`.trim());
+        const displayName = $derived(getDisplayName(student));
 
 	// Look up preference for this student
 	const preference = $derived.by(() => {

@@ -59,3 +59,10 @@ export interface Group {
   capacity: number | null;
   memberIds: string[];
 }
+
+/**
+ * Mode for creating groups. COUNT indicates "number of groups" while SIZE
+ * represents "students per group". The UI toggles between these options when
+ * users set up automatic grouping.
+ */
+export type Mode = 'COUNT' | 'SIZE';

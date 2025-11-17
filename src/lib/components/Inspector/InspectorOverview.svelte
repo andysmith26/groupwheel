@@ -31,7 +31,15 @@
 	const friendIds = $derived(preference?.likeStudentIds ?? []);
 
 	// Derive display data
-	const displayName = $derived(student ? getDisplayName(student) : 'Unknown');
+        const displayName = $derived(student ? getDisplayName(student) : 'Unknown');
+        const initials = $derived.by(() => {
+                if (!student) return '??';
+                const firstInitial = student.firstName?.[0];
+                const lastInitial = student.lastName?.[0];
+                const combined = `${firstInitial ?? ''}${lastInitial ?? ''}`.trim();
+                if (combined) return combined.toUpperCase();
+                return student.id.slice(0, 2).toUpperCase();
+        });
 	const friendsWithNames = $derived(resolveFriendNames(friendIds, studentsById));
 	const friendLocations = $derived(getFriendLocations(friendIds, groups));
 
@@ -60,7 +68,7 @@
 		<section class="section">
 			<div class="student-identity">
 				<div class="student-initials" aria-hidden="true">
-					{student.firstName[0]}{student.lastName[0]}
+                                        {initials}
 				</div>
 				<div>
 					<h3 class="student-fullname">{displayName}</h3>

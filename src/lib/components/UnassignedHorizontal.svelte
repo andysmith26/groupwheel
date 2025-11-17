@@ -12,21 +12,19 @@
 	import type { StudentPreference } from '$lib/types/preferences';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
-interface Props {
+        interface Props {
                 studentIds?: string[];
                 selectedStudentId: string | null;
                 currentlyDragging: string | null;
-                showGender: boolean;
                 onDrop: (state: DropState) => void;
                 onDragStart?: (studentId: string) => void;
                 onClick?: (studentId: string) => void;
         }
 
-let {
+        let {
                 studentIds = [],
                 selectedStudentId,
                 currentlyDragging,
-                showGender,
                 onDrop,
                 onDragStart,
                 onClick
