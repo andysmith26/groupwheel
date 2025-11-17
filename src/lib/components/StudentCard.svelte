@@ -46,7 +46,7 @@
 	const displayName = $derived(`${student.firstName} ${student.lastName}`.trim());
 
 	// Look up preference for this student
-	const preference = $derived<StudentPreference>(() => {
+	const preference = $derived.by(() => {
 		return (
 			prefMap[student.id] ?? {
 				studentId: student.id,

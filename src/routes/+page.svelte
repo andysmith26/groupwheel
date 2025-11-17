@@ -381,9 +381,9 @@
 		const map: Record<string, Student> = {};
 		const prefMap: Record<string, StudentPreference> = {};
 		const order: string[] = [];
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const unknownSet = new Set<string>();
 
+		// --- EXISTING PARSING LOGIC (unchanged) ---
 		for (const student of students) {
 			if (!student.id) continue;
 
@@ -394,10 +394,10 @@
 				return;
 			}
 
-			// Get friend IDs for this student from connections (treat as likeStudentIds)
-			const friendIds = (connections[student.id] || []).map((fid) => fid.toLowerCase());
+			const friendList =
+				connections[student.id] || connections[id] || connections[student.id.toUpperCase()] || [];
+			const friendIds = friendList.map((fid) => fid.toLowerCase());
 
-			// Create Student without friendIds
 			map[id] = {
 				id,
 				firstName: student.firstName,
@@ -405,7 +405,6 @@
 				gender: student.gender
 			};
 
-			// Build preference object
 			prefMap[id] = {
 				studentId: id,
 				likeStudentIds: friendIds,
@@ -432,10 +431,65 @@
 			pref.likeStudentIds = validFriends;
 		}
 
-		// Update state
+		// --- NEW: VALIDATION BEFORE STATE UPDATE ---
+		const validationErrors: string[] = [];
+
+		// Check 1: At least one student loaded
+		if (order.length === 0) {
+			validationErrors.push('No students with IDs were found in the Google Sheet');
+		}
+
+		// Check 2: All students have valid structure
+		for (const [id, student] of Object.entries(map)) {
+			if (!student.firstName && !student.lastName) {
+				validationErrors.push(`Student ${id} has no name`);
+			}
+		}
+
+		// Check 3: All preferences reference existing students
+		for (const [studentId, pref] of Object.entries(prefMap)) {
+			if (!map[studentId]) {
+				validationErrors.push(`Preference exists for unknown student: ${studentId}`);
+			}
+
+			// Check preference structure
+			if (!Array.isArray(pref.likeStudentIds)) {
+				validationErrors.push(`Student ${studentId} has invalid likeStudentIds (not an array)`);
+			}
+			if (!Array.isArray(pref.avoidStudentIds)) {
+				validationErrors.push(`Student ${studentId} has invalid avoidStudentIds (not an array)`);
+			}
+			if (!Array.isArray(pref.likeGroupIds)) {
+				validationErrors.push(`Student ${studentId} has invalid likeGroupIds (not an array)`);
+			}
+			if (!Array.isArray(pref.avoidGroupIds)) {
+				validationErrors.push(`Student ${studentId} has invalid avoidGroupIds (not an array)`);
+			}
+		}
+
+		// Check 4: Verify studentsById and preferencesById will be in sync
+		const studentIds = new Set(Object.keys(map));
+		const prefIds = new Set(Object.keys(prefMap));
+
+		for (const prefId of prefIds) {
+			if (!studentIds.has(prefId)) {
+				validationErrors.push(`Preference exists for student ${prefId} who is not in roster`);
+			}
+		}
+
+		// If validation fails, set error and abort
+		if (validationErrors.length > 0) {
+			parseError = `Data validation failed: ${validationErrors.join('; ')}`;
+			console.error('❌ Validation errors:', validationErrors);
+			return;
+		}
+
+		// --- ONLY UPDATE STATE IF VALIDATION PASSED ---
+
 		// Clear existing entries
 		Object.keys(studentsById).forEach((key) => delete studentsById[key]);
 		Object.keys(preferencesById).forEach((key) => delete preferencesById[key]);
+
 		// Add new entries (mutate, don't replace)
 		Object.assign(studentsById, map);
 		Object.assign(preferencesById, prefMap);
@@ -444,7 +498,7 @@
 		unknownFriendIds = unknownSet;
 		parseError = '';
 
-		console.log(`Parsed ${order.length} students with preferences`);
+		console.log(`✅ Parsed and validated ${order.length} students with preferences`);
 	}
 
 	// ---------- DnD with Pragmatic Drag and Drop ----------

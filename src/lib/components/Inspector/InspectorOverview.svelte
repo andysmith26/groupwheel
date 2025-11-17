@@ -22,18 +22,18 @@
 
 	let { studentId }: Props = $props();
 
-	const { studentsById } = getAppDataContext();
+	const { studentsById, preferencesById } = getAppDataContext();
 	const groups = $derived(commandStore.groups);
 
 	// Resolve student from context
 	const student = $derived(studentsById[studentId]);
+	const preference = $derived(preferencesById[studentId]);
+	const friendIds = $derived(preference?.likeStudentIds ?? []);
 
 	// Derive display data
 	const displayName = $derived(student ? getDisplayName(student) : 'Unknown');
-	const friendsWithNames = $derived(
-		student ? resolveFriendNames(student.friendIds, studentsById) : []
-	);
-	const friendLocations = $derived(student ? getFriendLocations(student.friendIds, groups) : []);
+	const friendsWithNames = $derived(resolveFriendNames(friendIds, studentsById));
+	const friendLocations = $derived(getFriendLocations(friendIds, groups));
 
 	// Merge names and locations for rendering
 	const friendsData = $derived(
@@ -74,7 +74,7 @@
 		<!-- Friends section -->
 		<section class="section">
 			<h4 class="section-title">
-				Friends ({student.friendIds.length})
+				Friends ({friendIds.length})
 			</h4>
 
 			{#if friendsData.length === 0}

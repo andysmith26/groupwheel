@@ -3,7 +3,7 @@
 	import InspectorOverview from './InspectorOverview.svelte';
 	import { getFriendLocations } from '$lib/utils/friends';
 	import { commandStore } from '$lib/stores/commands.svelte';
-	import { getAppDataContext } from '$lib/contexts/appData';
+import { getAppDataContext } from '$lib/contexts/appData';
 	import { getDisplayName } from '$lib/utils/friends';
 
 	interface Props {
@@ -12,8 +12,8 @@
 
 	let { selectedStudentId }: Props = $props();
 
-	const { studentsById } = getAppDataContext();
-	const contentId = 'inspector-drawer-content';
+const { studentsById, preferencesById } = getAppDataContext();
+const contentId = 'inspector-drawer-content';
 
 	// Three states: 'closed' | 'minimized' | 'open'
 	let drawerState = $state<'closed' | 'minimized' | 'open'>('closed');
@@ -23,9 +23,13 @@
 	let closeButton: HTMLButtonElement | null = null;
 	let titleEl: HTMLHeadingElement | null = null;
 
-	const hasSelection = $derived(Boolean(selectedStudentId));
-	const currentStudent = $derived(selectedStudentId ? studentsById[selectedStudentId] : null);
-	const displayName = $derived(currentStudent ? getDisplayName(currentStudent) : '');
+const hasSelection = $derived(Boolean(selectedStudentId));
+const currentStudent = $derived(selectedStudentId ? studentsById[selectedStudentId] : null);
+const currentPreference = $derived(
+	selectedStudentId ? preferencesById[selectedStudentId] : undefined
+);
+const currentFriendIds = $derived(currentPreference?.likeStudentIds ?? []);
+const displayName = $derived(currentStudent ? getDisplayName(currentStudent) : '');
 
 	async function openDrawer() {
 		if (drawerState === 'open') return;
@@ -87,13 +91,10 @@
 				<span class="tab-name">{displayName}</span>
 				<span class="tab-meta">· {currentStudent?.id} · {currentStudent?.gender || '?'}</span>
 				<span class="tab-friends">
-					· Friends: {#if currentStudent?.friendIds.length === 0}
+					· Friends: {#if currentFriendIds.length === 0}
 						None
 					{:else}
-						{@const friendsWithLocations = getFriendLocations(
-							currentStudent?.friendIds || [],
-							commandStore.groups
-						)}
+						{@const friendsWithLocations = getFriendLocations(currentFriendIds, commandStore.groups)}
 						{friendsWithLocations
 							.slice(0, 4)
 							.map((f) => {
