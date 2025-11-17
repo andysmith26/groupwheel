@@ -11,7 +11,7 @@ describe('importPreferences', () => {
         ];
         const groups: Group[] = [
                 { id: 'group-1', name: 'Group 1', capacity: null, memberIds: [] },
-                { id: 'group-2', name: 'Alpha Group', capacity: null, memberIds: [] }
+                { id: 'group-2', name: 'Group 2', capacity: null, memberIds: [] }
         ];
         const rosterIndex = buildRosterIndex(students);
         const groupIndex = buildGroupIndex(groups);
