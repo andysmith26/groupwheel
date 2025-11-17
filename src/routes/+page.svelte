@@ -4,30 +4,24 @@
 	import VerticalGroupLayout from '$lib/components/VerticalGroupLayout.svelte';
 	import Inspector from '$lib/components/Inspector/Inspector.svelte';
 	import UnassignedHorizontal from '$lib/components/UnassignedHorizontal.svelte';
-        import { ensurePreferences } from '$lib/data/roster';
-        import { getDisplayName } from '$lib/utils/friends';
+	import { ensurePreferences } from '$lib/data/roster';
+	import { getDisplayName } from '$lib/utils/friends';
 	import { initializeDragMonitor, type DropState } from '$lib/utils/pragmatic-dnd';
 	import type { Student, Group, Mode } from '$lib/types';
 	import type { StudentPreference } from '$lib/types/preferences';
 	import { commandStore } from '$lib/stores/commands.svelte';
+	import { createUiControlsStore } from '$lib/stores/uiControlsStore';
+	import {
+		SHEET_DATA_GUIDANCE,
+		SheetDataError,
+		getTestRosterDataset,
+		normalizeSheetResponse,
+		parseRosterFromPaste,
+		parseRosterFromSheets,
+		type RosterData
+	} from '$lib/services/rosterImport';
+	import { createGroupAssignmentService } from '$lib/services/groupAssignment';
 	import { onMount } from 'svelte';
-	import { getDisplayName } from '$lib/utils/friends';
-        import { initializeDragMonitor } from '$lib/utils/pragmatic-dnd';
-        import type { Student, Group, Mode } from '$lib/types';
-        import type { StudentPreference } from '$lib/types/preferences';
-        import { commandStore } from '$lib/stores/commands.svelte';
-        import { createUiControlsStore } from '$lib/stores/uiControlsStore';
-        import {
-                SHEET_DATA_GUIDANCE,
-                SheetDataError,
-                getTestRosterDataset,
-                normalizeSheetResponse,
-                parseRosterFromPaste,
-                parseRosterFromSheets,
-                type RosterData
-        } from '$lib/services/rosterImport';
-        import { createGroupAssignmentService } from '$lib/services/groupAssignment';
-        import { onMount } from 'svelte';
 
 	// ---------- STATE ----------
 	let rawPaste = $state('');
