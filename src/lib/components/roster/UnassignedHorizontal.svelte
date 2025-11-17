@@ -108,6 +108,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		gap: 6px;
 		min-height: 60px;
 		align-items: flex-start;
+		/* Rendering isolation to prevent layout thrashing during animations */
+		contain: layout style paint;
 	}
 
 	.empty-state {

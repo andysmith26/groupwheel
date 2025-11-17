@@ -260,6 +260,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		flex-direction: column;
 		gap: 6px;
 		min-height: 60px;
+		/* Rendering isolation to prevent layout thrashing during animations */
+		contain: layout style paint;
 	}
 
 	.empty-state {

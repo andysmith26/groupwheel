@@ -236,7 +236,13 @@
 		padding: 6px 10px;
 		cursor: grab;
 		user-select: none;
-		transition: all 0.15s ease;
+		/* GPU-accelerated transform for smooth animations without layout shift */
+		transition:
+			transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+			background 150ms ease,
+			border-color 150ms ease,
+			box-shadow 150ms ease;
+		will-change: transform;
 	}
 
 	.student-card:hover {
@@ -274,6 +280,8 @@
 		opacity: 0.6;
 		box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 		transform: rotate(2deg);
+		/* Remove transition during drag to prevent fighting with drag movement */
+		transition: none;
 	}
 
 	.student-card.needs-assistance {
