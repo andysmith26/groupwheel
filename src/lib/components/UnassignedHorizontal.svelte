@@ -1,15 +1,16 @@
 <script lang="ts">
-        /**
-         * UnassignedHorizontal: Horizontal roster for unassigned students.
-         *
-         * Positioned at top of page, wraps naturally when many students.
-         * Consistent across both horizontal and vertical group layouts.
-         */
+	/**
+	 * UnassignedHorizontal: Horizontal roster for unassigned students.
+	 *
+	 * Positioned at top of page, wraps naturally when many students.
+	 * Consistent across both horizontal and vertical group layouts.
+	 */
 
-        import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
-        import { getAppDataContext } from '$lib/contexts/appData';
-        import StudentCard from './StudentCard.svelte';
-        import type { StudentPreference } from '$lib/types/preferences';
+	import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
+	import { getAppDataContext } from '$lib/contexts/appData';
+	import StudentCard from './StudentCard.svelte';
+	import type { StudentPreference } from '$lib/types/preferences';
+	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
 interface Props {
                 studentIds?: string[];
@@ -31,108 +32,103 @@ let {
                 onClick
         }: Props = $props();
 
-        // Access students and preferences from context
-        const { studentsById, preferencesById } = getAppDataContext();
+	// Access students and preferences from context
+	const { studentsById, preferencesById } = getAppDataContext();
 
-        // Defensive: ensure we always work with an array even if the parent
-        // temporarily passes `undefined` (can happen while async data loads).
-        const safeStudentIds = $derived(studentIds ?? []);
-
-        // Determine which students are preferred by the selected student
-        const selectedStudentFriendIds = $derived.by(() => {
-                if (!selectedStudentId) return new Set<string>();
-                const pref: StudentPreference | undefined = preferencesById[selectedStudentId];
-                if (!pref) return new Set<string>();
-                return new Set(pref.likeStudentIds);
-        });
+	// Determine which students are preferred by the selected student
+	const selectedStudentFriendIds = $derived.by(() => {
+		if (!selectedStudentId) return new Set<string>();
+		const pref: StudentPreference | undefined = preferencesById[selectedStudentId];
+		if (!pref) return new Set<string>();
+		return new Set(pref.likeStudentIds);
+	});
 </script>
 
 <div class="unassigned-horizontal">
-        <div class="unassigned-header">
-                <h3 class="unassigned-title">Unassigned</h3>
-                <span class="count">{safeStudentIds.length}</span>
-        </div>
+	<div class="unassigned-header">
+		<h3 class="unassigned-title">Unassigned</h3>
+		<span class="count">{studentIds.length}</span>
+	</div>
 
-        <div class="unassigned-roster" use:droppable={{ container: 'unassigned', callbacks: { onDrop } }}>
-                {#each safeStudentIds as studentId (studentId)}
-                        {@const student = studentsById[studentId]}
-                        {#if student}
-                                <StudentCard
-                                        {student}
-                                        {showGender}
-                                        isSelected={selectedStudentId === studentId}
-                                        isDragging={currentlyDragging === studentId}
-                                        isFriendOfSelected={selectedStudentFriendIds.has(studentId)}
-                                        container="unassigned"
-                                        onDragStart={() => onDragStart?.(studentId)}
-                                        onClick={() => onClick?.(studentId)}
-                                />
-                        {:else}
-                                <div class="error-card">Unknown student: {studentId}</div>
-                        {/if}
-                {/each}
+	<div class="unassigned-roster" use:droppable={{ container: 'unassigned', callbacks: { onDrop } }}>
+		{#each studentIds as studentId (studentId)}
+			{@const student = studentsById[studentId]}
+			{#if student}
+				<StudentCard
+					{student}
+					isSelected={selectedStudentId === studentId}
+					isDragging={currentlyDragging === studentId}
+					isFriendOfSelected={selectedStudentFriendIds.has(studentId)}
+					container="unassigned"
+					onDragStart={() => onDragStart?.(studentId)}
+					onClick={() => onClick?.(studentId)}
+				/>
+			{:else}
+				<div class="error-card">Unknown student: {studentId}</div>
+			{/if}
+		{/each}
 
-                {#if safeStudentIds.length === 0}
-                        <div class="empty-state">All students assigned ✓</div>
-                {/if}
-        </div>
+		{#if studentIds.length === 0}
+			<div class="empty-state">All students assigned ✓</div>
+		{/if}
+	</div>
 </div>
 
 <style>
-        .unassigned-horizontal {
-                background: white;
-                border: 2px dashed #d1d5db;
-                border-radius: 8px;
-                padding: 12px;
-        }
+	.unassigned-horizontal {
+		background: white;
+		border: 2px dashed #d1d5db;
+		border-radius: 8px;
+		padding: 12px;
+	}
 
-        .unassigned-header {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 12px;
-                padding-bottom: 8px;
-                border-bottom: 2px dashed #e5e7eb;
-        }
+	.unassigned-header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 12px;
+		padding-bottom: 8px;
+		border-bottom: 2px dashed #e5e7eb;
+	}
 
-        .unassigned-title {
-                font-size: 16px;
-                font-weight: 600;
-                color: #6b7280;
-                margin: 0;
-        }
+	.unassigned-title {
+		font-size: 16px;
+		font-weight: 600;
+		color: #6b7280;
+		margin: 0;
+	}
 
-        .count {
-                font-size: 13px;
-                color: #9ca3af;
-                font-weight: 500;
-        }
+	.count {
+		font-size: 13px;
+		color: #9ca3af;
+		font-weight: 500;
+	}
 
-        .unassigned-roster {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 6px;
-                min-height: 60px;
-                align-items: flex-start;
-        }
+	.unassigned-roster {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		min-height: 60px;
+		align-items: flex-start;
+	}
 
-        .empty-state {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-                height: 60px;
-                color: #10b981;
-                font-size: 14px;
-                font-weight: 500;
-        }
+	.empty-state {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 60px;
+		color: #10b981;
+		font-size: 14px;
+		font-weight: 500;
+	}
 
-        .error-card {
-                background: #fee2e2;
-                border: 1px solid #fca5a5;
-                border-radius: 4px;
-                padding: 8px 12px;
-                color: #991b1b;
-                font-size: 13px;
-        }
+	.error-card {
+		background: #fee2e2;
+		border: 1px solid #fca5a5;
+		border-radius: 4px;
+		padding: 8px 12px;
+		color: #991b1b;
+		font-size: 13px;
+	}
 </style>

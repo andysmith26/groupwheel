@@ -1145,69 +1145,66 @@
                                                         <pre class="mt-1 max-h-40 overflow-auto text-xs">
 {JSON.stringify(commandStore.groups, null, 2)}
       </pre>
-                                                </details>
-                                        </div>
-                                </div>
-                        </div>
-                </div>
-        </section>
+						</details>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
 
-        <!-- GROUP EDITOR -->
-        {#if groups.length > 0}
-                <section class="space-y-3">
-                        <!-- Unassigned students horizontal list -->
-                        <UnassignedHorizontal
-                                studentIds={unassigned}
-                                {selectedStudentId}
-                                {currentlyDragging}
-                                {showGender}
-                                onDrop={handleDrop}
-                                onDragStart={handleDragStart}
-                                onClick={handleStudentClick}
-                        />
+	<!-- GROUP EDITOR -->
+	{#if groups.length > 0}
+		<section class="space-y-3">
+			<!-- Unassigned students horizontal list -->
+			<UnassignedHorizontal
+				studentIds={unassigned}
+				{selectedStudentId}
+				{currentlyDragging}
+				onDrop={handleDrop}
+				onDragStart={handleDragStart}
+				onClick={handleStudentClick}
+			/>
 
-                        <div class="flex items-center justify-between">
-                                <h2 class="text-lg font-medium">Groups</h2>
-                                <button
-                                        class="rounded-md border px-2 py-1 text-sm hover:bg-gray-50"
-                                        on:click={() =>
-                                                groups.push({
-                                                        id: uid(),
-                                                        name: `Group ${groups.length + 1}`,
-                                                        capacity: null,
-                                                        memberIds: []
-                                                })}
-                                >
-                                        + Add group
-                                </button>
-                        </div>
+			<div class="flex items-center justify-between">
+				<h2 class="text-lg font-medium">Groups</h2>
+				<button
+					class="rounded-md border px-2 py-1 text-sm hover:bg-gray-50"
+					on:click={() =>
+						groups.push({
+							id: uid(),
+							name: `Group ${groups.length + 1}`,
+							capacity: null,
+							memberIds: []
+						})}
+				>
+					+ Add group
+				</button>
+			</div>
 
-                        {#if useVerticalLayout}
-                                <VerticalGroupLayout
-                                        {groups}
-                                        {selectedStudentId}
-                                        {currentlyDragging}
-                                        {collapsedGroups}
-                                        {showGender}
-                                        onDrop={handleDrop}
-                                        onDragStart={handleDragStart}
-                                        onClick={handleStudentClick}
-                                        onUpdateGroup={handleUpdateGroup}
-                                        onToggleCollapse={toggleCollapse}
-                                />
-                        {:else}
-                                <HorizontalGroupLayout
-                                        {groups}
-                                        {selectedStudentId}
-                                        {currentlyDragging}
-                                        {showGender}
-                                        onDrop={handleDrop}
-                                        onDragStart={handleDragStart}
-                                        onClick={handleStudentClick}
-                                        onUpdateGroup={handleUpdateGroup}
-                                />
-                        {/if}
-                </section>
-        {/if}
-        <Inspector {selectedStudentId} />
+			{#if useVerticalLayout}
+				<VerticalGroupLayout
+					{groups}
+					{selectedStudentId}
+					{currentlyDragging}
+					{collapsedGroups}
+					onDrop={handleDrop}
+					onDragStart={handleDragStart}
+					onClick={handleStudentClick}
+					onUpdateGroup={handleUpdateGroup}
+					onToggleCollapse={toggleCollapse}
+				/>
+			{:else}
+				<HorizontalGroupLayout
+					{groups}
+					{selectedStudentId}
+					{currentlyDragging}
+					onDrop={handleDrop}
+					onDragStart={handleDragStart}
+					onClick={handleStudentClick}
+					onUpdateGroup={handleUpdateGroup}
+				/>
+			{/if}
+		</section>
+	{/if}
+	<Inspector {selectedStudentId} />
 </div>

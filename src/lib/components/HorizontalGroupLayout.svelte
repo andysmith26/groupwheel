@@ -14,7 +14,6 @@
 		groups: Group[];
 		selectedStudentId: string | null;
 		currentlyDragging: string | null;
-		showGender: boolean;
 		onDrop: (state: DropState) => void;
 		onDragStart?: (studentId: string) => void;
 		onClick?: (studentId: string) => void;
@@ -25,7 +24,6 @@
 		groups,
 		selectedStudentId,
 		currentlyDragging,
-		showGender,
 		onDrop,
 		onDragStart,
 		onClick,
@@ -37,7 +35,6 @@
 	{#each groups as group (group.id)}
 		<GroupColumn
 			{group}
-			{showGender}
 			{selectedStudentId}
 			{currentlyDragging}
 			{onDrop}
