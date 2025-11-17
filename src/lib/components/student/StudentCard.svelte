@@ -198,10 +198,10 @@
 			</svg>
 		{/if}
 
-		<!-- Gender badge (subtle circle) -->
+		<!-- Gender badge (subtle circle) - Hidden by default, shown on hover/selected -->
 		{#if genderBadge}
 			<span
-				class="gender-dot"
+				class="gender-dot secondary-info"
 				style="background-color: {genderBadge.color};"
 				title="Gender: {student.gender}"
 				aria-label="Gender: {student.gender}"
@@ -214,10 +214,10 @@
 		<span class="student-name">{displayName}</span>
 		<span class="student-id">· {student.id}</span>
 
-		<!-- Happiness badge -->
+		<!-- Happiness badge - Hidden by default, shown on hover/selected -->
 		{#if hasData && happinessStyle}
 			<span
-				class="happiness-badge"
+				class="happiness-badge secondary-info"
 				style="background-color: {happinessStyle.bg}; color: {happinessStyle.text};"
 				title={tooltipText}
 				aria-label="{happinessStyle.label}: {happiness} of {totalFriends} friends in group"
@@ -300,6 +300,30 @@
 		gap: 6px;
 		flex-wrap: nowrap;
 		overflow: hidden;
+	}
+
+	/* Progressive disclosure: Hide secondary info by default */
+	.secondary-info {
+		opacity: 0;
+		transform: scale(0.9);
+		transition:
+			opacity 150ms ease,
+			transform 150ms ease;
+		pointer-events: none; /* Prevent interaction when hidden */
+	}
+
+	/* Show secondary info on hover */
+	.student-card:hover .secondary-info {
+		opacity: 1;
+		transform: scale(1);
+		pointer-events: auto;
+	}
+
+	/* Always show secondary info when selected */
+	.student-card.selected .secondary-info {
+		opacity: 1;
+		transform: scale(1);
+		pointer-events: auto;
 	}
 
 	.friend-icon {
