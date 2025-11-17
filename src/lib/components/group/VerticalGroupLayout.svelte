@@ -71,6 +71,27 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 	function isCollapsed(groupId: string): boolean {
 		return collapsedGroups.has(groupId);
 	}
+
+	/**
+	 * Calculate capacity status for a group (color and warning state)
+	 */
+	function getCapacityStatus(group: Group) {
+		const currentCount = group.memberIds.length;
+
+		if (group.capacity === null) {
+			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for unlimited
+		}
+
+		const percentage = (currentCount / group.capacity) * 100;
+
+		if (percentage >= 100) {
+			return { color: '#dc2626', isWarning: true, isFull: true }; // Red for at/over capacity
+		} else if (percentage >= 80) {
+			return { color: '#f59e0b', isWarning: true, isFull: false }; // Amber for 80-99%
+		} else {
+			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
+		}
+	}
 </script>
 
 <div class="vertical-layout">
@@ -96,11 +117,22 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 				/>
 
 				<div class="capacity-controls">
-					<span class="capacity-current">{group.memberIds.length}</span>
+					{@const status = getCapacityStatus(group)}
+					<span
+						class="capacity-current"
+						class:warning={status.isWarning}
+						class:full={status.isFull}
+						style="color: {status.color};"
+					>
+						{group.memberIds.length}
+					</span>
 					<span class="capacity-separator">/</span>
 					<input
 						type="number"
 						class="capacity-input"
+						class:warning={status.isWarning}
+						class:full={status.isFull}
+						style="color: {status.color};"
 						value={group.capacity ?? ''}
 						min="1"
 						placeholder="∞"
@@ -239,8 +271,16 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 
 	.capacity-current {
 		font-size: 13px;
-		color: #6b7280;
 		font-weight: 500;
+		transition: color 0.2s ease;
+	}
+
+	.capacity-current.warning {
+		font-weight: 600;
+	}
+
+	.capacity-current.full {
+		font-weight: 700;
 	}
 
 	.capacity-separator {
@@ -254,14 +294,21 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		flex-shrink: 0;
 		font-size: 13px;
 		font-weight: 500;
-		color: #6b7280;
 		background: transparent;
 		border: 1px solid transparent;
 		border-radius: 4px;
 		padding: 2px 4px;
 		outline: none;
 		text-align: left;
-		transition: all 0.15s ease;
+		transition: all 0.2s ease;
+	}
+
+	.capacity-input.warning {
+		font-weight: 600;
+	}
+
+	.capacity-input.full {
+		font-weight: 700;
 	}
 
 	.capacity-input::-webkit-inner-spin-button,

@@ -177,6 +177,27 @@
 	aria-label={`${displayName}, happiness ${happiness} of ${totalFriends} friends`}
 >
 	<div class="card-content">
+		<!-- Friend connection indicator (only shown when friend of selected) -->
+		{#if isFriendOfSelected}
+			<svg
+				class="friend-icon"
+				width="16"
+				height="16"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-label="Friend connection"
+			>
+				<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+				<circle cx="9" cy="7" r="4"></circle>
+				<path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+				<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+			</svg>
+		{/if}
+
 		<!-- Gender badge (subtle circle) -->
 		{#if genderBadge}
 			<span
@@ -233,23 +254,20 @@
 	}
 
 	.student-card.friend-highlight {
-		border-color: #10b981;
-		border-width: 2px; /* Keep same as default - no layout shift */
-		background: #d1fae5;
-		/* Use box-shadow for visual "thickness" without layout shift */
-		box-shadow:
-			0 0 0 1px #10b981,
-			0 0 0 4px rgba(16, 185, 129, 0.2);
-		/* Force GPU compositing to prevent repaint jank */
-		transform: translateZ(0);
+		/* Accessible dark blue left border (6.5:1 contrast ratio) */
+		border-left: 2px solid #1976D2;
+		border-top: 2px solid transparent;
+		border-right: 2px solid transparent;
+		border-bottom: 2px solid transparent;
+		background: white; /* Keep background white */
+		/* Minimal shadow for subtle depth */
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 	}
 
 	.student-card.friend-highlight:hover {
-		background: #a7f3d0;
-		border-color: #059669;
-		box-shadow:
-			0 0 0 1px #059669,
-			0 0 0 4px rgba(5, 150, 105, 0.3);
+		background: #f9fafb; /* Consistent with normal hover */
+		border-left-color: #1565C0; /* Slightly darker blue on hover */
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 
 	.student-card.dragging {
@@ -274,6 +292,12 @@
 		gap: 6px;
 		flex-wrap: nowrap;
 		overflow: hidden;
+	}
+
+	.friend-icon {
+		flex-shrink: 0;
+		color: #1976D2; /* Match the border color */
+		opacity: 0.8;
 	}
 
 	.gender-dot {

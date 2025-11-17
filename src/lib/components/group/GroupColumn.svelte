@@ -45,6 +45,23 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 	const currentCount = $derived(group.memberIds.length);
 	const isFull = $derived(group.capacity !== null && currentCount >= group.capacity);
 
+	// Calculate capacity percentage and color
+	const capacityStatus = $derived.by(() => {
+		if (group.capacity === null) {
+			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for unlimited
+		}
+
+		const percentage = (currentCount / group.capacity) * 100;
+
+		if (percentage >= 100) {
+			return { color: '#dc2626', isWarning: true, isFull: true }; // Red for at/over capacity
+		} else if (percentage >= 80) {
+			return { color: '#f59e0b', isWarning: true, isFull: false }; // Amber for 80-99%
+		} else {
+			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
+		}
+	});
+
 	// Determine which students are preferred by the selected student
 	const selectedStudentFriendIds = $derived.by(() => {
 		if (!selectedStudentId) return new Set<string>();
@@ -64,12 +81,21 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 			placeholder="Group name"
 		/>
 		<div class="capacity-controls">
-			<span class="capacity-current" class:full={isFull}>{currentCount}</span>
+			<span
+				class="capacity-current"
+				class:warning={capacityStatus.isWarning}
+				class:full={capacityStatus.isFull}
+				style="color: {capacityStatus.color};"
+			>
+				{currentCount}
+			</span>
 			<span class="capacity-separator">/</span>
 			<input
 				type="number"
 				class="capacity-input"
-				class:full={isFull}
+				class:warning={capacityStatus.isWarning}
+				class:full={capacityStatus.isFull}
+				style="color: {capacityStatus.color};"
 				value={group.capacity ?? ''}
 				min="1"
 				placeholder="∞"
@@ -164,13 +190,16 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 
 	.capacity-current {
 		font-size: 13px;
-		color: #6b7280;
 		font-weight: 500;
-		transition: color 0.15s ease;
+		transition: color 0.2s ease;
 	}
-	.capacity-current.full {
-		color: #dc2626;
+
+	.capacity-current.warning {
 		font-weight: 600;
+	}
+
+	.capacity-current.full {
+		font-weight: 700;
 	}
 	.capacity-separator {
 		font-size: 13px;
@@ -183,14 +212,13 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		flex-shrink: 0; /* Don't shrink or grow */
 		font-size: 13px;
 		font-weight: 500;
-		color: #6b7280;
 		background: transparent;
 		border: 1px solid transparent;
 		border-radius: 4px;
 		padding: 2px 4px; /* Reduced horizontal padding */
 		outline: none;
 		text-align: left;
-		transition: all 0.15s ease;
+		transition: all 0.2s ease;
 	}
 
 	/* Hide number input spinner arrows */
@@ -215,9 +243,12 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 	}
 
-	.capacity-input.full {
-		color: #dc2626;
+	.capacity-input.warning {
 		font-weight: 600;
+	}
+
+	.capacity-input.full {
+		font-weight: 700;
 	}
 
 	.capacity-input::placeholder {
