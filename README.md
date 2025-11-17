@@ -282,7 +282,7 @@ git push origin main  # GitHub → Vercel auto-deploy
 - `src/lib/components/` - All UI components (Inspector, layouts, cards)
 
 ### Types
-- `src/lib/types.ts` - Shared TypeScript definitions
+- `$lib/types` - Shared TypeScript definitions
 
 ### Documentation
 - `docs/decisions/` - Architectural decision records

@@ -14,7 +14,15 @@ import type { Student, Group } from '$lib/types';
  * Handles edge cases where either name might be missing.
  */
 export function getDisplayName(student: Student): string {
-        return `${student.firstName} ${student.lastName}`.trim();
+        const first = student.firstName ?? '';
+        const last = student.lastName ?? '';
+        const combined = `${first} ${last}`.trim();
+        if (combined.length > 0) {
+                return combined;
+        }
+        const metaDisplayName =
+                typeof student.meta?.displayName === 'string' ? student.meta.displayName : '';
+        return metaDisplayName || student.id;
 }
 
 /**

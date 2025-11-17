@@ -25,7 +25,7 @@ We introduce a new `StudentPreference` interface in `src/lib/types/preferences.t
 - `avoidGroupIds`: A **set** of group IDs the student wants to avoid.
 - `meta`: An optional bag of key/value pairs for additional flags (e.g. `wantsAtLeastOneFriend`, `preferredGroupSize`, etc.).
 
-The `Student` type in `src/lib/types.ts` is updated to **remove** `friendIds` and instead includes only stable identity and display fields (`id`, `firstName`, `lastName`, `gender`, and an optional `meta` map). Preferences are always modeled via `StudentPreference`, never on `Student` itself. A new `Scenario` type documents how students, groups and preferences fit together.
+The `Student` type exposed from `$lib/types` is updated to **remove** `friendIds` and instead includes only stable identity and display fields (`id`, `firstName`, `lastName`, `gender`, and an optional `meta` map). Preferences are always modeled via `StudentPreference`, never on `Student` itself. A new `Scenario` type documents how students, groups and preferences fit together.
 
 ### 2. Import wizard configuration and parsing
 
