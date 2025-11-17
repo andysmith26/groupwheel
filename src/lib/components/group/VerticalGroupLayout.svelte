@@ -34,6 +34,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		selectedStudentId: string | null;
 		currentlyDragging: string | null;
 		collapsedGroups: Set<string>;
+		flashingContainer: string | null;
 		onDrop: (state: DropState) => void;
 		onDragStart?: (studentId: string) => void;
 		onClick?: (studentId: string) => void;
@@ -46,6 +47,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		selectedStudentId,
 		currentlyDragging,
 		collapsedGroups,
+		flashingContainer,
 		onDrop,
 		onDragStart,
 		onClick,
@@ -149,6 +151,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 			{#if !isCollapsed(group.id)}
 				<div
 					class="group-row-members"
+					class:flash-success={flashingContainer === group.id}
 					use:droppable={{ container: group.id, callbacks: { onDrop } }}
 				>
 					{#each group.memberIds as studentId (studentId)}
@@ -178,6 +181,16 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
+	@keyframes flash {
+		0%,
+		100% {
+			background: transparent;
+		}
+		50% {
+			background: rgba(59, 130, 246, 0.2);
+		}
+	}
+
 	.vertical-layout {
 		display: flex;
 		flex-direction: column;
@@ -344,6 +357,18 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		min-height: 60px;
 		/* Rendering isolation to prevent layout thrashing during animations */
 		contain: layout style paint;
+		/* Smooth transition for drop feedback */
+		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
+	}
+
+	/* Atlassian-style drop target feedback */
+	.group-row-members:global(.drop-target-active) {
+		background: rgba(59, 130, 246, 0.1);
+	}
+
+	/* Success flash animation */
+	.group-row-members.flash-success {
+		animation: flash 700ms ease-in-out;
 	}
 
 	.empty-state {

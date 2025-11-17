@@ -69,6 +69,18 @@
         // Collapse state for vertical layout
         let collapsedGroups = $state<Set<string>>(new Set());
 
+        // Flash state for success feedback
+        let flashingContainer = $state<string | null>(null);
+
+        // Trigger flash animation on successful drop
+        function triggerFlash(containerId: string) {
+                flashingContainer = containerId;
+                // Clear flash after 700ms
+                setTimeout(() => {
+                        flashingContainer = null;
+                }, 700);
+        }
+
         const {
                 toggleCollapse,
                 handleDragStart,
@@ -81,7 +93,8 @@
                 setCollapsedGroups: (next) => (collapsedGroups = next),
                 getSelectedStudentId: () => selectedStudentId,
                 setSelectedStudentId: (value) => (selectedStudentId = value),
-                setCurrentlyDragging: (value) => (currentlyDragging = value)
+                setCurrentlyDragging: (value) => (currentlyDragging = value),
+                triggerFlash
         });
 
         const { clearAndRandomAssign, autoAssignBalanced, studentHappiness } =
@@ -578,6 +591,7 @@
 				studentIds={unassigned}
 				{selectedStudentId}
 				{currentlyDragging}
+				{flashingContainer}
 				onDrop={handleDrop}
 				onDragStart={handleDragStart}
 				onClick={handleStudentClick}
@@ -605,6 +619,7 @@
 					{selectedStudentId}
 					{currentlyDragging}
 					{collapsedGroups}
+					{flashingContainer}
 					onDrop={handleDrop}
 					onDragStart={handleDragStart}
 					onClick={handleStudentClick}
@@ -616,6 +631,7 @@
 					{groups}
 					{selectedStudentId}
 					{currentlyDragging}
+					{flashingContainer}
 					onDrop={handleDrop}
 					onDragStart={handleDragStart}
 					onClick={handleStudentClick}

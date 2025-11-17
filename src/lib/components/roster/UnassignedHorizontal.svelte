@@ -16,6 +16,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
                 studentIds?: string[];
                 selectedStudentId: string | null;
                 currentlyDragging: string | null;
+                flashingContainer: string | null;
                 onDrop: (state: DropState) => void;
                 onDragStart?: (studentId: string) => void;
                 onClick?: (studentId: string) => void;
@@ -25,6 +26,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
                 studentIds = [],
                 selectedStudentId,
                 currentlyDragging,
+                flashingContainer,
                 onDrop,
                 onDragStart,
                 onClick
@@ -48,7 +50,11 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		<span class="count">{studentIds.length}</span>
 	</div>
 
-	<div class="unassigned-roster" use:droppable={{ container: 'unassigned', callbacks: { onDrop } }}>
+	<div
+		class="unassigned-roster"
+		class:flash-success={flashingContainer === 'unassigned'}
+		use:droppable={{ container: 'unassigned', callbacks: { onDrop } }}
+	>
 		{#each studentIds as studentId (studentId)}
 			{@const student = studentsById[studentId]}
 			{#if student}
@@ -73,6 +79,16 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
+	@keyframes flash {
+		0%,
+		100% {
+			background: transparent;
+		}
+		50% {
+			background: rgba(59, 130, 246, 0.2);
+		}
+	}
+
 	.unassigned-horizontal {
 		background: white;
 		border: 2px dashed #d1d5db;
@@ -110,6 +126,18 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		align-items: flex-start;
 		/* Rendering isolation to prevent layout thrashing during animations */
 		contain: layout style paint;
+		/* Smooth transition for drop feedback */
+		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
+	}
+
+	/* Atlassian-style drop target feedback */
+	.unassigned-roster:global(.drop-target-active) {
+		background: rgba(59, 130, 246, 0.1);
+	}
+
+	/* Success flash animation */
+	.unassigned-roster.flash-success {
+		animation: flash 700ms ease-in-out;
 	}
 
 	.empty-state {

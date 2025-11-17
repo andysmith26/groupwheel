@@ -14,6 +14,7 @@ import GroupColumn from '$lib/components/group/GroupColumn.svelte';
 		groups: Group[];
 		selectedStudentId: string | null;
 		currentlyDragging: string | null;
+		flashingContainer: string | null;
 		onDrop: (state: DropState) => void;
 		onDragStart?: (studentId: string) => void;
 		onClick?: (studentId: string) => void;
@@ -24,6 +25,7 @@ import GroupColumn from '$lib/components/group/GroupColumn.svelte';
 		groups,
 		selectedStudentId,
 		currentlyDragging,
+		flashingContainer,
 		onDrop,
 		onDragStart,
 		onClick,
@@ -37,6 +39,7 @@ import GroupColumn from '$lib/components/group/GroupColumn.svelte';
 			{group}
 			{selectedStudentId}
 			{currentlyDragging}
+			isFlashing={flashingContainer === group.id}
 			{onDrop}
 			{onDragStart}
 			{onClick}

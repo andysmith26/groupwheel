@@ -10,6 +10,7 @@ interface UiControlsDependencies {
         getSelectedStudentId: () => string | null;
         setSelectedStudentId: (value: string | null) => void;
         setCurrentlyDragging: (value: string | null) => void;
+        triggerFlash?: (containerId: string) => void;
 }
 
 export function createUiControlsStore({
@@ -19,7 +20,8 @@ export function createUiControlsStore({
         setCollapsedGroups,
         getSelectedStudentId,
         setSelectedStudentId,
-        setCurrentlyDragging
+        setCurrentlyDragging,
+        triggerFlash
 }: UiControlsDependencies) {
         function toggleCollapse(groupId: string) {
                 const next = new Set(getCollapsedGroups());
@@ -75,6 +77,9 @@ export function createUiControlsStore({
                         groupId: targetContainer,
                         previousGroupId: sourceContainer ?? undefined
                 });
+
+                // Trigger success flash on target container
+                triggerFlash?.(targetContainer);
 
                 setCurrentlyDragging(null);
         }
