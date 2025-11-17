@@ -362,6 +362,50 @@ For strategic choices (scope, architecture, product, process):
 - Derived state via `$derived` or `$derived.by()`
 - State via `$state`
 
+### Stores ($state runes)
+- Keep each store inside a `.svelte.ts` file and model it as a class with `$state` fields.
+- Provide intent-revealing helpers (`toggleX`, `reset`, `setX`) instead of mutating state from components.
+- Co-locate a tiny spec near the store when adding new behavior. `src/lib/stores/uiSettings.spec.ts` shows the baseline expectations.
+
+```ts
+// src/lib/stores/uiSettings.svelte.ts
+export class UiSettingsStore {
+showGender = $state(true);
+highlightUnhappy = $state(false);
+
+setShowGender(value: boolean) {
+this.showGender = value;
+}
+
+toggleHighlightUnhappy() {
+this.highlightUnhappy = !this.highlightUnhappy;
+}
+
+reset() {
+this.showGender = true;
+this.highlightUnhappy = false;
+}
+}
+
+export const uiSettings = new UiSettingsStore();
+```
+
+```svelte
+<!-- Consuming components stay reactive via $derived -->
+<script lang="ts">
+import { uiSettings } from '$lib/stores/uiSettings.svelte';
+const showGender = $derived(uiSettings.showGender);
+
+function handleToggle(event: Event) {
+const input = event.currentTarget as HTMLInputElement | null;
+if (!input) return;
+uiSettings.setShowGender(input.checked);
+}
+</script>
+
+<input type="checkbox" checked={showGender} on:change={handleToggle} />
+```
+
 ### Comments
 - JSDoc for public APIs
 - Inline comments for non-obvious logic

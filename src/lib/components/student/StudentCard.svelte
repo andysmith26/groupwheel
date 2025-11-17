@@ -41,6 +41,8 @@
 	const prefMap = preferencesById ?? {};
 
 	const groups = $derived(commandStore.groups);
+	const showGenderSetting = $derived(uiSettings.showGender);
+	const highlightUnhappySetting = $derived(uiSettings.highlightUnhappy);
 
 	// Derive display values
         const displayName = $derived(getDisplayName(student));
@@ -101,7 +103,7 @@
 
 	// Gender badge configuration
 	const genderBadge = $derived.by(() => {
-		if (!uiSettings.showGender || !student.gender) return null;
+		if (!showGenderSetting || !student.gender) return null;
 
 		const g = student.gender.toUpperCase();
 		if (g === 'F') return { label: 'F', color: '#a855f7' }; // Purple
@@ -152,7 +154,7 @@
 	// Determine if student needs assistance (happiness < 2)
 	const needsAssistance = $derived(hasData && happiness < 2);
 	// Determine if we should show needs-assistance styling
-	const shouldHighlightUnhappy = $derived(uiSettings.highlightUnhappy && needsAssistance);
+	const shouldHighlightUnhappy = $derived(highlightUnhappySetting && needsAssistance);
 </script>
 
 <div

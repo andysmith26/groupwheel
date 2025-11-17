@@ -11,6 +11,7 @@
 	import type { StudentPreference } from '$lib/types/preferences';
 	import { commandStore } from '$lib/stores/commands.svelte';
 	import { createUiControlsStore } from '$lib/stores/uiControlsStore';
+	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 	import {
 		SHEET_DATA_GUIDANCE,
 		SheetDataError,
@@ -44,12 +45,12 @@
 	// controls
 	let numberOfGroups = $state(4);
 	let targetGroupSize = $state(10);
-	let showGender = $state(true);
 
 	// groups
 	// Read groups from store (reactive)
 	// This creates a reactive reference - when store's groups change, UI updates
 	let groups = $derived(commandStore.groups);
+	const showGenderSetting = $derived(uiSettings.showGender);
 	const unassigned = $derived.by(() => {
 		const assignedIds = new Set(groups.flatMap((g) => g.memberIds));
 		return studentOrder.filter((id) => !assignedIds.has(id));
@@ -127,6 +128,13 @@
 		selectedStudentId = null;
 		parseError = null;
 		unknownFriendIds = new Set();
+		uiSettings.reset();
+	}
+
+	function handleShowGenderChange(event: Event) {
+		const input = event.currentTarget as HTMLInputElement | null;
+		if (!input) return;
+		uiSettings.setShowGender(input.checked);
 	}
 
 	function clearAssignments() {
@@ -417,7 +425,11 @@
 			</div>
 
 			<label class="flex items-center gap-2 text-sm">
-				<input type="checkbox" bind:checked={showGender} />
+				<input
+					type="checkbox"
+					checked={showGenderSetting}
+					on:change={handleShowGenderChange}
+				/>
 				Show gender badges
 			</label>
 
