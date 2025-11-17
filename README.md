@@ -279,7 +279,13 @@ git push origin main  # GitHub → Vercel auto-deploy
 - `src/lib/utils/friends.ts` - Pure utility functions
 
 ### Components
-- `src/lib/components/` - All UI components (Inspector, layouts, cards)
+- `src/lib/components/student/` - Student-level UI (cards, avatars, badges)
+- `src/lib/components/group/` - Group containers and layouts (columns, vertical/horizontal grids)
+- `src/lib/components/roster/` - Roster-level utilities (unassigned lists, bulk student views)
+- `src/lib/components/inspector/` - Detail panes focused on a single student (Inspector, tabs)
+- `src/lib/components/statistics/` - Cross-cutting analytics widgets (banners, alerts)
+
+> **Convention:** When adding a component, place it in the folder that matches its primary responsibility. If a component spans multiple concerns, prefer composing existing components instead of creating a "misc" folder. Use the `$lib/components/<area>/ComponentName.svelte` alias path when importing across folders so refactors remain localized.
 
 ### Types
 - `$lib/types` - Shared TypeScript definitions

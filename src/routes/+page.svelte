@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { setAppDataContext } from '$lib/contexts/appData';
-	import HorizontalGroupLayout from '$lib/components/HorizontalGroupLayout.svelte';
-	import VerticalGroupLayout from '$lib/components/VerticalGroupLayout.svelte';
-	import Inspector from '$lib/components/Inspector/Inspector.svelte';
-	import UnassignedHorizontal from '$lib/components/UnassignedHorizontal.svelte';
+        import HorizontalGroupLayout from '$lib/components/group/HorizontalGroupLayout.svelte';
+        import VerticalGroupLayout from '$lib/components/group/VerticalGroupLayout.svelte';
+        import Inspector from '$lib/components/inspector/Inspector.svelte';
+        import UnassignedHorizontal from '$lib/components/roster/UnassignedHorizontal.svelte';
 	import { ensurePreferences } from '$lib/data/roster';
 	import { getDisplayName } from '$lib/utils/friends';
 	import { initializeDragMonitor, type DropState } from '$lib/utils/pragmatic-dnd';
