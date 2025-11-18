@@ -15,8 +15,9 @@
 	import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
 	import type { Group } from '$lib/types';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
+	import { CAPACITY_WARNING_THRESHOLD, CAPACITY_FULL_THRESHOLD } from '$lib/constants/capacity';
 
 	interface Props {
 		group: Group;
@@ -55,9 +56,9 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 
 		const percentage = (currentCount / group.capacity) * 100;
 
-		if (percentage >= 100) {
+		if (percentage >= CAPACITY_FULL_THRESHOLD) {
 			return { color: '#dc2626', isWarning: true, isFull: true }; // Red for at/over capacity
-		} else if (percentage >= 80) {
+		} else if (percentage >= CAPACITY_WARNING_THRESHOLD) {
 			return { color: '#f59e0b', isWarning: true, isFull: false }; // Amber for 80-99%
 		} else {
 			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
