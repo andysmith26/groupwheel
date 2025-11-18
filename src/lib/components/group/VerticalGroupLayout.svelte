@@ -14,6 +14,7 @@
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
+	import { CAPACITY_WARNING_THRESHOLD, CAPACITY_FULL_THRESHOLD } from '$lib/constants/capacity';
 
 	/**
 	 * Props accepted by VerticalGroupLayout.
@@ -86,9 +87,9 @@
 
 		const percentage = (currentCount / group.capacity) * 100;
 
-		if (percentage >= 100) {
+		if (percentage >= CAPACITY_FULL_THRESHOLD) {
 			return { color: 'var(--capacity-red)', isWarning: true, isFull: true }; // Red for at/over capacity
-		} else if (percentage >= 80) {
+		} else if (percentage >= CAPACITY_WARNING_THRESHOLD) {
 			return { color: 'var(--capacity-amber)', isWarning: true, isFull: false }; // Amber for 80-99%
 		} else {
 			return { color: 'var(--capacity-gray)', isWarning: false, isFull: false }; // Gray for < 80%
