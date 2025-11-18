@@ -8,29 +8,29 @@
 
 	import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import type { StudentPreference } from '$lib/types/preferences';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
-        interface Props {
-                studentIds?: string[];
-                selectedStudentId: string | null;
-                currentlyDragging: string | null;
-                flashingContainer: string | null;
-                onDrop: (state: DropState) => void;
-                onDragStart?: (studentId: string) => void;
-                onClick?: (studentId: string) => void;
-        }
+	interface Props {
+		studentIds?: string[];
+		selectedStudentId: string | null;
+		currentlyDragging: string | null;
+		flashingContainer: string | null;
+		onDrop: (state: DropState) => void;
+		onDragStart?: (studentId: string) => void;
+		onClick?: (studentId: string) => void;
+	}
 
-        let {
-                studentIds = [],
-                selectedStudentId,
-                currentlyDragging,
-                flashingContainer,
-                onDrop,
-                onDragStart,
-                onClick
-        }: Props = $props();
+	let {
+		studentIds = [],
+		selectedStudentId,
+		currentlyDragging,
+		flashingContainer,
+		onDrop,
+		onDragStart,
+		onClick
+	}: Props = $props();
 
 	// Access students and preferences from context
 	const { studentsById, preferencesById } = getAppDataContext();
@@ -79,16 +79,6 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
-	@keyframes flash {
-		0%,
-		100% {
-			background: transparent;
-		}
-		50% {
-			background: rgba(59, 130, 246, 0.2);
-		}
-	}
-
 	.unassigned-horizontal {
 		background: white;
 		border: 2px dashed #d1d5db;
