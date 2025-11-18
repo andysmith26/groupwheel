@@ -12,7 +12,7 @@
 	import type { DropState } from '$lib/utils/pragmatic-dnd';
 	import { droppable } from '$lib/utils/pragmatic-dnd';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
 	/**
@@ -99,6 +99,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 <div class="vertical-layout">
 	<!-- Group rows -->
 	{#each groups as group (group.id)}
+		{@const status = getCapacityStatus(group)}
 		<div class="group-row" class:collapsed={isCollapsed(group.id)}>
 			<div class="group-row-header">
 				<button
@@ -119,7 +120,6 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 				/>
 
 				<div class="capacity-controls">
-					{@const status = getCapacityStatus(group)}
 					<span
 						class="capacity-current"
 						class:warning={status.isWarning}
@@ -181,6 +181,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
+	@import '$lib/styles/drag-drop.css';
+
 	.vertical-layout {
 		display: flex;
 		flex-direction: column;
@@ -349,11 +351,6 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		contain: layout style paint;
 		/* Smooth transition for drop feedback */
 		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
-	}
-
-	/* Atlassian-style drop target feedback */
-	.group-row-members:global(.drop-target-active) {
-		background: rgba(59, 130, 246, 0.1);
 	}
 
 	/* Success flash animation */

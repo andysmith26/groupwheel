@@ -322,9 +322,9 @@ export const commandStore = {
 	get canUndo() {
 		return canUndo;
 	},
-        get canRedo() {
-                return canRedo;
-        }
+	get canRedo() {
+		return canRedo;
+	}
 };
 
 export type CommandStore = typeof commandStore;

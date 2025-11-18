@@ -15,7 +15,7 @@
 	import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
 	import type { Group } from '$lib/types';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
 	interface Props {
@@ -144,6 +144,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 
 <style>
 	@import '$lib/styles/animations.css';
+	@import '$lib/styles/drag-drop.css';
 
 	.group-column {
 		background: #f9fafb;
@@ -272,11 +273,6 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		contain: layout style paint;
 		/* Smooth transition for drop feedback */
 		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
-	}
-
-	/* Atlassian-style drop target feedback */
-	.group-members:global(.drop-target-active) {
-		background: rgba(59, 130, 246, 0.1);
 	}
 
 	/* Success flash animation */
