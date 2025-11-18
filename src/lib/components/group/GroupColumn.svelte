@@ -15,7 +15,7 @@
 	import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
 	import type { Group } from '$lib/types';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
 	interface Props {
