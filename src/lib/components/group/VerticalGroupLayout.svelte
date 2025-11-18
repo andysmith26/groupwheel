@@ -81,17 +81,17 @@
 		const currentCount = group.memberIds.length;
 
 		if (group.capacity === null) {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for unlimited
+			return { color: 'var(--capacity-gray)', isWarning: false, isFull: false }; // Gray for unlimited
 		}
 
 		const percentage = (currentCount / group.capacity) * 100;
 
 		if (percentage >= 100) {
-			return { color: '#dc2626', isWarning: true, isFull: true }; // Red for at/over capacity
+			return { color: 'var(--capacity-red)', isWarning: true, isFull: true }; // Red for at/over capacity
 		} else if (percentage >= 80) {
-			return { color: '#f59e0b', isWarning: true, isFull: false }; // Amber for 80-99%
+			return { color: 'var(--capacity-amber)', isWarning: true, isFull: false }; // Amber for 80-99%
 		} else {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
+			return { color: 'var(--capacity-gray)', isWarning: false, isFull: false }; // Gray for < 80%
 		}
 	}
 </script>
