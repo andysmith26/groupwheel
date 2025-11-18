@@ -1,1 +1,8 @@
 @import 'tailwindcss';
+
+/* Capacity status colors */
+:root {
+	--capacity-gray: #6b7280;
+	--capacity-amber: #f59e0b;
+	--capacity-red: #dc2626;
+}
