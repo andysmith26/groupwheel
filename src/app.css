@@ -1,1 +1,7 @@
 @import 'tailwindcss';
+
+/* Performance optimization utilities */
+/* Rendering isolation to prevent layout thrashing during animations */
+.rendering-isolated {
+	contain: layout style paint;
+}
