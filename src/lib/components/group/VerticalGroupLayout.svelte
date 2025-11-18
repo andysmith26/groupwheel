@@ -181,6 +181,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
+	@import '$lib/styles/animations.css';
+
 	.vertical-layout {
 		display: flex;
 		flex-direction: column;

@@ -79,6 +79,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
+	@import '$lib/styles/animations.css';
+
 	.unassigned-horizontal {
 		background: white;
 		border: 2px dashed #d1d5db;

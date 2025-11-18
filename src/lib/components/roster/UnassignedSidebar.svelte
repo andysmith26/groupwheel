@@ -116,6 +116,8 @@
 </div>
 
 <style>
+	@import '$lib/styles/animations.css';
+
 	.unassigned-sidebar {
 		background: #f3f4f6; /* Slightly darker than groups */
 		border: 2px solid #d1d5db;

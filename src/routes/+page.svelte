@@ -22,6 +22,7 @@
 		type RosterData
 	} from '$lib/services/rosterImport';
 	import { createGroupAssignmentService } from '$lib/services/groupAssignment';
+	import { FLASH_ANIMATION_DURATION_MS } from '$lib/constants/animations';
 	import { onMount } from 'svelte';
 
 	// ---------- STATE ----------
@@ -78,10 +79,10 @@
         // Trigger flash animation on successful drop
         function triggerFlash(containerId: string) {
                 flashingContainer = containerId;
-                // Clear flash after 700ms
+                // Clear flash after animation completes
                 setTimeout(() => {
                         flashingContainer = null;
-                }, 700);
+                }, FLASH_ANIMATION_DURATION_MS);
         }
 
         const {
