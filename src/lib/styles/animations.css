@@ -1,4 +1,5 @@
-/* Flash animation for success feedback */
+/* Shared animations used across components */
+
 @keyframes flash {
 	0%,
 	100% {

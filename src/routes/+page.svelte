@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { setAppDataContext } from '$lib/contexts/appData';
-        import HorizontalGroupLayout from '$lib/components/group/HorizontalGroupLayout.svelte';
-        import VerticalGroupLayout from '$lib/components/group/VerticalGroupLayout.svelte';
-        import Inspector from '$lib/components/inspector/Inspector.svelte';
-        import UnassignedSidebar from '$lib/components/roster/UnassignedSidebar.svelte';
+	import HorizontalGroupLayout from '$lib/components/group/HorizontalGroupLayout.svelte';
+	import VerticalGroupLayout from '$lib/components/group/VerticalGroupLayout.svelte';
+	import Inspector from '$lib/components/inspector/Inspector.svelte';
+	import UnassignedSidebar from '$lib/components/roster/UnassignedSidebar.svelte';
 	import { ensurePreferences } from '$lib/data/roster';
 	import { getDisplayName } from '$lib/utils/friends';
 	import { initializeDragMonitor, type DropState } from '$lib/utils/pragmatic-dnd';
@@ -23,6 +23,9 @@
 	} from '$lib/services/rosterImport';
 	import { createGroupAssignmentService } from '$lib/services/groupAssignment';
 	import { onMount } from 'svelte';
+
+	// ---------- CONSTANTS ----------
+	const FLASH_ANIMATION_DURATION_MS = 700;
 
 	// ---------- STATE ----------
 	let rawPaste = $state('');
@@ -59,59 +62,55 @@
 	// selection/highlight
 	let selectedStudentId = $state<string | null>(null);
 
-        let isLoadingFromSheet = $state(false);
-        let sheetLoadError = $state('');
-        let sheetLoadGuidance = $state<string[]>([]);
+	let isLoadingFromSheet = $state(false);
+	let sheetLoadError = $state('');
+	let sheetLoadGuidance = $state<string[]>([]);
 
-        // Add after other state declarations (around line 40)
-        let currentlyDragging = $state<string | null>(null); // student ID being dragged
+	// Add after other state declarations (around line 40)
+	let currentlyDragging = $state<string | null>(null); // student ID being dragged
 
-        // Collapse state for vertical layout
-        let collapsedGroups = $state<Set<string>>(new Set());
+	// Collapse state for vertical layout
+	let collapsedGroups = $state<Set<string>>(new Set());
 
-        // Flash state for success feedback
-        let flashingContainer = $state<string | null>(null);
+	// Flash state for success feedback
+	let flashingContainer = $state<string | null>(null);
 
-        // Sidebar collapse state
-        let sidebarCollapsed = $state(false);
+	// Sidebar collapse state
+	let sidebarCollapsed = $state(false);
 
-        // Trigger flash animation on successful drop
-        function triggerFlash(containerId: string) {
-                flashingContainer = containerId;
-                // Clear flash after 700ms
-                setTimeout(() => {
-                        flashingContainer = null;
-                }, 700);
-        }
+	// Trigger flash animation on successful drop
+	function triggerFlash(containerId: string) {
+		flashingContainer = containerId;
+		setTimeout(() => {
+			flashingContainer = null;
+		}, FLASH_ANIMATION_DURATION_MS);
+	}
 
-        const {
-                toggleCollapse,
-                handleDragStart,
-                handleStudentClick,
-                handleDrop
-        } = createUiControlsStore({
-                getGroups: () => groups,
-                commandStore,
-                getCollapsedGroups: () => collapsedGroups,
-                setCollapsedGroups: (next) => (collapsedGroups = next),
-                getSelectedStudentId: () => selectedStudentId,
-                setSelectedStudentId: (value) => (selectedStudentId = value),
-                setCurrentlyDragging: (value) => (currentlyDragging = value),
-                triggerFlash
-        });
+	const { toggleCollapse, handleDragStart, handleStudentClick, handleDrop } = createUiControlsStore(
+		{
+			getGroups: () => groups,
+			commandStore,
+			getCollapsedGroups: () => collapsedGroups,
+			setCollapsedGroups: (next) => (collapsedGroups = next),
+			getSelectedStudentId: () => selectedStudentId,
+			setSelectedStudentId: (value) => (selectedStudentId = value),
+			setCurrentlyDragging: (value) => (currentlyDragging = value),
+			triggerFlash
+		}
+	);
 
-        const { clearAndRandomAssign, autoAssignBalanced, studentHappiness } =
-                createGroupAssignmentService({
-                        commandStore,
-                        getGroups: () => groups,
-                        getStudentOrder: () => studentOrder,
-                        getPreferencesById: () => preferencesById,
-                        getStudentsById: () => studentsById,
-                        resetCollapsedGroups: () => (collapsedGroups = new Set())
-                });
+	const { clearAndRandomAssign, autoAssignBalanced, studentHappiness } =
+		createGroupAssignmentService({
+			commandStore,
+			getGroups: () => groups,
+			getStudentOrder: () => studentOrder,
+			getPreferencesById: () => preferencesById,
+			getStudentsById: () => studentsById,
+			resetCollapsedGroups: () => (collapsedGroups = new Set())
+		});
 
-        // Layout mode determination
-        const useVerticalLayout = $derived(groups.length > 5);
+	// Layout mode determination
+	const useVerticalLayout = $derived(groups.length > 5);
 
 	// Set up context - must be at top level, not in $effect
 	// Provide students and preferences to child components
@@ -127,17 +126,17 @@
 	// ---------- HELPERS ----------
 	const uid = () => Math.random().toString(36).slice(2, 9);
 
-        function applyRosterData(data: RosterData) {
-                Object.keys(studentsById).forEach((key) => delete studentsById[key]);
-                Object.keys(preferencesById).forEach((key) => delete preferencesById[key]);
+	function applyRosterData(data: RosterData) {
+		Object.keys(studentsById).forEach((key) => delete studentsById[key]);
+		Object.keys(preferencesById).forEach((key) => delete preferencesById[key]);
 
-                Object.assign(studentsById, data.studentsById);
-                Object.assign(preferencesById, data.preferencesById);
+		Object.assign(studentsById, data.studentsById);
+		Object.assign(preferencesById, data.preferencesById);
 
-                studentOrder = data.studentOrder;
-                unknownFriendIds = data.unknownFriendIds;
-                parseError = '';
-        }
+		studentOrder = data.studentOrder;
+		unknownFriendIds = data.unknownFriendIds;
+		parseError = '';
+	}
 
 	function resetAll() {
 		groups = [];
@@ -193,81 +192,81 @@
 		commandStore.initializeGroups(newGroups);
 	}
 
-        // ---------- TEST DATA ----------
-        function loadTestData() {
-                console.log('🧪 loadTestData called');
-                sheetLoadError = '';
-                sheetLoadGuidance = [];
+	// ---------- TEST DATA ----------
+	function loadTestData() {
+		console.log('🧪 loadTestData called');
+		sheetLoadError = '';
+		sheetLoadGuidance = [];
 
-                try {
-                        resetAll();
-                        const { students, connections } = getTestRosterDataset();
-                        const parsed = parseRosterFromSheets(students, connections);
-                        applyRosterData(parsed);
+		try {
+			resetAll();
+			const { students, connections } = getTestRosterDataset();
+			const parsed = parseRosterFromSheets(students, connections);
+			applyRosterData(parsed);
 
-                        numberOfGroups = 5;
-                        mode = 'COUNT';
-                        initGroups();
+			numberOfGroups = 5;
+			mode = 'COUNT';
+			initGroups();
 
-                        console.log('🎯 loadTestData complete:', {
-                                studentsById: Object.keys(studentsById).length,
-                                studentOrder: studentOrder.length,
-                                preferencesById: Object.keys(preferencesById).length,
-                                groups: groups.length,
-                                unassigned: unassigned.length
-                        });
-                } catch (error) {
-                        parseError = error instanceof Error ? error.message : 'Unknown error';
-                }
-        }
+			console.log('🎯 loadTestData complete:', {
+				studentsById: Object.keys(studentsById).length,
+				studentOrder: studentOrder.length,
+				preferencesById: Object.keys(preferencesById).length,
+				groups: groups.length,
+				unassigned: unassigned.length
+			});
+		} catch (error) {
+			parseError = error instanceof Error ? error.message : 'Unknown error';
+		}
+	}
 	// ---------- LOAD FROM SHEETS API ----------
 
-        async function loadFromSheets() {
-                isLoadingFromSheet = true;
-                sheetLoadError = '';
-                sheetLoadGuidance = [];
+	async function loadFromSheets() {
+		isLoadingFromSheet = true;
+		sheetLoadError = '';
+		sheetLoadGuidance = [];
 
-                try {
-                        const response = await fetch('/api/data');
+		try {
+			const response = await fetch('/api/data');
 
-                        if (!response.ok) {
-                                const errorData = await response.json().catch(() => ({}));
-                                throw new Error(errorData.error || 'Failed to load from Google Sheets');
-                        }
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.error || 'Failed to load from Google Sheets');
+			}
 
-                        const result = await response.json();
+			const result = await response.json();
 
-                        if (!result.success) {
-                                throw new SheetDataError('Google Sheets did not return a successful response.');
-                        }
+			if (!result.success) {
+				throw new SheetDataError('Google Sheets did not return a successful response.');
+			}
 
-                        const { students: normalizedStudents, connections: normalizedConnections } =
-                                normalizeSheetResponse(result);
+			const { students: normalizedStudents, connections: normalizedConnections } =
+				normalizeSheetResponse(result);
 
-                        resetAll();
-                        const parsed = parseRosterFromSheets(normalizedStudents, normalizedConnections);
-                        applyRosterData(parsed);
+			resetAll();
+			const parsed = parseRosterFromSheets(normalizedStudents, normalizedConnections);
+			applyRosterData(parsed);
 
-                        initGroups();
-                        sheetLoadGuidance = [];
+			initGroups();
+			sheetLoadGuidance = [];
 
-                        console.log(`✅ Loaded ${result.studentCount} students from Google Sheets`);
-                } catch (error) {
-                        console.error('Failed to load from Google Sheets:', error);
-                        if (error instanceof SheetDataError) {
-                                sheetLoadError = error.message;
-                                sheetLoadGuidance = error.guidance;
-                                parseError = error.message;
-                        } else {
-                                const message = error instanceof Error ? error.message : 'Unknown error';
-                                sheetLoadError = message;
-                                sheetLoadGuidance = [];
-                                parseError = message;
-                        }
-                } finally {
-                        isLoadingFromSheet = false;
-                }
-        }
+			console.log(`✅ Loaded ${result.studentCount} students from Google Sheets`);
+		} catch (error) {
+			console.error('Failed to load from Google Sheets:', error);
+			if (error instanceof SheetDataError) {
+				sheetLoadError = error.message;
+				sheetLoadGuidance = error.guidance;
+				parseError = error.message;
+			} else {
+				const message = error instanceof Error ? error.message : 'Unknown error';
+				sheetLoadError = message;
+				sheetLoadGuidance = [];
+				parseError = message;
+			}
+		} finally {
+			isLoadingFromSheet = false;
+		}
+	}
 
 	// ---------- PARSING ----------
 	/**
@@ -280,21 +279,21 @@
 	 * - Some students have no friends listed (friend columns may be empty or absent).
 	 * - Some friend ids may not exist in the dataset → ignored.
 	 */
-        function parsePasted(text: string) {
-                resetAll();
-                sheetLoadError = '';
-                sheetLoadGuidance = [];
+	function parsePasted(text: string) {
+		resetAll();
+		sheetLoadError = '';
+		sheetLoadGuidance = [];
 
-                try {
-                        const parsed = parseRosterFromPaste(text);
-                        applyRosterData(parsed);
-                        initGroups();
-                } catch (error) {
-                        parseError = error instanceof Error ? error.message : 'Unknown error';
-                }
-        }
+		try {
+			const parsed = parseRosterFromPaste(text);
+			applyRosterData(parsed);
+			initGroups();
+		} catch (error) {
+			parseError = error instanceof Error ? error.message : 'Unknown error';
+		}
+	}
 
-        // Parsing helpers now live in $lib/services/rosterImport.ts
+	// Parsing helpers now live in $lib/services/rosterImport.ts
 
 	// ---------- DnD with Pragmatic Drag and Drop ----------
 
@@ -307,15 +306,15 @@
 		};
 	});
 
-        function handleUpdateGroup(groupId: string, changes: Partial<Group>) {
-                commandStore.updateGroup(groupId, changes);
-        }
+	function handleUpdateGroup(groupId: string, changes: Partial<Group>) {
+		commandStore.updateGroup(groupId, changes);
+	}
 
-        const totalHappiness = $derived.by(() => {
-                let sum = 0;
-                for (const id of studentOrder) sum += studentHappiness(id);
-                return sum;
-        });
+	const totalHappiness = $derived.by(() => {
+		let sum = 0;
+		for (const id of studentOrder) sum += studentHappiness(id);
+		return sum;
+	});
 	// ---------- EXPORT ----------
 	function copyTSV() {
 		const rows: string[] = [];
@@ -441,11 +440,7 @@
 			</div>
 
 			<label class="flex items-center gap-2 text-sm">
-				<input
-					type="checkbox"
-					checked={showGenderSetting}
-					on:change={handleShowGenderChange}
-				/>
+				<input type="checkbox" checked={showGenderSetting} on:change={handleShowGenderChange} />
 				Show gender badges
 			</label>
 
