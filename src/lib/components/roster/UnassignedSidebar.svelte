@@ -116,16 +116,6 @@
 </div>
 
 <style>
-	@keyframes flash {
-		0%,
-		100% {
-			background: transparent;
-		}
-		50% {
-			background: rgba(59, 130, 246, 0.2);
-		}
-	}
-
 	.unassigned-sidebar {
 		background: #f3f4f6; /* Slightly darker than groups */
 		border: 2px solid #d1d5db;
