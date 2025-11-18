@@ -79,15 +79,7 @@
 </div>
 
 <style>
-	@keyframes flash {
-		0%,
-		100% {
-			background: transparent;
-		}
-		50% {
-			background: rgba(59, 130, 246, 0.2);
-		}
-	}
+	@import '$lib/styles/drag-drop.css';
 
 	.unassigned-horizontal {
 		background: white;
@@ -128,11 +120,6 @@
 		contain: layout style paint;
 		/* Smooth transition for drop feedback */
 		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
-	}
-
-	/* Atlassian-style drop target feedback */
-	.unassigned-roster:global(.drop-target-active) {
-		background: rgba(59, 130, 246, 0.1);
 	}
 
 	/* Success flash animation */

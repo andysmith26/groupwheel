@@ -79,6 +79,7 @@
 <div class="vertical-layout">
 	<!-- Group rows -->
 	{#each groups as group (group.id)}
+		{@const status = getCapacityStatus(group)}
 		<div class="group-row" class:collapsed={isCollapsed(group.id)}>
 			<div class="group-row-header">
 				<button
@@ -160,6 +161,8 @@
 </div>
 
 <style>
+	@import '$lib/styles/drag-drop.css';
+
 	.vertical-layout {
 		display: flex;
 		flex-direction: column;
@@ -328,11 +331,6 @@
 		contain: layout style paint;
 		/* Smooth transition for drop feedback */
 		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
-	}
-
-	/* Atlassian-style drop target feedback */
-	.group-row-members:global(.drop-target-active) {
-		background: rgba(59, 130, 246, 0.1);
 	}
 
 	/* Success flash animation */
