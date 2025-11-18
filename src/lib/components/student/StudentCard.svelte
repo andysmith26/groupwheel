@@ -248,7 +248,6 @@
 			background 150ms ease,
 			border-color 150ms ease,
 			box-shadow 150ms ease;
-		will-change: transform;
 	}
 
 	.student-card:hover {
@@ -288,6 +287,8 @@
 		transform: rotate(2deg);
 		/* Remove transition during drag to prevent fighting with drag movement */
 		transition: none;
+		/* Only apply will-change during active drag for performance */
+		will-change: transform;
 	}
 
 	.student-card.needs-assistance {
@@ -315,7 +316,6 @@
 		transition:
 			opacity 150ms ease,
 			transform 150ms ease;
-		pointer-events: none; /* Prevent interaction when hidden */
 	}
 
 	/* Show secondary info on hover */

@@ -1,0 +1,16 @@
+/**
+ * Animation definitions for Friend Hat components
+ */
+
+/* Flash animation for successful drop operations */
+@keyframes flash {
+0% {
+background: rgba(16, 185, 129, 0.2);
+}
+50% {
+background: rgba(16, 185, 129, 0.4);
+}
+100% {
+background: transparent;
+}
+}
