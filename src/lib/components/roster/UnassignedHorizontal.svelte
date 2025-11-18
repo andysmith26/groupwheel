@@ -79,7 +79,7 @@
 </div>
 
 <style>
-	@import '$lib/styles/drag-drop.css';
+	@import '$lib/styles/animations.css';
 
 	.unassigned-horizontal {
 		background: white;

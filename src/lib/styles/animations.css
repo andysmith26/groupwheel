@@ -1,13 +1,17 @@
-/* Animation definitions for Friend Hat components */
+/**
+ * Shared animation definitions
+ * 
+ * Duration values are coordinated with src/lib/constants/animations.ts
+ * to ensure JavaScript timings match CSS animations.
+ */
 
+/* Success flash animation duration: 700ms (matches FLASH_ANIMATION_DURATION_MS) */
 @keyframes flash {
-	0% {
-		background: rgba(34, 197, 94, 0.15);
+	0%,
+	100% {
+		background: transparent;
 	}
 	50% {
-		background: rgba(34, 197, 94, 0.3);
-	}
-	100% {
-		background: rgba(34, 197, 94, 0);
+		background: rgba(59, 130, 246, 0.2);
 	}
 }

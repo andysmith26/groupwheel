@@ -161,7 +161,7 @@
 </div>
 
 <style>
-	@import '$lib/styles/drag-drop.css';
+	@import '$lib/styles/animations.css';
 
 	.vertical-layout {
 		display: flex;

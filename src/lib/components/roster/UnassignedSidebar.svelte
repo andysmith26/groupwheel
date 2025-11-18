@@ -116,7 +116,7 @@
 </div>
 
 <style>
-	@import '$lib/styles/drag-drop.css';
+	@import '$lib/styles/animations.css';
 
 	.unassigned-sidebar {
 		background: #f3f4f6; /* Slightly darker than groups */

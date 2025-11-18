@@ -22,6 +22,7 @@
 		type RosterData
 	} from '$lib/services/rosterImport';
 	import { createGroupAssignmentService } from '$lib/services/groupAssignment';
+	import { FLASH_ANIMATION_DURATION_MS } from '$lib/constants/animations';
 	import { onMount } from 'svelte';
 
 	// ---------- CONSTANTS ----------
