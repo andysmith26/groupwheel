@@ -8,7 +8,7 @@
 
 	import type { Group } from '$lib/types';
 	import type { DropState } from '$lib/utils/pragmatic-dnd';
-import GroupColumn from '$lib/components/group/GroupColumn.svelte';
+	import GroupColumn from '$lib/components/group/GroupColumn.svelte';
 
 	interface Props {
 		groups: Group[];

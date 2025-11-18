@@ -14,15 +14,15 @@ import type { Student } from '$lib/types';
 import type { StudentPreference } from '$lib/types/preferences';
 
 export interface AppDataContext {
-        /**
-         * Lookup table of students by ID.
-         */
-        studentsById: Record<string, Student>;
-        /**
-         * Lookup table of preferences by student ID.
-         * This is populated after importing preference data. It may be empty.
-         */
-        preferencesById: Record<string, StudentPreference>;
+	/**
+	 * Lookup table of students by ID.
+	 */
+	studentsById: Record<string, Student>;
+	/**
+	 * Lookup table of preferences by student ID.
+	 * This is populated after importing preference data. It may be empty.
+	 */
+	preferencesById: Record<string, StudentPreference>;
 }
 
 const APP_DATA_KEY = Symbol('appData');
@@ -32,7 +32,7 @@ const APP_DATA_KEY = Symbol('appData');
  * This should be called once, at the root of your component tree.
  */
 export function setAppDataContext(data: AppDataContext): void {
-        setContext(APP_DATA_KEY, data);
+	setContext(APP_DATA_KEY, data);
 }
 
 /**
@@ -40,12 +40,12 @@ export function setAppDataContext(data: AppDataContext): void {
  * Throws if called outside the context provider.
  */
 export function getAppDataContext(): AppDataContext {
-        const context = getContext<AppDataContext>(APP_DATA_KEY);
-        if (!context) {
-                throw new Error(
-                        'getAppDataContext() called outside of context provider. ' +
-                                'Make sure setAppDataContext() is called in a parent component.'
-                );
-        }
-        return context;
+	const context = getContext<AppDataContext>(APP_DATA_KEY);
+	if (!context) {
+		throw new Error(
+			'getAppDataContext() called outside of context provider. ' +
+				'Make sure setAppDataContext() is called in a parent component.'
+		);
+	}
+	return context;
 }
