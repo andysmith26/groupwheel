@@ -14,7 +14,7 @@
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
-	import { getCapacityStatus } from '$lib/utils/capacity';
+	import { getCapacityStatus } from '$lib/utils/groups';
 
 	/**
 	 * Props accepted by VerticalGroupLayout.

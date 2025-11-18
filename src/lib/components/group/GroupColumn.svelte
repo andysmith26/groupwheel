@@ -17,7 +17,7 @@
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
-	import { getCapacityStatus } from '$lib/utils/capacity';
+	import { getCapacityStatus } from '$lib/utils/groups';
 
 	interface Props {
 		group: Group;
@@ -48,7 +48,7 @@
 	const currentCount = $derived(group.memberIds.length);
 	const isFull = $derived(group.capacity !== null && currentCount >= group.capacity);
 
-	// Calculate capacity percentage and color using shared utility
+	// Calculate capacity percentage and color
 	const capacityStatus = $derived(getCapacityStatus(group));
 
 	// Determine which students are preferred by the selected student
