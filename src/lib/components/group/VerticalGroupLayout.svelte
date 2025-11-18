@@ -99,6 +99,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 <div class="vertical-layout">
 	<!-- Group rows -->
 	{#each groups as group (group.id)}
+		{@const status = getCapacityStatus(group)}
 		<div class="group-row" class:collapsed={isCollapsed(group.id)}>
 			<div class="group-row-header">
 				<button
@@ -119,7 +120,6 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 				/>
 
 				<div class="capacity-controls">
-					{@const status = getCapacityStatus(group)}
 					<span
 						class="capacity-current"
 						class:warning={status.isWarning}
