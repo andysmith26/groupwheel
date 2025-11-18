@@ -2,15 +2,15 @@
 
 ## Context
 
-The Friend Hat MVP loaded student data from a Google Sheet with two tabs: *Students* (id, name, gender) and *Connections* (free‑form lists of friend IDs). The `Student` type included a `friendIds` array, and most of the UI logic assumed this was the only kind of preference. As we plan features like ranking groups, avoiding certain classmates, and collecting data from forms other than Google Sheets, this model no longer scales. The existing parsing functions (`parsePasted()`, `parseFromSheets()`) bake a lot of assumptions into string matching and mutate the `Student` objects directly. There is also no clear path to support group preferences or avoid lists.
+The Friend Hat MVP loaded student data from a Google Sheet with two tabs: _Students_ (id, name, gender) and _Connections_ (free‑form lists of friend IDs). The `Student` type included a `friendIds` array, and most of the UI logic assumed this was the only kind of preference. As we plan features like ranking groups, avoiding certain classmates, and collecting data from forms other than Google Sheets, this model no longer scales. The existing parsing functions (`parsePasted()`, `parseFromSheets()`) bake a lot of assumptions into string matching and mutate the `Student` objects directly. There is also no clear path to support group preferences or avoid lists.
 
 We need a canonical preference schema that:
 
-* Separates preference data from the roster so students can be represented without carrying around derived lists of friends.
-* Supports positive and negative preferences for both classmates and groups, with ranking for the positive lists.
-* Allows arbitrary flags (e.g. "wantsAtLeastOneFriend") without polluting the student model.
-* Is flexible enough to be populated from multiple data sources (Google Forms, CSV, in‑app survey) via an import wizard that lets teachers map arbitrary columns to our fields.
-* Removes the legacy `friendIds` property from `Student` to avoid dual sources of truth and to encourage explicit derivation of connections.
+- Separates preference data from the roster so students can be represented without carrying around derived lists of friends.
+- Supports positive and negative preferences for both classmates and groups, with ranking for the positive lists.
+- Allows arbitrary flags (e.g. "wantsAtLeastOneFriend") without polluting the student model.
+- Is flexible enough to be populated from multiple data sources (Google Forms, CSV, in‑app survey) via an import wizard that lets teachers map arbitrary columns to our fields.
+- Removes the legacy `friendIds` property from `Student` to avoid dual sources of truth and to encourage explicit derivation of connections.
 
 ## Decision
 
@@ -59,16 +59,16 @@ These tests ensure the importer is deterministic, validates inputs and produces 
 
 **Benefits:**
 
-* The data model cleanly separates reference data (roster) from preference data. This reduces coupling and makes it easy to swap input sources or gather preferences in‑app later.
-* Ranking is explicit via array order rather than magic field names (e.g. "friend 1 id", "friend 2 id"). Teachers can map any number of columns, and the importer preserves ordering.
-* Arbitrary flags are supported via the `meta` map without requiring schema migrations. Future algorithms can consume these flags as needed.
-* The import wizard can now normalise messy CSV/TSV/form responses into a canonical structure and surface errors early. This reduces the manual "sheet massaging" that previously plagued teachers.
-* Tests cover the importer’s core behaviour, giving confidence in future refactors and extensions.
+- The data model cleanly separates reference data (roster) from preference data. This reduces coupling and makes it easy to swap input sources or gather preferences in‑app later.
+- Ranking is explicit via array order rather than magic field names (e.g. "friend 1 id", "friend 2 id"). Teachers can map any number of columns, and the importer preserves ordering.
+- Arbitrary flags are supported via the `meta` map without requiring schema migrations. Future algorithms can consume these flags as needed.
+- The import wizard can now normalise messy CSV/TSV/form responses into a canonical structure and surface errors early. This reduces the manual "sheet massaging" that previously plagued teachers.
+- Tests cover the importer’s core behaviour, giving confidence in future refactors and extensions.
 
 **Costs/Risks:**
 
-* Existing UI components and algorithms that rely on `student.friendIds` will need to be updated to derive friend connections from `StudentPreference.likeStudentIds`. This entails refactoring `StudentCard`, `GroupColumn`, `autoAssignBalanced()` and related functions. Until those updates are made, the UI will not compile with the new types.
-* Teachers will need to map columns explicitly via the wizard when importing preferences rather than relying on a fixed column order. Good UX design will be essential to avoid confusion.
-* Email remains a convenient default identifier, but supporting arbitrary keys means testing edge cases where display names or IDs collide.
+- Existing UI components and algorithms that rely on `student.friendIds` will need to be updated to derive friend connections from `StudentPreference.likeStudentIds`. This entails refactoring `StudentCard`, `GroupColumn`, `autoAssignBalanced()` and related functions. Until those updates are made, the UI will not compile with the new types.
+- Teachers will need to map columns explicitly via the wizard when importing preferences rather than relying on a fixed column order. Good UX design will be essential to avoid confusion.
+- Email remains a convenient default identifier, but supporting arbitrary keys means testing edge cases where display names or IDs collide.
 
 Despite these costs, the benefits of a flexible, explicit preference model outweigh the migration effort. This decision lays a solid foundation for richer grouping algorithms and multiple input pipelines.

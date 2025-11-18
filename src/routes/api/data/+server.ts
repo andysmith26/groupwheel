@@ -44,14 +44,14 @@ export const GET: RequestHandler = async () => {
 			})
 		]);
 
-                const { students, connections } = parseSheetRows(
-                        studentsResponse.data.values,
-                        connectionsResponse.data.values
-                );
+		const { students, connections } = parseSheetRows(
+			studentsResponse.data.values,
+			connectionsResponse.data.values
+		);
 
-                if (students.length === 0) {
-                        return json({ error: 'No student data found' }, { status: 404 });
-                }
+		if (students.length === 0) {
+			return json({ error: 'No student data found' }, { status: 404 });
+		}
 
 		return json({
 			success: true,

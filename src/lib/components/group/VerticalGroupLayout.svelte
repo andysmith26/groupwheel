@@ -12,8 +12,9 @@
 	import type { DropState } from '$lib/utils/pragmatic-dnd';
 	import { droppable } from '$lib/utils/pragmatic-dnd';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
+	import { getCapacityStatus } from '$lib/utils/groups';
 
 	/**
 	 * Props accepted by VerticalGroupLayout.
@@ -73,32 +74,12 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 	function isCollapsed(groupId: string): boolean {
 		return collapsedGroups.has(groupId);
 	}
-
-	/**
-	 * Calculate capacity status for a group (color and warning state)
-	 */
-	function getCapacityStatus(group: Group) {
-		const currentCount = group.memberIds.length;
-
-		if (group.capacity === null) {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for unlimited
-		}
-
-		const percentage = (currentCount / group.capacity) * 100;
-
-		if (percentage >= 100) {
-			return { color: '#dc2626', isWarning: true, isFull: true }; // Red for at/over capacity
-		} else if (percentage >= 80) {
-			return { color: '#f59e0b', isWarning: true, isFull: false }; // Amber for 80-99%
-		} else {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
-		}
-	}
 </script>
 
 <div class="vertical-layout">
 	<!-- Group rows -->
 	{#each groups as group (group.id)}
+		{@const status = getCapacityStatus(group)}
 		<div class="group-row" class:collapsed={isCollapsed(group.id)}>
 			<div class="group-row-header">
 				<button
@@ -119,7 +100,6 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 				/>
 
 				<div class="capacity-controls">
-					{@const status = getCapacityStatus(group)}
 					<span
 						class="capacity-current"
 						class:warning={status.isWarning}

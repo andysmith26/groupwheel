@@ -14,15 +14,15 @@ import type { Student, Group } from '$lib/types';
  * Handles edge cases where either name might be missing.
  */
 export function getDisplayName(student: Student): string {
-        const first = student.firstName ?? '';
-        const last = student.lastName ?? '';
-        const combined = `${first} ${last}`.trim();
-        if (combined.length > 0) {
-                return combined;
-        }
-        const metaDisplayName =
-                typeof student.meta?.displayName === 'string' ? student.meta.displayName : '';
-        return metaDisplayName || student.id;
+	const first = student.firstName ?? '';
+	const last = student.lastName ?? '';
+	const combined = `${first} ${last}`.trim();
+	if (combined.length > 0) {
+		return combined;
+	}
+	const metaDisplayName =
+		typeof student.meta?.displayName === 'string' ? student.meta.displayName : '';
+	return metaDisplayName || student.id;
 }
 
 /**
@@ -35,22 +35,22 @@ export function getDisplayName(student: Student): string {
  * The console.warn helps debug data integrity issues without crashing.
  */
 export function resolveFriendNames(
-        friendIds: string[],
-        studentsById: Record<string, Student>
+	friendIds: string[],
+	studentsById: Record<string, Student>
 ): Array<{ id: string; name: string }> {
-        return friendIds.map((id) => {
-                const student = studentsById[id];
+	return friendIds.map((id) => {
+		const student = studentsById[id];
 
-                if (!student) {
-                        console.warn(`Friend ID "${id}" not found in studentsById. Data may be corrupted.`);
-                        return { id, name: `Unknown (${id})` };
-                }
+		if (!student) {
+			console.warn(`Friend ID "${id}" not found in studentsById. Data may be corrupted.`);
+			return { id, name: `Unknown (${id})` };
+		}
 
-                return {
-                        id,
-                        name: getDisplayName(student)
-                };
-        });
+		return {
+			id,
+			name: getDisplayName(student)
+		};
+	});
 }
 
 /**
@@ -63,26 +63,26 @@ export function resolveFriendNames(
  * precompute a studentId -> groupId map once per render.
  */
 export function getFriendLocations(
-        friendIds: string[],
-        groups: Group[]
+	friendIds: string[],
+	groups: Group[]
 ): Array<{ friendId: string; groupId: string | null; groupName: string }> {
-        return friendIds.map((friendId) => {
-                // Search all groups to find where this friend is placed
-                for (const group of groups) {
-                        if (group.memberIds.includes(friendId)) {
-                                return {
-                                        friendId,
-                                        groupId: group.id,
-                                        groupName: group.name
-                                };
-                        }
-                }
+	return friendIds.map((friendId) => {
+		// Search all groups to find where this friend is placed
+		for (const group of groups) {
+			if (group.memberIds.includes(friendId)) {
+				return {
+					friendId,
+					groupId: group.id,
+					groupName: group.name
+				};
+			}
+		}
 
-                // Not found in any group = unassigned
-                return {
-                        friendId,
-                        groupId: null,
-                        groupName: 'Unassigned'
-                };
-        });
+		// Not found in any group = unassigned
+		return {
+			friendId,
+			groupId: null,
+			groupName: 'Unassigned'
+		};
+	});
 }
