@@ -1,4 +1,6 @@
-/* Shared animations used across components */
+/**
+ * Shared animation keyframes used across multiple components
+ */
 
 @keyframes flash {
 	0%,
