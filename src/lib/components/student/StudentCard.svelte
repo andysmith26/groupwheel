@@ -229,6 +229,12 @@
 </div>
 
 <style>
+	/* CSS Variables for friend highlight colors */
+	:root {
+		--color-friend-highlight: #1976d2;
+		--color-friend-highlight-hover: #1565c0;
+	}
+
 	.student-card {
 		background: white;
 		border: 2px solid transparent;
@@ -260,7 +266,7 @@
 
 	.student-card.friend-highlight {
 		/* Accessible dark blue left border (6.5:1 contrast ratio) */
-		border-left: 2px solid #1976d2;
+		border-left: 2px solid var(--color-friend-highlight);
 		border-top: 2px solid transparent;
 		border-right: 2px solid transparent;
 		border-bottom: 2px solid transparent;
@@ -271,7 +277,7 @@
 
 	.student-card.friend-highlight:hover {
 		background: #f9fafb; /* Consistent with normal hover */
-		border-left-color: #1565c0; /* Slightly darker blue on hover */
+		border-left-color: var(--color-friend-highlight-hover); /* Slightly darker blue on hover */
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 
@@ -328,7 +334,7 @@
 
 	.friend-icon {
 		flex-shrink: 0;
-		color: #1976d2; /* Match the border color */
+		color: var(--color-friend-highlight); /* Match the border color */
 		opacity: 0.8;
 	}
 
