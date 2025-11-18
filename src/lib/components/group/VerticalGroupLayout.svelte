@@ -14,7 +14,7 @@
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
-	import { CAPACITY_WARNING_THRESHOLD, CAPACITY_FULL_THRESHOLD } from '$lib/constants/capacity';
+	import { getCapacityStatus } from '$lib/utils/capacity';
 
 	/**
 	 * Props accepted by VerticalGroupLayout.
@@ -74,27 +74,6 @@
 	function isCollapsed(groupId: string): boolean {
 		return collapsedGroups.has(groupId);
 	}
-
-	/**
-	 * Calculate capacity status for a group (color and warning state)
-	 */
-	function getCapacityStatus(group: Group) {
-		const currentCount = group.memberIds.length;
-
-		if (group.capacity === null) {
-			return { color: 'var(--capacity-gray)', isWarning: false, isFull: false }; // Gray for unlimited
-		}
-
-		const percentage = (currentCount / group.capacity) * 100;
-
-		if (percentage >= CAPACITY_FULL_THRESHOLD) {
-			return { color: 'var(--capacity-red)', isWarning: true, isFull: true }; // Red for at/over capacity
-		} else if (percentage >= CAPACITY_WARNING_THRESHOLD) {
-			return { color: 'var(--capacity-amber)', isWarning: true, isFull: false }; // Amber for 80-99%
-		} else {
-			return { color: 'var(--capacity-gray)', isWarning: false, isFull: false }; // Gray for < 80%
-		}
-	}
 </script>
 
 <div class="vertical-layout">
@@ -123,9 +102,9 @@
 				<div class="capacity-controls">
 					<span
 						class="capacity-current"
-						class:warning={status.isWarning}
-						class:full={status.isFull}
-						style="color: {status.color};"
+						class:warning={getCapacityStatus(group).isWarning}
+						class:full={getCapacityStatus(group).isFull}
+						style="color: {getCapacityStatus(group).color};"
 					>
 						{group.memberIds.length}
 					</span>
@@ -133,9 +112,9 @@
 					<input
 						type="number"
 						class="capacity-input"
-						class:warning={status.isWarning}
-						class:full={status.isFull}
-						style="color: {status.color};"
+						class:warning={getCapacityStatus(group).isWarning}
+						class:full={getCapacityStatus(group).isFull}
+						style="color: {getCapacityStatus(group).color};"
 						value={group.capacity ?? ''}
 						min="1"
 						placeholder="∞"

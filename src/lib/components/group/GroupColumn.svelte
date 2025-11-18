@@ -17,7 +17,7 @@
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
-	import { CAPACITY_WARNING_THRESHOLD, CAPACITY_FULL_THRESHOLD } from '$lib/constants/capacity';
+	import { getCapacityStatus } from '$lib/utils/capacity';
 
 	interface Props {
 		group: Group;
@@ -48,22 +48,8 @@
 	const currentCount = $derived(group.memberIds.length);
 	const isFull = $derived(group.capacity !== null && currentCount >= group.capacity);
 
-	// Calculate capacity percentage and color
-	const capacityStatus = $derived.by(() => {
-		if (group.capacity === null) {
-			return { color: 'var(--capacity-gray)', isWarning: false, isFull: false }; // Gray for unlimited
-		}
-
-		const percentage = (currentCount / group.capacity) * 100;
-
-		if (percentage >= CAPACITY_FULL_THRESHOLD) {
-			return { color: 'var(--capacity-red)', isWarning: true, isFull: true }; // Red for at/over capacity
-		} else if (percentage >= CAPACITY_WARNING_THRESHOLD) {
-			return { color: 'var(--capacity-amber)', isWarning: true, isFull: false }; // Amber for 80-99%
-		} else {
-			return { color: 'var(--capacity-gray)', isWarning: false, isFull: false }; // Gray for < 80%
-		}
-	});
+	// Calculate capacity percentage and color using shared utility
+	const capacityStatus = $derived(getCapacityStatus(group));
 
 	// Determine which students are preferred by the selected student
 	const selectedStudentFriendIds = $derived.by(() => {
