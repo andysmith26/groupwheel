@@ -81,17 +81,17 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		const currentCount = group.memberIds.length;
 
 		if (group.capacity === null) {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for unlimited
+			return { color: 'var(--capacity-gray)', isWarning: false, isFull: false }; // Gray for unlimited
 		}
 
 		const percentage = (currentCount / group.capacity) * 100;
 
 		if (percentage >= 100) {
-			return { color: '#dc2626', isWarning: true, isFull: true }; // Red for at/over capacity
+			return { color: 'var(--capacity-red)', isWarning: true, isFull: true }; // Red for at/over capacity
 		} else if (percentage >= 80) {
-			return { color: '#f59e0b', isWarning: true, isFull: false }; // Amber for 80-99%
+			return { color: 'var(--capacity-amber)', isWarning: true, isFull: false }; // Amber for 80-99%
 		} else {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
+			return { color: 'var(--capacity-gray)', isWarning: false, isFull: false }; // Gray for < 80%
 		}
 	}
 </script>
@@ -99,6 +99,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 <div class="vertical-layout">
 	<!-- Group rows -->
 	{#each groups as group (group.id)}
+		{@const status = getCapacityStatus(group)}
 		<div class="group-row" class:collapsed={isCollapsed(group.id)}>
 			<div class="group-row-header">
 				<button
@@ -119,7 +120,6 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 				/>
 
 				<div class="capacity-controls">
-					{@const status = getCapacityStatus(group)}
 					<span
 						class="capacity-current"
 						class:warning={status.isWarning}
