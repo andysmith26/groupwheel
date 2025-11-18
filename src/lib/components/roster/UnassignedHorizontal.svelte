@@ -8,29 +8,29 @@
 
 	import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import type { StudentPreference } from '$lib/types/preferences';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
-        interface Props {
-                studentIds?: string[];
-                selectedStudentId: string | null;
-                currentlyDragging: string | null;
-                flashingContainer: string | null;
-                onDrop: (state: DropState) => void;
-                onDragStart?: (studentId: string) => void;
-                onClick?: (studentId: string) => void;
-        }
+	interface Props {
+		studentIds?: string[];
+		selectedStudentId: string | null;
+		currentlyDragging: string | null;
+		flashingContainer: string | null;
+		onDrop: (state: DropState) => void;
+		onDragStart?: (studentId: string) => void;
+		onClick?: (studentId: string) => void;
+	}
 
-        let {
-                studentIds = [],
-                selectedStudentId,
-                currentlyDragging,
-                flashingContainer,
-                onDrop,
-                onDragStart,
-                onClick
-        }: Props = $props();
+	let {
+		studentIds = [],
+		selectedStudentId,
+		currentlyDragging,
+		flashingContainer,
+		onDrop,
+		onDragStart,
+		onClick
+	}: Props = $props();
 
 	// Access students and preferences from context
 	const { studentsById, preferencesById } = getAppDataContext();
