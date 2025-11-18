@@ -309,7 +309,6 @@
 		transition:
 			opacity 150ms ease,
 			transform 150ms ease;
-		pointer-events: none; /* Prevent interaction when hidden */
 	}
 
 	/* Show secondary info on hover */
