@@ -15,8 +15,9 @@
 	import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
 	import type { Group } from '$lib/types';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
+	import { getCapacityStatus } from '$lib/utils/capacity';
 
 	interface Props {
 		group: Group;
@@ -47,22 +48,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 	const currentCount = $derived(group.memberIds.length);
 	const isFull = $derived(group.capacity !== null && currentCount >= group.capacity);
 
-	// Calculate capacity percentage and color
-	const capacityStatus = $derived.by(() => {
-		if (group.capacity === null) {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for unlimited
-		}
-
-		const percentage = (currentCount / group.capacity) * 100;
-
-		if (percentage >= 100) {
-			return { color: '#dc2626', isWarning: true, isFull: true }; // Red for at/over capacity
-		} else if (percentage >= 80) {
-			return { color: '#f59e0b', isWarning: true, isFull: false }; // Amber for 80-99%
-		} else {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
-		}
-	});
+	// Calculate capacity percentage and color using shared utility
+	const capacityStatus = $derived(getCapacityStatus(group));
 
 	// Determine which students are preferred by the selected student
 	const selectedStudentFriendIds = $derived.by(() => {

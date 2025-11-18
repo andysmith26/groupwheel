@@ -17,29 +17,29 @@
  * instantiating fresh stores inside tests straightforward.
  */
 export class UiSettingsStore {
-        showGender = $state(true);
-        highlightUnhappy = $state(false);
+	showGender = $state(true);
+	highlightUnhappy = $state(false);
 
-        setShowGender(value: boolean) {
-                this.showGender = value;
-        }
+	setShowGender(value: boolean) {
+		this.showGender = value;
+	}
 
-        setHighlightUnhappy(value: boolean) {
-                this.highlightUnhappy = value;
-        }
+	setHighlightUnhappy(value: boolean) {
+		this.highlightUnhappy = value;
+	}
 
-        toggleShowGender() {
-                this.showGender = !this.showGender;
-        }
+	toggleShowGender() {
+		this.showGender = !this.showGender;
+	}
 
-        toggleHighlightUnhappy() {
-                this.highlightUnhappy = !this.highlightUnhappy;
-        }
+	toggleHighlightUnhappy() {
+		this.highlightUnhappy = !this.highlightUnhappy;
+	}
 
-        reset() {
-                this.showGender = true;
-                this.highlightUnhappy = false;
-        }
+	reset() {
+		this.showGender = true;
+		this.highlightUnhappy = false;
+	}
 }
 
 export const uiSettings = new UiSettingsStore();

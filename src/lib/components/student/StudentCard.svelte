@@ -6,10 +6,10 @@
 	 * Happiness shows ratio of friends in same group (e.g., [2/3])
 	 */
 
-        import { draggable } from '$lib/utils/pragmatic-dnd';
-        import { getAppDataContext } from '$lib/contexts/appData';
-        import { commandStore } from '$lib/stores/commands.svelte';
-        import { getDisplayName, getFriendLocations, resolveFriendNames } from '$lib/utils/friends';
+	import { draggable } from '$lib/utils/pragmatic-dnd';
+	import { getAppDataContext } from '$lib/contexts/appData';
+	import { commandStore } from '$lib/stores/commands.svelte';
+	import { getDisplayName, getFriendLocations, resolveFriendNames } from '$lib/utils/friends';
 	import type { Student } from '$lib/types';
 	import type { StudentPreference } from '$lib/types/preferences';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
@@ -45,7 +45,7 @@
 	const highlightUnhappySetting = $derived(uiSettings.highlightUnhappy);
 
 	// Derive display values
-        const displayName = $derived(getDisplayName(student));
+	const displayName = $derived(getDisplayName(student));
 
 	// Look up preference for this student
 	const preference = $derived.by(() => {
@@ -261,7 +261,7 @@
 
 	.student-card.friend-highlight {
 		/* Accessible dark blue left border (6.5:1 contrast ratio) */
-		border-left: 2px solid #1976D2;
+		border-left: 2px solid #1976d2;
 		border-top: 2px solid transparent;
 		border-right: 2px solid transparent;
 		border-bottom: 2px solid transparent;
@@ -272,7 +272,7 @@
 
 	.student-card.friend-highlight:hover {
 		background: #f9fafb; /* Consistent with normal hover */
-		border-left-color: #1565C0; /* Slightly darker blue on hover */
+		border-left-color: #1565c0; /* Slightly darker blue on hover */
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 
@@ -328,7 +328,7 @@
 
 	.friend-icon {
 		flex-shrink: 0;
-		color: #1976D2; /* Match the border color */
+		color: #1976d2; /* Match the border color */
 		opacity: 0.8;
 	}
 
