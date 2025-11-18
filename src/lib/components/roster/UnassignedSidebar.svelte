@@ -211,11 +211,6 @@
 		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
 	}
 
-	/* Atlassian-style drop target feedback */
-	.sidebar-roster:global(.drop-target-active) {
-		background: rgba(59, 130, 246, 0.1);
-	}
-
 	/* Success flash animation */
 	.sidebar-roster.flash-success {
 		animation: flash 700ms ease-in-out;
