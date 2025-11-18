@@ -12,8 +12,9 @@
 	import type { DropState } from '$lib/utils/pragmatic-dnd';
 	import { droppable } from '$lib/utils/pragmatic-dnd';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
+	import { getCapacityStatus } from '$lib/utils/groups';
 
 	/**
 	 * Props accepted by VerticalGroupLayout.
@@ -73,32 +74,12 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 	function isCollapsed(groupId: string): boolean {
 		return collapsedGroups.has(groupId);
 	}
-
-	/**
-	 * Calculate capacity status for a group (color and warning state)
-	 */
-	function getCapacityStatus(group: Group) {
-		const currentCount = group.memberIds.length;
-
-		if (group.capacity === null) {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for unlimited
-		}
-
-		const percentage = (currentCount / group.capacity) * 100;
-
-		if (percentage >= 100) {
-			return { color: '#dc2626', isWarning: true, isFull: true }; // Red for at/over capacity
-		} else if (percentage >= 80) {
-			return { color: '#f59e0b', isWarning: true, isFull: false }; // Amber for 80-99%
-		} else {
-			return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
-		}
-	}
 </script>
 
 <div class="vertical-layout">
 	<!-- Group rows -->
 	{#each groups as group (group.id)}
+		{@const status = getCapacityStatus(group)}
 		<div class="group-row" class:collapsed={isCollapsed(group.id)}>
 			<div class="group-row-header">
 				<button
@@ -119,12 +100,11 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 				/>
 
 				<div class="capacity-controls">
-					{@const status = getCapacityStatus(group)}
 					<span
 						class="capacity-current"
-						class:warning={status.isWarning}
-						class:full={status.isFull}
-						style="color: {status.color};"
+						class:warning={getCapacityStatus(group).isWarning}
+						class:full={getCapacityStatus(group).isFull}
+						style="color: {getCapacityStatus(group).color};"
 					>
 						{group.memberIds.length}
 					</span>
@@ -132,9 +112,9 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 					<input
 						type="number"
 						class="capacity-input"
-						class:warning={status.isWarning}
-						class:full={status.isFull}
-						style="color: {status.color};"
+						class:warning={getCapacityStatus(group).isWarning}
+						class:full={getCapacityStatus(group).isFull}
+						style="color: {getCapacityStatus(group).color};"
 						value={group.capacity ?? ''}
 						min="1"
 						placeholder="∞"
@@ -181,6 +161,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
+	@import '$lib/styles/animations.css';
+
 	.vertical-layout {
 		display: flex;
 		flex-direction: column;
@@ -349,11 +331,6 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		contain: layout style paint;
 		/* Smooth transition for drop feedback */
 		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
-	}
-
-	/* Atlassian-style drop target feedback */
-	.group-row-members:global(.drop-target-active) {
-		background: rgba(59, 130, 246, 0.1);
 	}
 
 	/* Success flash animation */
