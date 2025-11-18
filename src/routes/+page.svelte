@@ -24,6 +24,9 @@
 	import { createGroupAssignmentService } from '$lib/services/groupAssignment';
 	import { onMount } from 'svelte';
 
+	// ---------- CONSTANTS ----------
+	const FLASH_ANIMATION_DURATION_MS = 700;
+
 	// ---------- STATE ----------
 	let rawPaste = $state('');
 	let parseError = $state<string | null>(null);
@@ -78,10 +81,9 @@
 	// Trigger flash animation on successful drop
 	function triggerFlash(containerId: string) {
 		flashingContainer = containerId;
-		// Clear flash after 700ms
 		setTimeout(() => {
 			flashingContainer = null;
-		}, 700);
+		}, FLASH_ANIMATION_DURATION_MS);
 	}
 
 	const { toggleCollapse, handleDragStart, handleStudentClick, handleDrop } = createUiControlsStore(
