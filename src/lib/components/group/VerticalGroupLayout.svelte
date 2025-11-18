@@ -181,16 +181,6 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
-	@keyframes flash {
-		0%,
-		100% {
-			background: transparent;
-		}
-		50% {
-			background: rgba(59, 130, 246, 0.2);
-		}
-	}
-
 	.vertical-layout {
 		display: flex;
 		flex-direction: column;
