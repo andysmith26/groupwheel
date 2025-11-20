@@ -26,7 +26,6 @@
 	import { onMount } from 'svelte';
 
 	// ---------- CONSTANTS ----------
-	const FLASH_ANIMATION_DURATION_MS = 700;
 
 	// ---------- STATE ----------
 	let rawPaste = $state('');

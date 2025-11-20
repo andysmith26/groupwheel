@@ -229,10 +229,12 @@
 </div>
 
 <style>
-	/* CSS Variables for friend highlight colors */
+	/* CSS variables for friend connection colors - ensuring WCAG contrast requirements */
 	:root {
-		--color-friend-highlight: #1976d2;
-		--color-friend-highlight-hover: #1565c0;
+		/* Primary friend connection color - 6.5:1 contrast ratio on white */
+		--friend-connection-color: #1976d2;
+		/* Hover state - slightly darker for better visibility */
+		--friend-connection-hover: #1565c0;
 	}
 
 	.student-card {
@@ -266,7 +268,7 @@
 
 	.student-card.friend-highlight {
 		/* Accessible dark blue left border (6.5:1 contrast ratio) */
-		border-left: 2px solid var(--color-friend-highlight);
+		border-left: 2px solid var(--friend-connection-color);
 		border-top: 2px solid transparent;
 		border-right: 2px solid transparent;
 		border-bottom: 2px solid transparent;
@@ -277,7 +279,7 @@
 
 	.student-card.friend-highlight:hover {
 		background: #f9fafb; /* Consistent with normal hover */
-		border-left-color: var(--color-friend-highlight-hover); /* Slightly darker blue on hover */
+		border-left-color: var(--friend-connection-hover); /* Slightly darker blue on hover */
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 
@@ -334,7 +336,7 @@
 
 	.friend-icon {
 		flex-shrink: 0;
-		color: var(--color-friend-highlight); /* Match the border color */
+		color: var(--friend-connection-color); /* Match the border color */
 		opacity: 0.8;
 	}
 
