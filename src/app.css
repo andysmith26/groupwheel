@@ -4,6 +4,7 @@
 /* Rendering isolation to prevent layout thrashing during animations */
 .rendering-isolated {
 	contain: layout style paint;
+}
 /* Capacity status colors */
 :root {
 	--capacity-gray: #6b7280;
