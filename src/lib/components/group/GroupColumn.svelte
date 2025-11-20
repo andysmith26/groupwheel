@@ -99,7 +99,7 @@
 	</div>
 
 	<div
-		class="group-members"
+		class="group-members rendering-isolated"
 		class:flash-success={isFlashing}
 		use:droppable={{ container: group.id, callbacks: { onDrop } }}
 	>
@@ -256,8 +256,6 @@
 		flex-direction: column;
 		gap: 6px;
 		min-height: 60px;
-		/* Rendering isolation to prevent layout thrashing during animations */
-		contain: layout style paint;
 		/* Smooth transition for drop feedback */
 		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
 	}

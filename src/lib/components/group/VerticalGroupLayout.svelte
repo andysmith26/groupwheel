@@ -130,7 +130,7 @@
 
 			{#if !isCollapsed(group.id)}
 				<div
-					class="group-row-members"
+					class="group-row-members rendering-isolated"
 					class:flash-success={flashingContainer === group.id}
 					use:droppable={{ container: group.id, callbacks: { onDrop } }}
 				>
@@ -327,8 +327,6 @@
 		gap: 6px;
 		margin-top: 10px;
 		min-height: 60px;
-		/* Rendering isolation to prevent layout thrashing during animations */
-		contain: layout style paint;
 		/* Smooth transition for drop feedback */
 		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
 	}

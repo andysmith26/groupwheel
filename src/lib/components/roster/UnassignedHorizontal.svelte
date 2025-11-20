@@ -51,7 +51,7 @@
 	</div>
 
 	<div
-		class="unassigned-roster"
+		class="unassigned-roster rendering-isolated"
 		class:flash-success={flashingContainer === 'unassigned'}
 		use:droppable={{ container: 'unassigned', callbacks: { onDrop } }}
 	>
@@ -116,8 +116,6 @@
 		gap: 6px;
 		min-height: 60px;
 		align-items: flex-start;
-		/* Rendering isolation to prevent layout thrashing during animations */
-		contain: layout style paint;
 		/* Smooth transition for drop feedback */
 		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
 	}
