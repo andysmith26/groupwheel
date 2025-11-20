@@ -15,13 +15,15 @@
 	import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
 	import type { Group } from '$lib/types';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
+	import { getCapacityStatus } from '$lib/utils/groups';
 
 	interface Props {
 		group: Group;
 		selectedStudentId: string | null;
 		currentlyDragging: string | null;
+		isFlashing?: boolean;
 		onDrop: (state: DropState) => void;
 		onDragStart?: (studentId: string) => void;
 		onClick?: (studentId: string) => void;
@@ -32,6 +34,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		group,
 		selectedStudentId,
 		currentlyDragging,
+		isFlashing = false,
 		onDrop,
 		onDragStart,
 		onClick,
@@ -44,6 +47,9 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 	// Compute capacity display
 	const currentCount = $derived(group.memberIds.length);
 	const isFull = $derived(group.capacity !== null && currentCount >= group.capacity);
+
+	// Calculate capacity percentage and color
+	const capacityStatus = $derived(getCapacityStatus(group));
 
 	// Determine which students are preferred by the selected student
 	const selectedStudentFriendIds = $derived.by(() => {
@@ -64,12 +70,21 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 			placeholder="Group name"
 		/>
 		<div class="capacity-controls">
-			<span class="capacity-current" class:full={isFull}>{currentCount}</span>
+			<span
+				class="capacity-current"
+				class:warning={capacityStatus.isWarning}
+				class:full={capacityStatus.isFull}
+				style="color: {capacityStatus.color};"
+			>
+				{currentCount}
+			</span>
 			<span class="capacity-separator">/</span>
 			<input
 				type="number"
 				class="capacity-input"
-				class:full={isFull}
+				class:warning={capacityStatus.isWarning}
+				class:full={capacityStatus.isFull}
+				style="color: {capacityStatus.color};"
 				value={group.capacity ?? ''}
 				min="1"
 				placeholder="∞"
@@ -83,7 +98,11 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		</div>
 	</div>
 
-	<div class="group-members" use:droppable={{ container: group.id, callbacks: { onDrop } }}>
+	<div
+		class="group-members rendering-isolated"
+		class:flash-success={isFlashing}
+		use:droppable={{ container: group.id, callbacks: { onDrop } }}
+	>
 		{#each group.memberIds as studentId (studentId)}
 			{@const student = studentsById[studentId]}
 			{#if student}
@@ -111,6 +130,9 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
+	@import '$lib/styles/animations.css';
+	@import '$lib/styles/drag-drop.css';
+
 	.group-column {
 		background: #f9fafb;
 		border: 1px solid #e5e7eb;
@@ -164,13 +186,16 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 
 	.capacity-current {
 		font-size: 13px;
-		color: #6b7280;
 		font-weight: 500;
-		transition: color 0.15s ease;
+		transition: color 0.2s ease;
 	}
-	.capacity-current.full {
-		color: #dc2626;
+
+	.capacity-current.warning {
 		font-weight: 600;
+	}
+
+	.capacity-current.full {
+		font-weight: 700;
 	}
 	.capacity-separator {
 		font-size: 13px;
@@ -183,14 +208,13 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		flex-shrink: 0; /* Don't shrink or grow */
 		font-size: 13px;
 		font-weight: 500;
-		color: #6b7280;
 		background: transparent;
 		border: 1px solid transparent;
 		border-radius: 4px;
 		padding: 2px 4px; /* Reduced horizontal padding */
 		outline: none;
 		text-align: left;
-		transition: all 0.15s ease;
+		transition: all 0.2s ease;
 	}
 
 	/* Hide number input spinner arrows */
@@ -215,9 +239,12 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 	}
 
-	.capacity-input.full {
-		color: #dc2626;
+	.capacity-input.warning {
 		font-weight: 600;
+	}
+
+	.capacity-input.full {
+		font-weight: 700;
 	}
 
 	.capacity-input::placeholder {
@@ -229,6 +256,13 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		flex-direction: column;
 		gap: 6px;
 		min-height: 60px;
+		/* Smooth transition for drop feedback */
+		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
+	}
+
+	/* Success flash animation */
+	.group-members.flash-success {
+		animation: flash 700ms ease-in-out;
 	}
 
 	.empty-state {

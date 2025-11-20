@@ -90,7 +90,18 @@ export function droppable(element: HTMLElement, config: DroppableConfig) {
 		getData: () => ({
 			containerId: config.container
 		}),
+		onDragEnter: () => {
+			// Add visual feedback when drag enters
+			element.classList.add('drop-target-active');
+		},
+		onDragLeave: () => {
+			// Remove visual feedback when drag leaves
+			element.classList.remove('drop-target-active');
+		},
 		onDrop: ({ source, location }) => {
+			// Remove visual feedback on drop
+			element.classList.remove('drop-target-active');
+
 			// Extract the drag data from the source
 			const dragData = source.data as DragData & { container?: string; type?: string };
 			const sourceContainer = dragData.container || null;

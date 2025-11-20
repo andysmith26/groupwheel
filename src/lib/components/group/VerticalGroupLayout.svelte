@@ -12,8 +12,9 @@
 	import type { DropState } from '$lib/utils/pragmatic-dnd';
 	import { droppable } from '$lib/utils/pragmatic-dnd';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
+	import { getCapacityStatus } from '$lib/utils/groups';
 
 	/**
 	 * Props accepted by VerticalGroupLayout.
@@ -34,6 +35,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		selectedStudentId: string | null;
 		currentlyDragging: string | null;
 		collapsedGroups: Set<string>;
+		flashingContainer: string | null;
 		onDrop: (state: DropState) => void;
 		onDragStart?: (studentId: string) => void;
 		onClick?: (studentId: string) => void;
@@ -46,6 +48,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		selectedStudentId,
 		currentlyDragging,
 		collapsedGroups,
+		flashingContainer,
 		onDrop,
 		onDragStart,
 		onClick,
@@ -76,6 +79,7 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 <div class="vertical-layout">
 	<!-- Group rows -->
 	{#each groups as group (group.id)}
+		{@const status = getCapacityStatus(group)}
 		<div class="group-row" class:collapsed={isCollapsed(group.id)}>
 			<div class="group-row-header">
 				<button
@@ -96,11 +100,21 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 				/>
 
 				<div class="capacity-controls">
-					<span class="capacity-current">{group.memberIds.length}</span>
+					<span
+						class="capacity-current"
+						class:warning={getCapacityStatus(group).isWarning}
+						class:full={getCapacityStatus(group).isFull}
+						style="color: {getCapacityStatus(group).color};"
+					>
+						{group.memberIds.length}
+					</span>
 					<span class="capacity-separator">/</span>
 					<input
 						type="number"
 						class="capacity-input"
+						class:warning={getCapacityStatus(group).isWarning}
+						class:full={getCapacityStatus(group).isFull}
+						style="color: {getCapacityStatus(group).color};"
 						value={group.capacity ?? ''}
 						min="1"
 						placeholder="∞"
@@ -116,7 +130,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 
 			{#if !isCollapsed(group.id)}
 				<div
-					class="group-row-members"
+					class="group-row-members rendering-isolated"
+					class:flash-success={flashingContainer === group.id}
 					use:droppable={{ container: group.id, callbacks: { onDrop } }}
 				>
 					{#each group.memberIds as studentId (studentId)}
@@ -146,6 +161,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
+	@import '$lib/styles/animations.css';
+
 	.vertical-layout {
 		display: flex;
 		flex-direction: column;
@@ -239,8 +256,16 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 
 	.capacity-current {
 		font-size: 13px;
-		color: #6b7280;
 		font-weight: 500;
+		transition: color 0.2s ease;
+	}
+
+	.capacity-current.warning {
+		font-weight: 600;
+	}
+
+	.capacity-current.full {
+		font-weight: 700;
 	}
 
 	.capacity-separator {
@@ -254,14 +279,21 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		flex-shrink: 0;
 		font-size: 13px;
 		font-weight: 500;
-		color: #6b7280;
 		background: transparent;
 		border: 1px solid transparent;
 		border-radius: 4px;
 		padding: 2px 4px;
 		outline: none;
 		text-align: left;
-		transition: all 0.15s ease;
+		transition: all 0.2s ease;
+	}
+
+	.capacity-input.warning {
+		font-weight: 600;
+	}
+
+	.capacity-input.full {
+		font-weight: 700;
 	}
 
 	.capacity-input::-webkit-inner-spin-button,
@@ -295,6 +327,13 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		gap: 6px;
 		margin-top: 10px;
 		min-height: 60px;
+		/* Smooth transition for drop feedback */
+		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
+	}
+
+	/* Success flash animation */
+	.group-row-members.flash-success {
+		animation: flash 700ms ease-in-out;
 	}
 
 	.empty-state {

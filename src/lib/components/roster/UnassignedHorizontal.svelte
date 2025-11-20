@@ -8,27 +8,29 @@
 
 	import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
 	import { getAppDataContext } from '$lib/contexts/appData';
-import StudentCard from '$lib/components/student/StudentCard.svelte';
+	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import type { StudentPreference } from '$lib/types/preferences';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
-        interface Props {
-                studentIds?: string[];
-                selectedStudentId: string | null;
-                currentlyDragging: string | null;
-                onDrop: (state: DropState) => void;
-                onDragStart?: (studentId: string) => void;
-                onClick?: (studentId: string) => void;
-        }
+	interface Props {
+		studentIds?: string[];
+		selectedStudentId: string | null;
+		currentlyDragging: string | null;
+		flashingContainer: string | null;
+		onDrop: (state: DropState) => void;
+		onDragStart?: (studentId: string) => void;
+		onClick?: (studentId: string) => void;
+	}
 
-        let {
-                studentIds = [],
-                selectedStudentId,
-                currentlyDragging,
-                onDrop,
-                onDragStart,
-                onClick
-        }: Props = $props();
+	let {
+		studentIds = [],
+		selectedStudentId,
+		currentlyDragging,
+		flashingContainer,
+		onDrop,
+		onDragStart,
+		onClick
+	}: Props = $props();
 
 	// Access students and preferences from context
 	const { studentsById, preferencesById } = getAppDataContext();
@@ -48,7 +50,11 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		<span class="count">{studentIds.length}</span>
 	</div>
 
-	<div class="unassigned-roster" use:droppable={{ container: 'unassigned', callbacks: { onDrop } }}>
+	<div
+		class="unassigned-roster rendering-isolated"
+		class:flash-success={flashingContainer === 'unassigned'}
+		use:droppable={{ container: 'unassigned', callbacks: { onDrop } }}
+	>
 		{#each studentIds as studentId (studentId)}
 			{@const student = studentsById[studentId]}
 			{#if student}
@@ -73,6 +79,8 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 </div>
 
 <style>
+	@import '$lib/styles/animations.css';
+
 	.unassigned-horizontal {
 		background: white;
 		border: 2px dashed #d1d5db;
@@ -108,6 +116,13 @@ import StudentCard from '$lib/components/student/StudentCard.svelte';
 		gap: 6px;
 		min-height: 60px;
 		align-items: flex-start;
+		/* Smooth transition for drop feedback */
+		transition: background 350ms cubic-bezier(0.15, 1, 0.3, 1);
+	}
+
+	/* Success flash animation */
+	.unassigned-roster.flash-success {
+		animation: flash 700ms ease-in-out;
 	}
 
 	.empty-state {

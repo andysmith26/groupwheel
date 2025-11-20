@@ -33,11 +33,11 @@ export * from './preferences';
  *   choose not to use it as the id field directly.
  */
 export interface Student {
-  id: string;
-  firstName?: string;
-  lastName?: string;
-  gender?: string;
-  meta?: Record<string, unknown>;
+	id: string;
+	firstName?: string;
+	lastName?: string;
+	gender?: string;
+	meta?: Record<string, unknown>;
 }
 
 /**
@@ -54,10 +54,10 @@ export interface Student {
  *   this group. This is usually maintained by grouping algorithms.
  */
 export interface Group {
-  id: string;
-  name: string;
-  capacity: number | null;
-  memberIds: string[];
+	id: string;
+	name: string;
+	capacity: number | null;
+	memberIds: string[];
 }
 
 /**
