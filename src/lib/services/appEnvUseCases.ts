@@ -23,6 +23,12 @@ import { getStudentView } from '$lib/application/useCases/getStudentView';
 import type { Pool } from '$lib/domain';
 import type { ImportPoolFromCsvInput, ImportPoolFromCsvError } from '$lib/application/useCases/importPoolFromCsv';
 import { importPoolFromCsv } from '$lib/application/useCases/importPoolFromCsv';
+import type {
+	CreatePoolFromRosterDataInput,
+	CreatePoolFromRosterDataError
+} from '$lib/application/useCases/createPoolFromRosterData';
+import { createPoolFromRosterData } from '$lib/application/useCases/createPoolFromRosterData';
+import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
 
 export async function importPool(
@@ -96,6 +102,21 @@ export async function getStudentViewForScenario(
 		{
 			scenarioRepo: env.scenarioRepo,
 			studentRepo: env.studentRepo
+		},
+		input
+	);
+}
+
+export async function createPoolFromRoster(
+	env: InMemoryEnvironment,
+	input: Omit<CreatePoolFromRosterDataInput, 'rosterData'> & { rosterData: RosterData }
+): Promise<Result<Pool, CreatePoolFromRosterDataError>> {
+	return createPoolFromRosterData(
+		{
+			poolRepo: env.poolRepo,
+			studentRepo: env.studentRepo,
+			staffRepo: env.staffRepo,
+			idGenerator: env.idGenerator
 		},
 		input
 	);
