@@ -12,6 +12,8 @@
 
 **Current Status:** Active MVP development
 
+> **📋 Architecture Re-Design:** The codebase is being re-architected to support the MVP vision (Pool-based rosters, Program/Scenario workflow, analytics). See [docs/architecture/](./docs/architecture/) for the comprehensive proposal, migration plan, and developer quick reference.
+
 ---
 
 ## Tech Stack
