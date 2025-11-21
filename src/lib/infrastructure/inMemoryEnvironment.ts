@@ -79,8 +79,16 @@ export function createInMemoryEnvironment(seed?: {
 	scenarios?: Scenario[];
 	preferences?: Preference[];
 }): InMemoryEnvironment {
+    // Seed a default staff owner for MVP so ownerStaffId='owner-1' works out of the box.
+	const defaultStaff: Staff[] = [
+		{
+			id: 'owner-1',
+			name: 'Default Owner',
+			roles: ['TEACHER']
+		}
+	];
 	const studentRepo = new InMemoryStudentRepository(seed?.students ?? []);
-	const staffRepo = new InMemoryStaffRepository(seed?.staff ?? []);
+	const staffRepo = new InMemoryStaffRepository([...(seed?.staff ?? []), ...defaultStaff]);
 	const poolRepo = new InMemoryPoolRepository(seed?.pools ?? []);
 	const programRepo = new InMemoryProgramRepository(seed?.programs ?? []);
 	const scenarioRepo = new InMemoryScenarioRepository(seed?.scenarios ?? []);
