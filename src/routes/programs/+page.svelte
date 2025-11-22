@@ -4,15 +4,26 @@
         import type { Program } from '$lib/domain';
         import type { ProgramWithPrimaryPool } from '$lib/application/useCases/listPrograms';
         import { listPrograms } from '$lib/services/appEnvUseCases';
+        import { seedDemoData } from '$lib/services/demoData';
         import { isOk } from '$lib/types/result';
 
         let programsWithPools: ProgramWithPrimaryPool[] = [];
         let isLoading = true;
         let loadError: string | null = null;
+        let seedError: string | null = null;
+        let seedSuccess: string | null = null;
+        let isSeedingDemo = false;
+        let env: ReturnType<typeof getAppEnvContext> | null = null;
 
         onMount(async () => {
+                env = getAppEnvContext();
+                await loadPrograms();
+        });
+
+        async function loadPrograms() {
+                if (!env) return;
+
                 try {
-                        const env = getAppEnvContext();
                         isLoading = true;
                         loadError = null;
 
@@ -27,7 +38,25 @@
                 } finally {
                         isLoading = false;
                 }
-        });
+        }
+
+        async function handleSeedDemoData() {
+                if (!env) return;
+
+                seedError = null;
+                seedSuccess = null;
+                isSeedingDemo = true;
+
+                try {
+                        const result = await seedDemoData(env);
+                        seedSuccess = `Loaded ${result.program.name} with ${result.pool.memberIds.length} students.`;
+                        await loadPrograms();
+                } catch (e) {
+                        seedError = e instanceof Error ? e.message : 'Unable to load demo data.';
+                } finally {
+                        isSeedingDemo = false;
+                }
+        }
 
         function getPrimaryPoolName(entry: ProgramWithPrimaryPool): string {
                 const primaryPoolId = entry.program.primaryPoolId ?? entry.program.poolIds[0];
@@ -44,26 +73,44 @@
 </script>
 
 <div class="mx-auto max-w-5xl space-y-6 p-4">
-	<header class="flex items-center justify-between gap-4">
-		<h1 class="text-2xl font-semibold">Programs</h1>
-		<a
-			href="/programs/new"
-			class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-		>
-			Import Pool &amp; Create Program
-		</a>
-	</header>
+        <header class="flex items-center justify-between gap-4">
+                <h1 class="text-2xl font-semibold">Programs</h1>
+                <a
+                        href="/programs/new"
+                        class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                        Import Pool &amp; Create Program
+                </a>
+        </header>
 
-	{#if isLoading}
-		<p class="text-gray-600">Loading programs…</p>
-	{:else if loadError}
-		<p class="text-sm text-red-600">{loadError}</p>
-        {:else if programsWithPools.length === 0}
-                <p class="text-sm text-gray-600">
-                        No programs yet. Click
-                        <a href="/programs/new" class="text-blue-600 underline">Import Pool &amp; Create Program</a>
-                        to get started.
+        {#if seedSuccess}
+                <p class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                        {seedSuccess}
                 </p>
+        {:else if seedError}
+                <p class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{seedError}</p>
+        {/if}
+
+        {#if isLoading}
+                <p class="text-gray-600">Loading programs…</p>
+        {:else if loadError}
+                <p class="text-sm text-red-600">{loadError}</p>
+        {:else if programsWithPools.length === 0}
+                <div class="space-y-3 rounded-md border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        <p>
+                                No programs yet. Click
+                                <a href="/programs/new" class="text-blue-600 underline">Import Pool &amp; Create Program</a>
+                                to get started, or load demo data to explore the UI without an import.
+                        </p>
+
+                        <button
+                                class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                on:click|preventDefault={handleSeedDemoData}
+                                disabled={isSeedingDemo}
+                        >
+                                {isSeedingDemo ? 'Loading demo data…' : 'Load demo data'}
+                        </button>
+                </div>
         {:else}
                 <table class="min-w-full divide-y border text-sm">
                         <thead class="bg-gray-50">
