@@ -10,14 +10,19 @@ import type {
 } from '$lib/application/useCases/generateScenario';
 import { generateScenarioForProgram } from '$lib/application/useCases/generateScenario';
 import type {
-	ComputeScenarioAnalyticsInput,
-	ComputeScenarioAnalyticsError
+        ComputeScenarioAnalyticsInput,
+        ComputeScenarioAnalyticsError
 } from '$lib/application/useCases/computeScenarioAnalytics';
 import { computeScenarioAnalytics } from '$lib/application/useCases/computeScenarioAnalytics';
 import type {
-	GetStudentViewInput,
-	GetStudentViewError,
-	StudentViewData
+        GetProgramError,
+        ProgramWithPools
+} from '$lib/application/useCases/getProgram';
+import { getProgram } from '$lib/application/useCases/getProgram';
+import type {
+        GetStudentViewInput,
+        GetStudentViewError,
+        StudentViewData
 } from '$lib/application/useCases/getStudentView';
 import { getStudentView } from '$lib/application/useCases/getStudentView';
 import type { Pool } from '$lib/domain';
@@ -135,5 +140,18 @@ export async function listPrograms(
                         programRepo: env.programRepo,
                         poolRepo: env.poolRepo
                 }
+        );
+}
+
+export async function getProgramWithPools(
+        env: InMemoryEnvironment,
+        programId: string
+): Promise<Result<ProgramWithPools, GetProgramError>> {
+        return getProgram(
+                {
+                        programRepo: env.programRepo,
+                        poolRepo: env.poolRepo
+                },
+                { programId }
         );
 }
