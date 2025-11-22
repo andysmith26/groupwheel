@@ -4,10 +4,11 @@ import { render } from 'vitest-browser-svelte';
 import Page from './+page.svelte';
 
 describe('/+page.svelte', () => {
-	it('should render h1', async () => {
-		render(Page);
+        it('links to the roster import page', async () => {
+                render(Page);
 
-		const heading = page.getByRole('heading', { level: 1 });
-		await expect.element(heading).toBeInTheDocument();
-	});
+                const link = page.getByRole('link', { name: /roster import/i });
+                await expect.element(link).toBeInTheDocument();
+                await expect.element(link).toHaveAttribute('href', '/programs/import');
+        });
 });
