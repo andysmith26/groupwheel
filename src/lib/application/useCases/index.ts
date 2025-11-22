@@ -3,5 +3,6 @@ export * from './createProgram';
 export * from './generateScenario';
 export * from './computeScenarioAnalytics';
 export * from './getStudentView';
+export * from './getProgram';
 export * from './listPrograms';
 export * from './importRoster';

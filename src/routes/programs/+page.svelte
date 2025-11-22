@@ -119,15 +119,31 @@
                                         <th class="px-3 py-2 text-left font-medium text-gray-700">Type</th>
                                         <th class="px-3 py-2 text-left font-medium text-gray-700">Term</th>
                                         <th class="px-3 py-2 text-left font-medium text-gray-700">Primary Pool</th>
+                                        <th class="px-3 py-2 text-left font-medium text-gray-700">Workspace</th>
                                 </tr>
                         </thead>
                         <tbody class="divide-y">
                                 {#each programsWithPools as entry}
                                         <tr>
-                                                <td class="px-3 py-2">{entry.program.name}</td>
+                                                <td class="px-3 py-2">
+                                                        <a
+                                                                class="text-blue-700 underline hover:text-blue-900"
+                                                                href={`/programs/${entry.program.id}`}
+                                                        >
+                                                                {entry.program.name}
+                                                        </a>
+                                                </td>
                                                 <td class="px-3 py-2">{entry.program.type}</td>
                                                 <td class="px-3 py-2">{formatTimeSpan(entry.program)}</td>
                                                 <td class="px-3 py-2">{getPrimaryPoolName(entry)}</td>
+                                                <td class="px-3 py-2">
+                                                        <a
+                                                                class="rounded-md border px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                                                                href={`/programs/${entry.program.id}`}
+                                                        >
+                                                                Open
+                                                        </a>
+                                                </td>
                                         </tr>
                                 {/each}
                         </tbody>
