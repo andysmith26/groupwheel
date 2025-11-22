@@ -28,6 +28,8 @@ import type {
         CreatePoolFromRosterDataError
 } from '$lib/application/useCases/createPoolFromRosterData';
 import { createPoolFromRosterData } from '$lib/application/useCases/createPoolFromRosterData';
+import type { ImportRosterInput, ImportRosterError } from '$lib/application/useCases/importRoster';
+import { importRoster as importRosterUseCase } from '$lib/application/useCases/importRoster';
 import type {
         ListProgramsError,
         ProgramWithPrimaryPool
@@ -135,5 +137,20 @@ export async function listPrograms(
                         programRepo: env.programRepo,
                         poolRepo: env.poolRepo
                 }
+        );
+}
+
+export async function importRoster(
+        env: InMemoryEnvironment,
+        input: ImportRosterInput
+): Promise<Result<Pool, ImportRosterError>> {
+        return importRosterUseCase(
+                {
+                        poolRepo: env.poolRepo,
+                        studentRepo: env.studentRepo,
+                        staffRepo: env.staffRepo,
+                        idGenerator: env.idGenerator
+                },
+                input
         );
 }
