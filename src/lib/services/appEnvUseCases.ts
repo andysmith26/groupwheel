@@ -24,10 +24,15 @@ import type { Pool } from '$lib/domain';
 import type { ImportPoolFromCsvInput, ImportPoolFromCsvError } from '$lib/application/useCases/importPoolFromCsv';
 import { importPoolFromCsv } from '$lib/application/useCases/importPoolFromCsv';
 import type {
-	CreatePoolFromRosterDataInput,
-	CreatePoolFromRosterDataError
+        CreatePoolFromRosterDataInput,
+        CreatePoolFromRosterDataError
 } from '$lib/application/useCases/createPoolFromRosterData';
 import { createPoolFromRosterData } from '$lib/application/useCases/createPoolFromRosterData';
+import type {
+        ListProgramsError,
+        ProgramWithPrimaryPool
+} from '$lib/application/useCases/listPrograms';
+import { listPrograms as listProgramsUseCase } from '$lib/application/useCases/listPrograms';
 import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
 
@@ -108,16 +113,27 @@ export async function getStudentViewForScenario(
 }
 
 export async function createPoolFromRoster(
-	env: InMemoryEnvironment,
-	input: Omit<CreatePoolFromRosterDataInput, 'rosterData'> & { rosterData: RosterData }
+        env: InMemoryEnvironment,
+        input: Omit<CreatePoolFromRosterDataInput, 'rosterData'> & { rosterData: RosterData }
 ): Promise<Result<Pool, CreatePoolFromRosterDataError>> {
-	return createPoolFromRosterData(
+        return createPoolFromRosterData(
 		{
 			poolRepo: env.poolRepo,
 			studentRepo: env.studentRepo,
 			staffRepo: env.staffRepo,
 			idGenerator: env.idGenerator
-		},
-		input
-	);
+                },
+                input
+        );
+}
+
+export async function listPrograms(
+        env: InMemoryEnvironment
+): Promise<Result<ProgramWithPrimaryPool[], ListProgramsError>> {
+        return listProgramsUseCase(
+                {
+                        programRepo: env.programRepo,
+                        poolRepo: env.poolRepo
+                }
+        );
 }
