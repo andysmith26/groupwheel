@@ -48,7 +48,7 @@ describe('getProgram', () => {
 			const input: GetProgramInput = { programId: 'program-1' };
 			const result = await getProgram({ programRepo, poolRepo }, input);
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value.program.id).toBe('program-1');
 				expect(result.value.program.name).toBe('Summer Camp');
@@ -81,7 +81,7 @@ describe('getProgram', () => {
 			const input: GetProgramInput = { programId: 'program-1' };
 			const result = await getProgram({ programRepo, poolRepo }, input);
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value.pools).toHaveLength(1);
 				expect(result.value.pools[0].name).toBe('Grade 10');
@@ -94,8 +94,8 @@ describe('getProgram', () => {
 			const input: GetProgramInput = { programId: 'nonexistent-program' };
 			const result = await getProgram({ programRepo, poolRepo }, input);
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('PROGRAM_NOT_FOUND');
 				expect(result.error.programId).toBe('nonexistent-program');
 			}
@@ -124,8 +124,8 @@ describe('getProgram', () => {
 			const input: GetProgramInput = { programId: 'program-1' };
 			const result = await getProgram({ programRepo, poolRepo }, input);
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('POOL_NOT_FOUND');
 				expect(result.error.poolId).toBe('nonexistent-pool');
 			}
@@ -143,8 +143,8 @@ describe('getProgram', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('PROGRAM_LOOKUP_FAILED');
 				expect(result.error.message).toContain('Database connection failed');
 			}
@@ -169,8 +169,8 @@ describe('getProgram', () => {
 			const input: GetProgramInput = { programId: 'program-1' };
 			const result = await getProgram({ programRepo, poolRepo: failingPoolRepo }, input);
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('POOL_LOOKUP_FAILED');
 				expect(result.error.message).toContain('Pool fetch error');
 			}
@@ -207,7 +207,7 @@ describe('getProgram', () => {
 			const input: GetProgramInput = { programId: 'program-1' };
 			const result = await getProgram({ programRepo, poolRepo }, input);
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value.pools).toHaveLength(10);
 				expect(result.value.pools.map((p) => p.id)).toEqual(poolIds);

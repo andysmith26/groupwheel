@@ -48,7 +48,7 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value.name).toBe('Summer Camp');
 				expect(result.value.type).toBe('CLUBS');
@@ -73,7 +73,7 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value.ownerStaffIds).toEqual(['staff-1', 'staff-2']);
 			}
@@ -95,7 +95,7 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value.schoolId).toBe('school-123');
 			}
@@ -116,7 +116,7 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				const saved = await programRepo.getById(result.value.id);
 				expect(saved).not.toBeNull();
@@ -141,8 +141,8 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('DOMAIN_VALIDATION_FAILED');
 				expect(result.error.message).toContain('name must not be empty');
 			}
@@ -163,8 +163,8 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('DOMAIN_VALIDATION_FAILED');
 			}
 		});
@@ -182,8 +182,8 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('POOL_NOT_FOUND');
 				expect(result.error.poolId).toBe('nonexistent-pool');
 			}
@@ -211,8 +211,8 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('INTERNAL_ERROR');
 				expect(result.error.message).toContain('Database connection failed');
 			}
@@ -235,7 +235,7 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value.name).toBe('Trimmed Program');
 			}
@@ -259,7 +259,7 @@ describe('createProgramUseCase', () => {
 					input
 				);
 
-				expect(result.status === 'ok').toBe(true);
+				expect(result.status).toBe('ok');
 				if (result.status === 'ok') {
 					expect(result.value.type).toBe(type);
 				}

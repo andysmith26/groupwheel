@@ -56,7 +56,7 @@ describe('listPrograms', () => {
 
 			const result = await listPrograms({ programRepo, poolRepo });
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value).toHaveLength(2);
 				expect(result.value[0].program.id).toBe('program-1');
@@ -69,7 +69,7 @@ describe('listPrograms', () => {
 		it('should return empty array when no programs exist', async () => {
 			const result = await listPrograms({ programRepo, poolRepo });
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value).toEqual([]);
 			}
@@ -98,7 +98,7 @@ describe('listPrograms', () => {
 
 			const result = await listPrograms({ programRepo, poolRepo });
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value[0].primaryPool?.id).toBe('pool-1');
 			}
@@ -118,7 +118,7 @@ describe('listPrograms', () => {
 
 			const result = await listPrograms({ programRepo, poolRepo });
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value[0].primaryPool).toBeNull();
 			}
@@ -157,7 +157,7 @@ describe('listPrograms', () => {
 
 			const result = await listPrograms({ programRepo, poolRepo });
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value).toHaveLength(2);
 				expect(result.value[0].primaryPool?.id).toBe('pool-1');
@@ -175,8 +175,8 @@ describe('listPrograms', () => {
 
 			const result = await listPrograms({ programRepo: failingProgramRepo, poolRepo });
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('PROGRAM_LIST_FAILED');
 				expect(result.error.message).toContain('Database connection failed');
 			}
@@ -201,8 +201,8 @@ describe('listPrograms', () => {
 
 			const result = await listPrograms({ programRepo, poolRepo: failingPoolRepo });
 
-			expect(result.status === 'ok').toBe(false);
-			if (!result.status === 'ok') {
+			expect(result.status).toBe('err');
+			if (result.status === 'err') {
 				expect(result.error.type).toBe('POOL_LOOKUP_FAILED');
 				expect(result.error.message).toContain('Pool fetch error');
 			}
@@ -234,7 +234,7 @@ describe('listPrograms', () => {
 
 			const result = await listPrograms({ programRepo, poolRepo });
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value).toHaveLength(100);
 			}
@@ -271,7 +271,7 @@ describe('listPrograms', () => {
 
 			const result = await listPrograms({ programRepo, poolRepo });
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value[0].primaryPool?.id).toBe('pool-1');
 				expect(result.value[0].primaryPool?.name).toBe('Primary Pool');
@@ -294,7 +294,7 @@ describe('listPrograms', () => {
 
 			const result = await listPrograms({ programRepo, poolRepo });
 
-			expect(result.status === 'ok').toBe(true);
+			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
 				expect(result.value[0].primaryPool).toBeNull();
 			}
