@@ -18,36 +18,8 @@ import {
 	InMemoryPreferenceRepository
 } from '$lib/infrastructure/repositories/inMemory';
 import { UuidIdGenerator, SystemClock } from '$lib/infrastructure/services';
+import { BalancedGroupingAlgorithm } from '$lib/infrastructure/algorithms/balancedGrouping';
 import type { Pool, Program, Scenario, Student, Staff, Preference } from '$lib/domain';
-
-/**
- * Simple "put everyone into one big group" grouping algorithm for development/testing.
- *
- * This is a placeholder until you wire in the real grouping logic.
- */
-class TrivialGroupingAlgorithm implements GroupingAlgorithm {
-	async generateGroups(params: {
-		programId: string;
-		studentIds: string[];
-		algorithmConfig?: unknown;
-	}): Promise<
-		| { success: true; groups: { id: string; name: string; capacity: number | null; memberIds: string[] }[] }
-		| { success: false; message: string }
-	> {
-		const groupId = `group-${params.programId}`;
-		return {
-			success: true,
-			groups: [
-				{
-					id: groupId,
-					name: 'All Students',
-					capacity: null,
-					memberIds: [...params.studentIds]
-				}
-			]
-		};
-	}
-}
 
 /**
  * The full set of dependencies needed by MVP use cases, backed by in-memory implementations.
@@ -96,7 +68,7 @@ export function createInMemoryEnvironment(seed?: {
 
 	const idGenerator = new UuidIdGenerator();
 	const clock = new SystemClock();
-	const groupingAlgorithm = new TrivialGroupingAlgorithm();
+	const groupingAlgorithm = new BalancedGroupingAlgorithm(studentRepo, preferenceRepo, idGenerator);
 
 	return {
 		studentRepo,
