@@ -40,7 +40,14 @@
 
         onMount(async () => {
                 env = getAppEnvContext();
-                programId = get(page).params.id;
+                const currentProgramId = get(page).params.id;
+                if (!currentProgramId) {
+                        programLoadError = 'Program id is missing from the URL.';
+                        isLoadingProgram = false;
+                        return;
+                }
+
+                programId = currentProgramId;
                 await loadProgram(programId);
         });
 
@@ -270,8 +277,9 @@
                                         </button>
                                 </div>
                                 <div class="space-y-1 text-sm">
-                                        <label class="font-medium">Scenario ID</label>
+                                        <label class="font-medium" for="analytics-scenario-id">Scenario ID</label>
                                         <input
+                                                id="analytics-scenario-id"
                                                 class="w-full rounded border p-2"
                                                 bind:value={analyticsScenarioId}
                                                 placeholder="scenario-id"
@@ -301,16 +309,20 @@
                                 </div>
                                 <div class="grid gap-3 md:grid-cols-2">
                                         <div class="space-y-1 text-sm">
-                                                <label class="font-medium">Scenario ID</label>
+                                                <label class="font-medium" for="student-view-scenario-id">Scenario ID</label>
                                                 <input
+                                                        id="student-view-scenario-id"
                                                         class="w-full rounded border p-2"
                                                         bind:value={studentViewScenarioId}
                                                         placeholder="scenario-id"
                                                 />
                                         </div>
                                         <div class="space-y-1 text-sm">
-                                                <label class="font-medium">Optional student ID to highlight</label>
+                                                <label class="font-medium" for="student-view-student-id">
+                                                        Optional student ID to highlight
+                                                </label>
                                                 <input
+                                                        id="student-view-student-id"
                                                         class="w-full rounded border p-2"
                                                         bind:value={studentViewStudentId}
                                                         placeholder="student-id"

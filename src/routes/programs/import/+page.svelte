@@ -84,12 +84,13 @@
 
         <form class="space-y-4" on:submit|preventDefault={handleImport}>
                 <div class="space-y-2">
-                        <label class="block text-sm font-medium">Roster paste</label>
+                        <label class="block text-sm font-medium" for="roster-paste">Roster paste</label>
                         <textarea
+                                id="roster-paste"
                                 class="h-48 w-full rounded-md border p-2 font-mono text-sm"
                                 bind:value={pastedText}
                                 placeholder="Headers required: display name | name, id, friend 1 id, friend 2 id, ..."
-                        />
+                        ></textarea>
                         <p class="text-xs text-gray-500">
                                 Required columns: <code>display name</code> (or <code>name</code>) and <code>id</code>. Any
                                 number of <code>friend N id</code> columns are supported.
@@ -98,8 +99,9 @@
 
                 <div class="grid gap-4 md:grid-cols-2">
                         <div class="space-y-1">
-                                <label class="block text-sm font-medium">Pool name</label>
+                                <label class="block text-sm font-medium" for="pool-name">Pool name</label>
                                 <input
+                                        id="pool-name"
                                         class="w-full rounded-md border p-2 text-sm"
                                         bind:value={poolName}
                                         placeholder="Imported Pool"
@@ -108,8 +110,12 @@
                         </div>
 
                         <div class="space-y-1">
-                                <label class="block text-sm font-medium">Pool type</label>
-                                <select class="w-full rounded-md border p-2 text-sm" bind:value={poolType}>
+                                <label class="block text-sm font-medium" for="pool-type">Pool type</label>
+                                <select
+                                        id="pool-type"
+                                        class="w-full rounded-md border p-2 text-sm"
+                                        bind:value={poolType}
+                                >
                                         <option value="CLASS">Class</option>
                                         <option value="GRADE">Grade</option>
                                         <option value="CAMP">Camp</option>
@@ -120,8 +126,9 @@
 
                 <div class="grid gap-4 md:grid-cols-2">
                         <div class="space-y-1">
-                                <label class="block text-sm font-medium">Owner staff id</label>
+                                <label class="block text-sm font-medium" for="owner-staff-id">Owner staff id</label>
                                 <input
+                                        id="owner-staff-id"
                                         class="w-full rounded-md border p-2 text-sm"
                                         bind:value={ownerStaffId}
                                         placeholder="owner-1"
@@ -129,8 +136,13 @@
                         </div>
 
                         <div class="space-y-1">
-                                <label class="block text-sm font-medium">School id (optional)</label>
-                                <input class="w-full rounded-md border p-2 text-sm" bind:value={schoolId} placeholder="SCH-001" />
+                                <label class="block text-sm font-medium" for="school-id">School id (optional)</label>
+                                <input
+                                        id="school-id"
+                                        class="w-full rounded-md border p-2 text-sm"
+                                        bind:value={schoolId}
+                                        placeholder="SCH-001"
+                                />
                         </div>
                 </div>
 
