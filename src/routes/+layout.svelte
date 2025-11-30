@@ -1,4 +1,6 @@
 <script lang="ts">
+  import '../app.css';
+
   import { browser } from '$app/environment';
   import { page } from '$app/stores';
   import { setAppEnvContext } from '$lib/contexts/appEnv';
