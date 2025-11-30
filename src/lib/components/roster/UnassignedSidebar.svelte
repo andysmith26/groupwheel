@@ -54,12 +54,12 @@
 
 <div class="unassigned-sidebar" class:collapsed={isCollapsed}>
 	<div class="sidebar-header">
-		<button
-			class="collapse-button"
-			on:click={onToggleCollapse}
-			aria-label={isCollapsed ? 'Expand unassigned' : 'Collapse unassigned'}
-			title={isCollapsed ? 'Expand' : 'Collapse'}
-		>
+                <button
+                        class="collapse-button"
+                        onclick={onToggleCollapse}
+                        aria-label={isCollapsed ? 'Expand unassigned' : 'Collapse unassigned'}
+                        title={isCollapsed ? 'Expand' : 'Collapse'}
+                >
 			<svg
 				class="chevron-icon"
 				class:collapsed={isCollapsed}

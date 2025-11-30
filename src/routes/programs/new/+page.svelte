@@ -97,15 +97,17 @@
 				ownerStaffIds: [ownerStaffId]
 			});
 
-			if (isErr(programResult)) {
-				switch (programResult.error.type) {
-					case 'POOL_NOT_FOUND':
-					case 'INVALID_TIME_SPAN':
-					case 'DOMAIN_VALIDATION_FAILED':
-					case 'INTERNAL_ERROR':
-						submitError = programResult.error.message;
-						break;
-					default:
+                        if (isErr(programResult)) {
+                                switch (programResult.error.type) {
+                                        case 'POOL_NOT_FOUND':
+                                                submitError = `Pool ${programResult.error.poolId} was not found.`;
+                                                break;
+                                        case 'INVALID_TIME_SPAN':
+                                        case 'DOMAIN_VALIDATION_FAILED':
+                                        case 'INTERNAL_ERROR':
+                                                submitError = programResult.error.message;
+                                                break;
+                                        default:
 						submitError = 'Unknown error creating Program.';
 				}
 				return;
@@ -136,87 +138,100 @@
 	</header>
 
 	<section class="grid gap-6 md:grid-cols-2">
-		<!-- Roster paste -->
-		<div class="space-y-2">
-			<label class="block text-sm font-medium">Paste roster (TSV/CSV)</label>
-			<textarea
-				class="h-56 w-full rounded-md border p-2 font-mono text-sm"
-				bind:value={rawPaste}
-				placeholder="Headers required: display name | name, id, friend 1 id, friend 2 id, ..."
-			/>
-			<p class="text-xs text-gray-500">
-				This uses the same parser as the existing workspace. Required columns:
-				<code>display name</code> (or <code>name</code>), <code>id</code> (unique email). Any number
-				of <code>friend N id</code> columns are supported. Missing/unknown friend ids are ignored.
-			</p>
+                <!-- Roster paste -->
+                <div class="space-y-2">
+                        <label class="block text-sm font-medium" for="program-roster-paste">Paste roster (TSV/CSV)</label>
+                        <textarea
+                                id="program-roster-paste"
+                                class="h-56 w-full rounded-md border p-2 font-mono text-sm"
+                                bind:value={rawPaste}
+                                placeholder="Headers required: display name | name, id, friend 1 id, friend 2 id, ..."
+                        ></textarea>
+                        <p class="text-xs text-gray-500">
+                                This uses the same parser as the existing workspace. Required columns:
+                                <code>display name</code> (or <code>name</code>), <code>id</code> (unique email). Any number
+                                of <code>friend N id</code> columns are supported. Missing/unknown friend ids are ignored.
+                        </p>
 			{#if parseError}
 				<p class="text-xs text-red-600">{parseError}</p>
 			{/if}
 		</div>
 
-		<!-- Program + Pool form -->
-		<div class="space-y-4">
-			<div class="space-y-1">
-				<label class="block text-sm font-medium">Program name</label>
-				<input
-					class="w-full rounded-md border p-2 text-sm"
-					bind:value={programName}
-					placeholder="Fall Clubs 2025"
-				/>
-			</div>
+                <!-- Program + Pool form -->
+                <div class="space-y-4">
+                        <div class="space-y-1">
+                                <label class="block text-sm font-medium" for="program-name">Program name</label>
+                                <input
+                                        id="program-name"
+                                        class="w-full rounded-md border p-2 text-sm"
+                                        bind:value={programName}
+                                        placeholder="Fall Clubs 2025"
+                                />
+                        </div>
 
-			<div class="space-y-1">
-				<label class="block text-sm font-medium">Program type</label>
-				<select class="w-full rounded-md border p-2 text-sm" bind:value={programType}>
-					<option value="CLUBS">Clubs</option>
-					<option value="ADVISORY">Advisory</option>
-					<option value="CABINS">Cabins</option>
-					<option value="CLASS_ACTIVITY">Class activity</option>
-					<option value="OTHER">Other</option>
-				</select>
-			</div>
+                        <div class="space-y-1">
+                                <label class="block text-sm font-medium" for="program-type">Program type</label>
+                                <select
+                                        id="program-type"
+                                        class="w-full rounded-md border p-2 text-sm"
+                                        bind:value={programType}
+                                >
+                                        <option value="CLUBS">Clubs</option>
+                                        <option value="ADVISORY">Advisory</option>
+                                        <option value="CABINS">Cabins</option>
+                                        <option value="CLASS_ACTIVITY">Class activity</option>
+                                        <option value="OTHER">Other</option>
+                                </select>
+                        </div>
 
-			<div class="space-y-1">
-				<label class="block text-sm font-medium">Term label</label>
-				<input
-					class="w-full rounded-md border p-2 text-sm"
-					bind:value={termLabel}
-					placeholder="Fall 2025"
-				/>
-				<p class="text-xs text-gray-500">
+                        <div class="space-y-1">
+                                <label class="block text-sm font-medium" for="term-label">Term label</label>
+                                <input
+                                        id="term-label"
+                                        class="w-full rounded-md border p-2 text-sm"
+                                        bind:value={termLabel}
+                                        placeholder="Fall 2025"
+                                />
+                                <p class="text-xs text-gray-500">
 					For MVP we store a simple term label instead of explicit dates.
 				</p>
 			</div>
 
-			<div class="space-y-1">
-				<label class="block text-sm font-medium">Pool name</label>
-				<input
-					class="w-full rounded-md border p-2 text-sm"
-					bind:value={poolName}
-					placeholder="Defaults to Program name + “Pool” if left blank"
-				/>
-			</div>
+                        <div class="space-y-1">
+                                <label class="block text-sm font-medium" for="pool-name">Pool name</label>
+                                <input
+                                        id="pool-name"
+                                        class="w-full rounded-md border p-2 text-sm"
+                                        bind:value={poolName}
+                                        placeholder="Defaults to Program name + “Pool” if left blank"
+                                />
+                        </div>
 
-			<div class="space-y-1">
-				<label class="block text-sm font-medium">Pool type</label>
-				<select class="w-full rounded-md border p-2 text-sm" bind:value={poolType}>
-					<option value="CLASS">Class</option>
-					<option value="GRADE">Grade</option>
-					<option value="TRIP">Trip</option>
-					<option value="CUSTOM">Custom</option>
-					<option value="SCHOOL">School</option>
-				</select>
-			</div>
+                        <div class="space-y-1">
+                                <label class="block text-sm font-medium" for="pool-type">Pool type</label>
+                                <select
+                                        id="pool-type"
+                                        class="w-full rounded-md border p-2 text-sm"
+                                        bind:value={poolType}
+                                >
+                                        <option value="CLASS">Class</option>
+                                        <option value="GRADE">Grade</option>
+                                        <option value="TRIP">Trip</option>
+                                        <option value="CUSTOM">Custom</option>
+                                        <option value="SCHOOL">School</option>
+                                </select>
+                        </div>
 
-			<!-- Owner staff ID is hardcoded/rough for MVP; later we can tie to real Staff. -->
-			<div class="space-y-1">
-				<label class="block text-sm font-medium">Owner staff ID (MVP)</label>
-				<input
-					class="w-full rounded-md border p-2 text-sm"
-					bind:value={ownerStaffId}
-					placeholder="owner-1"
-				/>
-				<p class="text-xs text-gray-500">
+                        <!-- Owner staff ID is hardcoded/rough for MVP; later we can tie to real Staff. -->
+                        <div class="space-y-1">
+                                <label class="block text-sm font-medium" for="owner-staff-id">Owner staff ID (MVP)</label>
+                                <input
+                                        id="owner-staff-id"
+                                        class="w-full rounded-md border p-2 text-sm"
+                                        bind:value={ownerStaffId}
+                                        placeholder="owner-1"
+                                />
+                                <p class="text-xs text-gray-500">
 					For now, this must match a Staff record in the in-memory environment.
 				</p>
 			</div>

@@ -19,9 +19,9 @@
 	let drawerState = $state<'closed' | 'minimized' | 'open'>('closed');
 	let previousSelectedId: string | null = null;
 
-	let tabButton: HTMLButtonElement | null = null;
-	let closeButton: HTMLButtonElement | null = null;
-	let titleEl: HTMLHeadingElement | null = null;
+        let tabButton: HTMLButtonElement | null = $state(null);
+        let closeButton: HTMLButtonElement | null = $state(null);
+        let titleEl: HTMLHeadingElement | null = $state(null);
 
 	const hasSelection = $derived(Boolean(selectedStudentId));
 	const currentStudent = $derived(selectedStudentId ? studentsById[selectedStudentId] : null);
@@ -80,13 +80,13 @@
 >
 	{#if drawerState === 'minimized'}
 		<div class="drawer-tab-container">
-			<button
-				type="button"
-				class="drawer-tab"
-				on:click={openDrawer}
-				bind:this={tabButton}
-				aria-label="Expand inspector for {displayName}"
-			>
+                                <button
+                                        type="button"
+                                        class="drawer-tab"
+                                        onclick={openDrawer}
+                                        bind:this={tabButton}
+                                        aria-label="Expand inspector for {displayName}"
+                                >
 				<span class="tab-icon">👤</span>
 				<span class="tab-name">{displayName}</span>
 				<span class="tab-meta">· {currentStudent?.id} · {currentStudent?.gender || '?'}</span>
@@ -114,22 +114,22 @@
 					{/if}
 				</span>
 			</button>
-			<button
-				type="button"
-				class="tab-expand-btn"
-				on:click={openDrawer}
-				aria-label="Expand details"
-				title="Expand"
-			>
+                                <button
+                                        type="button"
+                                        class="tab-expand-btn"
+                                        onclick={openDrawer}
+                                        aria-label="Expand details"
+                                        title="Expand"
+                                >
 				▲
 			</button>
-			<button
-				type="button"
-				class="tab-close"
-				on:click={closeDrawer}
-				aria-label="Close inspector"
-				bind:this={closeButton}
-			>
+                                <button
+                                        type="button"
+                                        class="tab-close"
+                                        onclick={closeDrawer}
+                                        aria-label="Close inspector"
+                                        bind:this={closeButton}
+                                >
 				✕
 			</button>
 		</div>
@@ -141,22 +141,22 @@
 			</h2>
 
 			<div class="drawer-actions">
-				<button
-					type="button"
-					class="drawer-button"
-					on:click={minimizeDrawer}
-					title="Minimize to tab"
-					aria-label="Minimize inspector"
-				>
+                                <button
+                                        type="button"
+                                        class="drawer-button"
+                                        onclick={minimizeDrawer}
+                                        title="Minimize to tab"
+                                        aria-label="Minimize inspector"
+                                >
 					<span aria-hidden="true">▼</span>
 				</button>
-				<button
-					type="button"
-					class="drawer-button"
-					on:click={closeDrawer}
-					title="Close inspector"
-					aria-label="Close inspector"
-				>
+                                <button
+                                        type="button"
+                                        class="drawer-button"
+                                        onclick={closeDrawer}
+                                        title="Close inspector"
+                                        aria-label="Close inspector"
+                                >
 					<span aria-hidden="true">✕</span>
 				</button>
 			</div>

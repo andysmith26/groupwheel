@@ -82,22 +82,22 @@
 		{@const status = getCapacityStatus(group)}
 		<div class="group-row" class:collapsed={isCollapsed(group.id)}>
 			<div class="group-row-header">
-				<button
-					class="collapse-button"
-					on:click={() => onToggleCollapse(group.id)}
-					aria-label={isCollapsed(group.id) ? `Expand ${group.name}` : `Collapse ${group.name}`}
-					title={isCollapsed(group.id) ? 'Expand' : 'Collapse'}
-				>
-					<span class="collapse-icon" class:collapsed={isCollapsed(group.id)}>▼</span>
-				</button>
+                                <button
+                                        class="collapse-button"
+                                        on:click={() => onToggleCollapse(group.id)}
+                                        aria-label={isCollapsed(group.id) ? `Expand ${group.name}` : `Collapse ${group.name}`}
+                                        title={isCollapsed(group.id) ? 'Expand' : 'Collapse'}
+                                >
+                                        <span class="collapse-icon" class:collapsed={isCollapsed(group.id)}>▼</span>
+                                </button>
 
-				<input
-					type="text"
-					class="group-row-name-input"
-					value={group.name}
-					on:input={(e) => onUpdateGroup?.(group.id, { name: e.currentTarget.value })}
-					placeholder="Group name"
-				/>
+                                <input
+                                        type="text"
+                                        class="group-row-name-input"
+                                        value={group.name}
+                                        on:input={(e) => onUpdateGroup?.(group.id, { name: e.currentTarget.value })}
+                                        placeholder="Group name"
+                                />
 
 				<div class="capacity-controls">
 					<span
@@ -114,16 +114,16 @@
 						class="capacity-input"
 						class:warning={getCapacityStatus(group).isWarning}
 						class:full={getCapacityStatus(group).isFull}
-						style="color: {getCapacityStatus(group).color};"
-						value={group.capacity ?? ''}
-						min="1"
-						placeholder="∞"
-						on:input={(e) => {
-							const val = e.currentTarget.value;
-							const num = parseInt(val, 10);
-							const newCapacity = val === '' || isNaN(num) || num <= 0 ? null : num;
-							onUpdateGroup?.(group.id, { capacity: newCapacity });
-						}}
+                                                style="color: {getCapacityStatus(group).color};"
+                                                value={group.capacity ?? ''}
+                                                min="1"
+                                                placeholder="∞"
+                                                on:input={(e) => {
+                                                        const val = e.currentTarget.value;
+                                                        const num = parseInt(val, 10);
+                                                        const newCapacity = val === '' || isNaN(num) || num <= 0 ? null : num;
+                                                        onUpdateGroup?.(group.id, { capacity: newCapacity });
+                                                }}
 					/>
 				</div>
 			</div>
@@ -302,9 +302,10 @@
 		margin: 0;
 	}
 
-	.capacity-input[type='number'] {
-		-moz-appearance: textfield;
-	}
+        .capacity-input[type='number'] {
+                appearance: textfield;
+                -moz-appearance: textfield;
+        }
 
 	.capacity-input:hover {
 		background: white;

@@ -162,19 +162,25 @@
 	class:selected={isSelected}
 	class:dragging={isDragging}
 	class:friend-highlight={isFriendOfSelected}
-	class:needs-assistance={shouldHighlightUnhappy}
-	use:draggable={{
-		dragData: { id: student.id },
-		container,
-		callbacks: {
-			onDragStart,
-			onDragEnd
-		}
-	}}
-	onclick={() => onClick?.()}
-	role="button"
-	tabindex="0"
-	aria-label={`${displayName}, happiness ${happiness} of ${totalFriends} friends`}
+        class:needs-assistance={shouldHighlightUnhappy}
+        use:draggable={{
+                dragData: { id: student.id },
+                container,
+                callbacks: {
+                        onDragStart,
+                        onDragEnd
+                }
+        }}
+        on:click={() => onClick?.()}
+        on:keydown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onClick?.();
+                }
+        }}
+        role="button"
+        tabindex="0"
+        aria-label={`${displayName}, happiness ${happiness} of ${totalFriends} friends`}
 >
 	<div class="card-content">
 		<!-- Friend connection indicator (only shown when friend of selected) -->
