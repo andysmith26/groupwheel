@@ -6,13 +6,14 @@
         import type { StudentViewData } from '$lib/application/useCases/getStudentView';
         import { isOk } from '$lib/types/result';
 
-        const env = getAppEnvContext();
+        let env: ReturnType<typeof getAppEnvContext> | null = null;
 
         let loading = true;
         let error: string | null = null;
         let viewData: StudentViewData | null = null;
 
         onMount(async () => {
+                env = getAppEnvContext();
                 if (!env) {
                         error = 'Application environment not ready.';
                         loading = false;
@@ -68,7 +69,7 @@
         <div class="min-h-screen bg-white p-8">
                 <header class="mb-8 text-center">
                         <h1 class="text-4xl font-bold text-gray-900">
-                                {viewData.programName ?? 'Student Groups'}
+                                Student Groups
                         </h1>
                         <p class="mt-2 text-xl text-gray-600">
                                 {viewData.groups.length} groups · {viewData.groups.reduce((sum, g) => sum + g.members.length, 0)} students
