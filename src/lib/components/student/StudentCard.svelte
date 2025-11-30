@@ -171,8 +171,8 @@
                         onDragEnd
                 }
         }}
-        on:click={() => onClick?.()}
-        on:keydown={(event) => {
+        onclick={() => onClick?.()}
+        onkeydown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         onClick?.();

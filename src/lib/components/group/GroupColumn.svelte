@@ -66,7 +66,7 @@
                         type="text"
                         class="group-name-input"
                         value={group.name}
-                        on:input={(e) => onUpdateGroup?.(group.id, { name: e.currentTarget.value })}
+                        oninput={(e) => onUpdateGroup?.(group.id, { name: e.currentTarget.value })}
                         placeholder="Group name"
                 />
 		<div class="capacity-controls">
@@ -88,7 +88,7 @@
                                 value={group.capacity ?? ''}
                                 min="1"
                                 placeholder="∞"
-                                on:input={(e) => {
+                                oninput={(e) => {
                                         const val = e.currentTarget.value;
                                         const num = parseInt(val, 10);
                                         const newCapacity = val === '' || isNaN(num) || num <= 0 ? null : num;
