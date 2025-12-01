@@ -375,7 +375,7 @@
 
                                         <div class="w-full overflow-x-auto">
                                                 <VerticalGroupLayout
-                                                        groups={commandStore.groups}
+                                                        groups={scenarioResult.groups}
                                                         {selectedStudentId}
                                                         {currentlyDragging}
                                                         {collapsedGroups}
