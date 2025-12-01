@@ -116,6 +116,21 @@
                 scenarioResult = { ...scenarioResult, groups: nextGroups };
         }
 
+        async function persistScenarioChanges(nextGroups: Group[]) {
+                if (!env || !scenarioResult) return;
+
+                setScenarioGroups(nextGroups);
+
+                const nextScenario = { ...scenarioResult };
+                await env.scenarioRepo.update(nextScenario);
+                await refreshAnalytics(nextScenario.id);
+
+                const students = Object.values(appDataContext.studentsById);
+                if (students.length) {
+                        storeScenarioForProjection(nextScenario, students);
+                }
+        }
+
         $: unassignedStudentIds = scenarioResult
                 ? scenarioResult.participantSnapshot.filter((id) =>
                                 !scenarioResult?.groups.some((group) => group.memberIds.includes(id))
@@ -140,7 +155,7 @@
                 }, 700);
         }
 
-        function handleDrop(state: DropState) {
+        async function handleDrop(state: DropState) {
                 if (!scenarioResult) return;
 
                 const { draggedItem, sourceContainer, targetContainer } = state;
@@ -188,15 +203,15 @@
                         });
                 }
 
-                setScenarioGroups(commandStore.groups);
+                await persistScenarioChanges(commandStore.groups);
                 triggerFlash(targetContainer);
                 currentlyDragging = null;
         }
 
-        function handleUpdateGroup(groupId: string, changes: Partial<Group>) {
+        async function handleUpdateGroup(groupId: string, changes: Partial<Group>) {
                 if (!scenarioResult) return;
                 commandStore.updateGroup(groupId, changes);
-                setScenarioGroups(commandStore.groups);
+                await persistScenarioChanges(commandStore.groups);
         }
 
         function handleToggleCollapse(groupId: string) {
