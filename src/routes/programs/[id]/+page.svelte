@@ -15,6 +15,7 @@
                 getStudentViewForScenario
         } from '$lib/services/appEnvUseCases';
         import { isOk } from '$lib/types/result';
+        import { storeScenarioForProjection } from '$lib/infrastructure/scenarioStorage';
 
         let env: ReturnType<typeof getAppEnvContext> | null = null;
         let programId = '';
@@ -105,6 +106,10 @@
                         scenarioResult = result.value;
                         analyticsScenarioId = result.value.id;
                         studentViewScenarioId = result.value.id;
+
+                        // Store scenario and students in localStorage for projection view
+                        const students = await env.studentRepo.getByIds(result.value.participantSnapshot);
+                        storeScenarioForProjection(result.value, students);
                 } else {
                         switch (result.error.type) {
                                 case 'PROGRAM_NOT_FOUND':
@@ -289,9 +294,33 @@
                                         <p class="text-sm text-red-600">{analyticsError}</p>
                                 {/if}
                                 {#if analyticsResult}
-                                        <div class="space-y-2 text-sm">
-                                                <p class="font-medium">Satisfaction metrics</p>
-                                                <pre class="overflow-auto rounded bg-gray-50 p-2 text-xs">{JSON.stringify(analyticsResult, null, 2)}</pre>
+                                        <div class="space-y-3 rounded-lg bg-gray-50 p-4">
+                                                <div class="flex items-center justify-between">
+                                                        <span class="text-sm font-medium text-gray-700">Top choice satisfaction</span>
+                                                        <span class="text-lg font-semibold text-green-600">
+                                                                {analyticsResult.percentAssignedTopChoice.toFixed(1)}%
+                                                        </span>
+                                                </div>
+
+                                                {#if analyticsResult.percentAssignedTop2 !== undefined}
+                                                        <div class="flex items-center justify-between">
+                                                                <span class="text-sm font-medium text-gray-700">Top 2 choices satisfaction</span>
+                                                                <span class="text-lg font-semibold text-blue-600">
+                                                                        {analyticsResult.percentAssignedTop2.toFixed(1)}%
+                                                                </span>
+                                                        </div>
+                                                {/if}
+
+                                                <div class="flex items-center justify-between">
+                                                        <span class="text-sm font-medium text-gray-700">Avg. preference rank</span>
+                                                        <span class="text-lg font-semibold text-gray-800">
+                                                                {Number.isNaN(analyticsResult.averagePreferenceRankAssigned)
+                                                                        ? 'N/A'
+                                                                        : analyticsResult.averagePreferenceRankAssigned.toFixed(2)}
+                                                        </span>
+                                                </div>
+
+                                                <p class="text-xs text-gray-500">Lower rank is better (1 = got first choice)</p>
                                         </div>
                                 {/if}
                         </div>
@@ -336,6 +365,14 @@
                                         <div class="space-y-2 text-sm">
                                                 <p class="font-medium">Groups</p>
                                                 <pre class="overflow-auto rounded bg-gray-50 p-2 text-xs">{JSON.stringify(studentViewResult, null, 2)}</pre>
+                                                <a
+                                                        href="/scenarios/{studentViewScenarioId}/student-view"
+                                                        class="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                                                        target="_blank"
+                                                        rel="noopener"
+                                                >
+                                                        Open Projection View ↗
+                                                </a>
                                         </div>
                                 {/if}
                         </div>

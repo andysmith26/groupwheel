@@ -83,6 +83,26 @@
         </header>
 
         <form class="space-y-4" on:submit|preventDefault={handleImport}>
+                <details class="mb-4 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
+                        <summary class="cursor-pointer font-medium text-blue-600 hover:text-blue-800">
+                                How to import from Google Sheets
+                        </summary>
+                        <ol class="mt-3 ml-4 list-decimal space-y-2 text-gray-700">
+                                <li>Open your roster spreadsheet in Google Sheets</li>
+                                <li>
+                                        Ensure you have columns for:
+                                        <code class="rounded bg-gray-200 px-1">name</code>,
+                                        <code class="rounded bg-gray-200 px-1">id</code>, and optionally
+                                        <code class="rounded bg-gray-200 px-1">friend 1 id</code>,
+                                        <code class="rounded bg-gray-200 px-1">friend 2 id</code>, etc.
+                                </li>
+                                <li>Select all data rows including the header row</li>
+                                <li>Copy (Ctrl+C or Cmd+C)</li>
+                                <li>Paste into the text area below (Ctrl+V or Cmd+V)</li>
+                        </ol>
+                        <p class="mt-3 text-xs text-gray-500">Tip: Tab-separated (TSV) format from Google Sheets works best.</p>
+                </details>
+
                 <div class="space-y-2">
                         <label class="block text-sm font-medium" for="roster-paste">Roster paste</label>
                         <textarea
