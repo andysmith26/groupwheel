@@ -1,190 +1,21 @@
 <script lang="ts">
-        import { goto } from '$app/navigation';
-        import { onMount } from 'svelte';
-        import type { PoolType } from '$lib/domain';
-        import { getAppEnvContext } from '$lib/contexts/appEnv';
-        import { importRoster } from '$lib/services/appEnvUseCases';
-        import { isErr } from '$lib/types/result';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
-        let env: ReturnType<typeof getAppEnvContext> | null = null;
-
-        onMount(() => {
-                env = getAppEnvContext();
-        });
-
-        let pastedText = '';
-        let poolName = '';
-        let poolType: PoolType = 'CLASS';
-        let ownerStaffId = 'owner-1';
-        let schoolId = '';
-
-        let errorMessage = '';
-        let successMessage = '';
-        let isSubmitting = false;
-
-        async function handleImport() {
-                errorMessage = '';
-                successMessage = '';
-
-                if (!env) {
-                        errorMessage = 'Application environment not ready yet. Please try again in a moment.';
-                        return;
-                }
-
-                if (!pastedText.trim()) {
-                        errorMessage = 'Please paste roster text before importing.';
-                        return;
-                }
-
-                const effectivePoolName = poolName.trim() || 'Imported Pool';
-
-                isSubmitting = true;
-                const result = await importRoster(env, {
-                        pastedText,
-                        poolName: effectivePoolName,
-                        poolType,
-                        ownerStaffId,
-                        schoolId: schoolId.trim() || undefined
-                });
-                isSubmitting = false;
-
-                if (isErr(result)) {
-                        switch (result.error.type) {
-                                case 'PARSE_ERROR':
-                                        errorMessage = result.error.message;
-                                        break;
-                                case 'OWNER_STAFF_NOT_FOUND':
-                                        errorMessage = `Owner staff not found: ${result.error.staffId}`;
-                                        break;
-                                case 'NO_STUDENTS_IN_ROSTER':
-                                case 'DOMAIN_VALIDATION_FAILED':
-                                case 'INTERNAL_ERROR':
-                                        errorMessage = result.error.message;
-                                        break;
-                                default:
-                                        errorMessage = 'Unknown error importing roster.';
-                        }
-                        return;
-                }
-
-                successMessage = `Imported ${result.value.name} with ${result.value.memberIds.length} students. Redirecting to Programs...`;
-                await goto('/programs');
-        }
+	onMount(() => {
+		// Redirect to the new pools import page
+		goto('/pools/import', { replaceState: true });
+	});
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6 p-4">
-        <header class="space-y-2">
-                <p class="text-sm text-gray-600">Roster import</p>
-                <h1 class="text-2xl font-semibold">Paste a roster to build a Pool</h1>
-                <p class="text-sm text-gray-600">
-                        Paste CSV/TSV roster data. We will parse it, create Students, and save them into a Pool you can use
-                        when creating Programs.
-                </p>
-        </header>
-
-        <form class="space-y-4" on:submit|preventDefault={handleImport}>
-                <details class="mb-4 rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-                        <summary class="cursor-pointer font-medium text-blue-600 hover:text-blue-800">
-                                How to import from Google Sheets
-                        </summary>
-                        <ol class="mt-3 ml-4 list-decimal space-y-2 text-gray-700">
-                                <li>Open your roster spreadsheet in Google Sheets</li>
-                                <li>
-                                        Ensure you have columns for:
-                                        <code class="rounded bg-gray-200 px-1">name</code>,
-                                        <code class="rounded bg-gray-200 px-1">id</code>, and optionally
-                                        <code class="rounded bg-gray-200 px-1">friend 1 id</code>,
-                                        <code class="rounded bg-gray-200 px-1">friend 2 id</code>, etc.
-                                </li>
-                                <li>Select all data rows including the header row</li>
-                                <li>Copy (Ctrl+C or Cmd+C)</li>
-                                <li>Paste into the text area below (Ctrl+V or Cmd+V)</li>
-                        </ol>
-                        <p class="mt-3 text-xs text-gray-500">Tip: Tab-separated (TSV) format from Google Sheets works best.</p>
-                </details>
-
-                <div class="space-y-2">
-                        <label class="block text-sm font-medium" for="roster-paste">Roster paste</label>
-                        <textarea
-                                id="roster-paste"
-                                class="h-48 w-full rounded-md border p-2 font-mono text-sm"
-                                bind:value={pastedText}
-                                placeholder="Headers required: display name | name, id, friend 1 id, friend 2 id, ..."
-                        ></textarea>
-                        <p class="text-xs text-gray-500">
-                                Required columns: <code>display name</code> (or <code>name</code>) and <code>id</code>. Any
-                                number of <code>friend N id</code> columns are supported.
-                        </p>
-                </div>
-
-                <div class="grid gap-4 md:grid-cols-2">
-                        <div class="space-y-1">
-                                <label class="block text-sm font-medium" for="pool-name">Pool name</label>
-                                <input
-                                        id="pool-name"
-                                        class="w-full rounded-md border p-2 text-sm"
-                                        bind:value={poolName}
-                                        placeholder="Imported Pool"
-                                />
-                                <p class="text-xs text-gray-500">Defaults to “Imported Pool” if left blank.</p>
-                        </div>
-
-                        <div class="space-y-1">
-                                <label class="block text-sm font-medium" for="pool-type">Pool type</label>
-                                <select
-                                        id="pool-type"
-                                        class="w-full rounded-md border p-2 text-sm"
-                                        bind:value={poolType}
-                                >
-                                        <option value="CLASS">Class</option>
-                                        <option value="GRADE">Grade</option>
-                                        <option value="CAMP">Camp</option>
-                                        <option value="ACTIVITY">Activity</option>
-                                </select>
-                        </div>
-                </div>
-
-                <div class="grid gap-4 md:grid-cols-2">
-                        <div class="space-y-1">
-                                <label class="block text-sm font-medium" for="owner-staff-id">Owner staff id</label>
-                                <input
-                                        id="owner-staff-id"
-                                        class="w-full rounded-md border p-2 text-sm"
-                                        bind:value={ownerStaffId}
-                                        placeholder="owner-1"
-                                />
-                        </div>
-
-                        <div class="space-y-1">
-                                <label class="block text-sm font-medium" for="school-id">School id (optional)</label>
-                                <input
-                                        id="school-id"
-                                        class="w-full rounded-md border p-2 text-sm"
-                                        bind:value={schoolId}
-                                        placeholder="SCH-001"
-                                />
-                        </div>
-                </div>
-
-                <div class="flex items-center gap-3">
-                        <button
-                                class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                                type="submit"
-                                disabled={isSubmitting}
-                        >
-                                {isSubmitting ? 'Importing…' : 'Import roster'}
-                        </button>
-                        <a class="text-sm text-blue-600 underline" href="/programs">Back to Programs</a>
-                </div>
-        </form>
-
-        {#if errorMessage}
-                <p class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</p>
-        {/if}
-
-        {#if successMessage}
-                <p class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-                        {successMessage}
-                </p>
-        {/if}
+<div class="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+	<div class="space-y-3 text-center">
+		<h1 class="text-2xl font-semibold">Roster import has moved</h1>
+		<p class="text-sm text-gray-600">
+			Roster import is now at <strong>/pools/import</strong>. Redirecting...
+		</p>
+		<a class="text-sm font-medium text-blue-600 underline" href="/pools/import">
+			Go to Pool Import
+		</a>
+	</div>
 </div>

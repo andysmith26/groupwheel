@@ -42,6 +42,8 @@ import type {
 import { listPrograms as listProgramsUseCase } from '$lib/application/useCases/listPrograms';
 import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
+import { listPools as listPoolsUseCase } from '$lib/application/useCases/listPools';
+
 
 export async function importPool(
 	env: InMemoryEnvironment,
@@ -56,6 +58,12 @@ export async function importPool(
 		},
 		input
 	);
+}
+/**
+ * List all Pools.
+ */
+export async function listPools(env: InMemoryEnvironment) {
+	return listPoolsUseCase({ poolRepo: env.poolRepo });
 }
 
 export async function createProgram(

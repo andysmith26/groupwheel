@@ -176,10 +176,12 @@ describe('createProgramUseCase', () => {
 				input
 			);
 
-                        expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
-                                result,
-                                'DOMAIN_VALIDATION_FAILED'
-                        );
+const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
+        result,
+        'DOMAIN_VALIDATION_FAILED'
+    );
+    expect(error.message).toContain('name must not be empty');
+
                 });
 
 		it('should fail when primary pool does not exist', async () => {
