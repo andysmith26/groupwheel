@@ -15,6 +15,7 @@
                 getStudentViewForScenario
         } from '$lib/services/appEnvUseCases';
         import { isOk } from '$lib/types/result';
+        import { storeScenarioForProjection } from '$lib/infrastructure/scenarioStorage';
 
         let env: ReturnType<typeof getAppEnvContext> | null = null;
         let programId = '';
@@ -105,6 +106,10 @@
                         scenarioResult = result.value;
                         analyticsScenarioId = result.value.id;
                         studentViewScenarioId = result.value.id;
+
+                        // Store scenario and students in localStorage for projection view
+                        const students = await env.studentRepo.getByIds(result.value.participantSnapshot);
+                        storeScenarioForProjection(result.value, students);
                 } else {
                         switch (result.error.type) {
                                 case 'PROGRAM_NOT_FOUND':
