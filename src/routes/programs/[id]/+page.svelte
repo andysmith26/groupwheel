@@ -3,6 +3,7 @@
         import { get } from 'svelte/store';
         import { page } from '$app/stores';
         import { getAppEnvContext } from '$lib/contexts/appEnv';
+        import { setAppDataContext } from '$lib/contexts/appData';
         import type { Program } from '$lib/domain';
         import type { Pool } from '$lib/domain/pool';
         import type { Scenario } from '$lib/domain/scenario';
@@ -13,6 +14,7 @@
         import UnassignedSidebar from '$lib/components/roster/UnassignedSidebar.svelte';
         import type { DropState } from '$lib/utils/pragmatic-dnd';
         import type { Group } from '$lib/types';
+        import type { StudentPreference } from '$lib/types/preferences';
         import { commandStore } from '$lib/stores/commands.svelte';
 
         let env: ReturnType<typeof getAppEnvContext> | null = null;
@@ -208,6 +210,7 @@
 
                 const result = await generateScenario(env, { programId: program.id });
                 if (isOk(result)) {
+                        await loadAppDataContext(result.value.participantSnapshot, program.id);
                         syncScenario(result.value);
 
                         // Store scenario and students in localStorage for projection view
@@ -236,6 +239,59 @@
                 }
 
                 isGeneratingScenario = false;
+        }
+
+        async function loadAppDataContext(studentIds: string[], programId: string) {
+                if (!env) return;
+
+                const [students, preferences] = await Promise.all([
+                        env.studentRepo.getByIds(studentIds),
+                        env.preferenceRepo.listByProgramId(programId)
+                ]);
+
+                const studentsById = Object.fromEntries(students.map((student) => [student.id, student]));
+                const preferencesById: Record<string, StudentPreference> = {};
+
+                for (const pref of preferences) {
+                        if (studentIds.includes(pref.studentId)) {
+                                preferencesById[pref.studentId] = parsePreferencePayload(pref.payload, pref.studentId);
+                        }
+                }
+
+                for (const studentId of studentIds) {
+                        if (!preferencesById[studentId]) {
+                                preferencesById[studentId] = createEmptyPreference(studentId);
+                        }
+                }
+
+                setAppDataContext({ studentsById, preferencesById });
+        }
+
+        function parsePreferencePayload(payload: unknown, studentId: string): StudentPreference {
+                if (!payload || typeof payload !== 'object') {
+                        return createEmptyPreference(studentId);
+                }
+
+                const pref = payload as Partial<StudentPreference>;
+
+                return {
+                        studentId: pref.studentId ?? studentId,
+                        likeStudentIds: Array.isArray(pref.likeStudentIds) ? pref.likeStudentIds : [],
+                        avoidStudentIds: Array.isArray(pref.avoidStudentIds) ? pref.avoidStudentIds : [],
+                        likeGroupIds: Array.isArray(pref.likeGroupIds) ? pref.likeGroupIds : [],
+                        avoidGroupIds: Array.isArray(pref.avoidGroupIds) ? pref.avoidGroupIds : [],
+                        meta: pref.meta
+                };
+        }
+
+        function createEmptyPreference(studentId: string): StudentPreference {
+                return {
+                        studentId,
+                        likeStudentIds: [],
+                        avoidStudentIds: [],
+                        likeGroupIds: [],
+                        avoidGroupIds: []
+                };
         }
 </script>
 
@@ -285,7 +341,13 @@
                                         on:click={handleGenerateScenario}
                                         disabled={isGeneratingScenario}
                                 >
-                                        {isGeneratingScenario ? 'Running…' : 'Run algorithm again'}
+                                        {#if isGeneratingScenario}
+                                                Running…
+                                        {:else if scenarioResult}
+                                                Run algorithm again
+                                        {:else}
+                                                Run algorithm
+                                        {/if}
                                 </button>
                         </div>
 
