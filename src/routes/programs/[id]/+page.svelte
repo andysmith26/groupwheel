@@ -7,7 +7,7 @@
         import type { Program } from '$lib/domain';
         import type { Pool } from '$lib/domain/pool';
         import type { Scenario } from '$lib/domain/scenario';
-        import { generateScenario, getProgramWithPools } from '$lib/services/appEnvUseCases';
+        import { generateScenario, getProgramWithPools, computeAnalytics } from '$lib/services/appEnvUseCases';
         import { isOk } from '$lib/types/result';
         import { storeScenarioForProjection } from '$lib/infrastructure/scenarioStorage';
         import VerticalGroupLayout from '$lib/components/group/VerticalGroupLayout.svelte';
@@ -16,6 +16,8 @@
         import type { Group } from '$lib/types';
         import type { StudentPreference } from '$lib/types/preferences';
         import { commandStore } from '$lib/stores/commands.svelte';
+        import type { ScenarioSatisfaction } from '$lib/domain/analytics';
+        import { createScenario } from '$lib/domain/scenario';
 
         const appDataContext = { studentsById: {}, preferencesById: {} } satisfies {
                 studentsById: Record<string, import('$lib/types').Student>;
@@ -35,6 +37,9 @@
         let isGeneratingScenario = false;
 
         let analyticsScenarioId = '';
+        let analyticsResult: ScenarioSatisfaction | null = null;
+        let analyticsError: string | null = null;
+        let isComputingAnalytics = false;
         let studentViewScenarioId = '';
 
         let selectedStudentId: string | null = null;
@@ -213,38 +218,98 @@
                 isGeneratingScenario = true;
                 scenarioError = null;
                 scenarioResult = null;
+                analyticsResult = null;
+                analyticsError = null;
 
-                const result = await generateScenario(env, { programId: program.id });
-                if (isOk(result)) {
-                        await loadAppDataContext(result.value.participantSnapshot, program.id);
-                        syncScenario(result.value);
+                const existingScenario = await env.scenarioRepo.getByProgramId(program.id);
 
-                        // Store scenario and students in localStorage for projection view
-                        const students = await env.studentRepo.getByIds(result.value.participantSnapshot);
-                        storeScenarioForProjection(result.value, students);
+                if (existingScenario) {
+                        const poolId = program.primaryPoolId ?? program.poolIds[0];
+                        if (!poolId) {
+                                scenarioError = 'No pool configured for this program.';
+                                isGeneratingScenario = false;
+                                return;
+                        }
+
+                        const pool = await env.poolRepo.getById(poolId);
+                        if (!pool) {
+                                scenarioError = `Pool ${poolId} is missing.`;
+                                isGeneratingScenario = false;
+                                return;
+                        }
+                        if (!pool.memberIds.length) {
+                                scenarioError = `Pool ${poolId} has no members to place.`;
+                                isGeneratingScenario = false;
+                                return;
+                        }
+
+                        const groupingResult = await env.groupingAlgorithm.generateGroups({
+                                programId: program.id,
+                                studentIds: pool.memberIds
+                        });
+
+                        if (!groupingResult.success) {
+                                scenarioError = groupingResult.message;
+                                isGeneratingScenario = false;
+                                return;
+                        }
+
+                        const refreshedScenario = createScenario({
+                                id: existingScenario.id,
+                                programId: program.id,
+                                groups: groupingResult.groups.map((g) => ({
+                                        id: g.id,
+                                        name: g.name,
+                                        capacity: g.capacity,
+                                        memberIds: g.memberIds
+                                })),
+                                participantIds: pool.memberIds,
+                                createdAt: existingScenario.createdAt,
+                                createdByStaffId: existingScenario.createdByStaffId,
+                                algorithmConfig: existingScenario.algorithmConfig
+                        });
+
+                        await env.scenarioRepo.update(refreshedScenario);
+                        await hydrateScenario(refreshedScenario);
                 } else {
-                        switch (result.error.type) {
-                                case 'PROGRAM_NOT_FOUND':
-                                        scenarioError = `Program ${result.error.programId} does not exist.`;
-                                        break;
-                                case 'POOL_NOT_FOUND':
-                                        scenarioError = `Pool ${result.error.poolId} is missing.`;
-                                        break;
-                                case 'POOL_HAS_NO_MEMBERS':
-                                        scenarioError = `Pool ${result.error.poolId} has no members to place.`;
-                                        break;
-                                case 'SCENARIO_ALREADY_EXISTS_FOR_PROGRAM':
-                                        scenarioError = `Scenario ${result.error.scenarioId} already exists for this program.`;
-                                        break;
-                                case 'GROUPING_ALGORITHM_FAILED':
-                                case 'DOMAIN_VALIDATION_FAILED':
-                                case 'INTERNAL_ERROR':
-                                        scenarioError = result.error.message;
-                                        break;
+                        const result = await generateScenario(env, { programId: program.id });
+                        if (isOk(result)) {
+                                await hydrateScenario(result.value);
+                        } else {
+                                switch (result.error.type) {
+                                        case 'PROGRAM_NOT_FOUND':
+                                                scenarioError = `Program ${result.error.programId} does not exist.`;
+                                                break;
+                                        case 'POOL_NOT_FOUND':
+                                                scenarioError = `Pool ${result.error.poolId} is missing.`;
+                                                break;
+                                        case 'POOL_HAS_NO_MEMBERS':
+                                                scenarioError = `Pool ${result.error.poolId} has no members to place.`;
+                                                break;
+                                        case 'SCENARIO_ALREADY_EXISTS_FOR_PROGRAM':
+                                                scenarioError = `Scenario ${result.error.scenarioId} already exists for this program.`;
+                                                break;
+                                        case 'GROUPING_ALGORITHM_FAILED':
+                                        case 'DOMAIN_VALIDATION_FAILED':
+                                        case 'INTERNAL_ERROR':
+                                                scenarioError = result.error.message;
+                                                break;
+                                }
                         }
                 }
 
                 isGeneratingScenario = false;
+        }
+
+        async function hydrateScenario(nextScenario: Scenario) {
+                if (!env || !program) return;
+
+                await loadAppDataContext(nextScenario.participantSnapshot, program.id);
+                syncScenario(nextScenario);
+                await refreshAnalytics(nextScenario.id);
+
+                const students = await env.studentRepo.getByIds(nextScenario.participantSnapshot);
+                storeScenarioForProjection(nextScenario, students);
         }
 
         async function loadAppDataContext(studentIds: string[], programId: string) {
@@ -300,6 +365,31 @@
                         likeGroupIds: [],
                         avoidGroupIds: []
                 };
+        }
+
+        async function refreshAnalytics(scenarioId: string) {
+                if (!env) return;
+
+                analyticsError = null;
+                analyticsResult = null;
+                isComputingAnalytics = true;
+
+                const result = await computeAnalytics(env, { scenarioId });
+
+                if (isOk(result)) {
+                        analyticsResult = result.value;
+                } else {
+                        switch (result.error.type) {
+                                case 'SCENARIO_NOT_FOUND':
+                                        analyticsError = `Scenario ${result.error.scenarioId} was not found.`;
+                                        break;
+                                case 'INTERNAL_ERROR':
+                                        analyticsError = result.error.message;
+                                        break;
+                        }
+                }
+
+                isComputingAnalytics = false;
         }
 </script>
 
@@ -364,8 +454,57 @@
                         {/if}
 
                         {#if scenarioResult}
-                                <div class="rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
-                                        <span class="font-semibold">Scenario:</span> {scenarioResult.id}
+                                <div class="rounded-lg border bg-gray-50 p-3 text-sm text-gray-700 space-y-2">
+                                        <div class="flex flex-wrap items-center justify-between gap-3">
+                                                <div class="space-y-1">
+                                                        <p class="text-xs uppercase tracking-wide text-gray-500">Scenario</p>
+                                                        <p class="text-base font-semibold text-gray-900">{scenarioResult.id}</p>
+                                                </div>
+                                                <a
+                                                        href={`/scenarios/${scenarioResult.id}/student-view`}
+                                                        class="inline-flex items-center gap-2 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+                                                        target="_blank"
+                                                        rel="noopener"
+                                                >
+                                                        Printable student view ↗
+                                                </a>
+                                        </div>
+
+                                        {#if isComputingAnalytics}
+                                                <p class="text-xs text-gray-600">Computing stats…</p>
+                                        {:else if analyticsResult}
+                                                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                                        <div class="rounded-md bg-white p-3 shadow-sm">
+                                                                <p class="text-xs text-gray-500">Top choice satisfaction</p>
+                                                                <p class="text-lg font-semibold text-green-700">
+                                                                        {analyticsResult.percentAssignedTopChoice.toFixed(1)}%
+                                                                </p>
+                                                        </div>
+
+                                                        {#if analyticsResult.percentAssignedTop2 !== undefined}
+                                                                <div class="rounded-md bg-white p-3 shadow-sm">
+                                                                        <p class="text-xs text-gray-500">Top 2 choices satisfaction</p>
+                                                                        <p class="text-lg font-semibold text-blue-700">
+                                                                                {analyticsResult.percentAssignedTop2.toFixed(1)}%
+                                                                        </p>
+                                                                </div>
+                                                        {/if}
+
+                                                        <div class="rounded-md bg-white p-3 shadow-sm">
+                                                                <p class="text-xs text-gray-500">Avg. preference rank</p>
+                                                                <p class="text-lg font-semibold text-gray-800">
+                                                                        {Number.isNaN(analyticsResult.averagePreferenceRankAssigned)
+                                                                                ? 'N/A'
+                                                                                : analyticsResult.averagePreferenceRankAssigned.toFixed(2)}
+                                                                </p>
+                                                                <p class="text-[11px] text-gray-500">Lower is better (1 = first choice)</p>
+                                                        </div>
+                                                </div>
+                                        {:else if analyticsError}
+                                                <p class="text-xs text-red-600">{analyticsError}</p>
+                                        {:else}
+                                                <p class="text-xs text-gray-600">Stats will appear after running the algorithm.</p>
+                                        {/if}
                                 </div>
 
                                 <div class="flex gap-4">
