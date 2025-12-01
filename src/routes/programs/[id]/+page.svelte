@@ -17,6 +17,12 @@
         import type { StudentPreference } from '$lib/types/preferences';
         import { commandStore } from '$lib/stores/commands.svelte';
 
+        const appDataContext = { studentsById: {}, preferencesById: {} } satisfies {
+                studentsById: Record<string, import('$lib/types').Student>;
+                preferencesById: Record<string, StudentPreference>;
+        };
+        setAppDataContext(appDataContext);
+
         let env: ReturnType<typeof getAppEnvContext> | null = null;
         let programId = '';
         let program: Program | null = null;
@@ -249,7 +255,9 @@
                         env.preferenceRepo.listByProgramId(programId)
                 ]);
 
-                const studentsById = Object.fromEntries(students.map((student) => [student.id, student]));
+                appDataContext.studentsById = Object.fromEntries(
+                        students.map((student) => [student.id, student])
+                );
                 const preferencesById: Record<string, StudentPreference> = {};
 
                 for (const pref of preferences) {
@@ -264,7 +272,7 @@
                         }
                 }
 
-                setAppDataContext({ studentsById, preferencesById });
+                appDataContext.preferencesById = preferencesById;
         }
 
         function parsePreferencePayload(payload: unknown, studentId: string): StudentPreference {
