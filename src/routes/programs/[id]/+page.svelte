@@ -6,16 +6,14 @@
         import type { Program } from '$lib/domain';
         import type { Pool } from '$lib/domain/pool';
         import type { Scenario } from '$lib/domain/scenario';
-        import type { ScenarioSatisfaction } from '$lib/domain/analytics';
-        import type { StudentViewData } from '$lib/application/useCases/getStudentView';
-        import {
-                computeAnalytics,
-                generateScenario,
-                getProgramWithPools,
-                getStudentViewForScenario
-        } from '$lib/services/appEnvUseCases';
+        import { generateScenario, getProgramWithPools } from '$lib/services/appEnvUseCases';
         import { isOk } from '$lib/types/result';
         import { storeScenarioForProjection } from '$lib/infrastructure/scenarioStorage';
+        import VerticalGroupLayout from '$lib/components/group/VerticalGroupLayout.svelte';
+        import UnassignedSidebar from '$lib/components/roster/UnassignedSidebar.svelte';
+        import type { DropState } from '$lib/utils/pragmatic-dnd';
+        import type { Group } from '$lib/types';
+        import { commandStore } from '$lib/stores/commands.svelte';
 
         let env: ReturnType<typeof getAppEnvContext> | null = null;
         let programId = '';
@@ -29,15 +27,13 @@
         let isGeneratingScenario = false;
 
         let analyticsScenarioId = '';
-        let analyticsResult: ScenarioSatisfaction | null = null;
-        let analyticsError: string | null = null;
-        let isComputingAnalytics = false;
-
         let studentViewScenarioId = '';
-        let studentViewStudentId = '';
-        let studentViewResult: StudentViewData | null = null;
-        let studentViewError: string | null = null;
-        let isFetchingStudentView = false;
+
+        let selectedStudentId: string | null = null;
+        let currentlyDragging: string | null = null;
+        let flashingContainer: string | null = null;
+        let collapsedGroups: Set<string> = new Set();
+        let unassignedCollapsed = false;
 
         onMount(async () => {
                 env = getAppEnvContext();
@@ -91,6 +87,115 @@
                 return `${timeSpan.start.toLocaleDateString()}–${timeSpan.end.toLocaleDateString()}`;
         }
 
+        function syncScenario(nextScenario: Scenario) {
+                scenarioResult = nextScenario;
+                analyticsScenarioId = nextScenario.id;
+                studentViewScenarioId = nextScenario.id;
+                commandStore.initializeGroups(nextScenario.groups);
+                collapsedGroups = new Set();
+                selectedStudentId = null;
+                currentlyDragging = null;
+                flashingContainer = null;
+        }
+
+        function setScenarioGroups(nextGroups: Group[]) {
+                if (!scenarioResult) return;
+                scenarioResult = { ...scenarioResult, groups: nextGroups };
+        }
+
+        $: unassignedStudentIds = scenarioResult
+                ? scenarioResult.participantSnapshot.filter((id) =>
+                                !scenarioResult?.groups.some((group) => group.memberIds.includes(id))
+                        )
+                : [];
+
+        function handleDragStart(studentId: string) {
+                currentlyDragging = studentId;
+                selectedStudentId = studentId;
+        }
+
+        function handleStudentClick(studentId: string) {
+                selectedStudentId = selectedStudentId === studentId ? null : studentId;
+        }
+
+        function triggerFlash(containerId: string) {
+                flashingContainer = containerId;
+                setTimeout(() => {
+                        if (flashingContainer === containerId) {
+                                flashingContainer = null;
+                        }
+                }, 700);
+        }
+
+        function handleDrop(state: DropState) {
+                if (!scenarioResult) return;
+
+                const { draggedItem, sourceContainer, targetContainer } = state;
+                const studentId = draggedItem.id;
+
+                if (!targetContainer || targetContainer === sourceContainer) {
+                        currentlyDragging = null;
+                        return;
+                }
+
+                if (targetContainer !== 'unassigned') {
+                        const targetGroup = commandStore.groups.find((g) => g.id === targetContainer);
+                        if (targetGroup) {
+                                const currentCount = targetGroup.memberIds.length;
+                                if (targetGroup.capacity != null && currentCount >= targetGroup.capacity) {
+                                        currentlyDragging = null;
+                                        return;
+                                }
+                        }
+                }
+
+                if (collapsedGroups.has(targetContainer)) {
+                        const next = new Set(collapsedGroups);
+                        next.delete(targetContainer);
+                        collapsedGroups = next;
+                }
+
+                if (targetContainer === 'unassigned') {
+                        if (!sourceContainer) {
+                                currentlyDragging = null;
+                                return;
+                        }
+
+                        commandStore.dispatch({
+                                type: 'UNASSIGN_STUDENT',
+                                studentId,
+                                previousGroupId: sourceContainer
+                        });
+                } else {
+                        commandStore.dispatch({
+                                type: 'ASSIGN_STUDENT',
+                                studentId,
+                                groupId: targetContainer,
+                                previousGroupId: sourceContainer ?? undefined
+                        });
+                }
+
+                setScenarioGroups(commandStore.groups);
+                triggerFlash(targetContainer);
+                currentlyDragging = null;
+        }
+
+        function handleUpdateGroup(groupId: string, changes: Partial<Group>) {
+                if (!scenarioResult) return;
+                commandStore.updateGroup(groupId, changes);
+                setScenarioGroups(commandStore.groups);
+        }
+
+        function handleToggleCollapse(groupId: string) {
+                const next = new Set(collapsedGroups);
+                if (next.has(groupId)) {
+                        next.delete(groupId);
+                } else {
+                        next.add(groupId);
+                }
+                collapsedGroups = next;
+        }
+
         async function handleGenerateScenario() {
                 if (!env || !program) {
                         scenarioError = 'Load the program before generating a scenario.';
@@ -103,9 +208,7 @@
 
                 const result = await generateScenario(env, { programId: program.id });
                 if (isOk(result)) {
-                        scenarioResult = result.value;
-                        analyticsScenarioId = result.value.id;
-                        studentViewScenarioId = result.value.id;
+                        syncScenario(result.value);
 
                         // Store scenario and students in localStorage for projection view
                         const students = await env.studentRepo.getByIds(result.value.participantSnapshot);
@@ -133,79 +236,6 @@
                 }
 
                 isGeneratingScenario = false;
-        }
-
-        async function handleComputeAnalytics() {
-                if (!env) {
-                        analyticsError = 'Application environment not ready.';
-                        return;
-                }
-
-                const scenarioId = analyticsScenarioId.trim();
-                if (!scenarioId) {
-                        analyticsError = 'Enter a scenario ID to compute analytics.';
-                        return;
-                }
-
-                analyticsError = null;
-                analyticsResult = null;
-                isComputingAnalytics = true;
-
-                const result = await computeAnalytics(env, { scenarioId });
-                if (isOk(result)) {
-                        analyticsResult = result.value;
-                } else {
-                        switch (result.error.type) {
-                                case 'SCENARIO_NOT_FOUND':
-                                        analyticsError = `Scenario ${result.error.scenarioId} was not found.`;
-                                        break;
-                                case 'INTERNAL_ERROR':
-                                        analyticsError = result.error.message;
-                                        break;
-                        }
-                }
-
-                isComputingAnalytics = false;
-        }
-
-        async function handleGetStudentView() {
-                if (!env) {
-                        studentViewError = 'Application environment not ready.';
-                        return;
-                }
-
-                const scenarioId = studentViewScenarioId.trim();
-                if (!scenarioId) {
-                        studentViewError = 'Enter a scenario ID to build the student view.';
-                        return;
-                }
-
-                studentViewError = null;
-                studentViewResult = null;
-                isFetchingStudentView = true;
-
-                const result = await getStudentViewForScenario(env, {
-                        scenarioId,
-                        studentId: studentViewStudentId.trim() || undefined
-                });
-
-                if (isOk(result)) {
-                        studentViewResult = result.value;
-                } else {
-                        switch (result.error.type) {
-                                case 'SCENARIO_NOT_FOUND':
-                                        studentViewError = `Scenario ${result.error.scenarioId} was not found.`;
-                                        break;
-                                case 'STUDENT_NOT_FOUND':
-                                        studentViewError = `Student ${result.error.studentId} is not part of the scenario.`;
-                                        break;
-                                case 'INTERNAL_ERROR':
-                                        studentViewError = result.error.message;
-                                        break;
-                        }
-                }
-
-                isFetchingStudentView = false;
         }
 </script>
 
@@ -244,138 +274,63 @@
                         {/if}
                 </section>
 
-                <section class="grid gap-4 md:grid-cols-2">
-                        <div class="rounded-lg border bg-white p-4 shadow-sm space-y-3">
-                                <div class="flex items-center justify-between">
-                                        <h3 class="text-lg font-semibold">Generate scenario</h3>
-                                        <button
-                                                class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                                on:click={handleGenerateScenario}
-                                                disabled={isGeneratingScenario}
-                                        >
-                                                {isGeneratingScenario ? 'Generating…' : 'Generate'}
-                                        </button>
+                <section class="rounded-lg border bg-white p-4 shadow-sm space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                        <h3 class="text-lg font-semibold">Grouping board</h3>
+                                        <p class="text-sm text-gray-600">Generate a scenario and adjust assignments inline.</p>
                                 </div>
-                                <p class="text-sm text-gray-600">
-                                        Runs the grouping algorithm against the program's primary pool.
-                                </p>
-                                {#if scenarioError}
-                                        <p class="text-sm text-red-600">{scenarioError}</p>
-                                {/if}
-                                {#if scenarioResult}
-                                        <div class="space-y-2 text-sm">
-                                                <p class="font-medium">Scenario {scenarioResult.id}</p>
-                                                <pre class="overflow-auto rounded bg-gray-50 p-2 text-xs">{JSON.stringify(scenarioResult, null, 2)}</pre>
-                                        </div>
-                                {/if}
+                                <button
+                                        class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                        on:click={handleGenerateScenario}
+                                        disabled={isGeneratingScenario}
+                                >
+                                        {isGeneratingScenario ? 'Running…' : 'Run algorithm again'}
+                                </button>
                         </div>
 
-                        <div class="rounded-lg border bg-white p-4 shadow-sm space-y-3">
-                                <div class="flex items-center justify-between">
-                                        <h3 class="text-lg font-semibold">Compute analytics</h3>
-                                        <button
-                                                class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                                on:click={handleComputeAnalytics}
-                                                disabled={isComputingAnalytics}
-                                        >
-                                                {isComputingAnalytics ? 'Computing…' : 'Compute'}
-                                        </button>
+                        {#if scenarioError}
+                                <p class="text-sm text-red-600">{scenarioError}</p>
+                        {/if}
+
+                        {#if scenarioResult}
+                                <div class="rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+                                        <span class="font-semibold">Scenario:</span> {scenarioResult.id}
                                 </div>
-                                <div class="space-y-1 text-sm">
-                                        <label class="font-medium" for="analytics-scenario-id">Scenario ID</label>
-                                        <input
-                                                id="analytics-scenario-id"
-                                                class="w-full rounded border p-2"
-                                                bind:value={analyticsScenarioId}
-                                                placeholder="scenario-id"
+
+                                <div class="flex gap-4">
+                                        <UnassignedSidebar
+                                                studentIds={unassignedStudentIds}
+                                                {selectedStudentId}
+                                                {currentlyDragging}
+                                                {flashingContainer}
+                                                isCollapsed={unassignedCollapsed}
+                                                onDrop={handleDrop}
+                                                onDragStart={handleDragStart}
+                                                onClick={handleStudentClick}
+                                                onToggleCollapse={() => (unassignedCollapsed = !unassignedCollapsed)}
                                         />
-                                </div>
-                                {#if analyticsError}
-                                        <p class="text-sm text-red-600">{analyticsError}</p>
-                                {/if}
-                                {#if analyticsResult}
-                                        <div class="space-y-3 rounded-lg bg-gray-50 p-4">
-                                                <div class="flex items-center justify-between">
-                                                        <span class="text-sm font-medium text-gray-700">Top choice satisfaction</span>
-                                                        <span class="text-lg font-semibold text-green-600">
-                                                                {analyticsResult.percentAssignedTopChoice.toFixed(1)}%
-                                                        </span>
-                                                </div>
 
-                                                {#if analyticsResult.percentAssignedTop2 !== undefined}
-                                                        <div class="flex items-center justify-between">
-                                                                <span class="text-sm font-medium text-gray-700">Top 2 choices satisfaction</span>
-                                                                <span class="text-lg font-semibold text-blue-600">
-                                                                        {analyticsResult.percentAssignedTop2.toFixed(1)}%
-                                                                </span>
-                                                        </div>
-                                                {/if}
-
-                                                <div class="flex items-center justify-between">
-                                                        <span class="text-sm font-medium text-gray-700">Avg. preference rank</span>
-                                                        <span class="text-lg font-semibold text-gray-800">
-                                                                {Number.isNaN(analyticsResult.averagePreferenceRankAssigned)
-                                                                        ? 'N/A'
-                                                                        : analyticsResult.averagePreferenceRankAssigned.toFixed(2)}
-                                                        </span>
-                                                </div>
-
-                                                <p class="text-xs text-gray-500">Lower rank is better (1 = got first choice)</p>
-                                        </div>
-                                {/if}
-                        </div>
-
-                        <div class="rounded-lg border bg-white p-4 shadow-sm space-y-3 md:col-span-2">
-                                <div class="flex flex-wrap items-center justify-between gap-2">
-                                        <h3 class="text-lg font-semibold">Student view</h3>
-                                        <button
-                                                class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                                on:click={handleGetStudentView}
-                                                disabled={isFetchingStudentView}
-                                        >
-                                                {isFetchingStudentView ? 'Loading…' : 'Build view'}
-                                        </button>
-                                </div>
-                                <div class="grid gap-3 md:grid-cols-2">
-                                        <div class="space-y-1 text-sm">
-                                                <label class="font-medium" for="student-view-scenario-id">Scenario ID</label>
-                                                <input
-                                                        id="student-view-scenario-id"
-                                                        class="w-full rounded border p-2"
-                                                        bind:value={studentViewScenarioId}
-                                                        placeholder="scenario-id"
-                                                />
-                                        </div>
-                                        <div class="space-y-1 text-sm">
-                                                <label class="font-medium" for="student-view-student-id">
-                                                        Optional student ID to highlight
-                                                </label>
-                                                <input
-                                                        id="student-view-student-id"
-                                                        class="w-full rounded border p-2"
-                                                        bind:value={studentViewStudentId}
-                                                        placeholder="student-id"
+                                        <div class="w-full overflow-x-auto">
+                                                <VerticalGroupLayout
+                                                        groups={commandStore.groups}
+                                                        {selectedStudentId}
+                                                        {currentlyDragging}
+                                                        {collapsedGroups}
+                                                        {flashingContainer}
+                                                        onDrop={handleDrop}
+                                                        onDragStart={handleDragStart}
+                                                        onClick={handleStudentClick}
+                                                        onUpdateGroup={handleUpdateGroup}
+                                                        onToggleCollapse={handleToggleCollapse}
                                                 />
                                         </div>
                                 </div>
-                                {#if studentViewError}
-                                        <p class="text-sm text-red-600">{studentViewError}</p>
-                                {/if}
-                                {#if studentViewResult}
-                                        <div class="space-y-2 text-sm">
-                                                <p class="font-medium">Groups</p>
-                                                <pre class="overflow-auto rounded bg-gray-50 p-2 text-xs">{JSON.stringify(studentViewResult, null, 2)}</pre>
-                                                <a
-                                                        href="/scenarios/{studentViewScenarioId}/student-view"
-                                                        class="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-                                                        target="_blank"
-                                                        rel="noopener"
-                                                >
-                                                        Open Projection View ↗
-                                                </a>
-                                        </div>
-                                {/if}
-                        </div>
+                        {:else}
+                                <p class="text-sm text-gray-700">
+                                        Run the algorithm to load a scenario and start arranging students.
+                                </p>
+                        {/if}
                 </section>
         {/if}
 </div>
