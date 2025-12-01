@@ -1,25 +1,15 @@
 <script lang="ts">
         import { page } from '$app/stores';
         import { onMount } from 'svelte';
-        import { getAppEnvContext } from '$lib/contexts/appEnv';
-        import { getStudentViewForScenario } from '$lib/services/appEnvUseCases';
-        import type { StudentViewData } from '$lib/application/useCases/getStudentView';
-        import { isOk } from '$lib/types/result';
-
-        let env: ReturnType<typeof getAppEnvContext> | null = null;
+        import { getStoredScenario } from '$lib/infrastructure/scenarioStorage';
+        import type { GroupView, StudentViewData } from '$lib/application/useCases/getStudentView';
+        import type { Student } from '$lib/domain';
 
         let loading = true;
         let error: string | null = null;
         let viewData: StudentViewData | null = null;
 
         onMount(async () => {
-                env = getAppEnvContext();
-                if (!env) {
-                        error = 'Application environment not ready.';
-                        loading = false;
-                        return;
-                }
-
                 const scenarioId = $page.params.id;
                 if (!scenarioId) {
                         error = 'No scenario ID provided.';
@@ -27,22 +17,44 @@
                         return;
                 }
 
-                const result = await getStudentViewForScenario(env, { scenarioId });
-
-                if (isOk(result)) {
-                        viewData = result.value;
-                } else {
-                        switch (result.error.type) {
-                                case 'SCENARIO_NOT_FOUND':
-                                        error = `Scenario not found: ${result.error.scenarioId}`;
-                                        break;
-                                case 'STUDENT_NOT_FOUND':
-                                        error = `Student not found: ${result.error.studentId}`;
-                                        break;
-                                default:
-                                        error = 'An error occurred loading the student view.';
-                        }
+                // Load from localStorage (stored when scenario was generated)
+                const stored = getStoredScenario(scenarioId);
+                if (!stored) {
+                        error = `Scenario not found: ${scenarioId}. Make sure to generate the scenario first.`;
+                        loading = false;
+                        return;
                 }
+
+                const { scenario, students } = stored;
+
+                // Build a map of students for quick lookup
+                const studentsById = new Map<string, Student>();
+                for (const s of students) {
+                        studentsById.set(s.id, s);
+                }
+
+                // Build the view data from stored scenario
+                const groups: GroupView[] = scenario.groups.map((group) => ({
+                        id: group.id,
+                        name: group.name,
+                        capacity: group.capacity,
+                        members: group.memberIds
+                                .map((id) => studentsById.get(id))
+                                .filter((s): s is Student => !!s)
+                                .map((s) => ({
+                                        id: s.id,
+                                        firstName: s.firstName,
+                                        lastName: s.lastName,
+                                        gradeLevel: s.gradeLevel
+                                }))
+                }));
+
+                viewData = {
+                        scenarioId: scenario.id,
+                        programId: scenario.programId,
+                        groups,
+                        highlightedStudentGroups: []
+                };
 
                 loading = false;
         });
