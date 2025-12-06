@@ -17,12 +17,7 @@
 		{
 			title: 'Ready to use',
 			description: 'Current tools you can use in the workspace.',
-			items: [
-				{ href: '/pools', label: 'Pools' },
-				{ href: '/pools/import', label: 'Import Roster' },
-				{ href: '/programs', label: 'Programs' },
-				{ href: '/programs/new', label: 'Create Program' }
-			]
+			items: [{ href: '/groups', label: 'Activities' }]
 		},
 		{
 			title: 'Building now',
