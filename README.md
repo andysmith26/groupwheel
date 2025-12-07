@@ -1,16 +1,98 @@
-# Friend Hat - Project Context Document
+# Friend Hat
 
-## Project Overview
+**Friend Hat** is a privacy-first, school-grade social grouping platform that helps teachers create and evaluate student groupings based on preferences and social connections — from five-minute class activities to term-long clubs and year-long advisories.
 
-**Friend Hat** is a web application that helps teachers create optimal student groupings based on friendship connections. Teachers load student rosters and friendship data, then use automated algorithms or manual drag-and-drop to assign students into balanced groups that maximize happiness by keeping friends together.
+**Project Goals:**
 
-**Primary Goals:**
+1. Ship a valuable educational product for real teachers
+2. Learn product development and software architecture
+3. Build portfolio evidence for professional growth
 
-1. Ship a good educational product for real teachers
-2. Learn product development and architectural skills
-3. Build portfolio evidence for future job applications
+**Current Status:** ✅ MVP Complete (Dec 2025)
 
-**Current Status:** Active MVP development
+---
+
+## Quick Start
+
+```bash
+npm install          # Install dependencies
+npm run dev          # Start dev server (http://localhost:5173)
+npm run check        # Type check
+npm run lint         # ESLint + Prettier check
+npm run test         # Run all tests (unit + e2e)
+```
+
+---
+
+## MVP Features (Implemented)
+
+The reduced MVP is **fully implemented** and ready for pilot testing:
+
+- **Unified "Create Groups" Wizard** (`/groups/new`)
+  - 4-step flow: Select/Import Roster → Students → Preferences → Name
+  - Paste CSV/TSV data with live preview and validation
+  - Roster reuse for returning users
+  - Preference upload with mismatch warnings
+
+- **Grouping Activities Dashboard** (`/groups`)
+  - Lists all grouping activities with student counts and preference coverage
+  - Quick access to generate scenarios and view results
+
+- **Scenario Generation**
+  - Balanced grouping algorithm with preference optimization
+  - Targets 4-6 students per group
+  - Uses happiness scoring and iterative swap optimization
+  - Preserves reproducibility via participant snapshots
+
+- **Analytics & Insights**
+  - Top choice satisfaction percentage
+  - Top 2 choice satisfaction percentage
+  - Average preference rank assigned
+  - Displayed as badges on activity detail pages
+
+- **Read-Only Student View** (`/scenarios/[id]/student-view`)
+  - Teacher-presented mode for classroom projection
+  - Print-friendly layout
+  - No authentication required (intentional for MVP)
+
+See [docs/product_vision.md](docs/product_vision.md) for full MVP scope and roadmap.
+
+---
+
+## Architecture
+
+Friend Hat follows a **hexagonal architecture** (ports & adapters) with clean separation between domain logic, application use cases, and infrastructure.
+
+### Layer Overview
+
+- **Domain Layer** (`src/lib/domain/`) — Pure business logic and domain entities
+  - Types: `Student`, `Staff`, `Pool`, `Program`, `Scenario`, `Preference`, `Group`
+  - Factories: `createPool()`, `createProgram()`, `createScenario()`, etc.
+  - Domain rules and invariants
+
+- **Application Layer** (`src/lib/application/`)
+  - **Ports** (`ports/`) — Interfaces for repositories and services
+  - **Use Cases** (`useCases/`) — Business operations (functions, not classes)
+    - `createGroupingActivity`, `generateScenario`, `computeScenarioAnalytics`, etc.
+
+- **Infrastructure Layer** (`src/lib/infrastructure/`)
+  - InMemory repository implementations
+  - Service implementations (UUID generator, system clock, grouping algorithm)
+  - Environment composition (`createInMemoryEnvironment`)
+
+- **UI Layer** (SvelteKit routes & components)
+  - Routes at `/groups/*`, `/scenarios/*`
+  - Wizard components at `src/lib/components/wizard/`
+  - Gets environment via context, calls use cases via facade
+
+**Key Principles:**
+
+- Domain layer has no dependencies on framework, UI, or infrastructure
+- Use cases accept dependencies via `deps` objects (ports)
+- Use cases return `Result<Success, Error>` types (no thrown business errors)
+- UI components call use cases through facade helpers in `src/lib/services/appEnvUseCases.ts`
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture guidelines, import rules, and best practices.
 
 ---
 
@@ -18,341 +100,160 @@
 
 ### Core Framework
 
-- **SvelteKit 2** with **Svelte 5** (runes-based reactivity)
+- **SvelteKit 2** with **Svelte 5** (runes-based reactivity: `$state`, `$derived`, `$effect`)
 - **TypeScript** (strict mode)
 - **Tailwind CSS 4** (via @tailwindcss/vite)
 - **Vite 7** (build tool)
 
 ### Key Libraries
 
-- `@atlaskit/pragmatic-drag-and-drop` - drag-and-drop (framework-agnostic, used via custom Svelte actions)
-- `googleapis` - Google Sheets API integration (server-side only)
+- `@atlaskit/pragmatic-drag-and-drop` - Drag-and-drop (framework-agnostic, used via custom Svelte actions)
+- `googleapis` - Google Sheets API integration (server-side only, optional enhancement)
 
 ### Deployment
 
-- **Vercel** (GitHub-based deployments, not CLI)
-- Environment variables: `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`
+- **Vercel** (GitHub-based deployments)
+- Environment variables: `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID` (optional for Sheets integration)
 
 ### Testing
 
-- **Vitest** (unit/component tests)
-- **Playwright** (e2e tests)
+- **Vitest** (unit tests for domain, use cases, utilities)
+- **Playwright** (e2e tests for critical user flows)
 - **vitest-browser-svelte** (browser-based component tests)
 
 ---
 
-## Architecture Patterns
+## Domain Model
 
-### 1. Unified State Store (Command Pattern)
+See [docs/domain_model.md](docs/domain_model.md) for the complete conceptual model. Key entities:
 
-**Location:** `src/lib/stores/commands.svelte.ts`
+### Core Entities (MVP Implemented)
 
-All state mutations go through commands for undo/redo support:
-
+**Student**
 ```typescript
-commandStore.dispatch({
-	type: 'ASSIGN_STUDENT',
-	studentId: 'student-123',
-	groupId: 'group-456',
-	previousGroupId: 'group-789' // for undo
-});
+{
+  id: string;
+  firstName: string;
+  lastName: string;
+  gradeLevel?: string;
+}
 ```
 
-**Key Principle:** Store owns `groups` array. Components read reactively via `commandStore.groups` and dispatch commands to mutate.
-
-**History Management:**
-
-- Commands are recorded in `history` array
-- `historyIndex` tracks current position
-- Undo/redo work by moving index and reversing/re-executing commands
-- `initializeGroups()` clears history (fresh start for new data)
-
-### 2. Context for Read-Only Reference Data
-
-**Location:** `src/lib/contexts/appData.ts`
-
-`studentsById` is provided via context to avoid prop drilling:
-
+**Pool** (Roster)
 ```typescript
-// In +page.svelte (root)
-setAppDataContext({ studentsById });
-
-// In any child component
-const { studentsById } = getAppDataContext();
+{
+  id: string;
+  name: string;
+  type: 'SCHOOL' | 'GRADE' | 'CLASS' | 'TRIP' | 'CUSTOM';
+  memberIds: string[];  // Student IDs
+  ownerStaffIds?: string[];
+  status: 'ACTIVE' | 'ARCHIVED';
+}
 ```
 
-**Why Context?**
-
-- Loaded once per session, doesn't change
-- Many components need access (cards, inspector, columns)
-- Read-only reference data (not reactive UI state)
-
-### 3. Derived State (No Dual Tracking)
-
-**Key Lesson:** Never maintain parallel state (e.g., both `unassigned` array AND `groups.memberIds`). One is the source of truth, others are derived.
-
+**Program** (Grouping Activity)
 ```typescript
-// GOOD: Derive unassigned from groups
-const unassigned = $derived.by(() => {
-	const assignedIds = new Set(groups.flatMap((g) => g.memberIds));
-	return studentOrder.filter((id) => !assignedIds.has(id));
-});
-
-// BAD: Maintain separate unassigned array (causes race conditions)
+{
+  id: string;
+  name: string;
+  type: 'CLUBS' | 'ADVISORY' | 'CABINS' | 'CLASS_ACTIVITY' | 'OTHER';
+  primaryPoolId?: string;
+  poolIds: string[];
+  ownerStaffIds?: string[];
+  timeSpan: { start: Date; end: Date };
+}
 ```
 
-### 4. Pragmatic Drag-and-Drop Integration
-
-**Location:** `src/lib/utils/pragmatic-dnd.ts`
-
-Custom Svelte actions wrap the library's framework-agnostic API:
-
-```svelte
-<div use:draggable={{ dragData: { id }, container, callbacks }}>
-<div use:droppable={{ container, callbacks: { onDrop } }}>
-```
-
-**Important Config:** Vite requires `ssr.noExternal: ['@atlaskit/pragmatic-drag-and-drop']` to bundle the library into serverless builds.
-
----
-
-## Data Model
-
-### Student
-
+**Scenario** (Generated Grouping)
 ```typescript
-type Student = {
-	id: string; // Unique identifier (lowercase)
-	firstName: string;
-	lastName: string;
-	gender: string; // 'F', 'M', 'X', or ''
-	friendIds: string[]; // IDs of friends (bidirectional in practice)
-};
+{
+  id: string;
+  programId: string;
+  status: 'DRAFT' | 'ADOPTED' | 'ARCHIVED';
+  groups: Group[];
+  participantSnapshot: string[];  // Student IDs at creation time
+  createdAt: Date;
+}
 ```
 
-### Group
-
+**Group**
 ```typescript
-type Group = {
-	id: string; // Generated via uid()
-	name: string; // Editable label (e.g., "Group 1")
-	capacity: number | null; // Max students, null = unlimited
-	memberIds: string[]; // IDs of students currently in group
-};
+{
+  id: string;
+  name: string;
+  capacity: number | null;
+  memberIds: string[];
+  leaderStaffId?: string;  // Optional group leader
+}
 ```
 
-### Data Sources
-
-1. **Google Sheets API** (`/api/data` endpoint) - Production
-2. **TSV/CSV Paste** - Manual input fallback
-3. **Test Data** - Hardcoded 20 students with realistic connections
-
----
-
-## Component Architecture
-
-### Layout Strategy
-
-- **≤5 groups:** `HorizontalGroupLayout` (flexbox columns)
-- **>5 groups:** `VerticalGroupLayout` (full-width rows, collapsible)
-
-### Shared Components
-
-- `StudentCard` - Draggable student with happiness indicator
-- `Inspector` - Bottom drawer showing student details (minimized/expanded states)
-- `GroupColumn` - Single group container (horizontal layout)
-- `UnassignedHorizontal` - Top-of-page roster for unassigned students
-
-### Data Flow
-
-```
-+page.svelte (root)
-├── setAppDataContext({ studentsById })
-├── groups = $derived(commandStore.groups)
-├── HorizontalGroupLayout | VerticalGroupLayout
-│   ├── GroupColumn (for each group)
-│   │   └── StudentCard (for each member)
-│   │       └── uses getAppDataContext()
-└── Inspector
-    └── InspectorOverview
-        └── uses getAppDataContext()
-```
-
----
-
-## Algorithms
-
-### Auto-Assign Balanced
-
-**Location:** `+page.svelte` (inline, ~150 lines)
-
-**Strategy:**
-
-1. Build undirected friendship graph from `friendIds`
-2. Sort students by friend degree (most connected first)
-3. **Greedy placement:** Assign each student to group with most existing friends
-4. **Local improvement:** 300 random swaps, keep beneficial ones
-5. Initialize store with final groups
-
-**Happiness Score:** Count of friends in same group (e.g., 2/3 = 2 friends out of 3 total)
-
-**Performance:** <100ms for 20 students, untested at 50+
-
----
-
-## Key Constraints
-
-### Browser & Device
-
-- Target: Teacher laptops (13-inch screens)
-- Primary input: Mouse/trackpad (touch support via library, untested on actual devices)
-- No mobile optimization in MVP
-
-### Data Privacy
-
-- Client-side first (paste functionality works without backend)
-- Google Sheets integration is optional enhancement
-- No persistence (intentional - privacy-first design)
-
-### Capacity & Scale
-
-- Tested: 20 students, 5 groups
-- Target: Up to 50 students, 10 groups
-- Unknown: Performance at scale, needs profiling
-
----
-
-## Common Tasks
-
-### Add a New Command Type
-
-1. Add to `Command` union in `commands.svelte.ts`
-2. Implement `executeCommand()` case
-3. Implement `reverseCommand()` case
-4. Dispatch from component: `commandStore.dispatch({ type: 'NEW_TYPE', ... })`
-
-### Create a New Component Using Context
-
-```svelte
-<script lang="ts">
-	import { getAppDataContext } from '$lib/contexts/appData';
-
-	const { studentsById } = getAppDataContext();
-	const student = $derived(studentsById[studentId]);
-</script>
-```
-
-### Add a Utility Function
-
-**Location:** `src/lib/utils/friends.ts`
-
-Pure functions for data transformation (testable, reusable). Examples:
-
-- `getDisplayName(student)` - Format full name
-- `resolveFriendNames(friendIds, studentsById)` - Convert IDs to display objects
-- `getFriendLocations(friendIds, groups)` - Map friends to their groups
-
-### Update Group Properties (Non-Command)
-
-For configuration changes that don't need undo (name, capacity):
-
+**Preference**
 ```typescript
-commandStore.updateGroup(groupId, { name: 'New Name', capacity: 10 });
+{
+  id: string;
+  programId: string;
+  studentId: string;
+  payload: unknown;  // Flexible preference data (e.g., ranked list)
+}
 ```
-
-### Deploy to Production
-
-```bash
-git push origin main  # GitHub → Vercel auto-deploy
-```
-
-**Never deploy via Vercel CLI** (risks bundling .env file)
-
----
-
-## Known Issues & Gotchas
-
-### Svelte 5 Reactivity
-
-- **Array mutations don't trigger updates:** Use `arr = arr` pattern after mutations
-- **Derived state needs explicit typing:** `$derived.by(() => ...)` for complex logic
-- **Context must be set at top level:** Don't call `setContext()` inside `$effect`
-
-### Drag-and-Drop
-
-- Library is 1.x (stable but could have breaking changes)
-- Server bundle +15 KB (acceptable, monitor if grows)
-- Mobile touch events untested on real devices
-- Auto-expand collapsed groups on drop implemented
-
-### Google Sheets API
-
-- Cold start: ~4 seconds (serverless function warmup)
-- Credentials in Vercel env vars (need rotation process documented)
-- No error recovery if Sheets API is down
-- Service account auth only (no OAuth complexity)
-
-### State Management
-
-- `initializeGroups()` clears command history (intentional for fresh starts)
-- Undo/redo on auto-assign: Currently discards future commands after new action
-- No serialization of commands (save/load doesn't preserve undo stack)
 
 ---
 
 ## File Organization
 
-### Entry Points
+### Routes & Pages
 
-- `src/routes/+page.svelte` - Main application UI
-- `src/routes/api/data/+server.ts` - Google Sheets API endpoint
+- `src/routes/groups/+page.svelte` - Activity dashboard
+- `src/routes/groups/new/+page.svelte` - Create Groups wizard
+- `src/routes/groups/[id]/+page.svelte` - Activity detail page
+- `src/routes/scenarios/[id]/student-view/+page.svelte` - Student view
 
-### Core Logic
+### Domain & Application
 
-- `src/lib/stores/commands.svelte.ts` - State management + undo/redo
-- `src/lib/contexts/appData.ts` - Context provider for read-only data
-- `src/lib/utils/pragmatic-dnd.ts` - Drag-and-drop Svelte actions
-- `src/lib/utils/friends.ts` - Pure utility functions
+- `src/lib/domain/` - Domain entities, factories, validation
+- `src/lib/application/ports/` - Port interfaces (repositories, services)
+- `src/lib/application/useCases/` - Business operation functions
+- `src/lib/infrastructure/` - Implementations and environment composition
+- `src/lib/services/appEnvUseCases.ts` - Facade helpers for UI
 
-### Components
+### UI Components
 
-- `src/lib/components/student/` - Student-level UI (cards, avatars, badges)
-- `src/lib/components/group/` - Group containers and layouts (columns, vertical/horizontal grids)
-- `src/lib/components/roster/` - Roster-level utilities (unassigned lists, bulk student views)
-- `src/lib/components/inspector/` - Detail panes focused on a single student (Inspector, tabs)
-- `src/lib/components/statistics/` - Cross-cutting analytics widgets (banners, alerts)
-
-> **Convention:** When adding a component, place it in the folder that matches its primary responsibility. If a component spans multiple concerns, prefer composing existing components instead of creating a "misc" folder. Use the `$lib/components/<area>/ComponentName.svelte` alias path when importing across folders so refactors remain localized.
-
-### Types
-
-- `$lib/types` - Shared TypeScript definitions
+- `src/lib/components/wizard/` - Create Groups wizard steps
+- `src/lib/components/student/` - Student cards, avatars, badges
+- `src/lib/components/group/` - Group containers and layouts
+- `src/lib/components/inspector/` - Student detail panes
+- `src/lib/components/statistics/` - Analytics widgets
 
 ### Documentation
 
-- `docs/decisions/` - Architectural decision records
+- `docs/product_vision.md` - Product strategy and MVP scope
+- `docs/ARCHITECTURE.md` - Architecture guidelines and patterns
+- `docs/domain_model.md` - Domain entities and relationships
+- `docs/decisions/` - Architectural decision records (ADRs)
 - `docs/spikes/` - Time-boxed technical experiments
-- `docs/journal/` - Weekly learning reflections
-- `docs/roadmap.md` - NOW/NEXT/LATER priorities
-
-### Test Data
-
-- Project files: `/mnt/project/test-data-*.tsv` (students, groups, preferences, connections)
 
 ---
 
 ## Development Workflow
 
-### Local Development
+### Adding a New Feature
 
-```bash
-npm run dev           # Start dev server
-npm run check         # Type check
-npm run lint          # ESLint + Prettier check
-npm run test          # Run all tests (unit + e2e)
-npm run test:unit     # Vitest only
-npm run test:e2e      # Playwright only
-```
+1. **Domain First**: Do we need new types, fields, or domain rules? Add/extend in `src/lib/domain/`
+
+2. **Ports**: Do we need new repository/service methods? Update or add ports in `src/lib/application/ports/`
+
+3. **Use Case**: Implement a new function in `src/lib/application/useCases/`
+   - Accept a `deps` object (ports) and typed `input`
+   - Return a typed `Result<Success, ErrorUnion>`
+   - Keep it pure (no Svelte, no direct fetch, no DOM APIs)
+
+4. **Infrastructure**: Update implementations to satisfy new ports
+
+5. **Facade**: Wire the new use case into `appEnvUseCases.ts`
+
+6. **UI**: Use `getAppEnvContext()` + facade helper from routes/components
+
+If you find yourself writing non-trivial business logic directly in a Svelte component, that logic probably belongs in a use case.
 
 ### Spike-Driven Development
 
@@ -368,7 +269,7 @@ Before building uncertain features:
 For strategic choices (scope, architecture, product, process):
 
 1. Create: `docs/decisions/YYYY-MM-DD-title.md`
-2. Sections: Context, Decision, Consequences (Benefits + Costs)
+2. Sections: Context, Decision, Alternatives, Consequences
 3. Time budget: 7-10 minutes
 4. Max frequency: 1-2 per week
 
@@ -378,23 +279,33 @@ For strategic choices (scope, architecture, product, process):
 
 ### Unit Tests
 
-- Pure functions in `src/lib/utils/` (friends.ts)
-- Demo test: `src/demo.spec.ts` (shows Vitest setup)
+- Pure domain factories and validators
+- Use case functions (with mock ports)
+- Utility functions in `src/lib/utils/`
+
+Example:
+```bash
+npm run test:unit
+```
 
 ### Component Tests
 
-- Svelte components using vitest-browser-svelte
-- Example: `src/routes/page.svelte.spec.ts`
+- Svelte components using `vitest-browser-svelte`
+- Test user interactions and component behavior
 
 ### E2E Tests
 
 - Critical user flows via Playwright
-- Example: `e2e/demo.test.ts` (h1 visibility check)
+- Full wizard completion, scenario generation, analytics display
 
-### Current Coverage
+Example:
+```bash
+npm run test:e2e
+```
 
-- Minimal (MVP focus on shipping)
-- Test infrastructure ready, needs expansion
+### Test Utilities
+
+`src/lib/test-utils/fixtures.ts` provides pre-built test data with deterministic IDs. Test code may violate layer boundaries for setup (e.g., directly accessing repositories) — this is intentional and isolated to test code only.
 
 ---
 
@@ -403,60 +314,21 @@ For strategic choices (scope, architecture, product, process):
 ### Naming
 
 - Components: PascalCase (`StudentCard.svelte`)
-- Files: kebab-case (`commands.svelte.ts`)
+- Files: kebab-case (`create-program.ts`)
+- Use cases: Verb phrases (`createProgram`, `generateScenario`)
 - Decision records: `YYYY-MM-DD-lowercase-with-hyphens.md`
 
 ### TypeScript
 
 - Strict mode enabled
-- Props via `let { prop }: Props = $props()`
-- Derived state via `$derived` or `$derived.by()`
-- State via `$state`
+- Svelte 5 runes: `$state`, `$derived`, `$effect`, `$props`
+- Use case functions (not classes)
+- `Result<T, E>` types for business errors
 
-### Stores ($state runes)
+### Formatting
 
-- Keep each store inside a `.svelte.ts` file and model it as a class with `$state` fields.
-- Provide intent-revealing helpers (`toggleX`, `reset`, `setX`) instead of mutating state from components.
-- Co-locate a tiny spec near the store when adding new behavior. `src/lib/stores/uiSettings.spec.ts` shows the baseline expectations.
-
-```ts
-// src/lib/stores/uiSettings.svelte.ts
-export class UiSettingsStore {
-	showGender = $state(true);
-	highlightUnhappy = $state(false);
-
-	setShowGender(value: boolean) {
-		this.showGender = value;
-	}
-
-	toggleHighlightUnhappy() {
-		this.highlightUnhappy = !this.highlightUnhappy;
-	}
-
-	reset() {
-		this.showGender = true;
-		this.highlightUnhappy = false;
-	}
-}
-
-export const uiSettings = new UiSettingsStore();
-```
-
-```svelte
-<!-- Consuming components stay reactive via $derived -->
-<script lang="ts">
-	import { uiSettings } from '$lib/stores/uiSettings.svelte';
-	const showGender = $derived(uiSettings.showGender);
-
-	function handleToggle(event: Event) {
-		const input = event.currentTarget as HTMLInputElement | null;
-		if (!input) return;
-		uiSettings.setShowGender(input.checked);
-	}
-</script>
-
-<input type="checkbox" checked={showGender} on:change={handleToggle} />
-```
+- Prettier with tabs, single quotes, no trailing commas
+- Tailwind classes sorted via `prettier-plugin-tailwindcss`
 
 ### Comments
 
@@ -464,87 +336,82 @@ export const uiSettings = new UiSettingsStore();
 - Inline comments for non-obvious logic
 - **Why over what** (explain reasoning, not mechanics)
 
-### Formatting
+---
 
-- Prettier (tabs, single quotes, no trailing commas)
-- Tailwind classes sorted via prettier-plugin-tailwindcss
+## Deployment
+
+```bash
+git push origin main  # GitHub → Vercel auto-deploy
+```
+
+**Never deploy via Vercel CLI** (risks bundling .env file)
 
 ---
 
-## Next Steps (Roadmap Snapshot)
+## Roadmap
 
-### NOW (Active Work)
+### ✅ Phase 1 (MVP) - Complete
 
-- ✅ Command pattern implementation
-- ✅ Inspector with student details
-- 🚧 Statistics panel (happiness metrics, balance visualization)
+- Unified Create Groups wizard
+- CSV/TSV roster and preference import
+- Single scenario generation with reproducibility
+- Basic analytics (satisfaction metrics)
+- Read-only student view
+- Balanced grouping algorithm
 
-### NEXT (Queued)
+### Phase 2 (Planned) - Next
 
-- Full testing coverage
-- Document existing algorithms
-- Plan new algorithms
-- Group preferences mode (toggle between friends/preferences)
+- EnrollmentRecords (temporal membership tracking)
+- ActiveGrouping + AdjustmentEvent logging
+- ConflictRules ("never group" constraints)
+- SIS sync automation
+- Analytics dashboard
+- Pool manual edit UI
 
-### LATER (Backlog)
+### Phase 3 (Future)
 
-- Pin students to specific groups
-- Save results back to Google Sheets
-- Multiple scenarios/tabs for comparing grouping alternatives
-- Mobile-optimized drag-drop
-- Teacher accounts and saved configurations
+- Student portal + authentication
+- Student-submitted preferences with consent flows
+- Surveys and micro-observations
+- Advanced analytics and cross-term fairness
+- Multi-school admin workflows
+
+See [docs/product_vision.md](docs/product_vision.md) for detailed roadmap.
 
 ---
 
-## Quick Reference
+## Key Constraints
 
-### Getting Student Display Name
+### Browser & Device
 
-```typescript
-import { getDisplayName } from '$lib/utils/friends';
-const name = getDisplayName(student); // "Alice Anderson"
-```
+- Target: Teacher laptops (13-inch screens minimum)
+- Primary input: Mouse/trackpad
+- Drag-and-drop works on touch but untested on actual mobile devices
+- No mobile optimization in MVP
 
-### Dispatching a Command
+### Data Privacy
 
-```typescript
-commandStore.dispatch({
-	type: 'ASSIGN_STUDENT',
-	studentId: id,
-	groupId: targetGroupId,
-	previousGroupId: sourceGroupId
-});
-```
+- Client-side first (paste functionality works without backend)
+- No persistence beyond localStorage (intentional privacy-first design)
+- Google Sheets integration is optional enhancement
+- Read-only student views require no authentication (teacher-presented only)
 
-### Reading Groups Reactively
+### Capacity & Scale
 
-```typescript
-const groups = $derived(commandStore.groups);
-```
-
-### Accessing Student Data in Child Component
-
-```typescript
-const { studentsById } = getAppDataContext();
-const student = $derived(studentsById[studentId]);
-```
-
-### Calculating Happiness
-
-```typescript
-// Count of friends in same group / total friends
-const happiness = studentHappiness(studentId); // returns number
-```
+- Tested: 20-50 students per activity
+- Target: Up to 50 students, 10 groups
+- Grouping algorithm: <100ms for typical class sizes
 
 ---
 
 ## Additional Resources
 
-- **User stories:** `user-stories-from-v2.md` (extracted from previous iteration)
-- **Spike logs:** `docs/spikes/` (Google Sheets, drag-drop, algorithms, command pattern, Pragmatic DnD migration)
-- **Decision records:** `docs/decisions/` (timebox spikes to 3 hours)
-- **Documentation system:** `docs/DOCUMENTATION-SYSTEM-README.md`
+- **Product vision**: [docs/product_vision.md](docs/product_vision.md)
+- **Architecture guide**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **Domain model**: [docs/domain_model.md](docs/domain_model.md)
+- **Decision records**: [docs/decisions/](docs/decisions/)
+- **Spike logs**: [docs/spikes/](docs/spikes/)
 
 ---
 
-**Last Updated:** Based on codebase as of Spike 6 (Pragmatic Drag and Drop migration complete)
+**Last Updated:** December 2025 (MVP complete, hexagonal architecture implemented)

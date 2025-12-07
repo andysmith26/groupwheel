@@ -1,6 +1,6 @@
 # Friend‑Hat Domain Model (reduced MVP + target vocabulary)
 
-_Last updated: 2025-11-21_
+_Last updated: 2025-12-07_
 
 This conceptual domain model defines the canonical nouns and relationships for Friend‑Hat. It reflects the reduced MVP decisions (explicitly annotated) while preserving vocabulary for planned and future features so migration and refactors are straightforward.
 
@@ -8,11 +8,11 @@ This conceptual domain model defines the canonical nouns and relationships for F
 
 ## Status legend
 
-- **MVP** — In scope for the reduced MVP (to be implemented first).
+- **MVP** — In scope for the reduced MVP (✅ implemented as of Dec 2025).
 - **Planned** — Near‑term work, after MVP.
 - **Future** — Long‑term/aspirational.
 
-> Note: The codebase currently implements an early grouping UI; this model is intentionally ahead of the code (aspirational in places) to lock vocabulary for future refactors.
+> Note: The MVP is now **fully implemented** with a clean hexagonal architecture (domain/application/infrastructure layers). All core entities (Pool, Program, Scenario, Student, Staff, Preference, Group) are implemented in `src/lib/domain/`. The unified "Create Groups" wizard provides the user-facing interface.
 
 ---
 
@@ -181,14 +181,17 @@ Minimal analytics we compute for a Scenario:
 
 ---
 
-## 6. Migration note (conceptual)
+## 6. Migration note (✅ complete)
 
-- The current codebase uses `groups` and in-memory student lists. When we implement Pools, we will migrate existing roster data into Pools (import or script) and ensure Scenario creations write `participantSnapshot` so older experiments remain reproducible.
+- ✅ **Migration complete**: The codebase now implements the full hexagonal architecture with all domain entities in `src/lib/domain/`.
+- ✅ **Pools implemented**: CSV/TSV import creates Pools with `memberIds` via `createPoolFromRosterData` use case.
+- ✅ **Scenario snapshots**: All Scenarios include `participantSnapshot` for reproducibility (implemented in `generateScenario` use case).
+- ✅ **Unified wizard**: The "Create Groups" wizard at `/groups/new` provides seamless Pool + Program + Preference creation.
 
-**Status:** Planned
+**Status:** MVP implemented
 
 ---
 
 ## 7. Document status
 
-This domain model defines the reduced MVP artifacts and the vocabulary for planned/ future features. It is intentionally prescriptive to reduce future refactor cost. Treat the **Status** tags as the source of truth for what to expect in the running code.
+This domain model defines the reduced MVP artifacts (now **fully implemented**) and the vocabulary for planned/future features. The codebase at `src/lib/domain/` directly implements these types with proper factories and validation. The **Status** tags indicate what's in production code (MVP), what's next (Planned), and what's aspirational (Future).
