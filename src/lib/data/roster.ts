@@ -35,10 +35,10 @@ export function parseSheetRows(
 			const row = studentRows[i] ?? [];
 			const id = (row[0] ?? '').trim();
 			if (!id) continue;
-			
+
 			const firstName = (row[1] ?? '').trim();
 			if (!firstName) continue; // firstName is required
-			
+
 			students.push({
 				id,
 				firstName,

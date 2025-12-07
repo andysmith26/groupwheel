@@ -8,8 +8,8 @@ This document is the canonical product vision for Friend‑Hat. It describes the
 
 ## Status legend
 
-- **MVP** — In scope for the current reduced MVP (to be implemented first).  
-- **Planned** — Intended for the near term (after MVP).  
+- **MVP** — In scope for the current reduced MVP (to be implemented first).
+- **Planned** — Intended for the near term (after MVP).
 - **Future** — Long‑term aspirations; not scheduled.
 
 ---
@@ -50,9 +50,9 @@ Friend‑Hat is a privacy‑first, school‑grade social grouping platform that 
 
 ## 4. Product principles
 
-- Privacy‑first: avoid unnecessary persistence of sensitive signals in MVP; defer broader survey/insights rollouts until privacy design is clear.  
-- Teacher time respected: every flow must be fast and low‑friction.  
-- Reproducible: every created Scenario must include a participant snapshot so results can be reconstructed.  
+- Privacy‑first: avoid unnecessary persistence of sensitive signals in MVP; defer broader survey/insights rollouts until privacy design is clear.
+- Teacher time respected: every flow must be fast and low‑friction.
+- Reproducible: every created Scenario must include a participant snapshot so results can be reconstructed.
 - Modular & incremental: build MVP modules that can be swapped or extended without a big refactor.
 
 **Status:** MVP (principles).
@@ -64,6 +64,7 @@ Friend‑Hat is a privacy‑first, school‑grade social grouping platform that 
 The following features constitute the intentionally reduced scope we will implement first.
 
 MVP features (implement now)
+
 - Pool import from CSV/TSV — create named Pools (rosters) by uploading a CSV.
 - Program creation UI — create a Program and associate one Pool (primaryPoolId).
 - Single Scenario generation — run the existing grouping algorithm to produce one Scenario per Program and write `participantSnapshot` at creation time.
@@ -78,6 +79,7 @@ MVP features (implement now)
 - Clear Status tags in docs and an internal note that the codebase is not yet refactored to this model.
 
 Out of scope for MVP (deferred)
+
 - ActiveGrouping edits and AdjustmentEvent logging (no live, post‑adopt edits in MVP).
 - ConflictRules / do‑not‑group constraints.
 - EnrollmentRecords (detailed temporal membership history).
@@ -94,18 +96,21 @@ Out of scope for MVP (deferred)
 We describe the product as a set of modules so future work can be componentized. Only a subset is in MVP.
 
 Core modules (MVP subset first)
+
 - Pool Module (MVP): roster import/management via CSV; Pools are named rosters that Programs reference.
 - Grouping Module (MVP): the grouping engine + UI to generate a single Scenario per Program and present groups.
 - Insights / Analytics Module (MVP): scenario satisfaction metrics and basic reports.
 - Workspace Shell (MVP): single‑page teacher workspace that composes Pool + Grouping + Insights.
 
 Planned modules (near‑term)
+
 - ActiveGrouping Module (Planned): adopt a scenario into live assignments and track adjustments.
 - Conflict Module (Planned): define and apply scoped ConflictRules.
 - SIS Sync Module (Planned): safe automated roster syncs.
 - Multi‑teacher Collaboration (Planned): shared Program visibility across staff.
 
 Future modules (aspirational)
+
 - Observations & Surveys Module (Future): teacher micro‑observations and student surveys for social graph signals.
 - Student Portal & Authentication (Future): secure student views, consent flows.
 - Advanced Insights & Fairness Engine (Future): cross‑term fairness and scheduling helpers.
@@ -127,13 +132,13 @@ Future modules (aspirational)
 
 ## 8. Risks & mitigations
 
-- Risk: No authentication in MVP could raise privacy concerns.  
+- Risk: No authentication in MVP could raise privacy concerns.
   - Mitigation: Student view is teacher‑presented only (no public links for general distribution) and the MVP will include clear operating guidance for pilots. Authentication added in Planned stage.
 
-- Risk: CSV import inconsistencies.  
+- Risk: CSV import inconsistencies.
   - Mitigation: Strict import validation, helpful error messages, and a preview step.
 
-- Risk: Scope creep.  
+- Risk: Scope creep.
   - Mitigation: The roadmap and this document lock MVP scope; other features must be explicit Planned/Future items.
 
 **Status:** MVP / Planned.
@@ -142,9 +147,9 @@ Future modules (aspirational)
 
 ## 9. Roadmap (short)
 
-- Phase 0: Finalize vision, domain model, and reduced MVP docs (this step).  
-- Phase 1 (MVP): Pools via CSV import, single Scenario generation with participant snapshot, basic analytics, teacher workspace, read‑only student view.  
-- Phase 2 (Planned): EnrollmentRecords, ActiveGrouping + AdjustmentEvent logging, ConflictRules, SIS sync, improved mobile teacher observation UX.  
+- Phase 0: Finalize vision, domain model, and reduced MVP docs (this step).
+- Phase 1 (MVP): Pools via CSV import, single Scenario generation with participant snapshot, basic analytics, teacher workspace, read‑only student view.
+- Phase 2 (Planned): EnrollmentRecords, ActiveGrouping + AdjustmentEvent logging, ConflictRules, SIS sync, improved mobile teacher observation UX.
 - Phase 3 (Future): Student portal + auth, surveys, advanced analytics and fairness logic, multi‑school admin workflows.
 
 ---

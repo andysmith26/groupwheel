@@ -14,7 +14,6 @@
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import type { StudentPreference } from '$lib/types/preferences';
-	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
 	interface Props {
 		studentIds?: string[];
@@ -54,12 +53,12 @@
 
 <div class="unassigned-sidebar" class:collapsed={isCollapsed}>
 	<div class="sidebar-header">
-                <button
-                        class="collapse-button"
-                        onclick={onToggleCollapse}
-                        aria-label={isCollapsed ? 'Expand unassigned' : 'Collapse unassigned'}
-                        title={isCollapsed ? 'Expand' : 'Collapse'}
-                >
+		<button
+			class="collapse-button"
+			onclick={onToggleCollapse}
+			aria-label={isCollapsed ? 'Expand unassigned' : 'Collapse unassigned'}
+			title={isCollapsed ? 'Expand' : 'Collapse'}
+		>
 			<svg
 				class="chevron-icon"
 				class:collapsed={isCollapsed}

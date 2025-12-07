@@ -19,27 +19,12 @@ export * from './preference';
 export * from './analytics';
 
 // Re-export commonly used types at top level for convenience
-export type {
-	Student,
-} from './student';
+export type { Student } from './student';
 
-export type {
-	Group,
-	GroupCreationMode,
-} from './group';
+export type { Group, GroupCreationMode } from './group';
 
-export type {
-	StudentPreference,
-	Preference,
-	StudentId,
-	GroupId,
-} from './preference';
+export type { StudentPreference, Preference, StudentId, GroupId } from './preference';
 
-export type {
-	Scenario,
-	ScenarioStatus,
-} from './scenario';
+export type { Scenario, ScenarioStatus } from './scenario';
 
-export type {
-	ScenarioSatisfaction,
-} from './analytics';
+export type { ScenarioSatisfaction } from './analytics';

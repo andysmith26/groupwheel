@@ -51,7 +51,7 @@ export function createInMemoryEnvironment(seed?: {
 	scenarios?: Scenario[];
 	preferences?: Preference[];
 }): InMemoryEnvironment {
-    // Seed a default staff owner for MVP so ownerStaffId='owner-1' works out of the box.
+	// Seed a default staff owner for MVP so ownerStaffId='owner-1' works out of the box.
 	const defaultStaff: Staff[] = [
 		{
 			id: 'owner-1',

@@ -93,9 +93,7 @@ export function createGroup(input: {
 		normalizedCapacity = input.capacity;
 	}
 
-	const uniqueMemberIds = Array.from(
-		new Set((input.memberIds ?? []).map((id) => id))
-	);
+	const uniqueMemberIds = Array.from(new Set((input.memberIds ?? []).map((id) => id)));
 
 	return {
 		id: input.id,

@@ -63,7 +63,6 @@ export interface GroupingAlgorithm {
 	generateGroups(
 		params: GroupingParams
 	): Promise<
-		| { success: true; groups: GroupingResult['groups'] }
-		| { success: false; message: string }
+		{ success: true; groups: GroupingResult['groups'] } | { success: false; message: string }
 	>;
 }

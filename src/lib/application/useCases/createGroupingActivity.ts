@@ -25,7 +25,7 @@ import type {
 	Clock
 } from '$lib/application/ports';
 import type { Pool, Program, Student } from '$lib/domain';
-import { createEmptyStudentPreference, type StudentPreference } from '$lib/domain/preference';
+import type { Preference, StudentPreference } from '$lib/domain/preference';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
 
@@ -208,12 +208,7 @@ export async function createGroupingActivity(
 
 	if (input.preferences && input.preferences.length > 0) {
 		const studentIdSet = new Set(students.map((s) => s.id.toLowerCase()));
-		const preferencesToSave: Array<{
-			id: string;
-			programId: string;
-			studentId: string;
-			payload: StudentPreference;
-		}> = [];
+		const preferencesToSave: Preference[] = [];
 
 		for (const parsedPref of input.preferences) {
 			const studentId = parsedPref.studentId.toLowerCase();
@@ -238,7 +233,7 @@ export async function createGroupingActivity(
 					return true;
 				});
 
-			const preference = {
+			const preference: Preference = {
 				id: deps.idGenerator.generateId(),
 				programId: program.id,
 				studentId: studentId,
@@ -255,13 +250,20 @@ export async function createGroupingActivity(
 			preferencesImported++;
 		}
 
-		// Save preferences (implementation depends on PreferenceRepository interface)
-		// For now, we assume there's a way to batch save
-		for (const pref of preferencesToSave) {
-			// Note: This may need adjustment based on actual PreferenceRepository interface
-			// Some implementations have setForProgram(), others have save()
-			await (deps.preferenceRepo as any).save?.(pref) ??
-				console.warn('PreferenceRepository.save not available');
+		// Save preferences using any available repository method.
+		const preferenceRepo = deps.preferenceRepo as PreferenceRepository & {
+			save?: (preference: Preference) => Promise<void> | void;
+			setForProgram?: (programId: string, preferences: Preference[]) => Promise<void> | void;
+		};
+
+		if (typeof preferenceRepo.save === 'function') {
+			for (const pref of preferencesToSave) {
+				await preferenceRepo.save(pref);
+			}
+		} else if (typeof preferenceRepo.setForProgram === 'function') {
+			await preferenceRepo.setForProgram(program.id, preferencesToSave);
+		} else {
+			console.warn('PreferenceRepository.save not available');
 		}
 	}
 

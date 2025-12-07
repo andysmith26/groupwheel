@@ -7,6 +7,7 @@
 	 */
 
 	import { onMount } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { Program, Pool } from '$lib/domain';
 
@@ -39,11 +40,11 @@
 			const programs = await env.programRepo.listAll();
 			const pools = await env.poolRepo.listAll();
 
-			const poolMap = new Map(pools.map((p) => [p.id, p]));
+			const poolMap = new SvelteMap(pools.map((p) => [p.id, p]));
 
 			// For scenarios, check each program individually
 			// since ScenarioRepository only has getByProgramId(), not listAll()
-			const scenarioByProgram = new Map<string, boolean>();
+			const scenarioByProgram = new SvelteMap<string, boolean>();
 			for (const program of programs) {
 				const scenario = await env.scenarioRepo.getByProgramId(program.id);
 				scenarioByProgram.set(program.id, scenario !== null);

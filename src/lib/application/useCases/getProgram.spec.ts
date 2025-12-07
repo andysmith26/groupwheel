@@ -7,16 +7,16 @@ import { createPool } from '$lib/domain/pool';
 import { createProgram } from '$lib/domain/program';
 
 function expectErrType<T extends { type: string }, K extends T['type']>(
-        result: { status: 'ok'; value: unknown } | { status: 'err'; error: T },
-        expectedType: K
+	result: { status: 'ok'; value: unknown } | { status: 'err'; error: T },
+	expectedType: K
 ): Extract<T, { type: K }> {
-        if (result.status !== 'err') {
-                throw new Error(`Expected error result but received ${result.status}`);
-        }
-        if (result.error.type !== expectedType) {
-                throw new Error(`Expected error type ${expectedType} but received ${result.error.type}`);
-        }
-        return result.error as Extract<T, { type: K }>;
+	if (result.status !== 'err') {
+		throw new Error(`Expected error result but received ${result.status}`);
+	}
+	if (result.error.type !== expectedType) {
+		throw new Error(`Expected error type ${expectedType} but received ${result.error.type}`);
+	}
+	return result.error as Extract<T, { type: K }>;
 }
 
 describe('getProgram', () => {
@@ -107,12 +107,12 @@ describe('getProgram', () => {
 			const input: GetProgramInput = { programId: 'nonexistent-program' };
 			const result = await getProgram({ programRepo, poolRepo }, input);
 
-                        const error = expectErrType<GetProgramError, 'PROGRAM_NOT_FOUND'>(
-                                result,
-                                'PROGRAM_NOT_FOUND'
-                        );
-                        expect(error.programId).toBe('nonexistent-program');
-                });
+			const error = expectErrType<GetProgramError, 'PROGRAM_NOT_FOUND'>(
+				result,
+				'PROGRAM_NOT_FOUND'
+			);
+			expect(error.programId).toBe('nonexistent-program');
+		});
 
 		it('should fail when a referenced pool does not exist', async () => {
 			const program = createProgram({
@@ -137,12 +137,9 @@ describe('getProgram', () => {
 			const input: GetProgramInput = { programId: 'program-1' };
 			const result = await getProgram({ programRepo, poolRepo }, input);
 
-                        const error = expectErrType<GetProgramError, 'POOL_NOT_FOUND'>(
-                                result,
-                                'POOL_NOT_FOUND'
-                        );
-                        expect(error.poolId).toBe('nonexistent-pool');
-                });
+			const error = expectErrType<GetProgramError, 'POOL_NOT_FOUND'>(result, 'POOL_NOT_FOUND');
+			expect(error.poolId).toBe('nonexistent-pool');
+		});
 
 		it('should handle program repository lookup errors', async () => {
 			const failingProgramRepo = new InMemoryProgramRepository();
@@ -151,17 +148,14 @@ describe('getProgram', () => {
 			};
 
 			const input: GetProgramInput = { programId: 'program-1' };
-			const result = await getProgram(
-				{ programRepo: failingProgramRepo, poolRepo },
-				input
-			);
+			const result = await getProgram({ programRepo: failingProgramRepo, poolRepo }, input);
 
-                        const error = expectErrType<GetProgramError, 'PROGRAM_LOOKUP_FAILED'>(
-                                result,
-                                'PROGRAM_LOOKUP_FAILED'
-                        );
-                        expect(error.message).toContain('Database connection failed');
-                });
+			const error = expectErrType<GetProgramError, 'PROGRAM_LOOKUP_FAILED'>(
+				result,
+				'PROGRAM_LOOKUP_FAILED'
+			);
+			expect(error.message).toContain('Database connection failed');
+		});
 
 		it('should handle pool repository lookup errors', async () => {
 			const program = createProgram({
@@ -182,13 +176,13 @@ describe('getProgram', () => {
 			const input: GetProgramInput = { programId: 'program-1' };
 			const result = await getProgram({ programRepo, poolRepo: failingPoolRepo }, input);
 
-                        const error = expectErrType<GetProgramError, 'POOL_LOOKUP_FAILED'>(
-                                result,
-                                'POOL_LOOKUP_FAILED'
-                        );
-                        expect(error.message).toContain('Pool fetch error');
-                });
-        });
+			const error = expectErrType<GetProgramError, 'POOL_LOOKUP_FAILED'>(
+				result,
+				'POOL_LOOKUP_FAILED'
+			);
+			expect(error.message).toContain('Pool fetch error');
+		});
+	});
 
 	describe('edge cases', () => {
 		it('should handle programs with many pools', async () => {

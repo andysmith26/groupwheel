@@ -24,7 +24,7 @@ export class InMemoryProgramRepository implements ProgramRepository {
 					...program,
 					poolIds: [...program.poolIds],
 					ownerStaffIds: program.ownerStaffIds ? [...program.ownerStaffIds] : undefined
-			  }
+				}
 			: null;
 	}
 

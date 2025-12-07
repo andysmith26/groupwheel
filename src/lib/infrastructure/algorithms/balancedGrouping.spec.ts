@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { BalancedGroupingAlgorithm } from './balancedGrouping';
 import { InMemoryStudentRepository, InMemoryPreferenceRepository } from '../repositories/inMemory';
 import { UuidIdGenerator } from '../services';
-import type { Student, Group, StudentPreference, Preference } from '$lib/domain';
+import type { Preference, Student, StudentPreference } from '$lib/domain';
 
 describe('BalancedGroupingAlgorithm', () => {
 	let studentRepo: InMemoryStudentRepository;

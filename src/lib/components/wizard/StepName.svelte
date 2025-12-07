@@ -6,7 +6,10 @@
 	 * Shows summary of what will be created before final submission.
 	 */
 
-	import type { ParsedStudent, ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
+	import type {
+		ParsedStudent,
+		ParsedPreference
+	} from '$lib/application/useCases/createGroupingActivity';
 
 	interface Props {
 		/** Activity name (bound to parent) */

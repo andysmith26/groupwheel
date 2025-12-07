@@ -7,7 +7,11 @@
 	 */
 
 	import { dev } from '$app/environment';
-	import type { ParsedStudent, ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import type {
+		ParsedStudent,
+		ParsedPreference
+	} from '$lib/application/useCases/createGroupingActivity';
 
 	interface Props {
 		/** Students from Step 1 (used to validate preferences) */
@@ -29,8 +33,8 @@
 	let showAllWarnings = $state(false);
 
 	// Build lookup for student IDs
-	let studentIdSet = $derived(new Set(students.map((s) => s.id.toLowerCase())));
-	let studentById = $derived(new Map(students.map((s) => [s.id.toLowerCase(), s])));
+	let studentIdSet = $derived(new SvelteSet(students.map((s) => s.id.toLowerCase())));
+	let studentById = $derived(new SvelteMap(students.map((s) => [s.id.toLowerCase(), s])));
 
 	// Sample data for dev mode (matches sample roster)
 	const SAMPLE_PREFERENCES = `student_id	friend 1 id	friend 2 id	friend 3 id
@@ -67,7 +71,6 @@ henry@school.edu	frank@school.edu	bob@school.edu	`;
 
 			// Parse header
 			const delimiter = lines[0].includes('\t') ? '\t' : ',';
-			const headers = lines[0].split(delimiter).map((h) => h.trim().toLowerCase());
 
 			// First column should be student ID
 			const studentColIdx = 0;
@@ -78,7 +81,7 @@ henry@school.edu	frank@school.edu	bob@school.edu	`;
 			// Parse data rows
 			const parsed: ParsedPreference[] = [];
 			const newWarnings: string[] = [];
-			const seenStudents = new Set<string>();
+			const seenStudents = new SvelteSet<string>();
 
 			for (let i = 1; i < lines.length; i++) {
 				const cells = lines[i].split(delimiter).map((c) => c.trim());
@@ -258,7 +261,7 @@ bob@school.edu	alice@school.edu	dave@school.edu"
 
 			<!-- Preview list -->
 			<div class="max-h-48 divide-y divide-gray-100 overflow-y-auto">
-				{#each preferences.slice(0, 6) as pref}
+				{#each preferences.slice(0, 6) as pref (pref.studentId)}
 					<div class="flex items-center gap-3 px-4 py-2">
 						<span class="font-medium text-gray-900">{getDisplayName(pref.studentId)}</span>
 						<span class="text-gray-400">→</span>
@@ -295,7 +298,7 @@ bob@school.edu	alice@school.edu	dave@school.edu"
 				{/if}
 			</div>
 			<ul class="mt-2 ml-4 list-disc space-y-1 text-xs text-yellow-700">
-				{#each showAllWarnings ? warnings : warnings.slice(0, 3) as warning}
+				{#each showAllWarnings ? warnings : warnings.slice(0, 3) as warning, index (warning + index)}
 					<li>{warning}</li>
 				{/each}
 				{#if !showAllWarnings && warnings.length > 3}

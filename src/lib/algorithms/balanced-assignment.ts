@@ -45,7 +45,7 @@ export function assignBalanced(options: AssignmentOptions): AssignmentResult {
 		}
 	}
 
-	let workingGroups = emptyGroups.map((group) => ({
+	const workingGroups = emptyGroups.map((group) => ({
 		...group,
 		memberIds: memberMap[group.id]
 	}));

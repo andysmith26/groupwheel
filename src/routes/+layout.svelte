@@ -65,7 +65,7 @@
 				<h1 class="text-lg font-semibold">Teacher workspace</h1>
 			</div>
 			<nav aria-label="Site sections" class="grid gap-3 text-sm md:grid-cols-3">
-				{#each navSections as section}
+				{#each navSections as section (section.title)}
 					<section class="space-y-2 rounded-xl border border-gray-200 bg-white/70 p-3 shadow-sm">
 						<header class="space-y-1">
 							<p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
@@ -74,20 +74,16 @@
 							<p class="text-xs text-gray-600">{section.description}</p>
 						</header>
 						<ul class="flex flex-wrap gap-2" aria-label={`${section.title} links`}>
-							{#each section.items as item}
-								{#key item.href}
-									<li>
-										<a
-											class={linkClasses(isActiveLink($page.url.pathname, item.href))}
-											href={item.href}
-											aria-current={isActiveLink($page.url.pathname, item.href)
-												? 'page'
-												: undefined}
-										>
-											{item.label}
-										</a>
-									</li>
-								{/key}
+							{#each section.items as item (item.href)}
+								<li>
+									<a
+										class={linkClasses(isActiveLink($page.url.pathname, item.href))}
+										href={item.href}
+										aria-current={isActiveLink($page.url.pathname, item.href) ? 'page' : undefined}
+									>
+										{item.label}
+									</a>
+								</li>
 							{/each}
 						</ul>
 					</section>

@@ -345,7 +345,7 @@
 						<div class="mt-4">
 							<h3 class="text-sm font-medium text-gray-700">Groups created</h3>
 							<div class="mt-2 flex flex-wrap gap-2">
-								{#each scenario.groups as group}
+								{#each scenario.groups as group (group.id)}
 									<span class="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">
 										{group.name} ({group.memberIds.length})
 									</span>

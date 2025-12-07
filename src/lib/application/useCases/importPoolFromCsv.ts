@@ -1,7 +1,12 @@
 import type { PoolType, Pool } from '$lib/domain';
-import type { PoolRepository, StudentRepository, StaffRepository, IdGenerator } from '$lib/application/ports';
+import type {
+	PoolRepository,
+	StudentRepository,
+	StaffRepository,
+	IdGenerator
+} from '$lib/application/ports';
 import type { Result } from '$lib/types/result';
-import { err, ok } from '$lib/types/result';
+import { err } from '$lib/types/result';
 
 export interface ImportPoolFromCsvInput {
 	csvText: string;

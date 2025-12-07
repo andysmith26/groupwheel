@@ -16,7 +16,6 @@
 	import type { Group } from '$lib/domain';
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import StudentCard from '$lib/components/student/StudentCard.svelte';
-	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 	import { getCapacityStatus } from '$lib/utils/groups';
 
 	interface Props {
@@ -46,7 +45,6 @@
 
 	// Compute capacity display
 	const currentCount = $derived(group.memberIds.length);
-	const isFull = $derived(group.capacity !== null && currentCount >= group.capacity);
 
 	// Calculate capacity percentage and color
 	const capacityStatus = $derived(getCapacityStatus(group));
@@ -62,39 +60,39 @@
 
 <div class="group-column">
 	<div class="group-header">
-                <input
-                        type="text"
-                        class="group-name-input"
-                        value={group.name}
-                        oninput={(e) => onUpdateGroup?.(group.id, { name: e.currentTarget.value })}
-                        placeholder="Group name"
-                />
+		<input
+			type="text"
+			class="group-name-input"
+			value={group.name}
+			oninput={(e) => onUpdateGroup?.(group.id, { name: e.currentTarget.value })}
+			placeholder="Group name"
+		/>
 		<div class="capacity-controls">
 			<span
 				class="capacity-current"
 				class:warning={capacityStatus.isWarning}
 				class:full={capacityStatus.isFull}
-                                style="color: {capacityStatus.color};"
-                        >
-                                {currentCount}
-                        </span>
-                        <span class="capacity-separator">/</span>
-                        <input
-                                type="number"
-                                class="capacity-input"
-                                class:warning={capacityStatus.isWarning}
-                                class:full={capacityStatus.isFull}
-                                style="color: {capacityStatus.color};"
-                                value={group.capacity ?? ''}
-                                min="1"
-                                placeholder="∞"
-                                oninput={(e) => {
-                                        const val = e.currentTarget.value;
-                                        const num = parseInt(val, 10);
-                                        const newCapacity = val === '' || isNaN(num) || num <= 0 ? null : num;
-                                        onUpdateGroup?.(group.id, { capacity: newCapacity });
-                                }}
-                        />
+				style="color: {capacityStatus.color};"
+			>
+				{currentCount}
+			</span>
+			<span class="capacity-separator">/</span>
+			<input
+				type="number"
+				class="capacity-input"
+				class:warning={capacityStatus.isWarning}
+				class:full={capacityStatus.isFull}
+				style="color: {capacityStatus.color};"
+				value={group.capacity ?? ''}
+				min="1"
+				placeholder="∞"
+				oninput={(e) => {
+					const val = e.currentTarget.value;
+					const num = parseInt(val, 10);
+					const newCapacity = val === '' || isNaN(num) || num <= 0 ? null : num;
+					onUpdateGroup?.(group.id, { capacity: newCapacity });
+				}}
+			/>
 		</div>
 	</div>
 
@@ -219,15 +217,15 @@
 
 	/* Hide number input spinner arrows */
 	.capacity-input::-webkit-inner-spin-button,
-        .capacity-input::-webkit-outer-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-        }
+	.capacity-input::-webkit-outer-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
 
-        .capacity-input[type='number'] {
-                appearance: textfield;
-                -moz-appearance: textfield; /* Firefox */
-        }
+	.capacity-input[type='number'] {
+		appearance: textfield;
+		-moz-appearance: textfield; /* Firefox */
+	}
 
 	.capacity-input:hover {
 		background: white;

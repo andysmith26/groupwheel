@@ -117,9 +117,9 @@ describe('resolveFriendNames', () => {
 
 	it('should resolve friend names from studentsById', () => {
 		const studentsById: Record<string, Student> = {
-			's1': { id: 's1', firstName: 'Alice', lastName: 'Smith' },
-			's2': { id: 's2', firstName: 'Bob', lastName: 'Jones' },
-			's3': { id: 's3', firstName: 'Charlie', lastName: 'Brown' }
+			s1: { id: 's1', firstName: 'Alice', lastName: 'Smith' },
+			s2: { id: 's2', firstName: 'Bob', lastName: 'Jones' },
+			s3: { id: 's3', firstName: 'Charlie', lastName: 'Brown' }
 		};
 
 		const friendIds = ['s1', 's2', 's3'];
@@ -142,7 +142,7 @@ describe('resolveFriendNames', () => {
 
 	it('should return fallback name for missing student', () => {
 		const studentsById: Record<string, Student> = {
-			's1': { id: 's1', firstName: 'Alice', lastName: 'Smith' }
+			s1: { id: 's1', firstName: 'Alice', lastName: 'Smith' }
 		};
 
 		const friendIds = ['s1', 's999'];
@@ -167,7 +167,7 @@ describe('resolveFriendNames', () => {
 
 	it('should handle multiple missing students', () => {
 		const studentsById: Record<string, Student> = {
-			's1': { id: 's1', firstName: 'Alice' }
+			s1: { id: 's1', firstName: 'Alice' }
 		};
 
 		const friendIds = ['s1', 's2', 's3'];
@@ -183,8 +183,8 @@ describe('resolveFriendNames', () => {
 
 	it('should use display name fallback logic for found students', () => {
 		const studentsById: Record<string, Student> = {
-			's1': { id: 's1', firstName: '', meta: { displayName: 'Ace' } },
-			's2': { id: 's2', firstName: '' }
+			s1: { id: 's1', firstName: '', meta: { displayName: 'Ace' } },
+			s2: { id: 's2', firstName: '' }
 		};
 
 		const friendIds = ['s1', 's2'];

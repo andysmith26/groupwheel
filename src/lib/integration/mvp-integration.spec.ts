@@ -1,14 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
 import type { InMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
-import { importRoster, createProgram, generateScenario, computeAnalytics } from '$lib/services/appEnvUseCases';
+import {
+	importRoster,
+	createProgram,
+	generateScenario,
+	computeAnalytics
+} from '$lib/services/appEnvUseCases';
 import { isOk, isErr } from '$lib/types/result';
 import type { InMemoryPreferenceRepository } from '$lib/infrastructure/repositories/inMemory';
 
 /**
  * Integration tests for the full MVP flow:
  * Pool Import → Program Creation → Preferences → Scenario Generation → Analytics
- * 
+ *
  * These tests verify that data flows correctly through all layers without
  * testing individual components in isolation.
  */
@@ -24,7 +29,10 @@ describe('MVP Integration: Full Workflow', () => {
 	 * The PreferenceRepository interface only has listByProgramId,
 	 * so we cast to the concrete implementation to use setForProgram.
 	 */
-	function addPreferences(programId: string, prefs: Array<{ studentId: string; likeStudentIds: string[] }>) {
+	function addPreferences(
+		programId: string,
+		prefs: Array<{ studentId: string; likeStudentIds: string[] }>
+	) {
 		const repo = env.preferenceRepo as InMemoryPreferenceRepository;
 		const preferences = prefs.map((p, i) => ({
 			id: `pref-${i}`,
@@ -99,7 +107,7 @@ Dave Brown\tdave@school.edu\t9`,
 			expect(scenario.groups.length).toBeGreaterThan(0);
 
 			// All students should be assigned
-			const assignedStudents = scenario.groups.flatMap(g => g.memberIds);
+			const assignedStudents = scenario.groups.flatMap((g) => g.memberIds);
 			expect(assignedStudents).toHaveLength(4);
 			expect(new Set(assignedStudents).size).toBe(4); // No duplicates
 
@@ -165,7 +173,7 @@ Student F\tf@school.edu`,
 			expect(scenario.groups.length).toBeGreaterThan(0);
 
 			// All students assigned
-			const assigned = scenario.groups.flatMap(g => g.memberIds);
+			const assigned = scenario.groups.flatMap((g) => g.memberIds);
 			expect(assigned).toHaveLength(6);
 
 			// Analytics should work with no preferences
@@ -278,7 +286,10 @@ Student F\tf@school.edu`,
 
 			// Add preference that references non-existent student
 			addPreferences(programResult.value.id, [
-				{ studentId: 'alice@school.edu', likeStudentIds: ['bob@school.edu', 'nonexistent@school.edu'] }
+				{
+					studentId: 'alice@school.edu',
+					likeStudentIds: ['bob@school.edu', 'nonexistent@school.edu']
+				}
 			]);
 
 			// Should still generate scenario successfully
@@ -324,9 +335,9 @@ Student F\tf@school.edu`,
 			// With mutual preferences and only 2 students, they should be in same group
 			// (assuming the algorithm puts them together)
 			const scenario = scenarioResult.value;
-			const aliceGroup = scenario.groups.find(g => g.memberIds.includes('alice@school.edu'));
-			const bobGroup = scenario.groups.find(g => g.memberIds.includes('bob@school.edu'));
-			
+			const aliceGroup = scenario.groups.find((g) => g.memberIds.includes('alice@school.edu'));
+			const bobGroup = scenario.groups.find((g) => g.memberIds.includes('bob@school.edu'));
+
 			expect(aliceGroup).toBeDefined();
 			expect(bobGroup).toBeDefined();
 			// In a 2-student scenario, they're likely in the same group

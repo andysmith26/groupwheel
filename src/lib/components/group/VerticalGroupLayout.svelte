@@ -13,7 +13,6 @@
 	import { droppable } from '$lib/utils/pragmatic-dnd';
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import StudentCard from '$lib/components/student/StudentCard.svelte';
-	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 	import { getCapacityStatus } from '$lib/utils/groups';
 
 	/**
@@ -82,29 +81,29 @@
 		{@const status = getCapacityStatus(group)}
 		<div class="group-row" class:collapsed={isCollapsed(group.id)}>
 			<div class="group-row-header">
-                                <button
-                                        class="collapse-button"
-                                        onclick={() => onToggleCollapse(group.id)}
-                                        aria-label={isCollapsed(group.id) ? `Expand ${group.name}` : `Collapse ${group.name}`}
-                                        title={isCollapsed(group.id) ? 'Expand' : 'Collapse'}
-                                >
-                                        <span class="collapse-icon" class:collapsed={isCollapsed(group.id)}>▼</span>
-                                </button>
+				<button
+					class="collapse-button"
+					onclick={() => onToggleCollapse(group.id)}
+					aria-label={isCollapsed(group.id) ? `Expand ${group.name}` : `Collapse ${group.name}`}
+					title={isCollapsed(group.id) ? 'Expand' : 'Collapse'}
+				>
+					<span class="collapse-icon" class:collapsed={isCollapsed(group.id)}>▼</span>
+				</button>
 
-                                <input
-                                        type="text"
-                                        class="group-row-name-input"
-                                        value={group.name}
-                                        oninput={(e) => onUpdateGroup?.(group.id, { name: e.currentTarget.value })}
-                                        placeholder="Group name"
-                                />
+				<input
+					type="text"
+					class="group-row-name-input"
+					value={group.name}
+					oninput={(e) => onUpdateGroup?.(group.id, { name: e.currentTarget.value })}
+					placeholder="Group name"
+				/>
 
 				<div class="capacity-controls">
 					<span
 						class="capacity-current"
-						class:warning={getCapacityStatus(group).isWarning}
-						class:full={getCapacityStatus(group).isFull}
-						style="color: {getCapacityStatus(group).color};"
+						class:warning={status.isWarning}
+						class:full={status.isFull}
+						style="color: {status.color};"
 					>
 						{group.memberIds.length}
 					</span>
@@ -112,18 +111,18 @@
 					<input
 						type="number"
 						class="capacity-input"
-						class:warning={getCapacityStatus(group).isWarning}
-						class:full={getCapacityStatus(group).isFull}
-                                                style="color: {getCapacityStatus(group).color};"
-                                                value={group.capacity ?? ''}
-                                                min="1"
-                                                placeholder="∞"
-                                                oninput={(e) => {
-                                                        const val = e.currentTarget.value;
-                                                        const num = parseInt(val, 10);
-                                                        const newCapacity = val === '' || isNaN(num) || num <= 0 ? null : num;
-                                                        onUpdateGroup?.(group.id, { capacity: newCapacity });
-                                                }}
+						class:warning={status.isWarning}
+						class:full={status.isFull}
+						style="color: {status.color};"
+						value={group.capacity ?? ''}
+						min="1"
+						placeholder="∞"
+						oninput={(e) => {
+							const val = e.currentTarget.value;
+							const num = parseInt(val, 10);
+							const newCapacity = val === '' || isNaN(num) || num <= 0 ? null : num;
+							onUpdateGroup?.(group.id, { capacity: newCapacity });
+						}}
 					/>
 				</div>
 			</div>
@@ -302,10 +301,10 @@
 		margin: 0;
 	}
 
-        .capacity-input[type='number'] {
-                appearance: textfield;
-                -moz-appearance: textfield;
-        }
+	.capacity-input[type='number'] {
+		appearance: textfield;
+		-moz-appearance: textfield;
+	}
 
 	.capacity-input:hover {
 		background: white;

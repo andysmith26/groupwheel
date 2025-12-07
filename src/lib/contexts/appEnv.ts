@@ -10,7 +10,9 @@ export function setAppEnvContext(env: InMemoryEnvironment): void {
 export function getAppEnvContext(): InMemoryEnvironment {
 	const env = getContext<InMemoryEnvironment | undefined>(APP_ENV_CONTEXT_KEY);
 	if (!env) {
-		throw new Error('App environment context has not been set. Did you forget to wrap in +layout.svelte?');
+		throw new Error(
+			'App environment context has not been set. Did you forget to wrap in +layout.svelte?'
+		);
 	}
 	return env;
 }

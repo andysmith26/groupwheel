@@ -10,7 +10,6 @@
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import StudentCard from '$lib/components/student/StudentCard.svelte';
 	import type { StudentPreference } from '$lib/types/preferences';
-	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
 	interface Props {
 		studentIds?: string[];

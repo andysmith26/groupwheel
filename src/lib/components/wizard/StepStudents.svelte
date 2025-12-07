@@ -7,6 +7,7 @@
 	 */
 
 	import { dev } from '$app/environment';
+	import { SvelteSet } from 'svelte/reactivity';
 	import type { ParsedStudent } from '$lib/application/useCases/createGroupingActivity';
 
 	interface Props {
@@ -76,7 +77,7 @@ Henry Taylor	henry@school.edu	10`;
 
 			// Parse data rows
 			const parsed: ParsedStudent[] = [];
-			const seenIds = new Set<string>();
+			const seenIds = new SvelteSet<string>();
 
 			for (let i = 1; i < lines.length; i++) {
 				const cells = lines[i].split(delimiter).map((c) => c.trim());
@@ -249,7 +250,7 @@ Bob Jones	bob@school.edu	9"
 						</tr>
 					</thead>
 					<tbody>
-						{#each students.slice(0, 8) as student, i}
+						{#each students.slice(0, 8) as student, i (student.id)}
 							<tr class="border-b border-gray-100 {i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}">
 								<td class="px-4 py-2 text-gray-900">{student.displayName}</td>
 								<td class="px-4 py-2 font-mono text-xs text-gray-600">{student.id}</td>

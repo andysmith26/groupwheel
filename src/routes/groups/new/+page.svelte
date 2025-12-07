@@ -12,7 +12,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import type { Pool, Program } from '$lib/domain';
+	import type { Pool } from '$lib/domain';
 	import { createGroupingActivity } from '$lib/services/appEnvUseCases';
 	import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
@@ -108,7 +108,6 @@
 	let selectedRosterId = $state<string | null>(null);
 	let students = $state<ParsedStudent[]>([]);
 	let preferences = $state<ParsedPreference[]>([]);
-	let preferenceWarnings = $state<string[]>([]);
 	let activityName = $state('');
 
 	// Submission state
@@ -186,7 +185,7 @@
 								Object.entries(student.meta).filter(
 									([, value]) => typeof value === 'string'
 								) as Array<[string, string]>
-						  )
+							)
 						: undefined;
 				loadedStudents.push({
 					id: student.id,
@@ -215,9 +214,9 @@
 		students = parsed;
 	}
 
-	function handlePreferencesParsed(parsed: ParsedPreference[], warnings: string[]) {
+	function handlePreferencesParsed(parsed: ParsedPreference[], _warnings: string[]) {
+		void _warnings;
 		preferences = parsed;
-		preferenceWarnings = warnings;
 	}
 
 	function handleNameChange(name: string) {

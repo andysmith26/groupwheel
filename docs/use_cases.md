@@ -8,8 +8,8 @@ This catalog maps prioritized user flows to the reduced MVP and shows which flow
 
 ## Status legend
 
-- **MVP** — Implement in the reduced MVP.  
-- **Planned** — Near‑term work after MVP.  
+- **MVP** — Implement in the reduced MVP.
+- **Planned** — Near‑term work after MVP.
 - **Future** — Longer term.
 
 ---
@@ -17,22 +17,24 @@ This catalog maps prioritized user flows to the reduced MVP and shows which flow
 ## 1. Overview / priorities
 
 MVP focus (explicit)
-- Pool import from CSV (roster ingestion).  
-- Program creation referencing a Pool.  
-- Single Scenario generation (participant snapshot) using the grouping engine.  
-- Minimal analytics (how well scenario matches student preferences).  
-- Read‑only student view (teacher‑presented or teacher‑view mode).  
+
+- Pool import from CSV (roster ingestion).
+- Program creation referencing a Pool.
+- Single Scenario generation (participant snapshot) using the grouping engine.
+- Minimal analytics (how well scenario matches student preferences).
+- Read‑only student view (teacher‑presented or teacher‑view mode).
 
 Planned / Future (deferred)
+
 - ActiveGrouping edits, ConflictRules, EnrollmentRecords, SIS sync, authentication, observations, deep analytics, student accounts.
 
 ---
 
 ## 2. Use case: Import Pool from CSV (MVP)
 
-- **Actor:** Teacher / Admin  
-- **Goal:** Create a named Pool (roster) by uploading a CSV file.  
-- **Frequency:** Start of term; occasional updates.  
+- **Actor:** Teacher / Admin
+- **Goal:** Create a named Pool (roster) by uploading a CSV file.
+- **Frequency:** Start of term; occasional updates.
 - **Success criteria (MVP):**
   - Upload CSV with headers is validated and parsed.
   - System shows a preview and allows field mapping (at minimum: studentId, firstName, lastName).
@@ -47,9 +49,9 @@ Planned / Future (deferred)
 
 ## 3. Use case: Create Program & associate Pool (MVP)
 
-- **Actor:** Teacher / Admin  
-- **Goal:** Create a Program for grouping and associate the Pool that contains participants.  
-- **Frequency:** Once per Program lifecycle.  
+- **Actor:** Teacher / Admin
+- **Goal:** Create a Program for grouping and associate the Pool that contains participants.
+- **Frequency:** Once per Program lifecycle.
 - **Success criteria (MVP):**
   - Staff can create a Program, select primaryPoolId (from Pools they own or have access to).
   - Program saved with `poolIds` (MVP typically uses one).
@@ -61,9 +63,9 @@ Planned / Future (deferred)
 
 ## 4. Use case: Generate single Scenario (MVP)
 
-- **Actor:** Teacher / Admin  
-- **Goal:** Run the grouping algorithm on the Program's Pool snapshot to produce groups.  
-- **Frequency:** Per Program instantiation (e.g., once per club run, once per class activity).  
+- **Actor:** Teacher / Admin
+- **Goal:** Run the grouping algorithm on the Program's Pool snapshot to produce groups.
+- **Frequency:** Per Program instantiation (e.g., once per club run, once per class activity).
 - **Success criteria (MVP):**
   - System resolves Pool memberIds and writes `Scenario.participantSnapshot`.
   - Grouping algorithm produces a Scenario with `groups` and stores the result.
@@ -77,9 +79,9 @@ Planned / Future (deferred)
 
 ## 5. Use case: Basic analytics / scenario satisfaction (MVP)
 
-- **Actor:** Teacher / Admin  
-- **Goal:** Understand how well the Scenario satisfies student preferences.  
-- **Frequency:** Immediately after Scenario generation / during review.  
+- **Actor:** Teacher / Admin
+- **Goal:** Understand how well the Scenario satisfies student preferences.
+- **Frequency:** Immediately after Scenario generation / during review.
 - **Success criteria (MVP):**
   - System computes `PercentAssignedTopChoice` and `AveragePreferenceRankAssigned`.
   - Analytics panel displays these metrics with simple explanations and a small table of per‑student assignment rank.
@@ -93,9 +95,9 @@ Planned / Future (deferred)
 
 ## 6. Use case: Read‑only student view (MVP)
 
-- **Actor:** Teacher (presenting) / Student (viewing)  
-- **Goal:** Students can see the final grouping for the Scenario in a read‑only way.  
-- **Frequency:** After Scenario generation/adoption.  
+- **Actor:** Teacher (presenting) / Student (viewing)
+- **Goal:** Students can see the final grouping for the Scenario in a read‑only way.
+- **Frequency:** After Scenario generation/adoption.
 - **Success criteria (MVP):**
   - Teacher can open a "student view" mode and project or display it in class.
   - Data is read‑only; no student account or auth required for MVP.
@@ -108,9 +110,10 @@ Planned / Future (deferred)
 ---
 
 ## 7. Use case: Minimal pool edits / archive (MVP-lite / optional)
-- **Actor:** Teacher / Admin  
-- **Goal:** Make small corrective edits to Pool membership between imports (e.g., remove a student who transferred out).  
-- **Frequency:** Occasionally mid‑term.  
+
+- **Actor:** Teacher / Admin
+- **Goal:** Make small corrective edits to Pool membership between imports (e.g., remove a student who transferred out).
+- **Frequency:** Occasionally mid‑term.
 - **Success criteria (MVP-lite):**
   - UI supports add/remove of students in Pool memberIds.
   - Pool `status` can be set to `ARCHIVED` at year end.
@@ -122,11 +125,11 @@ Planned / Future (deferred)
 
 ## 8. Planned use cases (near‑term)
 
-- ActiveGrouping adoption and AdjustmentEvents (staff can adopt a scenario and then make live edits that are logged).  
-- ConflictRules definition and enforcement (counselor workflows).  
-- EnrollmentRecord support for mid‑year membership history.  
-- SIS sync with scheduled imports and reconciliation flows.  
-- Light authentication + student accounts (for read/write student interactions).  
+- ActiveGrouping adoption and AdjustmentEvents (staff can adopt a scenario and then make live edits that are logged).
+- ConflictRules definition and enforcement (counselor workflows).
+- EnrollmentRecord support for mid‑year membership history.
+- SIS sync with scheduled imports and reconciliation flows.
+- Light authentication + student accounts (for read/write student interactions).
 
 Each Planned use case will be decomposed into acceptance criteria and implementation steps post‑MVP.
 
@@ -139,6 +142,7 @@ Each Planned use case will be decomposed into acceptance criteria and implementa
 For each MVP feature we use a simple Given/When/Then template:
 
 Example: Scenario snapshot
+
 - Given: A Program referencing Pool P with members M.
 - When: Staff invokes "Create Scenario".
 - Then: System writes Scenario with `participantSnapshot = M` and `groups` are produced from algorithm. Snapshot is immutable.
@@ -148,6 +152,7 @@ Example: Scenario snapshot
 ## 10. Backlog (prioritized)
 
 MVP (now)
+
 1. CSV Pool import, preview, validation.
 2. Program creation UI pointing to Pool.
 3. Single Scenario generation with participant snapshot.
@@ -156,12 +161,14 @@ MVP (now)
 6. Minimal Pool edit/archival UI.
 
 Near‑term (Planned)
+
 1. EnrollmentRecords and basic membership history.
 2. ActiveGrouping adoption and AdjustmentEvent logging.
 3. ConflictRule management UI and algorithm enforcement.
 4. SIS sync connectors and scheduled imports.
 
 Later (Future)
+
 1. Observations, surveys, trusted adult links, social graph building.
 2. Student auth and student portal.
 3. Advanced fairness algorithms and scheduling helpers.
@@ -170,8 +177,8 @@ Later (Future)
 
 ## 11. Next steps (practical)
 
-- Convert the domain model to a small set of TypeScript interfaces and persistence schemas (after MVP docs are finalized).  
-- Create a minimal import validation UI spec and import flow.  
+- Convert the domain model to a small set of TypeScript interfaces and persistence schemas (after MVP docs are finalized).
+- Create a minimal import validation UI spec and import flow.
 - Implement scenario snapshot behavior in the grouping workflow and basic analytics.
 
 ---

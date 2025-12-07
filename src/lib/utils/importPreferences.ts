@@ -1,6 +1,5 @@
 import type { Group, Student, StudentPreference } from '$lib/domain';
 import { ensurePreferences } from '$lib/data/roster';
-import { createEmptyStudentPreference } from '$lib/domain/preference';
 
 /**
  * Represents a single row from a teacher‑provided sheet. Keys are column
@@ -74,6 +73,8 @@ export interface RosterIndex {
 	byDisplayName: Map<string, Student>;
 }
 
+type PreferenceMetaValue = string | number | boolean | undefined;
+
 /**
  * Indexes for quickly looking up groups by id or by name. Group names are
  * lowercased to allow case‑insensitive matching.
@@ -127,8 +128,11 @@ export function buildRosterIndex(students: Student[]): RosterIndex {
 			}
 		}
 		// If a meta.email field exists on the student, index it
-		const metaEmail = (student as any)?.meta?.email;
-		if (typeof metaEmail === 'string' && metaEmail.trim()) {
+		const metaEmail =
+			typeof student.meta === 'object' && student.meta !== null
+				? (student.meta as Record<string, unknown>).email
+				: undefined;
+		if (typeof metaEmail === 'string') {
 			const e = metaEmail.trim().toLowerCase();
 			if (!byEmail.has(e)) byEmail.set(e, student);
 		}
@@ -206,7 +210,7 @@ function resolveGroup(value: string, groupIndex: GroupIndex): Group | undefined 
  * "true", "yes", "1" (case insensitive) are treated as true; "false",
  * "no", "0" as false. Numbers are parsed via `parseFloat()`.
  */
-function parseMeta(value: string, type: 'boolean' | 'number' | 'string'): any {
+function parseMeta(value: string, type: 'boolean' | 'number' | 'string'): PreferenceMetaValue {
 	const trimmed = value.trim();
 	if (!trimmed) return undefined;
 	if (type === 'string') return trimmed;
@@ -319,7 +323,7 @@ export function importPreferences(
 		});
 
 		// Parse meta columns
-		const meta: Record<string, any> = {};
+		const meta: Record<string, PreferenceMetaValue> = {};
 		Object.entries(mapping.metaColumns).forEach(([metaKey, { column, type }]) => {
 			const val = row[column] ?? '';
 			const parsed = parseMeta(val, type);

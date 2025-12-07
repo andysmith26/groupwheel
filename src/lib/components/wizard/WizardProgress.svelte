@@ -20,7 +20,7 @@
 </script>
 
 <div class="flex items-center gap-2">
-	{#each Array(totalSteps) as _, index}
+	{#each Array.from({ length: totalSteps }, (_, index) => index) as index (index)}
 		{@const stepNum = index + 1}
 		{@const isComplete = stepNum < currentStep}
 		{@const isCurrent = stepNum === currentStep}

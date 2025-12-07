@@ -1,13 +1,13 @@
 /**
  * Simple preferences parser for paste input.
- * 
+ *
  * Parses a TSV/CSV table where:
  * - First column is the student ID
  * - Subsequent columns are friend preference IDs (in order of preference)
- * 
+ *
  * This is a lightweight parser for the "quick paste" flow in Program creation.
  * It extracts raw student/friend ID pairs without requiring a roster index.
- * 
+ *
  * For complex imports with column mapping, group preferences, avoid lists,
  * and meta fields, see importPreferences() in importPreferences.ts instead.
  */
@@ -19,21 +19,21 @@ export interface ParsedPreference {
 
 /**
  * Parse preferences from a pasted TSV/CSV string.
- * 
+ *
  * Expected format:
  * ```
  * student_id	friend 1 id	friend 2 id	friend 3 id
- * alice@school.edu	bob@school.edu	carol@school.edu	
- * bob@school.edu	alice@school.edu		
+ * alice@school.edu	bob@school.edu	carol@school.edu
+ * bob@school.edu	alice@school.edu
  * ```
- * 
+ *
  * @param pastedText - Raw TSV/CSV text
  * @returns Array of parsed preferences
  * @throws Error if the format is invalid
  */
 export function parsePreferencesFromPaste(pastedText: string): ParsedPreference[] {
 	const lines = pastedText.trim().split(/\r?\n/);
-	
+
 	if (lines.length === 0) {
 		return [];
 	}
@@ -43,16 +43,16 @@ export function parsePreferencesFromPaste(pastedText: string): ParsedPreference[
 	const delimiter = firstLine.includes('\t') ? '\t' : ',';
 
 	// Parse header to detect column count
-	const headerCells = firstLine.split(delimiter).map(cell => cell.trim().toLowerCase());
-	
+	const headerCells = firstLine.split(delimiter).map((cell) => cell.trim().toLowerCase());
+
 	// First column should be student ID
 	const firstHeader = headerCells[0];
 	const validFirstHeaders = ['student_id', 'student id', 'studentid', 'id', 'email'];
-	const hasValidHeader = validFirstHeaders.some(h => firstHeader.includes(h));
-	
+	const hasValidHeader = validFirstHeaders.some((h) => firstHeader.includes(h));
+
 	// Determine if first row is header or data
 	const startRow = hasValidHeader ? 1 : 0;
-	
+
 	if (lines.length <= startRow) {
 		return [];
 	}
@@ -63,8 +63,8 @@ export function parsePreferencesFromPaste(pastedText: string): ParsedPreference[
 		const line = lines[i].trim();
 		if (!line) continue;
 
-		const cells = line.split(delimiter).map(cell => cell.trim());
-		
+		const cells = line.split(delimiter).map((cell) => cell.trim());
+
 		if (cells.length === 0 || !cells[0]) {
 			continue; // Skip empty rows
 		}

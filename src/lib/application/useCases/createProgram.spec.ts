@@ -7,16 +7,16 @@ import { createPool } from '$lib/domain/pool';
 import type { IdGenerator } from '$lib/application/ports';
 
 function expectErrType<T extends { type: string }, K extends T['type']>(
-        result: { status: 'ok'; value: unknown } | { status: 'err'; error: T },
-        expectedType: K
+	result: { status: 'ok'; value: unknown } | { status: 'err'; error: T },
+	expectedType: K
 ): Extract<T, { type: K }> {
-        if (result.status !== 'err') {
-                throw new Error(`Expected error result but received ${result.status}`);
-        }
-        if (result.error.type !== expectedType) {
-                throw new Error(`Expected error type ${expectedType} but received ${result.error.type}`);
-        }
-        return result.error as Extract<T, { type: K }>;
+	if (result.status !== 'err') {
+		throw new Error(`Expected error result but received ${result.status}`);
+	}
+	if (result.error.type !== expectedType) {
+		throw new Error(`Expected error type ${expectedType} but received ${result.error.type}`);
+	}
+	return result.error as Extract<T, { type: K }>;
 }
 
 class MockIdGenerator implements IdGenerator {
@@ -56,10 +56,7 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase(
-				{ poolRepo, programRepo, idGenerator },
-				input
-			);
+			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -81,10 +78,7 @@ describe('createProgramUseCase', () => {
 				ownerStaffIds: ['staff-1', 'staff-2']
 			};
 
-			const result = await createProgramUseCase(
-				{ poolRepo, programRepo, idGenerator },
-				input
-			);
+			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -103,10 +97,7 @@ describe('createProgramUseCase', () => {
 				schoolId: 'school-123'
 			};
 
-			const result = await createProgramUseCase(
-				{ poolRepo, programRepo, idGenerator },
-				input
-			);
+			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -124,10 +115,7 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase(
-				{ poolRepo, programRepo, idGenerator },
-				input
-			);
+			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -149,17 +137,14 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase(
-				{ poolRepo, programRepo, idGenerator },
-				input
-			);
+			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
 
-                        const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
-                                result,
-                                'DOMAIN_VALIDATION_FAILED'
-                        );
-                        expect(error.message).toContain('name must not be empty');
-                });
+			const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
+				result,
+				'DOMAIN_VALIDATION_FAILED'
+			);
+			expect(error.message).toContain('name must not be empty');
+		});
 
 		it('should fail when program name is only whitespace', async () => {
 			await poolRepo.save(validPool);
@@ -171,18 +156,14 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase(
-				{ poolRepo, programRepo, idGenerator },
-				input
+			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+
+			const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
+				result,
+				'DOMAIN_VALIDATION_FAILED'
 			);
-
-const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
-        result,
-        'DOMAIN_VALIDATION_FAILED'
-    );
-    expect(error.message).toContain('name must not be empty');
-
-                });
+			expect(error.message).toContain('name must not be empty');
+		});
 
 		it('should fail when primary pool does not exist', async () => {
 			const input: CreateProgramInput = {
@@ -192,18 +173,12 @@ const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
 				primaryPoolId: 'nonexistent-pool'
 			};
 
-			const result = await createProgramUseCase(
-				{ poolRepo, programRepo, idGenerator },
-				input
-			);
+			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
 
-                        const error = expectErrType<CreateProgramError, 'POOL_NOT_FOUND'>(
-                                result,
-                                'POOL_NOT_FOUND'
-                        );
-                        expect(error.poolId).toBe('nonexistent-pool');
-                });
-        });
+			const error = expectErrType<CreateProgramError, 'POOL_NOT_FOUND'>(result, 'POOL_NOT_FOUND');
+			expect(error.poolId).toBe('nonexistent-pool');
+		});
+	});
 
 	describe('error handling', () => {
 		it('should handle repository save errors', async () => {
@@ -226,12 +201,9 @@ const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
 				input
 			);
 
-                        const error = expectErrType<CreateProgramError, 'INTERNAL_ERROR'>(
-                                result,
-                                'INTERNAL_ERROR'
-                        );
-                        expect(error.message).toContain('Database connection failed');
-                });
+			const error = expectErrType<CreateProgramError, 'INTERNAL_ERROR'>(result, 'INTERNAL_ERROR');
+			expect(error.message).toContain('Database connection failed');
+		});
 	});
 
 	describe('edge cases', () => {
@@ -245,10 +217,7 @@ const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase(
-				{ poolRepo, programRepo, idGenerator },
-				input
-			);
+			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -269,10 +238,7 @@ const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
 					primaryPoolId: validPool.id
 				};
 
-				const result = await createProgramUseCase(
-					{ poolRepo, programRepo, idGenerator },
-					input
-				);
+				const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
 
 				expect(result.status).toBe('ok');
 				if (result.status === 'ok') {

@@ -1,6 +1,7 @@
 import type { Pool, Program, Student, Preference } from '$lib/domain';
 import type { InMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
 import type { StudentPreference } from '$lib/domain';
+import type { PreferenceRepository } from '$lib/application/ports';
 
 const demoStudents: Student[] = [
 	{ id: 'stu-1', firstName: 'Alice', lastName: 'Anderson', gradeLevel: '5' },
@@ -219,8 +220,10 @@ export async function seedDemoData(
 	// Seed preferences for the demo program
 	const existingPreferences = await env.preferenceRepo.listByProgramId(demoProgram.id);
 	if (existingPreferences.length === 0) {
-		// Cast to any to access setForProgram which exists on InMemoryPreferenceRepository
-		(env.preferenceRepo as any).setForProgram(demoProgram.id, demoPreferences);
+		const prefRepo = env.preferenceRepo as PreferenceRepository & {
+			setForProgram?: (programId: string, preferences: Preference[]) => void | Promise<void>;
+		};
+		await prefRepo.setForProgram?.(demoProgram.id, demoPreferences);
 	}
 
 	const program = (await env.programRepo.getById(demoProgram.id)) ?? demoProgram;

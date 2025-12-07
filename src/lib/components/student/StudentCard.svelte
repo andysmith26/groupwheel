@@ -10,7 +10,7 @@
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import { commandStore } from '$lib/stores/commands.svelte';
 	import { getDisplayName, getFriendLocations, resolveFriendNames } from '$lib/utils/friends';
-	import type { Student, StudentPreference } from '$lib/domain';
+	import type { Student } from '$lib/domain';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
 	interface Props {

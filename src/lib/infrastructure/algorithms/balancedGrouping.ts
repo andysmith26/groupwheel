@@ -1,4 +1,9 @@
-import type { GroupingAlgorithm, StudentRepository, PreferenceRepository, IdGenerator } from '$lib/application/ports';
+import type {
+	GroupingAlgorithm,
+	StudentRepository,
+	PreferenceRepository,
+	IdGenerator
+} from '$lib/application/ports';
 import { assignBalanced } from '$lib/algorithms/balanced-assignment';
 import type { Student, Group, StudentPreference } from '$lib/domain';
 /**
@@ -38,7 +43,10 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 		studentIds: string[];
 		algorithmConfig?: unknown;
 	}): Promise<
-		| { success: true; groups: { id: string; name: string; capacity: number | null; memberIds: string[] }[] }
+		| {
+				success: true;
+				groups: { id: string; name: string; capacity: number | null; memberIds: string[] }[];
+		  }
 		| { success: false; message: string }
 	> {
 		try {
@@ -151,8 +159,6 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 
 		// Calculate capacity for each group to ensure balanced distribution
 		// Use ceiling division to handle remainders
-		const baseCapacity = Math.ceil(studentCount / numGroups);
-
 		// Generate groups with capacity constraints
 		const groups: Group[] = [];
 		let remainingStudents = studentCount;

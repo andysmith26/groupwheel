@@ -26,89 +26,89 @@ export interface ScenarioSatisfaction {
  * roster import code, but gracefully returns an empty list for unknown shapes.
  */
 function extractFriendIds(pref: Preference): string[] {
-        if (!pref.payload || typeof pref.payload !== 'object') {
-                return [];
-        }
+	if (!pref.payload || typeof pref.payload !== 'object') {
+		return [];
+	}
 
-        const payload = pref.payload as Record<string, unknown>;
+	const payload = pref.payload as Record<string, unknown>;
 
-        if (Array.isArray(payload.likeStudentIds)) {
-                return payload.likeStudentIds.filter((id): id is string => typeof id === 'string');
-        }
+	if (Array.isArray(payload.likeStudentIds)) {
+		return payload.likeStudentIds.filter((id): id is string => typeof id === 'string');
+	}
 
-        return [];
+	return [];
 }
 
 export function computeScenarioSatisfaction(params: {
-        scenario: Scenario;
-        preferences: Preference[];
-        students: Student[];
+	scenario: Scenario;
+	preferences: Preference[];
+	students: Student[];
 }): ScenarioSatisfaction {
-        const { scenario, preferences } = params;
+	const { scenario, preferences } = params;
 
-        const studentToGroup = new Map<string, string>();
-        for (const group of scenario.groups) {
-                for (const studentId of group.memberIds) {
-                        studentToGroup.set(studentId, group.id);
-                }
-        }
+	const studentToGroup = new Map<string, string>();
+	for (const group of scenario.groups) {
+		for (const studentId of group.memberIds) {
+			studentToGroup.set(studentId, group.id);
+		}
+	}
 
-        const groupMembers = new Map<string, Set<string>>();
-        for (const group of scenario.groups) {
-                groupMembers.set(group.id, new Set(group.memberIds));
-        }
+	const groupMembers = new Map<string, Set<string>>();
+	for (const group of scenario.groups) {
+		groupMembers.set(group.id, new Set(group.memberIds));
+	}
 
-        let topChoiceCount = 0;
-        let top2Count = 0;
-        let totalRank = 0;
-        let studentsWithPrefs = 0;
+	let topChoiceCount = 0;
+	let top2Count = 0;
+	let totalRank = 0;
+	let studentsWithPrefs = 0;
 
-        for (const pref of preferences) {
-                const studentGroupId = studentToGroup.get(pref.studentId);
-                if (!studentGroupId) {
-                        continue;
-                }
+	for (const pref of preferences) {
+		const studentGroupId = studentToGroup.get(pref.studentId);
+		if (!studentGroupId) {
+			continue;
+		}
 
-                const friendIds = extractFriendIds(pref);
-                if (friendIds.length === 0) {
-                        continue;
-                }
+		const friendIds = extractFriendIds(pref);
+		if (friendIds.length === 0) {
+			continue;
+		}
 
-                const groupMemberSet = groupMembers.get(studentGroupId);
-                if (!groupMemberSet) {
-                        continue;
-                }
+		const groupMemberSet = groupMembers.get(studentGroupId);
+		if (!groupMemberSet) {
+			continue;
+		}
 
-                studentsWithPrefs++;
+		studentsWithPrefs++;
 
-                let rank = friendIds.length + 1;
-                for (let i = 0; i < friendIds.length; i++) {
-                        if (groupMemberSet.has(friendIds[i])) {
-                                rank = i + 1;
-                                break;
-                        }
-                }
+		let rank = friendIds.length + 1;
+		for (let i = 0; i < friendIds.length; i++) {
+			if (groupMemberSet.has(friendIds[i])) {
+				rank = i + 1;
+				break;
+			}
+		}
 
-                if (rank === 1) {
-                        topChoiceCount++;
-                }
-                if (rank <= 2) {
-                        top2Count++;
-                }
-                totalRank += rank;
-        }
+		if (rank === 1) {
+			topChoiceCount++;
+		}
+		if (rank <= 2) {
+			top2Count++;
+		}
+		totalRank += rank;
+	}
 
-        if (studentsWithPrefs === 0) {
-                return {
-                        percentAssignedTopChoice: 0,
-                        averagePreferenceRankAssigned: NaN,
-                        percentAssignedTop2: 0
-                };
-        }
+	if (studentsWithPrefs === 0) {
+		return {
+			percentAssignedTopChoice: 0,
+			averagePreferenceRankAssigned: NaN,
+			percentAssignedTop2: 0
+		};
+	}
 
-        return {
-                        percentAssignedTopChoice: (topChoiceCount / studentsWithPrefs) * 100,
-                        averagePreferenceRankAssigned: totalRank / studentsWithPrefs,
-                        percentAssignedTop2: (top2Count / studentsWithPrefs) * 100
-        };
+	return {
+		percentAssignedTopChoice: (topChoiceCount / studentsWithPrefs) * 100,
+		averagePreferenceRankAssigned: totalRank / studentsWithPrefs,
+		percentAssignedTop2: (top2Count / studentsWithPrefs) * 100
+	};
 }
