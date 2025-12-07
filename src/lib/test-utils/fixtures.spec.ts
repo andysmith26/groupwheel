@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
-import { seedDemoData } from './demoData';
+import { createTestFixtures } from './fixtures';
 import { generateScenarioForProgram } from '$lib/application/useCases/generateScenario';
 
-describe('Demo Data with Balanced Grouping', () => {
-	it('should seed demo data and generate balanced groups respecting preferences', async () => {
+describe('Test Fixtures with Balanced Grouping', () => {
+	it('should create fixtures and generate balanced groups respecting preferences', async () => {
 		const env = createInMemoryEnvironment();
-		const { program } = await seedDemoData(env);
+		const { program } = await createTestFixtures(env);
 
 		// Generate scenario using the balanced grouping algorithm
 		const result = await generateScenarioForProgram(env, {
@@ -63,7 +63,7 @@ describe('Demo Data with Balanced Grouping', () => {
 
 	it('should seed preferences correctly', async () => {
 		const env = createInMemoryEnvironment();
-		const { program } = await seedDemoData(env);
+		const { program } = await createTestFixtures(env);
 
 		const preferences = await env.preferenceRepo.listByProgramId(program.id);
 
@@ -76,5 +76,25 @@ describe('Demo Data with Balanced Grouping', () => {
 			expect(pref.studentId).toMatch(/^stu-\d+$/);
 			expect(pref.payload).toBeDefined();
 		}
+	});
+
+	it('should be idempotent - calling twice should not create duplicates', async () => {
+		const env = createInMemoryEnvironment();
+
+		// Call twice
+		await createTestFixtures(env);
+		await createTestFixtures(env);
+
+		// Should still have exactly 12 students in the pool
+		const pool = await env.poolRepo.getById('pool-test');
+		expect(pool?.memberIds).toHaveLength(12);
+
+		// Should still have exactly one program
+		const program = await env.programRepo.getById('program-test');
+		expect(program).toBeDefined();
+
+		// Should still have exactly 12 preferences
+		const preferences = await env.preferenceRepo.listByProgramId('program-test');
+		expect(preferences).toHaveLength(12);
 	});
 });
