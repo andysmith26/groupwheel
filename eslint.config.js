@@ -38,11 +38,43 @@ export default ts.config(
 		}
 	},
 	{
-		files: ['src/lib/domain/**'],
+		files: ['src/**/*.{ts,js,svelte}'],
+		excludedFiles: ['**/*.spec.*', '**/*.test.*', 'src/lib/test-utils/**', 'e2e/**'],
 		rules: {
 			'no-restricted-imports': [
 				'error',
 				{
+					paths: [
+						{
+							name: '$lib/test-utils',
+							message: 'Production code must not import $lib/test-utils.'
+						},
+						{
+							name: '$lib/types',
+							message: 'Import domain types from $lib/domain (utilities stay under $lib/types/*).'
+						}
+					]
+				}
+			]
+		}
+	},
+	{
+		files: ['src/lib/domain/**'],
+		excludedFiles: ['**/*.spec.*', '**/*.test.*'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					paths: [
+						{
+							name: '$lib/test-utils',
+							message: 'Production code must not import $lib/test-utils.'
+						},
+						{
+							name: '$lib/types',
+							message: 'Import domain types from $lib/domain (utilities stay under $lib/types/*).'
+						}
+					],
 					patterns: [
 						{
 							group: [
@@ -62,10 +94,21 @@ export default ts.config(
 	},
 	{
 		files: ['src/lib/application/useCases/**'],
+		excludedFiles: ['**/*.spec.*', '**/*.test.*'],
 		rules: {
 			'no-restricted-imports': [
 				'error',
 				{
+					paths: [
+						{
+							name: '$lib/test-utils',
+							message: 'Production code must not import $lib/test-utils.'
+						},
+						{
+							name: '$lib/types',
+							message: 'Import domain types from $lib/domain (utilities stay under $lib/types/*).'
+						}
+					],
 					patterns: [
 						{
 							group: [
@@ -83,10 +126,21 @@ export default ts.config(
 	},
 	{
 		files: ['src/routes/**'],
+		excludedFiles: ['**/*.spec.*', '**/*.test.*'],
 		rules: {
 			'no-restricted-imports': [
 				'error',
 				{
+					paths: [
+						{
+							name: '$lib/test-utils',
+							message: 'Production code must not import $lib/test-utils.'
+						},
+						{
+							name: '$lib/types',
+							message: 'Import domain types from $lib/domain (utilities stay under $lib/types/*).'
+						}
+					],
 					patterns: [
 						{
 							group: [

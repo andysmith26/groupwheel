@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createProgramUseCase } from './createProgram';
+import { createProgram } from './createProgram';
 import type { CreateProgramError, CreateProgramInput } from './createProgram';
 import { InMemoryProgramRepository } from '$lib/infrastructure/repositories/inMemory/InMemoryProgramRepository';
 import { InMemoryPoolRepository } from '$lib/infrastructure/repositories/inMemory/InMemoryPoolRepository';
@@ -26,7 +26,7 @@ class MockIdGenerator implements IdGenerator {
 	}
 }
 
-describe('createProgramUseCase', () => {
+describe('createProgram', () => {
 	let programRepo: InMemoryProgramRepository;
 	let poolRepo: InMemoryPoolRepository;
 	let idGenerator: IdGenerator;
@@ -56,7 +56,7 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+			const result = await createProgram({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -78,7 +78,7 @@ describe('createProgramUseCase', () => {
 				ownerStaffIds: ['staff-1', 'staff-2']
 			};
 
-			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+			const result = await createProgram({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -97,7 +97,7 @@ describe('createProgramUseCase', () => {
 				schoolId: 'school-123'
 			};
 
-			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+			const result = await createProgram({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -115,7 +115,7 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+			const result = await createProgram({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -137,7 +137,7 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+			const result = await createProgram({ poolRepo, programRepo, idGenerator }, input);
 
 			const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
 				result,
@@ -156,7 +156,7 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+			const result = await createProgram({ poolRepo, programRepo, idGenerator }, input);
 
 			const error = expectErrType<CreateProgramError, 'DOMAIN_VALIDATION_FAILED'>(
 				result,
@@ -173,7 +173,7 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: 'nonexistent-pool'
 			};
 
-			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+			const result = await createProgram({ poolRepo, programRepo, idGenerator }, input);
 
 			const error = expectErrType<CreateProgramError, 'POOL_NOT_FOUND'>(result, 'POOL_NOT_FOUND');
 			expect(error.poolId).toBe('nonexistent-pool');
@@ -196,10 +196,7 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase(
-				{ poolRepo, programRepo: failingProgramRepo, idGenerator },
-				input
-			);
+			const result = await createProgram({ poolRepo, programRepo: failingProgramRepo, idGenerator }, input);
 
 			const error = expectErrType<CreateProgramError, 'INTERNAL_ERROR'>(result, 'INTERNAL_ERROR');
 			expect(error.message).toContain('Database connection failed');
@@ -217,7 +214,7 @@ describe('createProgramUseCase', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+			const result = await createProgram({ poolRepo, programRepo, idGenerator }, input);
 
 			expect(result.status).toBe('ok');
 			if (result.status === 'ok') {
@@ -238,7 +235,7 @@ describe('createProgramUseCase', () => {
 					primaryPoolId: validPool.id
 				};
 
-				const result = await createProgramUseCase({ poolRepo, programRepo, idGenerator }, input);
+				const result = await createProgram({ poolRepo, programRepo, idGenerator }, input);
 
 				expect(result.status).toBe('ok');
 				if (result.status === 'ok') {

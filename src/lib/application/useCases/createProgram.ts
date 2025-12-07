@@ -2,7 +2,7 @@ import type { Program, ProgramTimeSpan, ProgramType } from '$lib/domain';
 import type { PoolRepository, ProgramRepository, IdGenerator } from '$lib/application/ports';
 import type { Result } from '$lib/types/result';
 import { err, ok } from '$lib/types/result';
-import { createProgram } from '$lib/domain/program';
+import { createProgram as createProgramDomain } from '$lib/domain/program';
 
 export interface CreateProgramInput {
 	name: string;
@@ -25,7 +25,7 @@ export type CreateProgramError =
 /**
  * MVP use case: create a Program referencing an existing Pool.
  */
-export async function createProgramUseCase(
+export async function createProgram(
 	deps: {
 		poolRepo: PoolRepository;
 		programRepo: ProgramRepository;
@@ -53,7 +53,7 @@ export async function createProgramUseCase(
 	// Validate/construct Program via domain factory.
 	let program: Program;
 	try {
-		program = createProgram({
+		program = createProgramDomain({
 			id: deps.idGenerator.generateId(),
 			name: input.name,
 			type: input.type,

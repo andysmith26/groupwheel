@@ -1,9 +1,6 @@
 import type { InMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
-import type {
-	CreateProgramInput,
-	CreateProgramError
-} from '$lib/application/useCases/createProgram';
-import { createProgramUseCase } from '$lib/application/useCases/createProgram';
+import type { CreateProgramInput, CreateProgramError } from '$lib/application/useCases/createProgram';
+import { createProgram as runCreateProgram } from '$lib/application/useCases/createProgram';
 import type {
 	GenerateScenarioInput,
 	GenerateScenarioError
@@ -75,7 +72,7 @@ export async function createProgram(
 	env: InMemoryEnvironment,
 	input: CreateProgramInput
 ): Promise<Result<import('$lib/domain').Program, CreateProgramError>> {
-	return createProgramUseCase(
+	return runCreateProgram(
 		{
 			poolRepo: env.poolRepo,
 			programRepo: env.programRepo,

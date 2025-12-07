@@ -250,20 +250,13 @@ export async function createGroupingActivity(
 			preferencesImported++;
 		}
 
-		// Save preferences using any available repository method.
-		const preferenceRepo = deps.preferenceRepo as PreferenceRepository & {
-			save?: (preference: Preference) => Promise<void> | void;
-			setForProgram?: (programId: string, preferences: Preference[]) => Promise<void> | void;
-		};
-
-		if (typeof preferenceRepo.save === 'function') {
-			for (const pref of preferencesToSave) {
-				await preferenceRepo.save(pref);
-			}
-		} else if (typeof preferenceRepo.setForProgram === 'function') {
-			await preferenceRepo.setForProgram(program.id, preferencesToSave);
+		// Save preferences using repository methods (bulk if available).
+		if (typeof deps.preferenceRepo.setForProgram === 'function') {
+			await deps.preferenceRepo.setForProgram(program.id, preferencesToSave);
 		} else {
-			console.warn('PreferenceRepository.save not available');
+			for (const pref of preferencesToSave) {
+				await deps.preferenceRepo.save(pref);
+			}
 		}
 	}
 

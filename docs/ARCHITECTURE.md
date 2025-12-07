@@ -402,16 +402,7 @@ import { createTestFixtures } from '$lib/test-utils'; // NEVER do this
 
 ### Known Technical Debt
 
-The `InMemoryPreferenceRepository` has a `setForProgram` method used by test fixtures that is not part of the `PreferenceRepository` port interface. Test code currently casts to `any` to access it:
-
-```ts
-(env.preferenceRepo as any).setForProgram(programId, preferences);
-```
-
-This should be resolved by either:
-
-- Adding `setForProgram` to the port interface, or
-- Creating a dedicated test interface that extends the port.
+Resolved: The `PreferenceRepository` port now exposes `save` plus an optional `setForProgram` bulk helper, so tests and fixtures can seed preferences without casting to concrete implementations.
 
 ---
 

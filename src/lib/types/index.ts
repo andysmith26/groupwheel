@@ -12,8 +12,3 @@
 
 // Generic result type for use case returns
 export * from './result';
-
-// Re-export domain types for backward compatibility during migration
-// TODO: Remove these re-exports after all imports are updated
-export type { Student, Group, GroupCreationMode, Mode } from '$lib/domain';
-export type { StudentPreference, StudentId, GroupId } from '$lib/domain';

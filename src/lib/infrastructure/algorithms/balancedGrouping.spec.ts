@@ -97,7 +97,7 @@ describe('BalancedGroupingAlgorithm', () => {
 			}
 		];
 
-		preferenceRepo.setForProgram('test-program', preferences);
+		await preferenceRepo.setForProgram('test-program', preferences);
 
 		const result = await algorithm.generateGroups({
 			programId: 'test-program',

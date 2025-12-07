@@ -20,13 +20,25 @@ export class InMemoryPreferenceRepository implements PreferenceRepository {
 		return prefs.map((p) => ({ ...p }));
 	}
 
+	async save(preference: Preference): Promise<void> {
+		const existing = this.byProgram.get(preference.programId) ?? [];
+		const filtered = existing.filter(
+			(p) => p.id !== preference.id && p.studentId !== preference.studentId
+		);
+
+		this.byProgram.set(preference.programId, [
+			...filtered,
+			{
+				...preference,
+				payload: { ...preference.payload }
+			}
+		]);
+	}
+
 	/**
 	 * Convenience for seeding/updating preferences.
 	 */
-	setForProgram(programId: string, preferences: Preference[]): void {
-		this.byProgram.set(
-			programId,
-			preferences.map((p) => ({ ...p }))
-		);
+	async setForProgram(programId: string, preferences: Preference[]): Promise<void> {
+		this.byProgram.set(programId, preferences.map((p) => ({ ...p })));
 	}
 }

@@ -8,7 +8,6 @@ import {
 	computeAnalytics
 } from '$lib/services/appEnvUseCases';
 import { isOk, isErr } from '$lib/types/result';
-import type { InMemoryPreferenceRepository } from '$lib/infrastructure/repositories/inMemory';
 
 /**
  * Integration tests for the full MVP flow:
@@ -26,21 +25,23 @@ describe('MVP Integration: Full Workflow', () => {
 
 	/**
 	 * Helper to add preferences directly to the repository.
-	 * The PreferenceRepository interface only has listByProgramId,
-	 * so we cast to the concrete implementation to use setForProgram.
+	 * Uses the setForProgram test helper on the repository to avoid manual loops.
 	 */
-	function addPreferences(
+	async function addPreferences(
 		programId: string,
 		prefs: Array<{ studentId: string; likeStudentIds: string[] }>
 	) {
-		const repo = env.preferenceRepo as InMemoryPreferenceRepository;
+		const repo = env.preferenceRepo;
+		if (!repo.setForProgram) {
+			throw new Error('setForProgram is required on PreferenceRepository for integration tests');
+		}
 		const preferences = prefs.map((p, i) => ({
 			id: `pref-${i}`,
 			programId,
 			studentId: p.studentId,
 			payload: { likeStudentIds: p.likeStudentIds }
 		}));
-		repo.setForProgram(programId, preferences);
+		await repo.setForProgram(programId, preferences);
 	}
 
 	describe('Happy Path: Pool → Program → Scenario → Analytics', () => {
@@ -85,7 +86,7 @@ Dave Brown\tdave@school.edu\t9`,
 			// Bob wants Alice
 			// Carol wants Dave
 			// Dave wants Carol and Alice
-			addPreferences(program.id, [
+			await addPreferences(program.id, [
 				{ studentId: 'alice@school.edu', likeStudentIds: ['bob@school.edu', 'carol@school.edu'] },
 				{ studentId: 'bob@school.edu', likeStudentIds: ['alice@school.edu'] },
 				{ studentId: 'carol@school.edu', likeStudentIds: ['dave@school.edu'] },
@@ -285,7 +286,7 @@ Student F\tf@school.edu`,
 			if (!isOk(programResult)) return;
 
 			// Add preference that references non-existent student
-			addPreferences(programResult.value.id, [
+			await addPreferences(programResult.value.id, [
 				{
 					studentId: 'alice@school.edu',
 					likeStudentIds: ['bob@school.edu', 'nonexistent@school.edu']
@@ -320,7 +321,7 @@ Student F\tf@school.edu`,
 			if (!isOk(programResult)) return;
 
 			// Circular preferences
-			addPreferences(programResult.value.id, [
+			await addPreferences(programResult.value.id, [
 				{ studentId: 'alice@school.edu', likeStudentIds: ['bob@school.edu'] },
 				{ studentId: 'bob@school.edu', likeStudentIds: ['alice@school.edu'] }
 			]);

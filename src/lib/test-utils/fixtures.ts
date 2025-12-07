@@ -288,8 +288,13 @@ export async function createTestFixtures(
 	// Seed preferences for the test program
 	const existingPreferences = await env.preferenceRepo.listByProgramId(testProgram.id);
 	if (existingPreferences.length === 0) {
-		// Cast to access setForProgram which exists on InMemoryPreferenceRepository
-		(env.preferenceRepo as any).setForProgram(testProgram.id, testPreferences);
+		if (env.preferenceRepo.setForProgram) {
+			await env.preferenceRepo.setForProgram(testProgram.id, testPreferences);
+		} else {
+			for (const pref of testPreferences) {
+				await env.preferenceRepo.save(pref);
+			}
+		}
 	}
 
 	const program = (await env.programRepo.getById(testProgram.id)) ?? testProgram;
