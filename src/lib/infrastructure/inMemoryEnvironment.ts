@@ -6,9 +6,9 @@ import type {
 	ScenarioRepository,
 	PreferenceRepository,
 	IdGenerator,
-	Clock
+	Clock,
+	GroupingAlgorithm
 } from '$lib/application/ports';
-import type { GroupingAlgorithm } from '$lib/application/useCases/generateScenario';
 import {
 	InMemoryStudentRepository,
 	InMemoryStaffRepository,

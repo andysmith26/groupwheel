@@ -40,6 +40,14 @@ import type {
         ProgramWithPrimaryPool
 } from '$lib/application/useCases/listPrograms';
 import { listPrograms as listProgramsUseCase } from '$lib/application/useCases/listPrograms';
+import {
+	createGroupingActivity as createGroupingActivityUseCase,
+	type CreateGroupingActivityInput,
+	type CreateGroupingActivityResult,
+	type CreateGroupingActivityError,
+	type ParsedStudent,
+	type ParsedPreference
+} from '$lib/application/useCases/createGroupingActivity';
 import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
 import { listPools as listPoolsUseCase } from '$lib/application/useCases/listPools';
@@ -98,6 +106,23 @@ export async function generateScenario(
 	);
 }
 
+export async function createGroupingActivity(
+	env: InMemoryEnvironment,
+	input: CreateGroupingActivityInput
+): Promise<Result<CreateGroupingActivityResult, CreateGroupingActivityError>> {
+	return createGroupingActivityUseCase(
+		{
+			poolRepo: env.poolRepo,
+			studentRepo: env.studentRepo,
+			programRepo: env.programRepo,
+			preferenceRepo: env.preferenceRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock
+		},
+		input
+	);
+}
+
 export async function computeAnalytics(
 	env: InMemoryEnvironment,
 	input: ComputeScenarioAnalyticsInput
@@ -141,6 +166,14 @@ export async function createPoolFromRoster(
                 input
         );
 }
+
+export type {
+	CreateGroupingActivityInput,
+	CreateGroupingActivityResult,
+	CreateGroupingActivityError,
+	ParsedStudent,
+	ParsedPreference
+} from '$lib/application/useCases/createGroupingActivity';
 
 export async function listPrograms(
         env: InMemoryEnvironment

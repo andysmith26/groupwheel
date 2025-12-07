@@ -6,7 +6,8 @@ import type {
 	StudentRepository,
 	ScenarioRepository,
 	IdGenerator,
-	Clock
+	Clock,
+	GroupingAlgorithm
 } from '$lib/application/ports';
 import type { Result } from '$lib/types/result';
 import { err, ok } from '$lib/types/result';
@@ -31,22 +32,6 @@ export type GenerateScenarioError =
 	| { type: 'GROUPING_ALGORITHM_FAILED'; message: string }
 	| { type: 'DOMAIN_VALIDATION_FAILED'; message: string }
 	| { type: 'INTERNAL_ERROR'; message: string };
-
-/**
- * Abstraction over whatever grouping algorithm you end up using.
- * We define this small contract so the use case can remain decoupled
- * from the current command/store implementation.
- */
-export interface GroupingAlgorithm {
-	generateGroups(params: {
-		programId: string;
-		studentIds: string[];
-		algorithmConfig?: unknown;
-	}): Promise<
-		| { success: true; groups: { id: string; name: string; capacity: number | null; memberIds: string[] }[] }
-		| { success: false; message: string }
-	>;
-}
 
 /**
  * MVP use case: generate a single Scenario for a Program.

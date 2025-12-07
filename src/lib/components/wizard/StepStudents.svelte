@@ -7,7 +7,7 @@
 	 */
 
 	import { dev } from '$app/environment';
-	import type { ParsedStudent } from '$lib/services/createGroupingActivity';
+	import type { ParsedStudent } from '$lib/application/useCases/createGroupingActivity';
 
 	interface Props {
 		students: ParsedStudent[];

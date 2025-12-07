@@ -7,7 +7,7 @@
 	 */
 
 	import { dev } from '$app/environment';
-	import type { ParsedStudent, ParsedPreference } from '$lib/services/createGroupingActivity';
+	import type { ParsedStudent, ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 
 	interface Props {
 		/** Students from Step 1 (used to validate preferences) */

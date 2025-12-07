@@ -1,5 +1,4 @@
-import type { GroupingAlgorithm } from '$lib/application/useCases/generateScenario';
-import type { StudentRepository, PreferenceRepository, IdGenerator } from '$lib/application/ports';
+import type { GroupingAlgorithm, StudentRepository, PreferenceRepository, IdGenerator } from '$lib/application/ports';
 import { assignBalanced } from '$lib/algorithms/balanced-assignment';
 import type { Student, Group, StudentPreference } from '$lib/domain';
 /**

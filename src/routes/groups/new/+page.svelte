@@ -13,8 +13,8 @@
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { Pool, Program } from '$lib/domain';
-	import type { ParsedStudent, ParsedPreference } from '$lib/services/createGroupingActivity';
-	import { createGroupingActivity } from '$lib/services/createGroupingActivity';
+	import { createGroupingActivity } from '$lib/services/appEnvUseCases';
+	import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 
 	import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
