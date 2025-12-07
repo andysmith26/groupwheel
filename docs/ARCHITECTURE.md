@@ -2,7 +2,7 @@
 
 This document describes the core architecture of the Friend Hat MVP application.
 
-Goals:
+**Goals:**
 
 - Keep **domain rules and invariants explicit** and testable.
 - Make **application use cases** the only way to perform meaningful operations.
@@ -22,11 +22,11 @@ The domain layer defines core business concepts as pure data + invariants.
 **What lives here:**
 
 - Domain types and value objects:
-  - `Student`, `Staff`, `Pool`, `Program`, `Scenario`, `Preference`, etc.
+  - `Student`, `Staff`, `Pool`, `Program`, `Scenario`, `Preference`, `Group`, etc.
 - Domain factories and validators:
-  - `createPool`, `createProgram`, `createScenario`, etc.
+  - `createPool`, `createProgram`, `createScenario`, `createStudent`, etc.
 - Domain-specific value types and enums:
-  - `ProgramType`, `PoolType`, `ProgramTimeSpan`, `ScenarioStatus`, etc.
+  - `ProgramType`, `PoolType`, `ProgramTimeSpan`, `ScenarioStatus`, `GroupCreationMode`, etc.
 - Pure domain utilities (if needed).
 
 **What does _not_ live here:**
@@ -74,11 +74,12 @@ Use cases encode the **verbs** of the system; they are the only sanctioned way t
 
 Examples:
 
-- `createProgramUseCase`
+- `createProgram`
 - `generateScenarioForProgram`
 - `computeScenarioAnalytics`
 - `getStudentView`
 - `createPoolFromRosterData`
+- `createGroupingActivity`
 
 Characteristics:
 
@@ -88,7 +89,12 @@ Characteristics:
   export async function generateScenarioForProgram(
   	deps: {
   		programRepo: ProgramRepository;
-  		// ...
+  		poolRepo: PoolRepository;
+  		studentRepo: StudentRepository;
+  		preferenceRepo: PreferenceRepository;
+  		scenarioRepo: ScenarioRepository;
+  		groupingAlgorithm: GroupingAlgorithm;
+  		idGenerator: IdGenerator;
   	},
   	input: GenerateScenarioInput
   ): Promise<Result<Scenario, GenerateScenarioError>> {
@@ -103,6 +109,30 @@ Characteristics:
 - No Svelte, no DOM APIs, no direct `fetch` calls.
 
 Use cases may throw only in true programmer-error situations; business errors should be represented via `Result` variants.
+
+#### 2.3. Use Case Composition
+
+Use cases may call other use cases when:
+
+- The dependency is conceptually hierarchical (e.g., `createGroupingActivity` coordinates `importRoster` + `createProgram`).
+- It avoids redundant validation or duplication.
+
+**Rules for composition:**
+
+- Avoid circular dependencies across use cases.
+- If the logic is pure transformation (no I/O, no repository calls), prefer domain factories.
+- If it requires coordination across multiple repositories, use a use case.
+- Each use case should accept only the ports it needs via `deps`; do not pass `env` objects directly to use cases.
+
+Example — valid composition:
+
+```ts
+// Inside createGroupingActivity use case
+const poolResult = await importRoster(deps, rosterInput);
+if (isErr(poolResult)) return poolResult;
+
+const programResult = await createProgram(deps, programInput);
+```
 
 ---
 
@@ -124,7 +154,7 @@ The infrastructure layer provides **adapters** that implement ports plus related
 
 - `UuidIdGenerator` (`IdGenerator` implementation)
 - `SystemClock` (`Clock` implementation)
-- In-memory `GroupingAlgorithm` implementation
+- `BalancedGroupingAlgorithm` (`GroupingAlgorithm` implementation)
 
 **Composition root / environment:**
 
@@ -159,7 +189,7 @@ export interface InMemoryEnvironment {
 It is used:
 
 - At app startup in `+layout.svelte`.
-- In tests if you want “full-stack in-memory” behavior.
+- In tests if you want "full-stack in-memory" behavior.
 
 #### 4.2. Svelte Context (`src/lib/contexts/appEnv.ts`)
 
@@ -187,8 +217,10 @@ These helpers:
 - Must not implement business logic.
 - Only:
   - Extract repos/services from `env`.
-  - Call the underlying use case.
+  - Call the underlying use case with a proper `deps` object.
   - Return the same `Result` type.
+
+The facade bridges the `env` object (used by UI) to the `deps` pattern (used by use cases).
 
 ---
 
@@ -204,8 +236,8 @@ The UI layer is composed of SvelteKit routes, layouts, and components.
   - Wraps children inside a layout container.
 
 - Routes like:
-  - `src/routes/programs/+page.svelte`
-  - `src/routes/programs/new/+page.svelte`
+  - `src/routes/groups/+page.svelte`
+  - `src/routes/groups/new/+page.svelte`
 
   use:
   - `getAppEnvContext()` inside `onMount` or event handlers to get `env`.
@@ -243,6 +275,24 @@ All non-trivial operations should be expressed as calling a use case (via the fa
 
 ---
 
+### 6. Test Utilities (`src/lib/test-utils`)
+
+Test utilities provide fixtures, helpers, and mocks for testing.
+
+**What lives here:**
+
+- `fixtures.ts` — Pre-built test data with deterministic IDs (e.g., `testStudents`, `testPool`, `createTestFixtures`)
+- Future: mock factories, test helpers
+
+**Key characteristics:**
+
+- Test utilities may access any layer directly (domain, infrastructure, repositories).
+- Test utilities must **never** be imported by production code.
+
+See [Test Code Exceptions](#test-code-exceptions) for detailed rules.
+
+---
+
 ## Allowed Dependencies (Import Rules)
 
 Allowed dependency directions:
@@ -268,6 +318,7 @@ Allowed dependency directions:
   - May import from:
     - `src/lib/domain/**`
     - `src/lib/application/ports/**`
+    - Other use cases (for composition)
     - Shared utilities (`src/lib/types/result`, etc.)
   - Must **not** import from:
     - `src/lib/infrastructure/**`
@@ -302,6 +353,103 @@ Allowed dependency directions:
     - Import from `src/lib/application/useCases/**` directly.
     - Import from `src/lib/infrastructure/**` directly.
     - Talk to repositories directly for anything non-trivial.
+
+- `src/lib/test-utils/**`:
+  - May import from **any layer** (see [Test Code Exceptions](#test-code-exceptions)).
+  - Must **never** be imported by production code.
+
+---
+
+## Test Code Exceptions
+
+Test files (`*.spec.ts`, `*.test.ts`) and test utilities (`src/lib/test-utils/**`) may intentionally violate standard layer boundaries for setup, verification, and mocking. These exceptions are tightly scoped.
+
+### Allowed in Test Code
+
+- Importing infrastructure implementations (e.g., `InMemoryStudentRepository`) for direct state manipulation.
+- Using domain factories to construct entities with specific IDs for assertions.
+- Injecting mock implementations of ports for isolation testing.
+- Accessing repositories directly to seed data or verify state.
+
+### Not Allowed (Even in Tests)
+
+- Production code importing from `src/lib/test-utils/**`.
+- Casting repositories to concrete types in application layer code.
+- Cross-layer mixing in production (e.g., calling use cases from domain).
+
+### Rationale
+
+Tests must sometimes control IDs or inject edge cases not expressible through public APIs. These are isolated deviations that do not justify weakening the production architecture.
+
+### Example: Test Fixtures
+
+The canonical example is `src/lib/test-utils/fixtures.ts`:
+
+```ts
+// ✅ Allowed in test code
+import { createTestFixtures } from '$lib/test-utils';
+
+const env = createInMemoryEnvironment();
+const { program, pool } = await createTestFixtures(env);
+
+// Now run tests against seeded data
+```
+
+```ts
+// ❌ NOT allowed in production code (e.g., a use case or route)
+import { createTestFixtures } from '$lib/test-utils'; // NEVER do this
+```
+
+### Known Technical Debt
+
+The `InMemoryPreferenceRepository` has a `setForProgram` method used by test fixtures that is not part of the `PreferenceRepository` port interface. Test code currently casts to `any` to access it:
+
+```ts
+(env.preferenceRepo as any).setForProgram(programId, preferences);
+```
+
+This should be resolved by either:
+
+- Adding `setForProgram` to the port interface, or
+- Creating a dedicated test interface that extends the port.
+
+---
+
+## Naming Conventions
+
+To improve clarity and enforceability, follow these patterns:
+
+| Concept                    | Pattern                     | Example                                             |
+| -------------------------- | --------------------------- | --------------------------------------------------- |
+| Domain entity/value object | Singular noun, PascalCase   | `Student`, `Preference`, `Group`                    |
+| Domain factory function    | `create{Entity}`            | `createPool`, `createStudent`                       |
+| Use case function          | Verb phrase, camelCase      | `createProgram`, `generateScenarioForProgram`       |
+| Use case file              | Matches main function name  | `generateScenarioForProgram.ts`                     |
+| Port interface             | Noun or service name        | `GroupingAlgorithm`, `StudentRepository`            |
+| Port implementation        | Prefix with storage type    | `InMemoryStudentRepository`, `ApiStudentRepository` |
+| Generic utilities          | Descriptive utility name    | `Result`, `ok`, `err` in `types/result.ts`          |
+| Test fixture functions     | Include `Test` or `Fixture` | `createTestFixtures`, `testStudents`                |
+
+**Guidelines:**
+
+- Avoid suffixes like `UseCase` on function names (e.g., `createProgram` not `createProgramUseCase`).
+- Use `type` or `interface` prefixes only if required to resolve naming ambiguity.
+- Keep consistent casing: use case files are camelCase, domain types are PascalCase.
+
+---
+
+## Type Location Rules
+
+Domain types are the single source of truth and live in `src/lib/domain/`.
+
+| Type Category        | Location                     | Examples                                    |
+| -------------------- | ---------------------------- | ------------------------------------------- |
+| Domain entities      | `src/lib/domain/`            | `Student`, `Group`, `Preference`, `Program` |
+| Domain value objects | `src/lib/domain/`            | `StudentPreference`, `GroupCreationMode`    |
+| Generic utilities    | `src/lib/types/`             | `Result`, `ok`, `err`                       |
+| Port interfaces      | `src/lib/application/ports/` | `StudentRepository`, `GroupingAlgorithm`    |
+
+**Migration note (Dec 2025):** Domain types were previously scattered in `src/lib/types/`. They have been consolidated into `src/lib/domain/`. The `types/index.ts` file contains deprecated re-exports for backward compatibility — update imports to use `$lib/domain` directly.
 
 ---
 
@@ -341,11 +489,14 @@ If you find yourself writing non-trivial business logic directly in a Svelte rou
 - Duplicating domain validation or rules in Svelte components.
 - Having `src/lib/infrastructure/**` import from `src/lib/application/useCases/**`.
 - Having `src/lib/domain/**` import from `src/lib/application/**` or `src/lib/infrastructure/**`.
-- Adding “helper” modules that mix concepts from multiple layers and blur boundaries.
+- Adding "helper" modules that mix concepts from multiple layers and blur boundaries.
+- Importing from `src/lib/test-utils/**` in production code.
+- Passing `env` objects directly to use cases (use the facade to extract deps).
+- Using suffixes like `UseCase` on function names.
 
 If in doubt, ask:
 
-> “Is this code describing a user-level operation or domain rule?”  
+> "Is this code describing a user-level operation or domain rule?"  
 > If yes → it should probably be in a use case (or domain), not in UI or infra.
 
 ---
@@ -356,8 +507,28 @@ Use this periodically (or per PR) to prevent drift:
 
 - [ ] Does all new domain logic live in `src/lib/domain` or in use cases?
 - [ ] Does every new user-visible behavior correspond to a use case?
-- [ ] Does any use case import infrastructure or Svelte? (If yes, that’s a bug.)
-- [ ] Does any route/component talk directly to repositories? (If yes, that’s a bug.)
+- [ ] Does any use case import infrastructure or Svelte? (If yes, that's a bug.)
+- [ ] Does any route/component talk directly to repositories? (If yes, that's a bug.)
 - [ ] Did I add or modify any imports that cross layers against the rules above?
+- [ ] Do test files only import infrastructure for legitimate test setup?
+- [ ] Are test utilities used only in test files (never in production code)?
+- [ ] Are file and function names consistent with naming conventions?
+- [ ] Are use cases placed in `application/useCases` and not in services?
+- [ ] Does production code avoid importing from `test-utils`?
 
-If the answer to any of these is “yes”, refactor before merging.
+If the answer to any of these is "yes" (for the bug questions) or "no" (for the should questions), refactor before merging.
+
+---
+
+## Enforcement
+
+The following can be enforced via ESLint rules or code review:
+
+| Rule                                                    | Enforcement                    |
+| ------------------------------------------------------- | ------------------------------ |
+| No domain imports from `$lib/types` (use `$lib/domain`) | ESLint `no-restricted-imports` |
+| No production imports from `test-utils`                 | ESLint `no-restricted-imports` |
+| No infrastructure imports in use cases                  | ESLint import boundaries       |
+| Consistent naming (no `UseCase` suffix)                 | Code review / custom rule      |
+
+Current ESLint configuration enforces basic import boundaries. Consider extending for stricter layer enforcement as the codebase grows.
