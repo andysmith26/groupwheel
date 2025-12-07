@@ -6,7 +6,7 @@ import {
 	type RawSheetRow,
 	type PreferenceMappingConfig
 } from './importPreferences';
-import type { Student, Group } from '$lib/types';
+import type { Group, Student, StudentPreference } from '$lib/domain';
 
 describe('importPreferences', () => {
 	// Helper to build simple roster and group indexes

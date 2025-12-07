@@ -2,7 +2,7 @@
  * Utility functions for calculating group capacity status
  */
 
-import type { Group } from '$lib/types';
+import type { Group } from '$lib/domain';
 
 export interface CapacityStatus {
 	color: string;

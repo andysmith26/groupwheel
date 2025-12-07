@@ -1,4 +1,4 @@
-import type { Group } from '$lib/types';
+import type { Group } from '$lib/domain';
 
 /**
  * Capacity status result containing color, warning state, and full state

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Group, Student } from '$lib/types';
-import type { StudentPreference } from '$lib/types/preferences';
+import type { Group, Student, StudentPreference } from '$lib/domain';
 import {
 	neighborsHappinessImpact,
 	studentHappinessForMembers,
@@ -9,9 +8,9 @@ import {
 import type { HappinessContext } from './types';
 
 const students: Record<string, Student> = {
-	a: { id: 'a' },
-	b: { id: 'b' },
-	c: { id: 'c' }
+	a: { id: 'a', firstName: 'A' },
+	b: { id: 'b', firstName: 'B' },
+	c: { id: 'c', firstName: 'C' }
 };
 
 const preferences: Record<string, StudentPreference> = {

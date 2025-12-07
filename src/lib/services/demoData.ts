@@ -1,6 +1,6 @@
 import type { Pool, Program, Student, Preference } from '$lib/domain';
 import type { InMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
-import type { StudentPreference } from '$lib/types/preferences';
+import type { StudentPreference } from '$lib/domain';
 
 const demoStudents: Student[] = [
 	{ id: 'stu-1', firstName: 'Alice', lastName: 'Anderson', gradeLevel: '5' },

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getCapacityStatus } from './capacity';
-import type { Group } from '$lib/types';
+import type { Group } from '$lib/domain';
 
 describe('getCapacityStatus', () => {
 	describe('unlimited capacity (null)', () => {

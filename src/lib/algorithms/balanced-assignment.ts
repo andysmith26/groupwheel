@@ -1,4 +1,4 @@
-import type { Group } from '$lib/types';
+import type { Group } from '$lib/domain';
 import { neighborsHappinessImpact, studentHappinessForMembers } from './happiness';
 import type { AssignmentOptions, AssignmentResult, HappinessContext } from './types';
 

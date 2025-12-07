@@ -15,8 +15,15 @@
 	import { generateScenario, computeAnalytics } from '$lib/services/appEnvUseCases';
 	import { isOk, isErr } from '$lib/types/result';
 	import { storeScenarioForProjection } from '$lib/infrastructure/scenarioStorage';
-	import type { Program, Pool, Scenario, Student } from '$lib/domain';
-	import type { StudentPreference } from '$lib/domain/preference';
+	import type {
+		Program,
+		Pool,
+		Scenario,
+		Student,
+		Preference,
+		StudentPreference
+	} from '$lib/domain';
+	import { extractStudentPreference } from '$lib/domain/preference';
 	import type { ScenarioSatisfaction } from '$lib/application/useCases/computeScenarioAnalytics';
 
 	// --- Environment ---
@@ -26,7 +33,7 @@
 	let program = $state<Program | null>(null);
 	let pool = $state<Pool | null>(null);
 	let students = $state<Student[]>([]);
-	let preferences = $state<StudentPreference[]>([]);
+	let preferences = $state<Preference[]>([]);
 
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
@@ -104,7 +111,24 @@
 		const result = await generateScenario(env, { programId: program.id });
 
 		if (isErr(result)) {
-			generateError = result.error.message;
+			generateError = (() => {
+				switch (result.error.type) {
+					case 'PROGRAM_NOT_FOUND':
+						return `Program not found: ${result.error.programId}`;
+					case 'POOL_NOT_FOUND':
+						return `Pool not found: ${result.error.poolId}`;
+					case 'POOL_HAS_NO_MEMBERS':
+						return `Pool has no members: ${result.error.poolId}`;
+					case 'SCENARIO_ALREADY_EXISTS_FOR_PROGRAM':
+						return `Scenario already exists: ${result.error.scenarioId}`;
+					case 'GROUPING_ALGORITHM_FAILED':
+					case 'DOMAIN_VALIDATION_FAILED':
+					case 'INTERNAL_ERROR':
+						return result.error.message;
+					default:
+						return 'Failed to generate scenario';
+				}
+			})();
 			isGenerating = false;
 			return;
 		}
@@ -131,7 +155,12 @@
 		if (isOk(result)) {
 			analytics = result.value;
 		} else {
-			analyticsError = result.error.message;
+			analyticsError =
+				result.error.type === 'SCENARIO_NOT_FOUND'
+					? `Scenario not found: ${result.error.scenarioId}`
+					: result.error.type === 'INTERNAL_ERROR'
+						? result.error.message
+						: 'Failed to compute analytics';
 		}
 
 		isComputingAnalytics = false;
@@ -144,7 +173,11 @@
 	);
 
 	// Build preferences lookup
-	let preferencesByStudentId = $derived(new Map(preferences.map((p) => [p.studentId, p])));
+	let preferencesByStudentId = $derived(
+		new Map<string, StudentPreference>(
+			preferences.map((p) => [p.studentId, extractStudentPreference(p)])
+		)
+	);
 
 	// Helper to get student display name
 	function getStudentName(id: string): string {

@@ -15,7 +15,7 @@ export interface GetStudentViewInput {
 export interface MinimalStudent {
 	id: string;
 	firstName: string;
-	lastName: string;
+	lastName?: string;
 	gradeLevel?: string;
 }
 

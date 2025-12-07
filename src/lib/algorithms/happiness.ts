@@ -1,4 +1,4 @@
-import type { Group } from '$lib/types';
+import type { Group } from '$lib/domain';
 import type { HappinessContext } from './types';
 
 export function studentHappinessInGroups(

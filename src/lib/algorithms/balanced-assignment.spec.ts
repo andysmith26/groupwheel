@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { assignBalanced } from './balanced-assignment';
 import type { AssignmentOptions } from './types';
-import type { Group, Student } from '$lib/types';
-import type { StudentPreference } from '$lib/types/preferences';
+import type { Group, Student, StudentPreference } from '$lib/domain';
 
 function buildOptions(
 	groups: Group[],
@@ -28,7 +27,12 @@ describe('assignBalanced', () => {
 			{ id: 'g1', name: 'Group 1', capacity: 2, memberIds: [] },
 			{ id: 'g2', name: 'Group 2', capacity: 2, memberIds: [] }
 		];
-		const students: Student[] = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }];
+		const students: Student[] = [
+			{ id: 'a', firstName: 'A' },
+			{ id: 'b', firstName: 'B' },
+			{ id: 'c', firstName: 'C' },
+			{ id: 'd', firstName: 'D' }
+		];
 		const preferences: StudentPreference[] = [
 			{
 				studentId: 'a',
@@ -83,7 +87,11 @@ describe('assignBalanced', () => {
 
 	it('honors capacity limits and reports unassigned students', () => {
 		const groups: Group[] = [{ id: 'g1', name: 'Only Group', capacity: 2, memberIds: [] }];
-		const students: Student[] = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+		const students: Student[] = [
+			{ id: 'a', firstName: 'A' },
+			{ id: 'b', firstName: 'B' },
+			{ id: 'c', firstName: 'C' }
+		];
 		const preferences: StudentPreference[] = students.map((student) => ({
 			studentId: student.id,
 			likeStudentIds: [],

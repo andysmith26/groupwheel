@@ -1,5 +1,4 @@
-import type { Student } from '$lib/types';
-import type { StudentPreference } from '$lib/types/preferences';
+import type { Student, StudentPreference } from '$lib/domain';
 
 export const SHEET_DATA_GUIDANCE = [
 	'"Students" tab: columns A–D should be ID, First Name, Last Name, Gender (with a header row).',

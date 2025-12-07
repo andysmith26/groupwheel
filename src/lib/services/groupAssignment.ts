@@ -1,8 +1,7 @@
 import { assignBalanced } from '$lib/algorithms/balanced-assignment';
 import { studentHappinessInGroups } from '$lib/algorithms/happiness';
 import type { CommandStore } from '$lib/stores/commands.svelte';
-import type { Group, Student } from '$lib/types';
-import type { StudentPreference } from '$lib/types/preferences';
+import type { Student, Group, StudentPreference } from '$lib/domain';
 
 interface AssignmentDependencies {
 	commandStore: CommandStore;

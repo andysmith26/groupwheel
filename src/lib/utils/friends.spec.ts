@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getDisplayName, resolveFriendNames, getFriendLocations } from './friends';
-import type { Student, Group } from '$lib/types';
+import type { Student, Group } from '$lib/domain';
 
 describe('getDisplayName', () => {
 	it('should return firstName + lastName when both are present', () => {
@@ -25,6 +25,7 @@ describe('getDisplayName', () => {
 	it('should return just lastName when firstName is missing', () => {
 		const student: Student = {
 			id: 'student-1',
+			firstName: '',
 			lastName: 'Doe'
 		};
 
@@ -34,6 +35,7 @@ describe('getDisplayName', () => {
 	it('should fall back to meta.displayName when firstName and lastName are missing', () => {
 		const student: Student = {
 			id: 'student-1',
+			firstName: '',
 			meta: { displayName: 'Johnny' }
 		};
 
@@ -42,7 +44,8 @@ describe('getDisplayName', () => {
 
 	it('should fall back to id when all names are missing', () => {
 		const student: Student = {
-			id: 'student-1'
+			id: 'student-1',
+			firstName: ''
 		};
 
 		expect(getDisplayName(student)).toBe('student-1');
@@ -83,6 +86,7 @@ describe('getDisplayName', () => {
 	it('should handle non-string meta.displayName', () => {
 		const student: Student = {
 			id: 'student-1',
+			firstName: '',
 			meta: { displayName: 123 }
 		};
 
@@ -92,6 +96,7 @@ describe('getDisplayName', () => {
 	it('should handle undefined meta', () => {
 		const student: Student = {
 			id: 'student-1',
+			firstName: '',
 			meta: undefined
 		};
 
@@ -178,8 +183,8 @@ describe('resolveFriendNames', () => {
 
 	it('should use display name fallback logic for found students', () => {
 		const studentsById: Record<string, Student> = {
-			's1': { id: 's1', meta: { displayName: 'Ace' } },
-			's2': { id: 's2' }
+			's1': { id: 's1', firstName: '', meta: { displayName: 'Ace' } },
+			's2': { id: 's2', firstName: '' }
 		};
 
 		const friendIds = ['s1', 's2'];

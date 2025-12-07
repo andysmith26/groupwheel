@@ -61,11 +61,7 @@
 						hasScenario: scenarioByProgram.get(program.id) ?? false
 					};
 				})
-				.sort(
-					(a, b) =>
-						new Date(b.program.createdAt ?? 0).getTime() -
-						new Date(a.program.createdAt ?? 0).getTime()
-				);
+				.sort((a, b) => a.program.name.localeCompare(b.program.name));
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load activities';
 		} finally {
@@ -73,19 +69,14 @@
 		}
 	}
 
-	// Format relative time
-	function formatRelativeTime(dateStr: string | undefined): string {
-		if (!dateStr) return '';
-		const date = new Date(dateStr);
-		const now = new Date();
-		const diffMs = now.getTime() - date.getTime();
-		const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-		if (diffDays === 0) return 'Today';
-		if (diffDays === 1) return 'Yesterday';
-		if (diffDays < 7) return `${diffDays} days ago`;
-		if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${diffDays >= 14 ? 's' : ''} ago`;
-		return date.toLocaleDateString();
+	function getProgramTimeLabel(program: Program): string {
+		if ('termLabel' in program.timeSpan) {
+			return program.timeSpan.termLabel;
+		}
+		if ('start' in program.timeSpan && program.timeSpan.start) {
+			return program.timeSpan.start.toLocaleDateString();
+		}
+		return '';
 	}
 </script>
 
@@ -174,7 +165,7 @@
 					</div>
 
 					<div class="mt-3 flex items-center justify-between text-xs text-gray-400">
-						<span>{formatRelativeTime(activity.program.createdAt)}</span>
+						<span>{getProgramTimeLabel(activity.program)}</span>
 						<span class="max-w-[120px] truncate" title={activity.program.id}>
 							{activity.program.id.slice(0, 8)}...
 						</span>

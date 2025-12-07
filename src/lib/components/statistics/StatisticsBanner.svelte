@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getDisplayName } from '$lib/utils/friends';
-	import type { Student } from '$lib/types';
+	import type { Student } from '$lib/domain';
 
 	interface Props {
 		unhappyStudents: Array<{

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import type { Pool } from '$lib/domain/pool';
-	import type { Preference } from '$lib/domain';
-	import type { Student } from '$lib/types';
+	import type { Preference, Student } from '$lib/domain';
+	import { isStudentPreference } from '$lib/domain/preference';
 
 	export let pool: Pool;
 	export let students: Student[];
@@ -21,14 +21,15 @@
 		const student = studentsById.get(studentId);
 		if (!student) return studentId;
 		return (
-			student.displayName ||
 			`${student.firstName ?? ''} ${student.lastName ?? ''}`.trim() ||
+			(student.meta?.displayName as string | undefined) ||
 			studentId
 		);
 	}
 
 	function getFriendNames(pref: Preference): string[] {
-		const likeIds = pref.payload?.likeStudentIds ?? [];
+		if (!isStudentPreference(pref.payload)) return [];
+		const likeIds = pref.payload.likeStudentIds;
 		return likeIds.map((id) => getStudentName(id));
 	}
 
@@ -87,15 +88,13 @@
 							>
 								<span class="font-medium text-gray-800">
 									{#if student}
-										{student.displayName ||
-											`${student.firstName ?? ''} ${student.lastName ?? ''}`.trim() ||
-											memberId}
+										{getStudentName(student.id)}
 									{:else}
 										{memberId}
 									{/if}
 								</span>
 								<span class="max-w-[60%] text-right text-gray-500">
-									{#if pref && pref.payload?.likeStudentIds?.length > 0}
+									{#if pref && isStudentPreference(pref.payload) && pref.payload.likeStudentIds.length > 0}
 										{getFriendNames(pref).join(', ')}
 									{:else}
 										<span class="text-gray-400 italic">No preferences</span>

@@ -1,11 +1,28 @@
-import type { Student } from '$lib/types';
-import type { StudentPreference } from '$lib/types/preferences';
+/**
+ * Roster parsing utilities.
+ *
+ * Functions for parsing student and connection data from Google Sheets
+ * or other tabular sources.
+ *
+ * @module data/roster
+ */
+
+import type { Student } from '$lib/domain';
+import type { StudentPreference } from '$lib/domain';
+import { createEmptyStudentPreference } from '$lib/domain/preference';
 
 export interface ParsedSheetData {
 	students: Student[];
 	connections: Record<string, string[]>;
 }
 
+/**
+ * Parse raw sheet rows into students and connections.
+ *
+ * Expected format:
+ * - studentRows: [headers, ...data] where columns are [id, firstName, lastName, gender]
+ * - connectionRows: [headers, ...data] where columns are [studentId, friendId1, friendId2, ...]
+ */
 export function parseSheetRows(
 	studentRows: string[][] | null | undefined,
 	connectionRows: string[][] | null | undefined
@@ -18,9 +35,13 @@ export function parseSheetRows(
 			const row = studentRows[i] ?? [];
 			const id = (row[0] ?? '').trim();
 			if (!id) continue;
+			
+			const firstName = (row[1] ?? '').trim();
+			if (!firstName) continue; // firstName is required
+			
 			students.push({
 				id,
-				firstName: (row[1] ?? '').trim(),
+				firstName,
 				lastName: (row[2] ?? '').trim(),
 				gender: (row[3] ?? '').trim()
 			});
@@ -44,17 +65,17 @@ export function parseSheetRows(
 	return { students, connections };
 }
 
+/**
+ * @deprecated Use createEmptyStudentPreference from '$lib/domain/preference' instead.
+ */
 export function createEmptyPreference(studentId: string): StudentPreference {
-	return {
-		studentId,
-		likeStudentIds: [],
-		avoidStudentIds: [],
-		likeGroupIds: [],
-		avoidGroupIds: [],
-		meta: {}
-	};
+	return createEmptyStudentPreference(studentId);
 }
 
+/**
+ * Ensure all students have a preference record, creating empty ones if needed.
+ * Also normalizes existing preferences.
+ */
 export function ensurePreferences(
 	students: Student[],
 	preferences: Iterable<StudentPreference>
@@ -70,7 +91,7 @@ export function ensurePreferences(
 			avoidStudentIds: [...(pref.avoidStudentIds ?? [])],
 			likeGroupIds: [...(pref.likeGroupIds ?? [])],
 			avoidGroupIds: [...(pref.avoidGroupIds ?? [])],
-			...(pref.meta ? { meta: { ...pref.meta } } : {})
+			meta: pref.meta ? { ...pref.meta } : {}
 		};
 	}
 
@@ -78,7 +99,7 @@ export function ensurePreferences(
 		const id = student.id?.trim();
 		if (!id) continue;
 		if (!result[id]) {
-			result[id] = createEmptyPreference(id);
+			result[id] = { ...createEmptyStudentPreference(id), meta: {} };
 		}
 	}
 

@@ -126,7 +126,7 @@ export async function createGroupingActivity(
 		if (isErr(poolResult)) {
 			return err({
 				type: 'POOL_CREATION_FAILED',
-				message: `Failed to create roster: ${poolResult.error.message}`
+				message: `Failed to create roster: ${poolResult.error.type}`
 			});
 		}
 
@@ -151,7 +151,7 @@ export async function createGroupingActivity(
 	if (isErr(programResult)) {
 		return err({
 			type: 'PROGRAM_CREATION_FAILED',
-			message: `Failed to create activity: ${programResult.error.message}`
+			message: `Failed to create activity: ${programResult.error.type}`
 		});
 	}
 
@@ -207,7 +207,7 @@ export async function createGroupingActivity(
 		// Save all preferences at once using concrete repo method
 		// This is a known deviation from pure port usage - acceptable for MVP
 		if (validPreferences.length > 0) {
-			const prefRepo = env.preferenceRepo as {
+			const prefRepo = env.preferenceRepo as unknown as {
 				setForProgram: (programId: string, prefs: StudentPreference[]) => Promise<void>;
 			};
 			await prefRepo.setForProgram(program.id, validPreferences);

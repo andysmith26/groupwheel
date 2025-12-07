@@ -6,7 +6,7 @@
 	 * Groups wrap naturally, each with min-width 200px and max-width 280px.
 	 */
 
-	import type { Group } from '$lib/types';
+	import type { Group } from '$lib/domain';
 	import type { DropState } from '$lib/utils/pragmatic-dnd';
 	import GroupColumn from '$lib/components/group/GroupColumn.svelte';
 

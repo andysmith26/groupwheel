@@ -1,6 +1,6 @@
-import type { Student, Group } from '$lib/types';
-import type { StudentPreference } from '$lib/types/preferences';
+import type { Group, Student, StudentPreference } from '$lib/domain';
 import { ensurePreferences } from '$lib/data/roster';
+import { createEmptyStudentPreference } from '$lib/domain/preference';
 
 /**
  * Represents a single row from a teacher‑provided sheet. Keys are column

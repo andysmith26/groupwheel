@@ -8,7 +8,7 @@
 	 * - Collapsible rows tracked in Set<string>
 	 */
 
-	import type { Group } from '$lib/types';
+	import type { Group } from '$lib/domain';
 	import type { DropState } from '$lib/utils/pragmatic-dnd';
 	import { droppable } from '$lib/utils/pragmatic-dnd';
 	import { getAppDataContext } from '$lib/contexts/appData';

@@ -10,8 +10,7 @@
 	import { getAppDataContext } from '$lib/contexts/appData';
 	import { commandStore } from '$lib/stores/commands.svelte';
 	import { getDisplayName, getFriendLocations, resolveFriendNames } from '$lib/utils/friends';
-	import type { Student } from '$lib/types';
-	import type { StudentPreference } from '$lib/types/preferences';
+	import type { Student, StudentPreference } from '$lib/domain';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
 	interface Props {
@@ -162,25 +161,25 @@
 	class:selected={isSelected}
 	class:dragging={isDragging}
 	class:friend-highlight={isFriendOfSelected}
-        class:needs-assistance={shouldHighlightUnhappy}
-        use:draggable={{
-                dragData: { id: student.id },
-                container,
-                callbacks: {
-                        onDragStart,
-                        onDragEnd
-                }
-        }}
-        onclick={() => onClick?.()}
-        onkeydown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        onClick?.();
-                }
-        }}
-        role="button"
-        tabindex="0"
-        aria-label={`${displayName}, happiness ${happiness} of ${totalFriends} friends`}
+	class:needs-assistance={shouldHighlightUnhappy}
+	use:draggable={{
+		dragData: { id: student.id },
+		container,
+		callbacks: {
+			onDragStart,
+			onDragEnd
+		}
+	}}
+	onclick={() => onClick?.()}
+	onkeydown={(event) => {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			onClick?.();
+		}
+	}}
+	role="button"
+	tabindex="0"
+	aria-label={`${displayName}, happiness ${happiness} of ${totalFriends} friends`}
 >
 	<div class="card-content">
 		<!-- Friend connection indicator (only shown when friend of selected) -->

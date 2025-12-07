@@ -1,9 +1,7 @@
 import type { GroupingAlgorithm } from '$lib/application/useCases/generateScenario';
 import type { StudentRepository, PreferenceRepository, IdGenerator } from '$lib/application/ports';
 import { assignBalanced } from '$lib/algorithms/balanced-assignment';
-import type { StudentPreference } from '$lib/types/preferences';
-import type { Student, Group } from '$lib/types';
-
+import type { Student, Group, StudentPreference } from '$lib/domain';
 /**
  * Configuration options for the balanced grouping algorithm.
  */

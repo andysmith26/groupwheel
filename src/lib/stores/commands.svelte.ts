@@ -10,7 +10,7 @@
  * - Store maintains command history for undo/redo
  */
 
-import type { Group } from '$lib/types';
+import type { Group } from '$lib/domain';
 
 // ============================================================================
 // COMMAND TYPES
@@ -93,7 +93,7 @@ function executeCommand(cmd: Command, currentGroups: Group[]): Group[] {
 			if (cmd.previousGroupId && g.id === cmd.previousGroupId) {
 				return {
 					...g,
-					memberIds: g.memberIds.filter((id) => id !== cmd.studentId)
+					memberIds: g.memberIds.filter((id: string) => id !== cmd.studentId)
 				};
 			}
 
@@ -119,7 +119,7 @@ function executeCommand(cmd: Command, currentGroups: Group[]): Group[] {
 			if (g.id === cmd.previousGroupId) {
 				return {
 					...g,
-					memberIds: g.memberIds.filter((id) => id !== cmd.studentId)
+					memberIds: g.memberIds.filter((id: string) => id !== cmd.studentId)
 				};
 			}
 			return g;
@@ -143,7 +143,7 @@ function reverseCommand(cmd: Command, currentGroups: Group[]): Group[] {
 			if (g.id === cmd.groupId) {
 				return {
 					...g,
-					memberIds: g.memberIds.filter((id) => id !== cmd.studentId)
+					memberIds: g.memberIds.filter((id: string) => id !== cmd.studentId)
 				};
 			}
 

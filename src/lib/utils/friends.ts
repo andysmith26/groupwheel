@@ -7,7 +7,7 @@
  * 3. Clear separation: components handle rendering, utils handle data transformation
  */
 
-import type { Student, Group } from '$lib/types';
+import type { Student, Group } from '$lib/domain';
 
 /**
  * Get the display name for a student (firstName + lastName).

@@ -15,6 +15,7 @@
 	import type { Pool, Program } from '$lib/domain';
 	import type { ParsedStudent, ParsedPreference } from '$lib/services/createGroupingActivity';
 	import { createGroupingActivity } from '$lib/services/createGroupingActivity';
+	import { isErr } from '$lib/types/result';
 
 	import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
 	import StepSelectRoster from '$lib/components/wizard/StepSelectRoster.svelte';
@@ -54,15 +55,24 @@
 
 			for (const pool of pools) {
 				// Find programs using this pool
-				const associatedPrograms = programs.filter((p) => p.poolId === pool.id);
-				const latestProgram = associatedPrograms.sort(
-					(a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
-				)[0];
+				const associatedPrograms = programs.filter(
+					(p) => p.primaryPoolId === pool.id || p.poolIds?.includes(pool.id)
+				);
+				const latestProgram = associatedPrograms.sort((a, b) => a.name.localeCompare(b.name))[0];
+				let lastUsed = new Date();
+				if (latestProgram?.timeSpan) {
+					if ('start' in latestProgram.timeSpan && latestProgram.timeSpan.start) {
+						lastUsed = latestProgram.timeSpan.start;
+					} else if ('termLabel' in latestProgram.timeSpan) {
+						const parsed = new Date(latestProgram.timeSpan.termLabel);
+						lastUsed = isNaN(parsed.getTime()) ? new Date() : parsed;
+					}
+				}
 
 				options.push({
 					pool,
 					activityName: latestProgram?.name ?? pool.name.replace(' - Roster', ''),
-					lastUsed: new Date(latestProgram?.createdAt ?? pool.createdAt ?? Date.now()),
+					lastUsed,
 					studentCount: pool.memberIds.length
 				});
 			}
@@ -170,13 +180,21 @@
 		for (const studentId of pool.memberIds) {
 			const student = await env.studentRepo.getById(studentId);
 			if (student) {
+				const meta =
+					student.meta && typeof student.meta === 'object'
+						? Object.fromEntries(
+								Object.entries(student.meta).filter(
+									([, value]) => typeof value === 'string'
+								) as Array<[string, string]>
+						  )
+						: undefined;
 				loadedStudents.push({
 					id: student.id,
-					firstName: student.firstName,
-					lastName: student.lastName,
-					displayName: `${student.firstName} ${student.lastName}`.trim() || student.id,
-					grade: student.meta?.grade as string | undefined,
-					meta: student.meta
+					firstName: student.firstName ?? '',
+					lastName: student.lastName ?? '',
+					displayName: `${student.firstName ?? ''} ${student.lastName ?? ''}`.trim() || student.id,
+					grade: typeof student.meta?.grade === 'string' ? student.meta.grade : undefined,
+					meta
 				});
 			}
 		}
@@ -231,7 +249,7 @@
 				ownerStaffId: 'owner-1'
 			});
 
-			if (result.type === 'err') {
+			if (isErr(result)) {
 				submitError = result.error.message;
 				isSubmitting = false;
 				return;

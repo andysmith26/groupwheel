@@ -8,6 +8,8 @@ import type {
 import type { Result } from '$lib/types/result';
 import { err, ok } from '$lib/types/result';
 
+export type { ScenarioSatisfaction };
+
 export interface ComputeScenarioAnalyticsInput {
 	scenarioId: string;
 }

@@ -1,5 +1,5 @@
 import type { CommandStore } from '$lib/stores/commands.svelte';
-import type { Group } from '$lib/types';
+import type { Group } from '$lib/domain';
 import type { DropState } from '$lib/utils/pragmatic-dnd';
 
 interface UiControlsDependencies {

@@ -10,9 +10,7 @@
  */
 
 import { getContext, setContext } from 'svelte';
-import type { Student } from '$lib/types';
-import type { StudentPreference } from '$lib/types/preferences';
-
+import type { Student, StudentPreference } from '$lib/domain';
 export interface AppDataContext {
 	/**
 	 * Lookup table of students by ID.
