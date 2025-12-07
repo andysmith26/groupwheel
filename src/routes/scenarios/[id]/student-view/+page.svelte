@@ -73,7 +73,7 @@
 	<div class="flex min-h-screen items-center justify-center">
 		<div class="text-center">
 			<p class="text-2xl text-red-600">{error}</p>
-			<a href="/programs" class="mt-4 inline-block text-blue-600 underline"> Return to Programs </a>
+			<a href="/groups" class="mt-4 inline-block text-blue-600 underline"> Return to Activities </a>
 		</div>
 	</div>
 {:else if viewData}
