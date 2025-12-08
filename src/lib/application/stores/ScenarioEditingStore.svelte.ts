@@ -29,7 +29,7 @@ type ScenarioMetadata = {
 	status: ScenarioStatus;
 };
 
-type AnalyticsDelta = {
+export type AnalyticsDelta = {
 	topChoice: number;
 	top2?: number;
 	averageRank: number;
@@ -54,6 +54,8 @@ export type ScenarioEditingView = {
 	unassignedStudentIds: string[];
 	canUndo: boolean;
 	canRedo: boolean;
+	historyIndex: number;
+	historyLength: number;
 	saveStatus: SaveStatus;
 	canAdopt: boolean;
 	baseline: ScenarioSatisfaction | null;
@@ -128,6 +130,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			unassignedStudentIds,
 			canUndo,
 			canRedo,
+			historyIndex: state.historyIndex,
+			historyLength: state.history.length,
 			saveStatus: state.saveStatus,
 			canAdopt,
 			baseline: state.baseline,
@@ -290,6 +294,38 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		}
 
 		return { success: true };
+	}
+
+	/**
+	 * Replace groups with a regenerated set, clearing history and recapturing baseline.
+	 */
+	async regenerate(groups: Group[]): Promise<void> {
+		this.ensureInitialized();
+		const participantSnapshot = get(this.state).participantSnapshot;
+
+		this.state.update((current) => ({
+			...current,
+			groups: cloneGroups(groups),
+			history: [],
+			historyIndex: -1,
+			pendingSave: true,
+			saveStatus: current.saveStatus === 'failed' ? 'failed' : current.saveStatus
+		}));
+
+		const baseline = computeAnalyticsSync({
+			groups,
+			preferences: get(this.state).preferences,
+			participantSnapshot,
+			programId: this.metadata?.programId
+		});
+
+		this.state.update((current) => ({
+			...current,
+			baseline,
+			currentAnalytics: baseline
+		}));
+
+		this.scheduleSave();
 	}
 
 	async retrySave(): Promise<void> {

@@ -10,6 +10,7 @@
 	 */
 
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import { generateScenario, computeAnalytics } from '$lib/services/appEnvUseCases';
@@ -41,6 +42,7 @@
 	// --- Scenario state ---
 	let scenario = $state<Scenario | null>(null);
 	let isGenerating = $state(false);
+	let isOpeningEditor = $state(false);
 	let generateError = $state<string | null>(null);
 
 	// --- Analytics state ---
@@ -185,6 +187,23 @@
 		if (!student) return id;
 		return `${student.firstName} ${student.lastName}`.trim() || id;
 	}
+
+	// Dev-friendly: open Step 4 editor (generates scenario if missing)
+	async function openEditor() {
+		if (!env || !program || isOpeningEditor) return;
+		isOpeningEditor = true;
+
+		try {
+			if (!scenario) {
+				await handleGenerateScenario();
+			}
+			if (scenario) {
+				goto(`/groups/new?step=4&scenarioId=${scenario.id}`);
+			}
+		} finally {
+			isOpeningEditor = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -281,20 +300,30 @@
 								{/if}
 							</p>
 						</div>
-						<button
-							type="button"
-							class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-							disabled={isGenerating}
-							onclick={handleGenerateScenario}
-						>
-							{#if isGenerating}
-								Generating...
-							{:else if scenario}
-								Regenerate
-							{:else}
-								Generate Groups
-							{/if}
-						</button>
+						<div class="flex items-center gap-2">
+							<button
+								type="button"
+								class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+								disabled={isGenerating || isOpeningEditor}
+								onclick={handleGenerateScenario}
+							>
+								{#if isGenerating}
+									Generating...
+								{:else if scenario}
+									Regenerate
+								{:else}
+									Generate Groups
+								{/if}
+							</button>
+							<button
+								type="button"
+								class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+								disabled={isOpeningEditor}
+								onclick={openEditor}
+							>
+								{isOpeningEditor ? 'Opening…' : 'Edit groups'}
+							</button>
+						</div>
 					</div>
 
 					{#if generateError}

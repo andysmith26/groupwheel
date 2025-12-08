@@ -170,4 +170,27 @@ describe('ScenarioEditingStore', () => {
 		expect(view.currentAnalytics?.percentAssignedTopChoice).toBeGreaterThan(0);
 		expect(view.analyticsDelta?.topChoice).toBeGreaterThan(0);
 	});
+
+	it('regenerates groups, clears history, and resets baseline', async () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		store.initialize(createScenario(), preferences);
+
+		store.dispatch({
+			type: 'MOVE_STUDENT',
+			studentId: 's1',
+			source: 'g1',
+			target: 'g2'
+		});
+
+		await store.regenerate([
+			{ id: 'g1', name: 'G1', capacity: 2, memberIds: ['s1'] },
+			{ id: 'g2', name: 'G2', capacity: 2, memberIds: ['s2', 's3'] }
+		]);
+
+		const view = get(store);
+		expect(view.historyIndex).toBe(-1);
+		expect(view.baseline?.percentAssignedTopChoice).toBeGreaterThanOrEqual(0);
+		expect(view.groups.find((g) => g.id === 'g1')?.memberIds).toEqual(['s1']);
+	});
 });

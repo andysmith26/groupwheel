@@ -11,3 +11,22 @@
 	--capacity-amber: #f59e0b;
 	--capacity-red: #dc2626;
 }
+
+.flash-move {
+	animation: flash-move 0.5s ease;
+}
+
+@keyframes flash-move {
+	0% {
+		box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3);
+		transform: scale(1.01);
+	}
+	50% {
+		box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+		transform: scale(1.02);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+		transform: scale(1);
+	}
+}

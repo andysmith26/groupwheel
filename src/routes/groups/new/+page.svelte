@@ -10,6 +10,7 @@
 	 */
 
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { Pool } from '$lib/domain';
@@ -17,6 +18,7 @@
 	import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 
+	import WizardStepEdit from '$lib/components/wizard/WizardStepEdit.svelte';
 	import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
 	import StepSelectRoster from '$lib/components/wizard/StepSelectRoster.svelte';
 	import StepStudents from '$lib/components/wizard/StepStudents.svelte';
@@ -25,9 +27,16 @@
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
+	let stepParam = $derived($page.url.searchParams.get('step'));
+	let scenarioIdParam = $derived($page.url.searchParams.get('scenarioId'));
+	let isStep4 = $derived(stepParam === '4' && !!scenarioIdParam);
 
 	onMount(async () => {
 		env = getAppEnvContext();
+		if (isStep4) {
+			loadingRosters = false;
+			return;
+		}
 		await loadExistingRosters();
 	});
 
@@ -321,7 +330,16 @@
 	<title>Create Groups | Friend Hat</title>
 </svelte:head>
 
-<div class="mx-auto max-w-2xl p-4">
+{#if isStep4 && scenarioIdParam}
+	<div class="mx-auto max-w-6xl p-4">
+		<header class="mb-4 flex items-center justify-between">
+			<h1 class="text-2xl font-semibold text-gray-900">Edit Groups</h1>
+			<a class="text-sm text-blue-700 underline" href="/groups">Back to activities</a>
+		</header>
+		<WizardStepEdit scenarioId={scenarioIdParam} />
+	</div>
+{:else}
+	<div class="mx-auto max-w-2xl p-4">
 	<!-- Header -->
 	<header class="mb-6 flex items-center justify-between">
 		<h1 class="text-2xl font-semibold text-gray-900">Create Groups</h1>
@@ -450,4 +468,5 @@
 			</div>
 		</div>
 	</div>
+{/if}
 {/if}
