@@ -26,11 +26,17 @@ export class InMemoryPreferenceRepository implements PreferenceRepository {
 			(p) => p.id !== preference.id && p.studentId !== preference.studentId
 		);
 
+		// Clone the payload if it's an object, otherwise use as-is
+		const clonedPayload =
+			preference.payload && typeof preference.payload === 'object'
+				? { ...preference.payload }
+				: preference.payload;
+
 		this.byProgram.set(preference.programId, [
 			...filtered,
 			{
 				...preference,
-				payload: { ...preference.payload }
+				payload: clonedPayload
 			}
 		]);
 	}
