@@ -27,6 +27,7 @@ export * from './listPrograms';
 // Scenario operations
 export * from './generateScenario';
 export * from './computeScenarioAnalytics';
+export * from './computeAnalyticsSync';
 export * from './getStudentView';
 
 // Composite operations

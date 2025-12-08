@@ -11,6 +11,8 @@ import {
 	monitorForElements
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 
+const isBrowser = typeof window !== 'undefined';
+
 // Type for drag data - matches the structure used in the original app
 export type DragData = {
 	id: string;
@@ -52,6 +54,14 @@ export type DroppableConfig = {
  * ```
  */
 export function draggable(element: HTMLElement, config: DraggableConfig) {
+	if (!isBrowser) {
+		return {
+			destroy() {
+				// no-op on server
+			}
+		};
+	}
+
 	const cleanup = makeDraggable({
 		element,
 		getInitialData: () => ({
@@ -85,6 +95,14 @@ export function draggable(element: HTMLElement, config: DraggableConfig) {
  * ```
  */
 export function droppable(element: HTMLElement, config: DroppableConfig) {
+	if (!isBrowser) {
+		return {
+			destroy() {
+				// no-op on server
+			}
+		};
+	}
+
 	const cleanup = dropTargetForElements({
 		element,
 		getData: () => ({
@@ -135,6 +153,14 @@ let currentlyDraggingId: string | null = null;
  * Call this once when your app mounts
  */
 export function initializeDragMonitor() {
+	if (!isBrowser) {
+		return {
+			destroy() {
+				// no-op on server
+			}
+		};
+	}
+
 	return monitorForElements({
 		onDragStart: ({ source }) => {
 			const data = source.data as DragData;
