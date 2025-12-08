@@ -7,6 +7,11 @@ import type {
 } from '$lib/application/useCases/generateScenario';
 import { generateScenarioForProgram } from '$lib/application/useCases/generateScenario';
 import type {
+	ResetScenarioInput,
+	ResetScenarioError
+} from '$lib/application/useCases/resetScenario';
+import { resetScenario as resetScenarioUseCase } from '$lib/application/useCases/resetScenario';
+import type {
 	ComputeScenarioAnalyticsInput,
 	ComputeScenarioAnalyticsError
 } from '$lib/application/useCases/computeScenarioAnalytics';
@@ -92,6 +97,24 @@ export async function generateScenario(
 			poolRepo: env.poolRepo,
 			studentRepo: env.studentRepo,
 			scenarioRepo: env.scenarioRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock,
+			groupingAlgorithm: env.groupingAlgorithm
+		},
+		input
+	);
+}
+
+export async function resetScenario(
+	env: InMemoryEnvironment,
+	input: ResetScenarioInput
+): Promise<Result<import('$lib/domain').Scenario, ResetScenarioError>> {
+	return resetScenarioUseCase(
+		{
+			scenarioRepo: env.scenarioRepo,
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo,
+			studentRepo: env.studentRepo,
 			idGenerator: env.idGenerator,
 			clock: env.clock,
 			groupingAlgorithm: env.groupingAlgorithm

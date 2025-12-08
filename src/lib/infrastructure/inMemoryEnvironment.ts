@@ -17,9 +17,11 @@ import {
 	InMemoryScenarioRepository,
 	InMemoryPreferenceRepository
 } from '$lib/infrastructure/repositories/inMemory';
+import { IndexedDbScenarioRepository } from '$lib/infrastructure/repositories/indexedDb';
 import { UuidIdGenerator, SystemClock } from '$lib/infrastructure/services';
 import { BalancedGroupingAlgorithm } from '$lib/infrastructure/algorithms/balancedGrouping';
 import type { Pool, Program, Scenario, Student, Staff, Preference } from '$lib/domain';
+import { browser } from '$app/environment';
 
 /**
  * The full set of dependencies needed by MVP use cases, backed by in-memory implementations.
@@ -41,16 +43,34 @@ export interface InMemoryEnvironment {
 }
 
 /**
- * Factory for an InMemoryEnvironment with optional initial seed data.
+ * Options for creating an InMemoryEnvironment.
  */
-export function createInMemoryEnvironment(seed?: {
-	students?: Student[];
-	staff?: Staff[];
-	pools?: Pool[];
-	programs?: Program[];
-	scenarios?: Scenario[];
-	preferences?: Preference[];
-}): InMemoryEnvironment {
+export interface CreateEnvironmentOptions {
+	/**
+	 * Use IndexedDB for scenario persistence.
+	 * When true, scenarios persist across browser sessions.
+	 * Defaults to true in browser, false on server.
+	 */
+	useIndexedDbForScenarios?: boolean;
+}
+
+/**
+ * Factory for an InMemoryEnvironment with optional initial seed data.
+ *
+ * @param seed - Initial data to populate the repositories
+ * @param options - Configuration options for the environment
+ */
+export function createInMemoryEnvironment(
+	seed?: {
+		students?: Student[];
+		staff?: Staff[];
+		pools?: Pool[];
+		programs?: Program[];
+		scenarios?: Scenario[];
+		preferences?: Preference[];
+	},
+	options?: CreateEnvironmentOptions
+): InMemoryEnvironment {
 	// Seed a default staff owner for MVP so ownerStaffId='owner-1' works out of the box.
 	const defaultStaff: Staff[] = [
 		{
@@ -63,8 +83,13 @@ export function createInMemoryEnvironment(seed?: {
 	const staffRepo = new InMemoryStaffRepository([...(seed?.staff ?? []), ...defaultStaff]);
 	const poolRepo = new InMemoryPoolRepository(seed?.pools ?? []);
 	const programRepo = new InMemoryProgramRepository(seed?.programs ?? []);
-	const scenarioRepo = new InMemoryScenarioRepository(seed?.scenarios ?? []);
 	const preferenceRepo = new InMemoryPreferenceRepository(seed?.preferences ?? []);
+
+	// Use IndexedDB for scenarios in browser mode by default for persistence
+	const useIndexedDb = options?.useIndexedDbForScenarios ?? browser;
+	const scenarioRepo: ScenarioRepository = useIndexedDb
+		? new IndexedDbScenarioRepository()
+		: new InMemoryScenarioRepository(seed?.scenarios ?? []);
 
 	const idGenerator = new UuidIdGenerator();
 	const clock = new SystemClock();

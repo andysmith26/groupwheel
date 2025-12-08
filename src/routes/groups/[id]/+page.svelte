@@ -2,29 +2,42 @@
 	/**
 	 * /groups/[id]/+page.svelte
 	 *
-	 * Activity detail page. Shows students, preferences, and allows
-	 * generating/viewing grouping scenarios.
+	 * Activity detail page with inline group editor.
+	 * Teachers can immediately drag students between groups without switching modes.
 	 *
-	 * This replaces /programs/[id] with teacher-friendly language.
-	 * Internally still works with Program/Pool/Scenario domain objects.
+	 * Features:
+	 * - Inline drag-and-drop group editing
+	 * - Real-time satisfaction metrics
+	 * - Undo/redo support (Ctrl+Z / Ctrl+Y)
+	 * - Start Over button to regenerate groups
+	 * - Auto-persist changes to repository
 	 */
 
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import { generateScenario, computeAnalytics } from '$lib/services/appEnvUseCases';
+	import { setAppDataContext, type AppDataContext } from '$lib/contexts/appData';
+	import { generateScenario, resetScenario } from '$lib/services/appEnvUseCases';
 	import { isOk, isErr } from '$lib/types/result';
-	import { storeScenarioForProjection } from '$lib/infrastructure/scenarioStorage';
+	import { commandStore } from '$lib/stores/commands.svelte';
+	import { computeGroupsAnalytics } from '$lib/application/useCases/computeGroupsAnalytics';
+	import { initializeDragMonitor, type DropState } from '$lib/utils/pragmatic-dnd';
 	import type {
 		Program,
 		Pool,
 		Scenario,
 		Student,
 		Preference,
-		StudentPreference
+		StudentPreference,
+		Group
 	} from '$lib/domain';
 	import { extractStudentPreference } from '$lib/domain/preference';
-	import type { ScenarioSatisfaction } from '$lib/application/useCases/computeScenarioAnalytics';
+	import type { ScenarioSatisfaction } from '$lib/domain/analytics';
+
+	// Components
+	import HorizontalGroupLayout from '$lib/components/group/HorizontalGroupLayout.svelte';
+	import VerticalGroupLayout from '$lib/components/group/VerticalGroupLayout.svelte';
+	import UnassignedSidebar from '$lib/components/roster/UnassignedSidebar.svelte';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -34,28 +47,138 @@
 	let pool = $state<Pool | null>(null);
 	let students = $state<Student[]>([]);
 	let preferences = $state<Preference[]>([]);
+	let scenario = $state<Scenario | null>(null);
 
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
 
-	// --- Scenario state ---
-	let scenario = $state<Scenario | null>(null);
+	// --- UI state ---
+	let selectedStudentId = $state<string | null>(null);
+	let currentlyDragging = $state<string | null>(null);
+	let flashingContainer = $state<string | null>(null);
+	let showStartOverConfirm = $state(false);
+	let isResetting = $state(false);
 	let isGenerating = $state(false);
 	let generateError = $state<string | null>(null);
+	let collapsedGroups = $state<Set<string>>(new Set());
+	let unassignedCollapsed = $state(false);
 
-	// --- Analytics state ---
-	let analytics = $state<ScenarioSatisfaction | null>(null);
-	let isComputingAnalytics = $state(false);
-	let analyticsError = $state<string | null>(null);
+	// --- Derived state ---
+	// Groups from command store (reactive)
+	const groups = $derived(commandStore.groups);
 
-	// --- UI state ---
-	let showStudentList = $state(false);
+	// Layout selection: horizontal for ≤5 groups, vertical for >5
+	const useVerticalLayout = $derived(groups.length > 5);
 
+	// Build context data for child components
+	const studentsById = $derived(
+		students.reduce(
+			(acc, s) => {
+				acc[s.id] = s;
+				return acc;
+			},
+			{} as Record<string, Student>
+		)
+	);
+
+	const preferencesById = $derived(
+		preferences.reduce(
+			(acc, p) => {
+				acc[p.studentId] = extractStudentPreference(p);
+				return acc;
+			},
+			{} as Record<string, StudentPreference>
+		)
+	);
+
+	// Participant snapshot (all students who should be assigned)
+	const participantSnapshot = $derived(scenario?.participantSnapshot ?? pool?.memberIds ?? []);
+
+	// Unassigned students (derived from groups)
+	const unassignedStudentIds = $derived.by(() => {
+		const assignedIds = new Set(groups.flatMap((g) => g.memberIds));
+		return participantSnapshot.filter((id) => !assignedIds.has(id));
+	});
+
+	// Real-time analytics (recalculates when groups change)
+	const analytics = $derived.by<ScenarioSatisfaction | null>(() => {
+		if (groups.length === 0 || preferences.length === 0) return null;
+		return computeGroupsAnalytics({
+			groups,
+			preferences,
+			participantSnapshot
+		});
+	});
+
+	// Can undo/redo
+	const canUndo = $derived(commandStore.canUndo);
+	const canRedo = $derived(commandStore.canRedo);
+
+	// --- Drag monitor cleanup ---
+	let cleanupDragMonitor: (() => void) | null = null;
+
+	// --- Debounced persistence ---
+	let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	$effect(() => {
+		// Watch groups for changes and persist
+		const currentGroups = groups;
+		if (!env || !scenario || currentGroups.length === 0) return;
+
+		if (saveTimeout) clearTimeout(saveTimeout);
+		saveTimeout = setTimeout(() => {
+			persistGroups(currentGroups);
+		}, 500); // 500ms debounce
+	});
+
+	async function persistGroups(groupsToSave: Group[]) {
+		if (!env || !scenario) return;
+		const updatedScenario: Scenario = {
+			...scenario,
+			groups: groupsToSave
+		};
+		try {
+			await env.scenarioRepo.update(updatedScenario);
+			scenario = updatedScenario;
+		} catch (e) {
+			console.error('Failed to persist groups:', e);
+		}
+	}
+
+	// --- Keyboard shortcuts ---
+	function handleKeydown(event: KeyboardEvent) {
+		// Ctrl+Z / Cmd+Z for undo
+		if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+			event.preventDefault();
+			if (canUndo) commandStore.undo();
+		}
+		// Ctrl+Y / Cmd+Y or Ctrl+Shift+Z / Cmd+Shift+Z for redo
+		if (
+			(event.ctrlKey || event.metaKey) &&
+			(event.key === 'y' || (event.key === 'z' && event.shiftKey))
+		) {
+			event.preventDefault();
+			if (canRedo) commandStore.redo();
+		}
+		// Escape to deselect
+		if (event.key === 'Escape') {
+			selectedStudentId = null;
+		}
+	}
+
+	// --- Mount/unmount ---
 	onMount(async () => {
 		env = getAppEnvContext();
+		cleanupDragMonitor = initializeDragMonitor();
 		await loadActivityData();
 	});
 
+	onDestroy(() => {
+		if (cleanupDragMonitor) cleanupDragMonitor();
+		if (saveTimeout) clearTimeout(saveTimeout);
+	});
+
+	// --- Data loading ---
 	async function loadActivityData() {
 		if (!env) return;
 
@@ -93,7 +216,7 @@
 			const existingScenario = await env.scenarioRepo.getByProgramId(programId);
 			if (existingScenario) {
 				scenario = existingScenario;
-				await refreshAnalytics(scenario.id);
+				commandStore.initializeGroups(existingScenario.groups);
 			}
 		} catch (e) {
 			loadError = e instanceof Error ? e.message : 'Failed to load activity data';
@@ -102,6 +225,17 @@
 		}
 	}
 
+	// --- Set context after data is loaded ---
+	$effect(() => {
+		if (students.length > 0) {
+			setAppDataContext({
+				studentsById,
+				preferencesById
+			});
+		}
+	});
+
+	// --- Generate scenario (first time) ---
 	async function handleGenerateScenario() {
 		if (!env || !program) return;
 
@@ -134,56 +268,93 @@
 		}
 
 		scenario = result.value;
-
-		// Store for student view projection
-		storeScenarioForProjection(scenario, students);
-
-		// Compute analytics
-		await refreshAnalytics(scenario.id);
-
+		commandStore.initializeGroups(result.value.groups);
 		isGenerating = false;
 	}
 
-	async function refreshAnalytics(scenarioId: string) {
-		if (!env) return;
+	// --- Start Over (reset scenario) ---
+	async function handleStartOver() {
+		if (!env || !program) return;
 
-		isComputingAnalytics = true;
-		analyticsError = null;
+		isResetting = true;
 
-		const result = await computeAnalytics(env, { scenarioId });
+		const result = await resetScenario(env, { programId: program.id });
 
 		if (isOk(result)) {
-			analytics = result.value;
-		} else {
-			analyticsError =
-				result.error.type === 'SCENARIO_NOT_FOUND'
-					? `Scenario not found: ${result.error.scenarioId}`
-					: result.error.type === 'INTERNAL_ERROR'
-						? result.error.message
-						: 'Failed to compute analytics';
+			scenario = result.value;
+			commandStore.initializeGroups(result.value.groups);
 		}
 
-		isComputingAnalytics = false;
+		isResetting = false;
+		showStartOverConfirm = false;
 	}
 
-	// --- Derived data ---
-	let preferencesCount = $derived(preferences.length);
-	let preferencesPercent = $derived(
-		students.length > 0 ? Math.round((preferencesCount / students.length) * 100) : 0
-	);
+	// --- Drop handler ---
+	function handleDrop(state: DropState) {
+		const studentId = state.draggedItem.id;
+		const sourceContainer = state.sourceContainer;
+		const targetContainer = state.targetContainer;
 
-	// Build preferences lookup
-	let preferencesByStudentId = $derived(
-		new Map<string, StudentPreference>(
-			preferences.map((p) => [p.studentId, extractStudentPreference(p)])
-		)
-	);
+		// No-op if dropped in same container
+		if (sourceContainer === targetContainer) {
+			currentlyDragging = null;
+			return;
+		}
 
-	// Helper to get student display name
-	function getStudentName(id: string): string {
-		const student = students.find((s) => s.id === id);
-		if (!student) return id;
-		return `${student.firstName} ${student.lastName}`.trim() || id;
+		// Handle unassigning (dropping to unassigned sidebar)
+		if (targetContainer === 'unassigned') {
+			if (sourceContainer) {
+				commandStore.dispatch({
+					type: 'UNASSIGN_STUDENT',
+					studentId,
+					previousGroupId: sourceContainer
+				});
+				triggerFlash('unassigned');
+			}
+		}
+		// Handle assigning to a group
+		else if (targetContainer) {
+			commandStore.dispatch({
+				type: 'ASSIGN_STUDENT',
+				studentId,
+				groupId: targetContainer,
+				previousGroupId: sourceContainer ?? undefined
+			});
+			triggerFlash(targetContainer);
+		}
+
+		currentlyDragging = null;
+	}
+
+	// --- Flash animation ---
+	function triggerFlash(containerId: string) {
+		flashingContainer = containerId;
+		setTimeout(() => {
+			flashingContainer = null;
+		}, 700);
+	}
+
+	// --- Event handlers ---
+	function handleDragStart(studentId: string) {
+		currentlyDragging = studentId;
+	}
+
+	function handleStudentClick(studentId: string) {
+		selectedStudentId = selectedStudentId === studentId ? null : studentId;
+	}
+
+	function handleUpdateGroup(groupId: string, changes: Partial<Group>) {
+		commandStore.updateGroup(groupId, changes);
+	}
+
+	function handleToggleGroupCollapse(groupId: string) {
+		const newCollapsed = new Set(collapsedGroups);
+		if (newCollapsed.has(groupId)) {
+			newCollapsed.delete(groupId);
+		} else {
+			newCollapsed.add(groupId);
+		}
+		collapsedGroups = newCollapsed;
 	}
 </script>
 
@@ -191,7 +362,9 @@
 	<title>{program?.name ?? 'Activity'} | Friend Hat</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl space-y-6 p-4">
+<svelte:window on:keydown={handleKeydown} />
+
+<div class="mx-auto max-w-7xl space-y-4 p-4">
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
 			<p class="text-gray-500">Loading activity...</p>
@@ -200,161 +373,193 @@
 		<div class="rounded-lg border border-red-200 bg-red-50 p-4">
 			<p class="text-red-700">{loadError}</p>
 			<a href="/groups" class="mt-2 inline-block text-sm text-blue-600 underline">
-				← Back to activities
+				&larr; Back to activities
 			</a>
 		</div>
 	{:else if program}
 		<!-- Header -->
-		<header class="flex items-center justify-between gap-4">
+		<header class="flex flex-wrap items-center justify-between gap-4">
 			<div>
-				<a href="/groups" class="text-sm text-gray-500 hover:text-gray-700">← All activities</a>
+				<a href="/groups" class="text-sm text-gray-500 hover:text-gray-700">&larr; All activities</a>
 				<h1 class="mt-1 text-2xl font-semibold text-gray-900">{program.name}</h1>
+				<p class="text-sm text-gray-500">
+					{students.length} students &middot; {preferences.length} with preferences
+				</p>
 			</div>
-		</header>
 
-		<!-- Main content grid -->
-		<div class="grid gap-6 lg:grid-cols-2">
-			<!-- Left column: Students & Preferences -->
-			<div class="space-y-4">
-				<!-- Students card -->
-				<div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+			{#if scenario}
+				<!-- Controls when groups exist -->
+				<div class="flex flex-wrap items-center gap-2">
+					<!-- Undo/Redo buttons -->
 					<button
 						type="button"
-						class="flex w-full items-center justify-between p-4 text-left hover:bg-gray-50"
-						onclick={() => (showStudentList = !showStudentList)}
+						class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+						disabled={!canUndo}
+						onclick={() => commandStore.undo()}
+						title="Undo (Ctrl+Z)"
 					>
-						<div>
-							<h2 class="font-medium text-gray-900">Students</h2>
-							<p class="text-sm text-gray-500">
-								{students.length} students · {preferencesCount} with preferences ({preferencesPercent}%)
-							</p>
-						</div>
-						<span class="text-gray-400">{showStudentList ? '▼' : '▸'}</span>
+						Undo
+					</button>
+					<button
+						type="button"
+						class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+						disabled={!canRedo}
+						onclick={() => commandStore.redo()}
+						title="Redo (Ctrl+Y)"
+					>
+						Redo
 					</button>
 
-					{#if showStudentList}
-						<div class="border-t border-gray-200">
-							<div class="max-h-80 divide-y divide-gray-100 overflow-y-auto">
-								{#each students as student (student.id)}
-									{@const pref = preferencesByStudentId.get(student.id)}
-									<div class="px-4 py-3">
-										<div class="flex items-center justify-between">
-											<span class="font-medium text-gray-900">
-												{student.firstName}
-												{student.lastName}
-											</span>
-											{#if pref && pref.likeStudentIds.length > 0}
-												<span
-													class="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700"
-												>
-													{pref.likeStudentIds.length} preferences
-												</span>
-											{/if}
-										</div>
-										{#if pref && pref.likeStudentIds.length > 0}
-											<p class="mt-1 text-sm text-gray-500">
-												Wants to work with: {pref.likeStudentIds.map(getStudentName).join(', ')}
-											</p>
-										{:else}
-											<p class="mt-1 text-sm text-gray-400">No preferences</p>
-										{/if}
-									</div>
-								{/each}
-							</div>
+					<span class="mx-2 h-6 w-px bg-gray-300"></span>
+
+					<!-- Start Over button -->
+					<button
+						type="button"
+						class="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+						onclick={() => (showStartOverConfirm = true)}
+					>
+						Start Over
+					</button>
+				</div>
+			{/if}
+		</header>
+
+		{#if scenario}
+			<!-- Metrics bar -->
+			{#if analytics}
+				<div class="flex flex-wrap gap-4 rounded-lg bg-gray-50 p-4">
+					<div class="flex items-baseline gap-2">
+						<span class="text-sm text-gray-500">Top choice</span>
+						<span class="text-lg font-semibold text-green-700">
+							{analytics.percentAssignedTopChoice.toFixed(0)}%
+						</span>
+					</div>
+					{#if analytics.percentAssignedTop2 !== undefined}
+						<div class="flex items-baseline gap-2">
+							<span class="text-sm text-gray-500">Top 2</span>
+							<span class="text-lg font-semibold text-blue-700">
+								{analytics.percentAssignedTop2.toFixed(0)}%
+							</span>
 						</div>
+					{/if}
+					<div class="flex items-baseline gap-2">
+						<span class="text-sm text-gray-500">Avg rank</span>
+						<span class="text-lg font-semibold text-gray-700">
+							{isNaN(analytics.averagePreferenceRankAssigned)
+								? '—'
+								: analytics.averagePreferenceRankAssigned.toFixed(1)}
+						</span>
+					</div>
+					<div class="ml-auto flex items-baseline gap-2">
+						<span class="text-sm text-gray-500">{groups.length} groups</span>
+						{#if unassignedStudentIds.length > 0}
+							<span class="text-sm text-amber-600">
+								&middot; {unassignedStudentIds.length} unassigned
+							</span>
+						{/if}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Group editor -->
+			<div class="flex gap-4">
+				<!-- Unassigned sidebar -->
+				{#if unassignedStudentIds.length > 0 || groups.length > 0}
+					<UnassignedSidebar
+						studentIds={unassignedStudentIds}
+						{selectedStudentId}
+						{currentlyDragging}
+						{flashingContainer}
+						isCollapsed={unassignedCollapsed}
+						onDrop={handleDrop}
+						onDragStart={handleDragStart}
+						onClick={handleStudentClick}
+						onToggleCollapse={() => (unassignedCollapsed = !unassignedCollapsed)}
+					/>
+				{/if}
+
+				<!-- Groups area -->
+				<div class="flex-1">
+					{#if useVerticalLayout}
+						<VerticalGroupLayout
+							{groups}
+							{selectedStudentId}
+							{currentlyDragging}
+							{collapsedGroups}
+							{flashingContainer}
+							onDrop={handleDrop}
+							onDragStart={handleDragStart}
+							onClick={handleStudentClick}
+							onUpdateGroup={handleUpdateGroup}
+							onToggleCollapse={handleToggleGroupCollapse}
+						/>
+					{:else}
+						<HorizontalGroupLayout
+							{groups}
+							{selectedStudentId}
+							{currentlyDragging}
+							{flashingContainer}
+							onDrop={handleDrop}
+							onDragStart={handleDragStart}
+							onClick={handleStudentClick}
+							onUpdateGroup={handleUpdateGroup}
+						/>
 					{/if}
 				</div>
 			</div>
-
-			<!-- Right column: Generate & Results -->
-			<div class="space-y-4">
-				<!-- Generate groups card -->
-				<div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-					<div class="flex items-center justify-between">
-						<div>
-							<h2 class="font-medium text-gray-900">Generate Groups</h2>
-							<p class="text-sm text-gray-500">
-								{#if preferencesCount > 0}
-									Create groups based on {preferencesCount} student preferences
-								{:else}
-									Create random groups (no preferences loaded)
-								{/if}
-							</p>
-						</div>
-						<button
-							type="button"
-							class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-							disabled={isGenerating}
-							onclick={handleGenerateScenario}
-						>
-							{#if isGenerating}
-								Generating...
-							{:else if scenario}
-								Regenerate
-							{:else}
-								Generate Groups
-							{/if}
-						</button>
-					</div>
-
-					{#if generateError}
-						<p class="mt-3 text-sm text-red-600">{generateError}</p>
+		{:else}
+			<!-- No scenario yet - show generate button -->
+			<div class="rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm">
+				<h2 class="text-lg font-medium text-gray-900">Generate Groups</h2>
+				<p class="mt-2 text-sm text-gray-500">
+					{#if preferences.length > 0}
+						Create groups based on {preferences.length} student preferences
+					{:else}
+						Create random groups (no preferences loaded)
 					{/if}
-				</div>
+				</p>
+				<button
+					type="button"
+					class="mt-4 rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+					disabled={isGenerating}
+					onclick={handleGenerateScenario}
+				>
+					{isGenerating ? 'Generating...' : 'Generate Groups'}
+				</button>
 
-				<!-- Results card (only shown after generation) -->
-				{#if scenario}
-					<div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-						<div class="flex items-center justify-between">
-							<h2 class="font-medium text-gray-900">Results</h2>
-							<a
-								href="/scenarios/{scenario.id}/student-view"
-								class="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
-								target="_blank"
-								rel="noopener"
-							>
-								View for class ↗
-							</a>
-						</div>
-
-						<!-- Analytics -->
-						{#if isComputingAnalytics}
-							<p class="mt-3 text-sm text-gray-500">Computing satisfaction...</p>
-						{:else if analyticsError}
-							<p class="mt-3 text-sm text-red-600">{analyticsError}</p>
-						{:else if analytics}
-							<div class="mt-4 grid gap-3 sm:grid-cols-2">
-								<div class="rounded-lg bg-green-50 p-3">
-									<p class="text-xs text-green-700">Top choice satisfied</p>
-									<p class="text-2xl font-bold text-green-800">
-										{analytics.percentAssignedTopChoice.toFixed(0)}%
-									</p>
-								</div>
-								{#if analytics.percentAssignedTop2 !== undefined}
-									<div class="rounded-lg bg-blue-50 p-3">
-										<p class="text-xs text-blue-700">Top 2 choices satisfied</p>
-										<p class="text-2xl font-bold text-blue-800">
-											{analytics.percentAssignedTop2.toFixed(0)}%
-										</p>
-									</div>
-								{/if}
-							</div>
-						{/if}
-
-						<!-- Group preview -->
-						<div class="mt-4">
-							<h3 class="text-sm font-medium text-gray-700">Groups created</h3>
-							<div class="mt-2 flex flex-wrap gap-2">
-								{#each scenario.groups as group (group.id)}
-									<span class="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">
-										{group.name} ({group.memberIds.length})
-									</span>
-								{/each}
-							</div>
-						</div>
-					</div>
+				{#if generateError}
+					<p class="mt-3 text-sm text-red-600">{generateError}</p>
 				{/if}
 			</div>
-		</div>
+		{/if}
 	{/if}
 </div>
+
+<!-- Start Over confirmation modal -->
+{#if showStartOverConfirm}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+		<div class="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl">
+			<h3 class="text-lg font-medium text-gray-900">Start over?</h3>
+			<p class="mt-2 text-sm text-gray-600">
+				This will discard your current groups and generate new ones. Manual changes will be lost.
+			</p>
+			<div class="mt-4 flex justify-end gap-3">
+				<button
+					type="button"
+					class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+					onclick={() => (showStartOverConfirm = false)}
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+					onclick={handleStartOver}
+					disabled={isResetting}
+				>
+					{isResetting ? 'Generating...' : 'Start Over'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

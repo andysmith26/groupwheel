@@ -43,6 +43,14 @@ export class InMemoryScenarioRepository implements ScenarioRepository {
 		this.byProgramId.set(scenario.programId, scenario.id);
 	}
 
+	async delete(id: string): Promise<void> {
+		const scenario = this.scenarios.get(id);
+		if (scenario) {
+			this.byProgramId.delete(scenario.programId);
+			this.scenarios.delete(id);
+		}
+	}
+
 	private cloneScenario(scenario: Scenario): Scenario {
 		return {
 			...scenario,
