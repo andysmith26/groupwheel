@@ -25,7 +25,7 @@
                 /** Preferences from Step 2 */
                 preferences: ParsedPreference[];
 
-                /** Group shells + constraints from Step 3 */
+                /** Group shells + constraints from groups step */
                 groupConfig: GroupShellConfig;
 
 		/** Whether we're reusing an existing roster */
