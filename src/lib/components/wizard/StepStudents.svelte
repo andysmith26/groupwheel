@@ -6,7 +6,7 @@
 	 * Handles paste detection, parsing, preview, and validation.
 	 */
 
-	import { dev } from '$app/environment';
+	import { devTools } from '$lib/stores/devTools.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { ParsedStudent } from '$lib/application/useCases/createGroupingActivity';
 
@@ -155,7 +155,7 @@ Henry Taylor	henry@school.edu	10`;
 			<label class="block text-sm font-medium text-gray-700" for="roster-paste">
 				Roster data
 			</label>
-			{#if dev}
+			{#if devTools.enabled}
 				<button
 					type="button"
 					class="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200"
