@@ -22,7 +22,7 @@
 		/** Students from Step 1 */
 		students: ParsedStudent[];
 
-                /** Preferences from Step 2 */
+                /** Preferences from preferences step */
                 preferences: ParsedPreference[];
 
                 /** Group shells + constraints from groups step */
