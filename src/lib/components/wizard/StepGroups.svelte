@@ -46,7 +46,7 @@ Saturns\t4`;
         ) {
                 const next: GroupShellConfig = { ...groupConfig, [key]: value } as GroupShellConfig;
                 onConfigChange(next);
-                onValidityChange?.(!parseError);
+                onValidityChange?.(true);
         }
 
         function parseGroupList() {
