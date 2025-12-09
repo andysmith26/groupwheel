@@ -80,7 +80,7 @@ Saturns\t4`;
                 // Skip header row if it looks like labels
                 let startIdx = 0;
                 const headerCells = lines[0].split(delimiter).map((c) => c.trim().toLowerCase());
-                if (headerCells.some((c) => c.includes('group') || c.includes('name'))) {
+                if (headerCells.some((c) => c.includes('group') || c.includes('name') || c.includes('capacity'))) {
                         startIdx = 1;
                 }
 
