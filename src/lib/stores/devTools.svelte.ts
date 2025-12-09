@@ -3,6 +3,10 @@
  *
  * Enables dev tools in production for manual testing.
  *
+ * **Security Note**: Dev tools expose sample data loading functionality that could
+ * be used to populate test data in production. Ensure your team is aware that
+ * anyone who knows about the ?devtools=true parameter can enable these features.
+ *
  * Usage:
  * - In development: always enabled
  * - In production: add ?devtools=true to URL to enable (persists in localStorage)
