@@ -6,19 +6,19 @@
 	 * Consolidates the previous Pool import + Program creation + Preferences upload
 	 * into a single guided flow.
 	 *
+	 * On completion, auto-generates groups and redirects to the workspace.
+	 *
 	 * See: docs/decisions/2025-12-01-unified-create-groups-wizard.md
 	 */
 
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { Pool } from '$lib/domain';
-	import { createGroupingActivity } from '$lib/services/appEnvUseCases';
+	import { createGroupingActivity, generateScenario } from '$lib/services/appEnvUseCases';
 	import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 
-	import WizardStepEdit from '$lib/components/wizard/WizardStepEdit.svelte';
 	import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
 	import StepSelectRoster from '$lib/components/wizard/StepSelectRoster.svelte';
 	import StepStudents from '$lib/components/wizard/StepStudents.svelte';
@@ -27,16 +27,9 @@
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
-	let stepParam = $derived($page.url.searchParams.get('step'));
-	let scenarioIdParam = $derived($page.url.searchParams.get('scenarioId'));
-	let isStep4 = $derived(stepParam === '4' && !!scenarioIdParam);
 
 	onMount(async () => {
 		env = getAppEnvContext();
-		if (isStep4) {
-			loadingRosters = false;
-			return;
-		}
 		await loadExistingRosters();
 	});
 
@@ -249,6 +242,7 @@
 		submitError = '';
 
 		try {
+			// Step 1: Create the activity
 			const result = await createGroupingActivity(env, {
 				activityName: activityName.trim(),
 				students,
@@ -263,8 +257,19 @@
 				return;
 			}
 
-			// Success! Navigate to the new activity
-			goto(`/groups/${result.value.program.id}`);
+			const { program } = result.value;
+
+			// Step 2: AUTO-GENERATE groups
+			const generateResult = await generateScenario(env, { programId: program.id });
+
+			if (isErr(generateResult)) {
+				// Activity created but generation failed - still redirect,
+				// page will show empty state with generate button
+				console.warn('Auto-generation failed:', generateResult.error);
+			}
+
+			// Step 3: Redirect to workspace
+			goto(`/groups/${program.id}`);
 		} catch (e) {
 			submitError = `Unexpected error: ${e instanceof Error ? e.message : 'Unknown error'}`;
 			isSubmitting = false;
@@ -330,16 +335,7 @@
 	<title>Create Groups | Friend Hat</title>
 </svelte:head>
 
-{#if isStep4 && scenarioIdParam}
-	<div class="mx-auto max-w-6xl p-4">
-		<header class="mb-4 flex items-center justify-between">
-			<h1 class="text-2xl font-semibold text-gray-900">Edit Groups</h1>
-			<a class="text-sm text-blue-700 underline" href="/groups">Back to activities</a>
-		</header>
-		<WizardStepEdit scenarioId={scenarioIdParam} />
-	</div>
-{:else}
-	<div class="mx-auto max-w-2xl p-4">
+<div class="mx-auto max-w-2xl p-4">
 	<!-- Header -->
 	<header class="mb-6 flex items-center justify-between">
 		<h1 class="text-2xl font-semibold text-gray-900">Create Groups</h1>
@@ -468,5 +464,4 @@
 			</div>
 		</div>
 	</div>
-{/if}
 {/if}
