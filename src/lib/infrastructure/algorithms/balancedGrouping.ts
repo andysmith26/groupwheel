@@ -158,10 +158,8 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
                 let maxGroupSize = config.maxGroupSize ?? defaultMax;
 
                 if (minGroupSize < 1) minGroupSize = 1;
-                if (maxGroupSize && maxGroupSize < minGroupSize) {
-                        const tmp = minGroupSize;
-                        minGroupSize = maxGroupSize;
-                        maxGroupSize = tmp;
+                if (maxGroupSize !== undefined && maxGroupSize < minGroupSize) {
+                        maxGroupSize = minGroupSize;  // Clamp max to min
                 }
 
                 const idealGroupSize = Math.min(Math.max(5, minGroupSize), maxGroupSize ?? 5);
