@@ -162,7 +162,7 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
                         maxGroupSize = minGroupSize;  // Clamp max to min
                 }
 
-                const idealGroupSize = Math.min(Math.max(5, minGroupSize), maxGroupSize ?? 5);
+                const idealGroupSize = Math.min(Math.max(5, minGroupSize), maxGroupSize ?? Infinity);
 
                 // Calculate number of groups
                 let numGroups = config.targetGroupCount ?? Math.round(studentCount / idealGroupSize);
