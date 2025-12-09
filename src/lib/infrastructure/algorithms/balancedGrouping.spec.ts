@@ -115,86 +115,86 @@ describe('BalancedGroupingAlgorithm', () => {
 		}
 	});
 
-        it('should handle students with no preferences', async () => {
-                const students: Student[] = [
-                        { id: 's1', firstName: 'Student', lastName: '1', gradeLevel: '5' },
-                        { id: 's2', firstName: 'Student', lastName: '2', gradeLevel: '5' },
-                        { id: 's3', firstName: 'Student', lastName: '3', gradeLevel: '5' },
-                        { id: 's4', firstName: 'Student', lastName: '4', gradeLevel: '5' }
-                ];
-                await studentRepo.saveMany(students);
+	it('should handle students with no preferences', async () => {
+		const students: Student[] = [
+			{ id: 's1', firstName: 'Student', lastName: '1', gradeLevel: '5' },
+			{ id: 's2', firstName: 'Student', lastName: '2', gradeLevel: '5' },
+			{ id: 's3', firstName: 'Student', lastName: '3', gradeLevel: '5' },
+			{ id: 's4', firstName: 'Student', lastName: '4', gradeLevel: '5' }
+		];
+		await studentRepo.saveMany(students);
 
-                const result = await algorithm.generateGroups({
-                        programId: 'test-program',
-                        studentIds: students.map((s) => s.id)
-                });
+		const result = await algorithm.generateGroups({
+			programId: 'test-program',
+			studentIds: students.map((s) => s.id)
+		});
 
-                expect(result.success).toBe(true);
-                if (result.success) {
-                        // Should still create groups and assign all students
-                        expect(result.groups.length).toBeGreaterThanOrEqual(1);
-                        const allMemberIds = result.groups.flatMap((g) => g.memberIds);
-                        expect(allMemberIds).toHaveLength(4);
-                }
-        });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			// Should still create groups and assign all students
+			expect(result.groups.length).toBeGreaterThanOrEqual(1);
+			const allMemberIds = result.groups.flatMap((g) => g.memberIds);
+			expect(allMemberIds).toHaveLength(4);
+		}
+	});
 
-        it('should use provided group shells when present', async () => {
-                const students: Student[] = [];
-                for (let i = 1; i <= 6; i++) {
-                        students.push({ id: `s${i}`, firstName: 'S', lastName: `${i}`, gradeLevel: '5' });
-                }
-                await studentRepo.saveMany(students);
+	it('should use provided group shells when present', async () => {
+		const students: Student[] = [];
+		for (let i = 1; i <= 6; i++) {
+			students.push({ id: `s${i}`, firstName: 'S', lastName: `${i}`, gradeLevel: '5' });
+		}
+		await studentRepo.saveMany(students);
 
-                const result = await algorithm.generateGroups({
-                        programId: 'test-program',
-                        studentIds: students.map((s) => s.id),
-                        algorithmConfig: {
-                                groups: [
-                                        { name: 'Alpha', capacity: 2 },
-                                        { name: 'Beta', capacity: 2 },
-                                        { name: 'Gamma', capacity: 2 }
-                                ]
-                        }
-                });
+		const result = await algorithm.generateGroups({
+			programId: 'test-program',
+			studentIds: students.map((s) => s.id),
+			algorithmConfig: {
+				groups: [
+					{ name: 'Alpha', capacity: 2 },
+					{ name: 'Beta', capacity: 2 },
+					{ name: 'Gamma', capacity: 2 }
+				]
+			}
+		});
 
-                expect(result.success).toBe(true);
-                if (result.success) {
-                        expect(result.groups.map((g) => g.name)).toEqual(['Alpha', 'Beta', 'Gamma']);
-                        expect(result.groups.every((g) => g.memberIds.length === 2)).toBe(true);
-                }
-        });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.groups.map((g) => g.name)).toEqual(['Alpha', 'Beta', 'Gamma']);
+			expect(result.groups.every((g) => g.memberIds.length === 2)).toBe(true);
+		}
+	});
 
-        it('should honor min/max sizes and target group count when auto-generating', async () => {
-                const students: Student[] = [];
-                for (let i = 1; i <= 25; i++) {
-                        students.push({ id: `s${i}`, firstName: 'S', lastName: `${i}`, gradeLevel: '5' });
-                }
-                await studentRepo.saveMany(students);
+	it('should honor min/max sizes and target group count when auto-generating', async () => {
+		const students: Student[] = [];
+		for (let i = 1; i <= 25; i++) {
+			students.push({ id: `s${i}`, firstName: 'S', lastName: `${i}`, gradeLevel: '5' });
+		}
+		await studentRepo.saveMany(students);
 
-                const result = await algorithm.generateGroups({
-                        programId: 'test-program',
-                        studentIds: students.map((s) => s.id),
-                        algorithmConfig: {
-                                targetGroupCount: 4,
-                                minGroupSize: 5,
-                                maxGroupSize: 7
-                        }
-                });
+		const result = await algorithm.generateGroups({
+			programId: 'test-program',
+			studentIds: students.map((s) => s.id),
+			algorithmConfig: {
+				targetGroupCount: 4,
+				minGroupSize: 5,
+				maxGroupSize: 7
+			}
+		});
 
-                expect(result.success).toBe(true);
-                if (result.success) {
-                        expect(result.groups).toHaveLength(4);
-                        const sizes = result.groups.map((g) => g.memberIds.length);
-                        expect(Math.min(...sizes)).toBeGreaterThanOrEqual(5);
-                        expect(Math.max(...sizes)).toBeLessThanOrEqual(7);
-                        expect(result.groups.flatMap((g) => g.memberIds)).toHaveLength(25);
-                }
-        });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.groups).toHaveLength(4);
+			const sizes = result.groups.map((g) => g.memberIds.length);
+			expect(Math.min(...sizes)).toBeGreaterThanOrEqual(5);
+			expect(Math.max(...sizes)).toBeLessThanOrEqual(7);
+			expect(result.groups.flatMap((g) => g.memberIds)).toHaveLength(25);
+		}
+	});
 
-        it('should return error for empty student list', async () => {
-                const result = await algorithm.generateGroups({
-                        programId: 'test-program',
-                        studentIds: []
+	it('should return error for empty student list', async () => {
+		const result = await algorithm.generateGroups({
+			programId: 'test-program',
+			studentIds: []
 		});
 
 		expect(result.success).toBe(false);

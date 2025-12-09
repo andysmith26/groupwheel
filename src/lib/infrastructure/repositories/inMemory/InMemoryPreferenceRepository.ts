@@ -45,6 +45,9 @@ export class InMemoryPreferenceRepository implements PreferenceRepository {
 	 * Convenience for seeding/updating preferences.
 	 */
 	async setForProgram(programId: string, preferences: Preference[]): Promise<void> {
-		this.byProgram.set(programId, preferences.map((p) => ({ ...p })));
+		this.byProgram.set(
+			programId,
+			preferences.map((p) => ({ ...p }))
+		);
 	}
 }
