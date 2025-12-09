@@ -8,28 +8,24 @@
 		saveStatus = 'idle',
 		onUndo,
 		onRedo,
-		onRegenerate,
-		onExit,
-		onAdopt,
+		onStartOver,
 		onToggleAnalytics,
 		analyticsOpen = false,
 		metricSummary = '',
-		adoptDisabled = false,
-		onRetrySave
+		onRetrySave,
+		isRegenerating = false
 	} = $props<{
 		canUndo?: boolean;
 		canRedo?: boolean;
 		saveStatus?: SaveStatus;
 		onUndo?: () => void;
 		onRedo?: () => void;
-		onRegenerate?: () => void;
-		onExit?: () => void;
-		onAdopt?: () => void;
+		onStartOver?: () => void;
 		onToggleAnalytics?: () => void;
 		analyticsOpen?: boolean;
 		metricSummary?: string;
-		adoptDisabled?: boolean;
 		onRetrySave?: () => void;
+		isRegenerating?: boolean;
 	}>();
 </script>
 
@@ -67,25 +63,11 @@
 		<SaveStatusIndicator status={saveStatus} onRetry={onRetrySave} />
 		<button
 			type="button"
-			class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-			onclick={onRegenerate}
+			class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+			disabled={isRegenerating}
+			onclick={onStartOver}
 		>
-			Regenerate
-		</button>
-		<button
-			type="button"
-			class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-			onclick={onExit}
-		>
-			Exit
-		</button>
-		<button
-			type="button"
-			class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-			disabled={adoptDisabled}
-			onclick={onAdopt}
-		>
-			Adopt
+			{isRegenerating ? 'Regenerating...' : 'Start Over'}
 		</button>
 	</div>
 </div>
