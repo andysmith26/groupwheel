@@ -60,10 +60,7 @@ dave@example.com\tcarol@example.com\talice@example.com`;
 	await expect(studentViewLink).toBeVisible();
 
 	// Open student view and verify
-	const [studentPage] = await Promise.all([
-		page.waitForEvent('popup'),
-		studentViewLink.click()
-	]);
+	const [studentPage] = await Promise.all([page.waitForEvent('popup'), studentViewLink.click()]);
 	await expect(studentPage).toHaveURL(/\/scenarios\/[^/]+\/student-view/);
 	await expect(studentPage.getByRole('heading', { name: 'Student Groups' })).toBeVisible();
 });

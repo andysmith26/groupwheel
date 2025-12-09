@@ -162,6 +162,7 @@ Saturns\t4`;
                                 id="target-count"
                                 type="number"
                                 min="1"
+                                step="1"
                                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 value={groupConfig.targetGroupCount ?? ''}
                                 oninput={(e) =>
@@ -183,6 +184,7 @@ Saturns\t4`;
                                 id="min-size"
                                 type="number"
                                 min="1"
+                                step="1"
                                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 value={groupConfig.minSize ?? ''}
                                 oninput={(e) =>
@@ -201,6 +203,7 @@ Saturns\t4`;
                                 id="max-size"
                                 type="number"
                                 min="1"
+                                step="1"
                                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 value={groupConfig.maxSize ?? ''}
                                 oninput={(e) =>

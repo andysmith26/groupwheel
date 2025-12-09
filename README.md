@@ -130,6 +130,7 @@ See [docs/domain_model.md](docs/domain_model.md) for the complete conceptual mod
 ### Core Entities (MVP Implemented)
 
 **Student**
+
 ```typescript
 {
   id: string;
@@ -140,6 +141,7 @@ See [docs/domain_model.md](docs/domain_model.md) for the complete conceptual mod
 ```
 
 **Pool** (Roster)
+
 ```typescript
 {
   id: string;
@@ -152,6 +154,7 @@ See [docs/domain_model.md](docs/domain_model.md) for the complete conceptual mod
 ```
 
 **Program** (Grouping Activity)
+
 ```typescript
 {
   id: string;
@@ -165,6 +168,7 @@ See [docs/domain_model.md](docs/domain_model.md) for the complete conceptual mod
 ```
 
 **Scenario** (Generated Grouping)
+
 ```typescript
 {
   id: string;
@@ -177,6 +181,7 @@ See [docs/domain_model.md](docs/domain_model.md) for the complete conceptual mod
 ```
 
 **Group**
+
 ```typescript
 {
   id: string;
@@ -188,12 +193,13 @@ See [docs/domain_model.md](docs/domain_model.md) for the complete conceptual mod
 ```
 
 **Preference**
+
 ```typescript
 {
-  id: string;
-  programId: string;
-  studentId: string;
-  payload: unknown;  // Flexible preference data (e.g., ranked list)
+	id: string;
+	programId: string;
+	studentId: string;
+	payload: unknown; // Flexible preference data (e.g., ranked list)
 }
 ```
 
@@ -284,6 +290,7 @@ For strategic choices (scope, architecture, product, process):
 - Utility functions in `src/lib/utils/`
 
 Example:
+
 ```bash
 npm run test:unit
 ```
@@ -299,6 +306,7 @@ npm run test:unit
 - Full wizard completion, scenario generation, analytics display
 
 Example:
+
 ```bash
 npm run test:e2e
 ```

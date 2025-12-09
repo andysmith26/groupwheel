@@ -268,9 +268,7 @@ export interface TestFixtureResult {
  * @param env - The in-memory environment to seed
  * @returns The created/existing program and pool
  */
-export async function createTestFixtures(
-	env: InMemoryEnvironment
-): Promise<TestFixtureResult> {
+export async function createTestFixtures(env: InMemoryEnvironment): Promise<TestFixtureResult> {
 	const existingProgram = await env.programRepo.getById(testProgram.id);
 	const existingPool = await env.poolRepo.getById(testPool.id);
 

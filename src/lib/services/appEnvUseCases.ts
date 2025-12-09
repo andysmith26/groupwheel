@@ -1,5 +1,8 @@
 import type { InMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
-import type { CreateProgramInput, CreateProgramError } from '$lib/application/useCases/createProgram';
+import type {
+	CreateProgramInput,
+	CreateProgramError
+} from '$lib/application/useCases/createProgram';
 import { createProgram as runCreateProgram } from '$lib/application/useCases/createProgram';
 import type {
 	GenerateScenarioInput,
