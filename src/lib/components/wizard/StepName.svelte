@@ -67,12 +67,12 @@
                         : groupConfig.targetGroupCount ?? Math.max(1, Math.round(students.length / 5))
         });
 
-        let sizeSummary = $derived(() => {
-                const parts: string[] = [];
-                if (groupConfig.minSize) parts.push(`min ${groupConfig.minSize}`);
-                if (groupConfig.maxSize) parts.push(`max ${groupConfig.maxSize}`);
-                return parts.join(' · ');
-        });
+        let sizeSummary = $derived(
+                [groupConfig.minSize && `min ${groupConfig.minSize}`,
+                 groupConfig.maxSize && `max ${groupConfig.maxSize}`]
+                        .filter(Boolean)
+                        .join(' · ')
+        );
 </script>
 
 <div class="space-y-6">
