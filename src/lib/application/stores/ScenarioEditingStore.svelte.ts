@@ -375,12 +375,14 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			return { ok: false, reason: 'unknown_student' };
 		}
 
-		const sourceGroup = command.source === 'unassigned'
-			? null
-			: state.groups.find((group) => group.id === command.source);
-		const targetGroup = command.target === 'unassigned'
-			? null
-			: state.groups.find((group) => group.id === command.target);
+		const sourceGroup =
+			command.source === 'unassigned'
+				? null
+				: state.groups.find((group) => group.id === command.source);
+		const targetGroup =
+			command.target === 'unassigned'
+				? null
+				: state.groups.find((group) => group.id === command.target);
 
 		if (command.source !== 'unassigned' && !sourceGroup) {
 			return { ok: false, reason: 'unknown_source' };
@@ -389,8 +391,9 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			return { ok: false, reason: 'unknown_target' };
 		}
 
-		const currentGroupId = state.groups.find((group) => group.memberIds.includes(command.studentId))
-			?.id;
+		const currentGroupId = state.groups.find((group) =>
+			group.memberIds.includes(command.studentId)
+		)?.id;
 		const isCurrentlyUnassigned = !currentGroupId;
 
 		if (command.source === 'unassigned' && !isCurrentlyUnassigned) {

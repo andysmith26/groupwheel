@@ -2,14 +2,15 @@
 	/**
 	 * StepName.svelte
 	 *
-	 * Step 3 of the Create Groups wizard: name the activity and review.
+         * Final step of the Create Groups wizard: name the activity and review.
 	 * Shows summary of what will be created before final submission.
 	 */
 
-	import type {
-		ParsedStudent,
-		ParsedPreference
-	} from '$lib/application/useCases/createGroupingActivity';
+        import type {
+                ParsedStudent,
+                ParsedPreference
+        } from '$lib/application/useCases/createGroupingActivity';
+        import type { GroupShellConfig } from './StepGroups.svelte';
 
 	interface Props {
 		/** Activity name (bound to parent) */
@@ -21,8 +22,11 @@
 		/** Students from Step 1 */
 		students: ParsedStudent[];
 
-		/** Preferences from Step 2 */
-		preferences: ParsedPreference[];
+                /** Preferences from preferences step */
+                preferences: ParsedPreference[];
+
+                /** Group shells + constraints from groups step */
+                groupConfig: GroupShellConfig;
 
 		/** Whether we're reusing an existing roster */
 		isReusingRoster: boolean;
@@ -32,13 +36,14 @@
 	}
 
 	let {
-		activityName,
-		onNameChange,
-		students,
-		preferences,
-		isReusingRoster,
-		reusedRosterName
-	}: Props = $props();
+                activityName,
+                onNameChange,
+                students,
+                groupConfig,
+                preferences,
+                isReusingRoster,
+                reusedRosterName
+        }: Props = $props();
 
 	// Example activity names for placeholder inspiration
 	const exampleNames = [
@@ -53,11 +58,21 @@
 	const placeholderExample = exampleNames[Math.floor(Math.random() * exampleNames.length)];
 
 	// Stats for summary
-	let stats = $derived({
-		studentCount: students.length,
-		prefsCount: preferences.length,
-		prefsPercent: students.length > 0 ? Math.round((preferences.length / students.length) * 100) : 0
-	});
+        let stats = $derived({
+                studentCount: students.length,
+                prefsCount: preferences.length,
+                prefsPercent: students.length > 0 ? Math.round((preferences.length / students.length) * 100) : 0,
+                groupCount: groupConfig.groups.length > 0
+                        ? groupConfig.groups.length
+                        : groupConfig.targetGroupCount ?? Math.max(1, Math.round(students.length / 5))
+        });
+
+        let sizeSummary = $derived(
+                [groupConfig.minSize && `min ${groupConfig.minSize}`,
+                 groupConfig.maxSize && `max ${groupConfig.maxSize}`]
+                        .filter(Boolean)
+                        .join(' · ')
+        );
 </script>
 
 <div class="space-y-6">
@@ -92,11 +107,11 @@
 
 		<div class="mt-3 space-y-2">
 			<!-- Students -->
-			<div class="flex items-center gap-2">
-				<span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100">
-					<svg class="h-3 w-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
+                        <div class="flex items-center gap-2">
+                                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100">
+                                        <svg class="h-3 w-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                        stroke-linecap="round"
 							stroke-linejoin="round"
 							stroke-width="2"
 							d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
@@ -108,8 +123,43 @@
 					{#if isReusingRoster && reusedRosterName}
 						<span class="text-gray-500">(from "{reusedRosterName}")</span>
 					{/if}
-				</span>
-			</div>
+                                </span>
+                        </div>
+
+                        <!-- Groups -->
+                        <div class="flex items-center gap-2">
+                                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100">
+                                        <svg
+                                                class="h-3 w-3 text-amber-600"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                        >
+                                                <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z"
+                                                ></path>
+                                        </svg>
+                                </span>
+                                <div class="text-sm text-gray-700">
+                                        <div>
+                                                <strong>{stats.groupCount}</strong>
+                                                {groupConfig.groups.length > 0 ? 'named groups' : 'groups planned'}
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                                {#if groupConfig.groups.length > 0}
+                                                        {groupConfig.groups.slice(0, 2).map((g) => g.name).join(', ')}
+                                                        {#if groupConfig.groups.length > 2}
+                                                                ... +{groupConfig.groups.length - 2} more
+                                                        {/if}
+                                                {:else}
+                                                        {sizeSummary ? `${sizeSummary}, ` : ''}auto-sized
+                                                {/if}
+                                        </div>
+                                </div>
+                        </div>
 
 			<!-- Preferences -->
 			<div class="flex items-center gap-2">

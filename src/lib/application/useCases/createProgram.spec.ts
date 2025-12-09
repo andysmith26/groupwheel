@@ -196,7 +196,10 @@ describe('createProgram', () => {
 				primaryPoolId: validPool.id
 			};
 
-			const result = await createProgram({ poolRepo, programRepo: failingProgramRepo, idGenerator }, input);
+			const result = await createProgram(
+				{ poolRepo, programRepo: failingProgramRepo, idGenerator },
+				input
+			);
 
 			const error = expectErrType<CreateProgramError, 'INTERNAL_ERROR'>(result, 'INTERNAL_ERROR');
 			expect(error.message).toContain('Database connection failed');

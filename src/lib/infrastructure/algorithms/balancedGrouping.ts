@@ -16,6 +16,17 @@ export interface BalancedGroupingConfig {
 	groups?: Array<{ id?: string; name: string; capacity?: number | null }>;
 
 	/**
+	 * Desired number of groups when auto-generating.
+	 */
+	targetGroupCount?: number;
+
+	/** Minimum allowed group size when auto-generating. */
+	minGroupSize?: number;
+
+	/** Maximum allowed group size when auto-generating. */
+	maxGroupSize?: number;
+
+	/**
 	 * Number of swap iterations for optimization (default: 300).
 	 */
 	swapBudget?: number;
@@ -106,7 +117,7 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 				}));
 			} else {
 				// Generate default groups
-				groups = this.generateDefaultGroups(params.studentIds.length);
+				groups = this.generateDefaultGroups(params.studentIds.length, config);
 			}
 
 			// Call balanced assignment algorithm
@@ -140,36 +151,49 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 	 * Generate default groups based on student count.
 	 * Targets 4-6 students per group, with an ideal size of 5.
 	 */
-	private generateDefaultGroups(studentCount: number): Group[] {
-		const idealGroupSize = 5;
-		const minGroupSize = 4;
-		const maxGroupSize = 6;
+	private generateDefaultGroups(studentCount: number, config: BalancedGroupingConfig): Group[] {
+		const defaultMin = 4;
+		const defaultMax = 6;
+		let minGroupSize = config.minGroupSize ?? defaultMin;
+		let maxGroupSize = config.maxGroupSize ?? defaultMax;
+
+		if (minGroupSize < 1) minGroupSize = 1;
+		if (maxGroupSize !== undefined && maxGroupSize < minGroupSize) {
+			maxGroupSize = minGroupSize; // Clamp max to min
+		}
+
+		const idealGroupSize = Math.min(Math.max(5, minGroupSize), maxGroupSize ?? Infinity);
 
 		// Calculate number of groups
-		let numGroups = Math.round(studentCount / idealGroupSize);
-		if (numGroups === 0) numGroups = 1;
+		let numGroups = config.targetGroupCount ?? Math.round(studentCount / idealGroupSize);
+		if (numGroups <= 0) numGroups = 1;
 
-		// Ensure we don't have groups that are too small or too large
-		const avgGroupSize = studentCount / numGroups;
-		if (avgGroupSize < minGroupSize && numGroups > 1) {
+		// Adjust to respect min/max averages
+		let avgGroupSize = studentCount / numGroups;
+		while (avgGroupSize < minGroupSize && numGroups > 1) {
 			numGroups--;
-		} else if (avgGroupSize > maxGroupSize) {
-			numGroups++;
+			avgGroupSize = studentCount / numGroups;
+		}
+		if (maxGroupSize) {
+			while (avgGroupSize > maxGroupSize) {
+				numGroups++;
+				avgGroupSize = studentCount / numGroups;
+			}
 		}
 
 		// Calculate capacity for each group to ensure balanced distribution
-		// Use ceiling division to handle remainders
-		// Generate groups with capacity constraints
 		const groups: Group[] = [];
 		let remainingStudents = studentCount;
 		for (let i = 1; i <= numGroups; i++) {
 			const remainingGroups = numGroups - i + 1;
-			const capacity = Math.ceil(remainingStudents / remainingGroups);
+			const baseCapacity = Math.ceil(remainingStudents / remainingGroups);
+			const capped = maxGroupSize ? Math.min(baseCapacity, maxGroupSize) : baseCapacity;
+			const capacity = Math.max(capped, minGroupSize);
 
 			groups.push({
 				id: this.idGenerator.generateId(),
 				name: `Group ${i}`,
-				capacity: capacity,
+				capacity,
 				memberIds: []
 			});
 

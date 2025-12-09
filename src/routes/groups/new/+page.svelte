@@ -15,15 +15,17 @@
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { Pool } from '$lib/domain';
-	import { createGroupingActivity, generateScenario } from '$lib/services/appEnvUseCases';
-	import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
-	import { isErr } from '$lib/types/result';
+        import { createGroupingActivity, generateScenario } from '$lib/services/appEnvUseCases';
+        import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
+        import { isErr } from '$lib/types/result';
 
-	import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
-	import StepSelectRoster from '$lib/components/wizard/StepSelectRoster.svelte';
-	import StepStudents from '$lib/components/wizard/StepStudents.svelte';
-	import StepPreferences from '$lib/components/wizard/StepPreferences.svelte';
-	import StepName from '$lib/components/wizard/StepName.svelte';
+        import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
+        import StepSelectRoster from '$lib/components/wizard/StepSelectRoster.svelte';
+        import StepStudents from '$lib/components/wizard/StepStudents.svelte';
+        import StepGroups from '$lib/components/wizard/StepGroups.svelte';
+        import StepPreferences from '$lib/components/wizard/StepPreferences.svelte';
+        import StepName from '$lib/components/wizard/StepName.svelte';
+        import type { GroupShellConfig } from '$lib/components/wizard/StepGroups.svelte';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -91,26 +93,33 @@
 	// --- Wizard state ---
 
 	// Step management
-	// Steps: 0 = select roster (only if returning user), 1 = students, 2 = preferences, 3 = name
-	let currentStep = $state(0);
-	let hasExistingRosters = $derived(existingRosters.length > 0);
+        // Steps: 0 = select roster (only if returning user), 1 = students, 2 = groups, 3 = preferences, 4 = name
+        let currentStep = $state(0);
+        let hasExistingRosters = $derived(existingRosters.length > 0);
 
-	// Determine actual step sequence based on whether user is new or returning
-	let stepLabels = $derived(
-		hasExistingRosters
-			? ['Start', 'Students', 'Preferences', 'Name']
-			: ['Students', 'Preferences', 'Name']
-	);
-	let totalSteps = $derived(stepLabels.length);
+        // Determine actual step sequence based on whether user is new or returning
+        let stepLabels = $derived(
+                hasExistingRosters
+                        ? ['Start', 'Students', 'Groups', 'Preferences', 'Name']
+                        : ['Students', 'Groups', 'Preferences', 'Name']
+        );
+        let totalSteps = $derived(stepLabels.length);
 
 	// Normalize step for display (1-indexed for progress indicator)
 	let displayStep = $derived(currentStep + 1);
 
 	// Data collected through wizard
-	let selectedRosterId = $state<string | null>(null);
-	let students = $state<ParsedStudent[]>([]);
-	let preferences = $state<ParsedPreference[]>([]);
-	let activityName = $state('');
+        let selectedRosterId = $state<string | null>(null);
+        let students = $state<ParsedStudent[]>([]);
+        let preferences = $state<ParsedPreference[]>([]);
+        let activityName = $state('');
+        let groupConfig = $state<GroupShellConfig>({
+                groups: [],
+                targetGroupCount: null,
+                minSize: 4,
+                maxSize: 6
+        });
+        let groupsValid = $state(true);
 
 	// Submission state
 	let isSubmitting = $state(false);
@@ -124,35 +133,39 @@
 			switch (currentStep) {
 				case 0: // Select roster
 					return true; // Always can proceed (either new or existing selected)
-				case 1: // Students
-					return selectedRosterId !== null || students.length > 0;
-				case 2: // Preferences
-					return true; // Optional step
-				case 3: // Name
-					return activityName.trim().length > 0;
-			}
-		} else {
-			// New user flow (no roster selection)
-			switch (currentStep) {
-				case 0: // Students
-					return students.length > 0;
-				case 1: // Preferences
-					return true; // Optional step
-				case 2: // Name
-					return activityName.trim().length > 0;
-			}
-		}
-		return false;
-	}
+                                case 1: // Students
+                                        return selectedRosterId !== null || students.length > 0;
+                                case 2: // Groups
+                                        return groupsValid;
+                                case 3: // Preferences
+                                        return true; // Optional step
+                                case 4: // Name
+                                        return activityName.trim().length > 0;
+                        }
+                } else {
+                        // New user flow (no roster selection)
+                        switch (currentStep) {
+                                case 0: // Students
+                                        return students.length > 0;
+                                case 1: // Groups
+                                        return groupsValid;
+                                case 2: // Preferences
+                                        return true; // Optional step
+                                case 3: // Name
+                                        return activityName.trim().length > 0;
+                        }
+                }
+                return false;
+        }
 
-	function nextStep() {
-		// Special handling: if reusing roster, skip students step
-		if (hasExistingRosters && currentStep === 0 && selectedRosterId !== null) {
-			// Load students from selected pool
-			loadStudentsFromPool(selectedRosterId);
-			currentStep = 2; // Skip to preferences
-			return;
-		}
+        function nextStep() {
+                // Special handling: if reusing roster, skip students step
+                if (hasExistingRosters && currentStep === 0 && selectedRosterId !== null) {
+                        // Load students from selected pool
+                        loadStudentsFromPool(selectedRosterId);
+                        currentStep = 2; // Jump to groups
+                        return;
+                }
 
 		if (currentStep < totalSteps - 1) {
 			currentStep++;
@@ -161,13 +174,13 @@
 
 	function prevStep() {
 		if (currentStep > 0) {
-			// If we skipped students step, go back to roster selection
-			if (hasExistingRosters && currentStep === 2 && selectedRosterId !== null) {
-				currentStep = 0;
-				return;
-			}
-			currentStep--;
-		}
+                        // If we skipped students step, go back to roster selection
+                        if (hasExistingRosters && currentStep === 2 && selectedRosterId !== null) {
+                                currentStep = 0;
+                                return;
+                        }
+                        currentStep--;
+                }
 	}
 
 	async function loadStudentsFromPool(poolId: string) {
@@ -216,14 +229,38 @@
 		students = parsed;
 	}
 
-	function handlePreferencesParsed(parsed: ParsedPreference[], _warnings: string[]) {
-		void _warnings;
-		preferences = parsed;
-	}
+        function handlePreferencesParsed(parsed: ParsedPreference[], _warnings: string[]) {
+                void _warnings;
+                preferences = parsed;
+        }
 
-	function handleNameChange(name: string) {
-		activityName = name;
-	}
+        function handleGroupConfigChange(config: GroupShellConfig) {
+                groupConfig = config;
+        }
+
+        function handleGroupValidityChange(isValid: boolean) {
+                groupsValid = isValid;
+        }
+
+        function handleNameChange(name: string) {
+                activityName = name;
+        }
+
+        function buildAlgorithmConfig() {
+                const sanitizedGroups = groupConfig.groups
+                        .filter((g) => g.name.trim().length > 0)
+                        .map((g) => ({
+                                name: g.name.trim(),
+                                capacity: Number.isFinite(g.capacity ?? NaN) ? g.capacity : null
+                        }));
+
+                return {
+                        groups: sanitizedGroups.length > 0 ? sanitizedGroups : undefined,
+                        targetGroupCount: groupConfig.targetGroupCount ?? undefined,
+                        minGroupSize: groupConfig.minSize ?? undefined,
+                        maxGroupSize: groupConfig.maxSize ?? undefined
+                } as const;
+        }
 
 	// --- Submission ---
 
@@ -260,7 +297,10 @@
 			const { program } = result.value;
 
 			// Step 2: AUTO-GENERATE groups
-			const generateResult = await generateScenario(env, { programId: program.id });
+                        const generateResult = await generateScenario(env, {
+                                programId: program.id,
+                                algorithmConfig: buildAlgorithmConfig()
+                        });
 
 			if (isErr(generateResult)) {
 				// Activity created but generation failed - still redirect,
@@ -299,30 +339,34 @@
 	let isFirstStep = $derived(currentStep === 0);
 
 	// Determine which step component to show
-	let activeStepType = $derived.by(() => {
-		if (hasExistingRosters) {
-			switch (currentStep) {
-				case 0:
-					return 'select-roster';
-				case 1:
-					return 'students';
-				case 2:
-					return 'preferences';
-				case 3:
-					return 'name';
-			}
-		} else {
-			switch (currentStep) {
-				case 0:
-					return 'students';
-				case 1:
-					return 'preferences';
-				case 2:
-					return 'name';
-			}
-		}
-		return 'students';
-	});
+        let activeStepType = $derived.by(() => {
+                if (hasExistingRosters) {
+                        switch (currentStep) {
+                                case 0:
+                                        return 'select-roster';
+                                case 1:
+                                        return 'students';
+                                case 2:
+                                        return 'groups';
+                                case 3:
+                                        return 'preferences';
+                                case 4:
+                                        return 'name';
+                        }
+                } else {
+                        switch (currentStep) {
+                                case 0:
+                                        return 'students';
+                                case 1:
+                                        return 'groups';
+                                case 2:
+                                        return 'preferences';
+                                case 3:
+                                        return 'name';
+                        }
+                }
+                return 'students';
+        });
 
 	// For roster reuse context in name step
 	let isReusingRoster = $derived(selectedRosterId !== null);
@@ -363,20 +407,28 @@
 			</div>
 		{:else if activeStepType === 'select-roster'}
 			<StepSelectRoster {existingRosters} {selectedRosterId} onSelect={handleRosterSelect} />
-		{:else if activeStepType === 'students'}
-			<StepStudents {students} onStudentsParsed={handleStudentsParsed} />
-		{:else if activeStepType === 'preferences'}
-			<StepPreferences {students} {preferences} onPreferencesParsed={handlePreferencesParsed} />
-		{:else if activeStepType === 'name'}
-			<StepName
-				{activityName}
+                {:else if activeStepType === 'students'}
+                        <StepStudents {students} onStudentsParsed={handleStudentsParsed} />
+                {:else if activeStepType === 'groups'}
+                        <StepGroups
+                                {students}
+                                groupConfig={groupConfig}
+                                onConfigChange={handleGroupConfigChange}
+                                onValidityChange={handleGroupValidityChange}
+                        />
+                {:else if activeStepType === 'preferences'}
+                        <StepPreferences {students} {preferences} onPreferencesParsed={handlePreferencesParsed} />
+                {:else if activeStepType === 'name'}
+                        <StepName
+                                {activityName}
 				onNameChange={handleNameChange}
-				{students}
-				{preferences}
-				{isReusingRoster}
-				{reusedRosterName}
-			/>
-		{/if}
+                                {students}
+                                groupConfig={groupConfig}
+                                {preferences}
+                                {isReusingRoster}
+                                {reusedRosterName}
+                        />
+                {/if}
 	</div>
 
 	<!-- Error display -->

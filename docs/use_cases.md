@@ -192,6 +192,7 @@ Later (Future)
 ## 11. Implementation notes
 
 ✅ **Completed (Dec 2025):**
+
 - Domain model fully implemented in `src/lib/domain/` with factories and validation
 - Hexagonal architecture with clean separation (domain/application/infrastructure/UI layers)
 - All MVP use cases implemented as functions in `src/lib/application/useCases/`
@@ -200,6 +201,7 @@ Later (Future)
 - Student view at `/scenarios/[id]/student-view` for classroom presentation
 
 **Technical implementation:**
+
 - Use cases accept `deps` objects (ports) and return `Result<Success, Error>` types
 - Domain entities validated via factory functions (e.g., `createPool`, `createScenario`)
 - InMemory repositories for MVP (swappable via ports for future persistence)
