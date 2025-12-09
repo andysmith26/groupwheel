@@ -199,7 +199,7 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
                                 memberIds: []
                         });
 
-                        remainingStudents -= baseCapacity;
+                        remainingStudents -= capacity;
                 }
 
                 return groups;
