@@ -105,7 +105,16 @@ Saturns\t4`;
 
                         const capacityCell = cells[1] ?? '';
                         const parsedCapacity = capacityCell ? Number(capacityCell) : NaN;
-                        const capacity = Number.isFinite(parsedCapacity) ? parsedCapacity : null;
+                        let capacity: number | null;
+                        if (Number.isFinite(parsedCapacity)) {
+                                if (parsedCapacity <= 0) {
+                                        parseError = `Row ${i + 1}: capacity must be positive (got ${parsedCapacity})`;
+                                        break;
+                                }
+                                capacity = parsedCapacity;
+                        } else {
+                                capacity = null;
+                        }
 
                         parsed.push({ name: normalizedName, capacity });
                         seenNames.add(normalizedName.toLowerCase());
