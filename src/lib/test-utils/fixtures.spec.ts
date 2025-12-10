@@ -75,7 +75,7 @@ describe('Test Fixtures with Balanced Grouping', () => {
 
 		it('should include group preferences', async () => {
 			const env = createInMemoryEnvironment();
-			const { program, preferences } = await createTestFixtures(env, 'medium');
+			const { preferences } = await createTestFixtures(env, 'medium');
 
 			const lunaPrefs = preferences.find((p) => p.studentId === 'stu-12');
 			expect(lunaPrefs?.payload.likeGroupIds).toContain('grp-1'); // Luna wants Group Alpha
