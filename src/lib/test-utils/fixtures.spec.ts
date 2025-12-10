@@ -126,7 +126,7 @@ describe('Test Fixtures with Balanced Grouping', () => {
 	describe('Large Dataset', () => {
 		it('should create large dataset with 20 students', async () => {
 			const env = createInMemoryEnvironment();
-			const { students, pool, program, groups, preferences } = await createTestFixtures(
+			const { students, pool, groups, preferences } = await createTestFixtures(
 				env,
 				'large'
 			);
