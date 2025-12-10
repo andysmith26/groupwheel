@@ -14,7 +14,10 @@
 		onSelect,
 		onDragStart,
 		onDragEnd,
-		flashingIds = new Set<string>()
+		flashingIds = new Set<string>(),
+		onUpdateGroup,
+		onDeleteGroup,
+		focusNameOnMount = false
 	} = $props<{
 		group: Group;
 		studentsById: Record<string, Student>;
@@ -26,9 +29,37 @@
 		onDragStart?: (id: string) => void;
 		onDragEnd?: () => void;
 		flashingIds?: Set<string>;
+		onUpdateGroup?: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
+		onDeleteGroup?: (groupId: string) => void;
+		focusNameOnMount?: boolean;
 	}>();
 
+	import { onMount, tick } from 'svelte';
+
 	const capacityStatus = $derived(getCapacityStatus(group));
+
+	// Menu state
+	let menuOpen = $state(false);
+
+	// Input references
+	let nameInput: HTMLInputElement;
+
+	// Local editing state to handle validation
+	let editingName = $state(group.name);
+	let nameError = $state('');
+
+	// Sync local state when group changes externally
+	$effect(() => {
+		editingName = group.name;
+	});
+
+	onMount(async () => {
+		if (focusNameOnMount) {
+			await tick();
+			nameInput?.focus();
+			nameInput?.select();
+		}
+	});
 
 	function handleDrop(event: {
 		draggedItem: { id: string };
@@ -42,26 +73,122 @@
 			target: event.targetContainer
 		});
 	}
+
+	function handleNameInput(e: Event) {
+		const value = (e.target as HTMLInputElement).value;
+		editingName = value;
+		nameError = '';
+		onUpdateGroup?.(group.id, { name: value });
+	}
+
+	function handleNameBlur() {
+		const trimmed = editingName.trim();
+		if (trimmed.length === 0) {
+			// Revert to original name if empty
+			editingName = group.name;
+			nameError = '';
+		} else if (trimmed !== editingName) {
+			editingName = trimmed;
+			onUpdateGroup?.(group.id, { name: trimmed });
+		}
+	}
+
+	function handleCapacityInput(e: Event) {
+		const value = (e.target as HTMLInputElement).value;
+		const parsed = value === '' ? null : parseInt(value, 10);
+		const capacity = Number.isNaN(parsed) || (parsed !== null && parsed <= 0) ? null : parsed;
+		onUpdateGroup?.(group.id, { capacity });
+	}
+
+	function toggleMenu() {
+		menuOpen = !menuOpen;
+	}
+
+	function handleDeleteClick() {
+		menuOpen = false;
+		onDeleteGroup?.(group.id);
+	}
+
+	function handleClickOutside(event: MouseEvent) {
+		if (menuOpen) {
+			menuOpen = false;
+		}
+	}
 </script>
 
-<div class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-	<div class="flex items-center justify-between">
-		<div>
-			<p class="text-sm font-semibold text-gray-900">{group.name}</p>
-			<p class="text-xs text-gray-600">
-				{group.memberIds.length}/{group.capacity ?? '∞'} students
-			</p>
+<svelte:window onclick={handleClickOutside} />
+
+<div class="relative flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+	<div class="flex items-center justify-between gap-2">
+		<div class="min-w-0 flex-1">
+			<input
+				bind:this={nameInput}
+				type="text"
+				class="w-full border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold text-gray-900 hover:border-gray-300 focus:border-blue-500 focus:ring-0"
+				value={editingName}
+				oninput={handleNameInput}
+				onblur={handleNameBlur}
+				aria-label="Group name"
+			/>
+			<div class="mt-0.5 flex items-center gap-1 px-1 text-xs text-gray-600">
+				<span>{group.memberIds.length}</span>
+				<span>/</span>
+				<input
+					type="number"
+					min="1"
+					class="w-8 border-0 border-b border-transparent bg-transparent text-center text-xs hover:border-gray-300 focus:border-blue-500 focus:ring-0"
+					value={group.capacity ?? ''}
+					placeholder="--"
+					oninput={handleCapacityInput}
+					aria-label="Group capacity"
+				/>
+			</div>
 		</div>
-		<div
-			class={`rounded-full px-3 py-1 text-xs font-semibold ${
-				capacityStatus.isFull
-					? 'bg-red-100 text-red-700'
-					: capacityStatus.isWarning
-						? 'bg-amber-100 text-amber-700'
-						: 'bg-gray-200 text-gray-700'
-			}`}
-		>
-			{group.capacity === null ? 'No limit' : `${group.memberIds.length}/${group.capacity}`}
+		<div class="flex items-center gap-2">
+			<div
+				class={`rounded-full px-3 py-1 text-xs font-semibold ${
+					capacityStatus.isFull
+						? 'bg-red-100 text-red-700'
+						: capacityStatus.isWarning
+							? 'bg-amber-100 text-amber-700'
+							: 'bg-gray-200 text-gray-700'
+				}`}
+			>
+				{group.capacity === null ? 'No limit' : `${group.memberIds.length}/${group.capacity}`}
+			</div>
+			{#if onDeleteGroup}
+				<div class="relative">
+					<button
+						type="button"
+						class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+						onclick={(e) => {
+							e.stopPropagation();
+							toggleMenu();
+						}}
+						aria-label="Group options"
+					>
+						<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+							<path
+								d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+							/>
+						</svg>
+					</button>
+					{#if menuOpen}
+						<div
+							class="absolute right-0 z-10 mt-1 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+							onclick={(e) => e.stopPropagation()}
+						>
+							<button
+								type="button"
+								class="w-full whitespace-nowrap px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+								onclick={handleDeleteClick}
+							>
+								Delete group
+							</button>
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	</div>
 
