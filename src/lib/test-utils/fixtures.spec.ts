@@ -99,7 +99,7 @@ describe('Test Fixtures with Balanced Grouping', () => {
 	describe('Small Dataset', () => {
 		it('should create small dataset with 8 students', async () => {
 			const env = createInMemoryEnvironment();
-			const { students, pool, program, groups, preferences } = await createTestFixtures(
+			const { students, pool, groups, preferences } = await createTestFixtures(
 				env,
 				'small'
 			);
