@@ -468,7 +468,7 @@ export const largeProgram: Program = {
  * Multiple friend groups:
  * - Aiden ↔ Bella ↔ Carter (triangle)
  * - Dylan ↔ Emma
- * - Felix ↔ Grace ↔ Henry ↔ Iris (quad)
+ * - Felix, Grace, Henry, and Iris (interconnected group centered around Grace and Henry; not a complete quad)
  * - Jack ↔ Kai
  * - Lily ↔ Mason ↔ Nova (triangle)
  *
