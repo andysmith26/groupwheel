@@ -9,18 +9,15 @@ Friend Hat follows **hexagonal architecture** (ports & adapters) with clean sepa
 - **Domain Layer** (`src/lib/domain/`) — Pure business logic with no framework dependencies
   - Contains domain types, factories, validators
   - No references to Svelte, HTTP, fetch, browser APIs, localStorage, etc.
-  
 - **Application Layer** (`src/lib/application/`)
   - **Ports** (`ports/`) — Interface definitions for repositories and services
   - **Use Cases** (`useCases/`) — Business operations as functions (not classes)
   - Use cases accept `deps` parameter with port interfaces
   - Use cases return `Result<Success, Error>` types (no thrown business errors)
-  
 - **Infrastructure Layer** (`src/lib/infrastructure/`)
   - Implements ports with actual storage/service logic
   - Uses IndexedDB for persistence in browser, InMemory for tests
   - Environment composition via `createInMemoryEnvironment`
-  
 - **UI Layer** (SvelteKit routes & components)
   - Routes at `/groups/*`, `/scenarios/*`
   - Gets environment via context, calls use cases through facade helpers in `src/lib/services/appEnvUseCases.ts`
@@ -51,6 +48,7 @@ Friend Hat follows **hexagonal architecture** (ports & adapters) with clean sepa
 ### Code Patterns
 
 #### ID Generation
+
 Use `IdGenerator` port (dependency injection) for ID generation, not `crypto.randomUUID()` directly.
 
 ```typescript
@@ -58,6 +56,7 @@ const id = deps.idGenerator.generate();
 ```
 
 #### State Management
+
 Use Svelte 5 `$state` runes for reactive store state:
 
 ```typescript
@@ -65,6 +64,7 @@ let settings = $state({ theme: 'light' });
 ```
 
 #### Cleanup Pattern
+
 Clean up subscriptions and timeouts in `onDestroy` to prevent memory leaks:
 
 ```typescript
@@ -72,14 +72,16 @@ import { onDestroy } from 'svelte';
 
 let timeoutId: number;
 onDestroy(() => {
-  if (timeoutId) clearTimeout(timeoutId);
+	if (timeoutId) clearTimeout(timeoutId);
 });
 ```
 
 #### Auto-save Pattern
+
 Debounce auto-save with 500ms timeout to avoid excessive persistence calls.
 
 #### Wizard Patterns
+
 Wizard components pass config objects and validity state up via callbacks (`onConfigChange`, `onValidityChange`).
 
 ### Testing
