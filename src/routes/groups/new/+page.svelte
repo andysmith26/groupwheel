@@ -106,21 +106,24 @@
         // Track the previous mode to detect when it changes
         let previousGroupCreationMode = $state<'specific' | 'auto' | null>(null);
 
-        // Determine actual step sequence based on whether user is new or returning
-        // The "Groups" step is now the fork + optional shell builder
-        let stepLabels = $derived.by(() => {
-                if (hasExistingRosters) {
-                        if (groupCreationMode === 'specific') {
+        // Helper function to compute step labels based on mode and roster state
+        function computeStepLabels(mode: 'specific' | 'auto' | null, hasRosters: boolean): string[] {
+                if (hasRosters) {
+                        if (mode === 'specific') {
                                 return ['Start', 'Students', 'Groups', 'Define Groups', 'Preferences', 'Name'];
                         }
                         return ['Start', 'Students', 'Groups', 'Preferences', 'Name'];
                 } else {
-                        if (groupCreationMode === 'specific') {
+                        if (mode === 'specific') {
                                 return ['Students', 'Groups', 'Define Groups', 'Preferences', 'Name'];
                         }
                         return ['Students', 'Groups', 'Preferences', 'Name'];
                 }
-        });
+        }
+
+        // Determine actual step sequence based on whether user is new or returning
+        // The "Groups" step is now the fork + optional shell builder
+        let stepLabels = $derived.by(() => computeStepLabels(groupCreationMode, hasExistingRosters));
         let totalSteps = $derived(stepLabels.length);
 
         // Adjust currentStep when groupCreationMode changes
@@ -131,20 +134,7 @@
                         const currentStepLabel = stepLabels[currentStep];
                         
                         // Calculate the new step labels for the new mode
-                        let newStepLabels: string[];
-                        if (hasExistingRosters) {
-                                if (groupCreationMode === 'specific') {
-                                        newStepLabels = ['Start', 'Students', 'Groups', 'Define Groups', 'Preferences', 'Name'];
-                                } else {
-                                        newStepLabels = ['Start', 'Students', 'Groups', 'Preferences', 'Name'];
-                                }
-                        } else {
-                                if (groupCreationMode === 'specific') {
-                                        newStepLabels = ['Students', 'Groups', 'Define Groups', 'Preferences', 'Name'];
-                                } else {
-                                        newStepLabels = ['Students', 'Groups', 'Preferences', 'Name'];
-                                }
-                        }
+                        const newStepLabels = computeStepLabels(groupCreationMode, hasExistingRosters);
                         
                         // Find where the current step label appears in the new sequence
                         const newStepIndex = newStepLabels.findIndex(label => label === currentStepLabel);
