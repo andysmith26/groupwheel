@@ -46,7 +46,6 @@
 
 	// Local editing state to handle validation
 	let editingName = $state(group.name);
-	let nameError = $state('');
 
 	// Sync local state when group changes externally
 	$effect(() => {
