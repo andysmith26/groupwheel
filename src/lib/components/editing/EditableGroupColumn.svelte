@@ -110,7 +110,7 @@
 	}
 
 	function handleClickOutside(event: MouseEvent) {
-		if (menuOpen && menuContainer && !menuContainer.contains(event.target as Node)) {
+		if (menuOpen && menuContainer && event.target && !menuContainer.contains(event.target as Node)) {
 			menuOpen = false;
 		}
 	}
