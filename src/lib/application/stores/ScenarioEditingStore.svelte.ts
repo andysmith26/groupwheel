@@ -327,9 +327,6 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	// Coalescing support for rapid updates
 	private pendingUpdateCommand: UpdateGroupCommand | null = null;
 	private updateCoalesceTimeout: ReturnType<typeof setTimeout> | null = null;
-	private saveTimeout: ReturnType<typeof setTimeout> | null = null;
-	private analyticsTimeout: ReturnType<typeof setTimeout> | null = null;
-	private savedIdleTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	/**
 	 * Call this method to clean up all pending timeouts when the store is no longer needed.
