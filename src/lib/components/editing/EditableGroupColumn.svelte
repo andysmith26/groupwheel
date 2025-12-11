@@ -140,6 +140,7 @@
 					placeholder="--"
 					oninput={handleCapacityInput}
 					aria-label="Group capacity"
+					aria-invalid={group.capacity !== null && group.capacity <= 0}
 				/>
 			</div>
 		</div>
