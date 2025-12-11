@@ -7,7 +7,7 @@ import type {
 	ScenarioStatus
 } from '$lib/domain';
 import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
-import type { ScenarioRepository } from '$lib/application/ports';
+import type { ScenarioRepository, IdGenerator } from '$lib/application/ports';
 import { isGroupFull } from '$lib/domain/group';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'failed';
@@ -172,7 +172,13 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 	readonly subscribe = this.view.subscribe;
 
-	constructor(private readonly deps: { scenarioRepo: ScenarioRepository; debounceMs?: number }) {
+	constructor(
+		private readonly deps: {
+			scenarioRepo: ScenarioRepository;
+			idGenerator: IdGenerator;
+			debounceMs?: number;
+		}
+	) {
 		this.debounceMs = deps.debounceMs ?? DEFAULT_DEBOUNCE_MS;
 	}
 
@@ -262,7 +268,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		}
 
 		const newGroup: Group = {
-			id: crypto.randomUUID(),
+			id: this.deps.idGenerator.generateId(),
 			name: finalName,
 			capacity: null,
 			memberIds: []

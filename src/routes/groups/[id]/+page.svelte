@@ -125,7 +125,10 @@
 	}
 
 	function initializeEditingStore(s: Scenario) {
-		editingStore = new ScenarioEditingStore({ scenarioRepo: env!.scenarioRepo });
+		editingStore = new ScenarioEditingStore({
+			scenarioRepo: env!.scenarioRepo,
+			idGenerator: env!.idGenerator
+		});
 		editingStore.initialize(s, preferences);
 		editingStore.subscribe((value) => {
 			view = value;

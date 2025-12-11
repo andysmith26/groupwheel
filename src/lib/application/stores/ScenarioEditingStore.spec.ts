@@ -3,7 +3,14 @@ import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import type { Preference, Scenario } from '$lib/domain';
 import { ScenarioEditingStore } from './ScenarioEditingStore.svelte';
 import { InMemoryScenarioRepository } from '$lib/infrastructure/repositories/inMemory';
-import type { ScenarioRepository } from '$lib/application/ports';
+import type { ScenarioRepository, IdGenerator } from '$lib/application/ports';
+
+class MockIdGenerator implements IdGenerator {
+	private counter = 0;
+	generateId(): string {
+		return `test-id-${++this.counter}`;
+	}
+}
 
 function createScenario(): Scenario {
 	return {
@@ -37,7 +44,11 @@ afterEach(() => {
 describe('ScenarioEditingStore', () => {
 	it('moves students, tracks history, and supports undo/redo', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const result = store.dispatch({
@@ -71,7 +82,11 @@ describe('ScenarioEditingStore', () => {
 		const scenario = createScenario();
 		scenario.groups[1].capacity = 1; // g2 already has one member
 		const repo = new InMemoryScenarioRepository([scenario]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(scenario, preferences);
 
 		const result = store.dispatch({
@@ -90,7 +105,11 @@ describe('ScenarioEditingStore', () => {
 	it('debounces saves and transitions to saved then idle', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
 		const updateSpy = vi.spyOn(repo, 'update');
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.dispatch({
@@ -125,7 +144,7 @@ describe('ScenarioEditingStore', () => {
 			update: vi.fn().mockRejectedValue(new Error('nope')),
 			save: vi.fn().mockRejectedValue(new Error('still nope'))
 		};
-		const store = new ScenarioEditingStore({ scenarioRepo: failingRepo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({ scenarioRepo: failingRepo, idGenerator: new MockIdGenerator(), debounceMs: 10 });
 		store.initialize(createScenario(), preferences);
 
 		store.dispatch({
@@ -152,7 +171,11 @@ describe('ScenarioEditingStore', () => {
 
 	it('recomputes analytics and delta after changes', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const baseline = get(store).currentAnalytics;
@@ -173,7 +196,11 @@ describe('ScenarioEditingStore', () => {
 
 	it('regenerates groups, clears history, and resets baseline', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.dispatch({
@@ -198,7 +225,11 @@ describe('ScenarioEditingStore', () => {
 describe('Group shell operations', () => {
 	it('creates a new group with unique name', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const result = store.createGroup();
@@ -219,7 +250,11 @@ describe('Group shell operations', () => {
 
 	it('auto-increments name when creating group with duplicate name', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const result = store.createGroup('Group 1');
@@ -236,7 +271,11 @@ describe('Group shell operations', () => {
 		const scenario = createScenario();
 		scenario.groups.push({ id: 'g3', name: 'Empty Group', capacity: 5, memberIds: [] });
 		const repo = new InMemoryScenarioRepository([scenario]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(scenario, preferences);
 
 		const result = store.deleteGroup('g3');
@@ -250,7 +289,11 @@ describe('Group shell operations', () => {
 
 	it('deletes group with students, displacing them to unassigned', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		// g1 has students s1 and s3
@@ -267,7 +310,11 @@ describe('Group shell operations', () => {
 
 	it('undoes deleted group restoring students', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.deleteGroup('g1');
@@ -284,7 +331,11 @@ describe('Group shell operations', () => {
 
 	it('updates group name', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const result = store.updateGroup('g1', { name: 'Alpha Team' });
@@ -302,7 +353,11 @@ describe('Group shell operations', () => {
 
 	it('updates group capacity', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const result = store.updateGroup('g1', { capacity: 10 });
@@ -314,7 +369,11 @@ describe('Group shell operations', () => {
 
 	it('undoes group name update', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.updateGroup('g1', { name: 'New Name' });
@@ -331,7 +390,11 @@ describe('Group shell operations', () => {
 
 	it('rejects duplicate group name on update', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const result = store.updateGroup('g1', { name: 'Group 2' });
@@ -345,7 +408,11 @@ describe('Group shell operations', () => {
 
 	it('rejects empty group name on update', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const result = store.updateGroup('g1', { name: '   ' });
@@ -356,7 +423,11 @@ describe('Group shell operations', () => {
 
 	it('coalesces rapid name updates into single history entry', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		// Simulate typing character by character
@@ -390,7 +461,11 @@ describe('Group shell operations', () => {
 
 	it('returns group_not_found when deleting non-existent group', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const result = store.deleteGroup('non-existent');
@@ -401,7 +476,11 @@ describe('Group shell operations', () => {
 
 	it('redoes create group operation', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const createResult = store.createGroup('New Group');
@@ -418,7 +497,11 @@ describe('Group shell operations', () => {
 
 	it('redoes delete group operation', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.deleteGroup('g1');
@@ -433,7 +516,11 @@ describe('Group shell operations', () => {
 
 	it('redoes update group operation', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.updateGroup('g1', { name: 'Updated Name' });
