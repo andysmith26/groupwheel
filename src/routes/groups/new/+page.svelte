@@ -168,6 +168,7 @@
                 if (hasExistingRosters && currentStep === 0 && selectedRosterId !== null) {
                         // Load students from selected pool
                         loadStudentsFromPool(selectedRosterId);
+                        groupCreationMode = null; // Reset group creation mode to ensure consistent wizard state
                         currentStep = 2; // Jump to groups fork
                         return;
                 }
