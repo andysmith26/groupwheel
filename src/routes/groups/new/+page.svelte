@@ -130,14 +130,21 @@
         $effect(() => {
                 // Only adjust if mode actually changed (not initial null -> mode transition)
                 if (previousGroupCreationMode !== null && groupCreationMode !== previousGroupCreationMode) {
-                        // When mode changes, we need to adjust currentStep based on which step the user is on
-                        const currentStepLabel = stepLabels[currentStep];
+                        // Calculate the previous step labels to get the current step label before mode changed
+                        const previousStepLabels = computeStepLabels(previousGroupCreationMode, hasExistingRosters);
+                        
+                        // Get the label of the step the user was on before the mode change
+                        const currentStepLabel = currentStep < previousStepLabels.length 
+                                ? previousStepLabels[currentStep] 
+                                : undefined;
                         
                         // Calculate the new step labels for the new mode
                         const newStepLabels = computeStepLabels(groupCreationMode, hasExistingRosters);
                         
                         // Find where the current step label appears in the new sequence
-                        const newStepIndex = newStepLabels.findIndex(label => label === currentStepLabel);
+                        const newStepIndex = currentStepLabel 
+                                ? newStepLabels.findIndex(label => label === currentStepLabel)
+                                : -1;
                         
                         // If the current step still exists in the new sequence, move to it
                         // Otherwise, move back to the "Groups" fork step to let user proceed from there
