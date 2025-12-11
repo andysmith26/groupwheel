@@ -40,6 +40,7 @@
 
 	// Menu state
 	let menuOpen = $state(false);
+	let menuContainer: HTMLDivElement;
 
 	// Input references
 	let nameInput: HTMLInputElement;
@@ -109,7 +110,7 @@
 	}
 
 	function handleClickOutside(event: MouseEvent) {
-		if (menuOpen) {
+		if (menuOpen && menuContainer && !menuContainer.contains(event.target as Node)) {
 			menuOpen = false;
 		}
 	}
@@ -157,7 +158,7 @@
 				{group.capacity === null ? 'No limit' : `${group.memberIds.length}/${group.capacity}`}
 			</div>
 			{#if onDeleteGroup}
-				<div class="relative">
+				<div bind:this={menuContainer} class="relative">
 					<button
 						type="button"
 						class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
