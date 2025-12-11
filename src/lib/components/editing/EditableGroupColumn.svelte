@@ -53,6 +53,20 @@
 		editingName = group.name;
 	});
 
+	// Only attach click handler when menu is open
+	$effect(() => {
+		if (!menuOpen) return;
+
+		function handleClickOutside(event: MouseEvent) {
+			if (menuContainer && event.target && !menuContainer.contains(event.target as Node)) {
+				menuOpen = false;
+			}
+		}
+
+		document.addEventListener('click', handleClickOutside);
+		return () => document.removeEventListener('click', handleClickOutside);
+	});
+
 	onMount(async () => {
 		if (focusNameOnMount) {
 			await tick();
@@ -108,15 +122,7 @@
 		menuOpen = false;
 		onDeleteGroup?.(group.id);
 	}
-
-	function handleClickOutside(event: MouseEvent) {
-		if (menuOpen && menuContainer && event.target && !menuContainer.contains(event.target as Node)) {
-			menuOpen = false;
-		}
-	}
 </script>
-
-<svelte:window onclick={handleClickOutside} />
 
 <div class="relative flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
 	<div class="flex items-center justify-between gap-2">
@@ -162,10 +168,7 @@
 					<button
 						type="button"
 						class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-						onclick={(e) => {
-							e.stopPropagation();
-							toggleMenu();
-						}}
+						onclick={toggleMenu}
 						aria-label="Group options"
 					>
 						<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -177,7 +180,6 @@
 					{#if menuOpen}
 						<div
 							class="absolute right-0 z-10 mt-1 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
-							onclick={(e) => e.stopPropagation()}
 						>
 							<button
 								type="button"
