@@ -329,6 +329,20 @@ describe('Group shell operations', () => {
 		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Group 1');
 	});
 
+	it('flushes pending updates before undo', async () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		store.initialize(createScenario(), preferences);
+
+		store.updateGroup('g1', { name: 'New Name' });
+		// Don't wait for coalesce - undo immediately
+		const undoResult = store.undo();
+
+		expect(undoResult).toBe(true);
+		const view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Group 1');
+	});
+
 	it('rejects duplicate group name on update', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
 		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
