@@ -48,6 +48,11 @@
 	let editingName = $state(group.name);
 	let capacityError = $state('');
 
+	// Computed styles for capacity input
+	const capacityInputClass = $derived(
+		`w-8 border-0 border-b ${capacityError ? 'border-red-500' : 'border-transparent'} bg-transparent text-center text-xs hover:border-gray-300 focus:border-blue-500 focus:ring-0`
+	);
+
 	// Sync local state when group changes externally
 	$effect(() => {
 		editingName = group.name;
@@ -155,7 +160,7 @@
 				<input
 					type="number"
 					min="1"
-					class={`w-8 border-0 border-b ${capacityError ? 'border-red-500' : 'border-transparent'} bg-transparent text-center text-xs hover:border-gray-300 focus:border-blue-500 focus:ring-0`}
+					class={capacityInputClass}
 					value={group.capacity ?? ''}
 					placeholder="--"
 					oninput={handleCapacityInput}
