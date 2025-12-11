@@ -46,6 +46,7 @@
 
 	// Local editing state to handle validation
 	let editingName = $state(group.name);
+	let capacityError = $state('');
 
 	// Sync local state when group changes externally
 	$effect(() => {
@@ -76,7 +77,6 @@
 	function handleNameInput(e: Event) {
 		const value = (e.target as HTMLInputElement).value;
 		editingName = value;
-		nameError = '';
 		onUpdateGroup?.(group.id, { name: value });
 	}
 
@@ -85,7 +85,6 @@
 		if (trimmed.length === 0) {
 			// Revert to original name if empty
 			editingName = group.name;
-			nameError = '';
 		} else if (trimmed !== editingName) {
 			editingName = trimmed;
 			onUpdateGroup?.(group.id, { name: trimmed });
@@ -94,9 +93,30 @@
 
 	function handleCapacityInput(e: Event) {
 		const value = (e.target as HTMLInputElement).value;
-		const parsed = value === '' ? null : parseInt(value, 10);
-		const capacity = Number.isNaN(parsed) || (parsed !== null && parsed <= 0) ? null : parsed;
-		onUpdateGroup?.(group.id, { capacity });
+		
+		// Empty value means unlimited capacity (null)
+		if (value === '') {
+			capacityError = '';
+			onUpdateGroup?.(group.id, { capacity: null });
+			return;
+		}
+		
+		const parsed = parseInt(value, 10);
+		
+		// Check for invalid input
+		if (Number.isNaN(parsed)) {
+			capacityError = 'Please enter a valid number';
+			return;
+		}
+		
+		if (parsed <= 0) {
+			capacityError = 'Capacity must be greater than 0';
+			return;
+		}
+		
+		// Valid input - clear error and update
+		capacityError = '';
+		onUpdateGroup?.(group.id, { capacity: parsed });
 	}
 
 	function toggleMenu() {
@@ -135,14 +155,19 @@
 				<input
 					type="number"
 					min="1"
-					class="w-8 border-0 border-b border-transparent bg-transparent text-center text-xs hover:border-gray-300 focus:border-blue-500 focus:ring-0"
+					class={`w-8 border-0 border-b ${capacityError ? 'border-red-500' : 'border-transparent'} bg-transparent text-center text-xs hover:border-gray-300 focus:border-blue-500 focus:ring-0`}
 					value={group.capacity ?? ''}
 					placeholder="--"
 					oninput={handleCapacityInput}
 					aria-label="Group capacity"
-					aria-invalid={group.capacity !== null && group.capacity <= 0}
+					aria-invalid={capacityError !== ''}
 				/>
 			</div>
+			{#if capacityError}
+				<div class="mt-1 px-1 text-xs text-red-600">
+					{capacityError}
+				</div>
+			{/if}
 		</div>
 		<div class="flex items-center gap-2">
 			<div
