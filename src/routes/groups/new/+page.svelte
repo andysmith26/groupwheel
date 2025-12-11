@@ -103,22 +103,66 @@
         // Group creation mode: 'specific' (leads to shell builder) or 'auto' (skips shell builder)
         let groupCreationMode = $state<'specific' | 'auto' | null>(null);
 
-        // Determine actual step sequence based on whether user is new or returning
-        // The "Groups" step is now the fork + optional shell builder
-        let stepLabels = $derived.by(() => {
-                if (hasExistingRosters) {
-                        if (groupCreationMode === 'specific') {
+        // Track the previous mode to detect when it changes
+        let previousGroupCreationMode = $state<'specific' | 'auto' | null>(null);
+
+        // Helper function to compute step labels based on mode and roster state
+        function computeStepLabels(mode: 'specific' | 'auto' | null, hasRosters: boolean): string[] {
+                if (hasRosters) {
+                        if (mode === 'specific') {
                                 return ['Start', 'Students', 'Groups', 'Define Groups', 'Preferences', 'Name'];
                         }
                         return ['Start', 'Students', 'Groups', 'Preferences', 'Name'];
                 } else {
-                        if (groupCreationMode === 'specific') {
+                        if (mode === 'specific') {
                                 return ['Students', 'Groups', 'Define Groups', 'Preferences', 'Name'];
                         }
                         return ['Students', 'Groups', 'Preferences', 'Name'];
                 }
-        });
+        }
+
+        // Determine actual step sequence based on whether user is new or returning
+        // The "Groups" step is now the fork + optional shell builder
+        let stepLabels = $derived.by(() => computeStepLabels(groupCreationMode, hasExistingRosters));
         let totalSteps = $derived(stepLabels.length);
+
+        // Adjust currentStep when groupCreationMode changes
+        $effect(() => {
+                // Only adjust if mode actually changed (not initial null -> mode transition)
+                if (previousGroupCreationMode !== null && groupCreationMode !== previousGroupCreationMode) {
+                        // Calculate the previous step labels to get the current step label before mode changed
+                        const previousStepLabels = computeStepLabels(previousGroupCreationMode, hasExistingRosters);
+                        
+                        // Get the label of the step the user was on before the mode change
+                        const currentStepLabel = currentStep < previousStepLabels.length 
+                                ? previousStepLabels[currentStep] 
+                                : undefined;
+                        
+                        // Calculate the new step labels for the new mode
+                        const newStepLabels = computeStepLabels(groupCreationMode, hasExistingRosters);
+                        
+                        // Find where the current step label appears in the new sequence
+                        const newStepIndex = currentStepLabel 
+                                ? newStepLabels.findIndex(label => label === currentStepLabel)
+                                : -1;
+                        
+                        // If the current step still exists in the new sequence, move to it
+                        // Otherwise, move back to the "Groups" fork step to let user proceed from there
+                        if (newStepIndex >= 0) {
+                                currentStep = newStepIndex;
+                        } else {
+                                // Current step doesn't exist in new sequence (likely was on "Define Groups")
+                                // Move back to the "Groups" fork step
+                                const groupsForkIndex = newStepLabels.findIndex(label => label === 'Groups');
+                                if (groupsForkIndex >= 0) {
+                                        currentStep = groupsForkIndex;
+                                }
+                        }
+                }
+                
+                // Update the previous mode tracker
+                previousGroupCreationMode = groupCreationMode;
+        });
 
 	// Normalize step for display (1-indexed for progress indicator)
 	let displayStep = $derived(currentStep + 1);
