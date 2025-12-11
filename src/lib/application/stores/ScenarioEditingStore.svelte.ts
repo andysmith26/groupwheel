@@ -7,7 +7,7 @@ import type {
 	ScenarioStatus
 } from '$lib/domain';
 import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
-import type { ScenarioRepository } from '$lib/application/ports';
+import type { ScenarioRepository, IdGenerator } from '$lib/application/ports';
 import { isGroupFull } from '$lib/domain/group';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'failed';
@@ -18,6 +18,27 @@ export type MoveStudentCommand = {
 	source: string; // groupId or 'unassigned'
 	target: string; // groupId or 'unassigned'
 };
+
+export type CreateGroupCommand = {
+	type: 'CREATE_GROUP';
+	group: Group;
+};
+
+export type DeleteGroupCommand = {
+	type: 'DELETE_GROUP';
+	groupId: string;
+	previousGroup: Group;
+	displacedStudentIds: string[];
+};
+
+export type UpdateGroupCommand = {
+	type: 'UPDATE_GROUP';
+	groupId: string;
+	changes: Partial<Pick<Group, 'name' | 'capacity'>>;
+	previousValues: Partial<Pick<Group, 'name' | 'capacity'>>;
+};
+
+export type Command = MoveStudentCommand | CreateGroupCommand | DeleteGroupCommand | UpdateGroupCommand;
 
 type ScenarioMetadata = {
 	id: string;
@@ -37,7 +58,7 @@ export type AnalyticsDelta = {
 
 type InternalState = {
 	groups: Group[];
-	history: MoveStudentCommand[];
+	history: Command[];
 	historyIndex: number;
 	saveStatus: SaveStatus;
 	baseline: ScenarioSatisfaction | null;
@@ -151,7 +172,13 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 	readonly subscribe = this.view.subscribe;
 
-	constructor(private readonly deps: { scenarioRepo: ScenarioRepository; debounceMs?: number }) {
+	constructor(
+		private readonly deps: {
+			scenarioRepo: ScenarioRepository;
+			idGenerator: IdGenerator;
+			debounceMs?: number;
+		}
+	) {
 		this.debounceMs = deps.debounceMs ?? DEFAULT_DEBOUNCE_MS;
 	}
 
@@ -221,27 +248,264 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		return { success: true };
 	}
 
+	createGroup(name?: string): { success: boolean; groupId?: string; reason?: string } {
+		this.ensureInitialized();
+
+		const snapshot = get(this.state);
+		if (snapshot.saveStatus === 'failed') {
+			return { success: false, reason: 'save_failed' };
+		}
+
+		const existingNames = snapshot.groups.map((g) => g.name.toLowerCase());
+		const baseName = name?.trim() || 'Group';
+		let finalName = baseName;
+		let counter = snapshot.groups.length + 1;
+
+		// Ensure unique name
+		while (existingNames.includes(finalName.toLowerCase())) {
+			finalName = `${baseName} ${counter}`;
+			counter++;
+		}
+
+		const newGroup: Group = {
+			id: this.deps.idGenerator.generateId(),
+			name: finalName,
+			capacity: null,
+			memberIds: []
+		};
+
+		const command: CreateGroupCommand = {
+			type: 'CREATE_GROUP',
+			group: newGroup
+		};
+
+		this.state.update((current) => {
+			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			return {
+				...current,
+				groups: [...current.groups, newGroup],
+				history: [...truncatedHistory, command],
+				historyIndex: truncatedHistory.length,
+				pendingSave: true
+			};
+		});
+
+		this.scheduleSave();
+		return { success: true, groupId: newGroup.id };
+	}
+
+	deleteGroup(groupId: string): { success: boolean; reason?: string } {
+		this.ensureInitialized();
+
+		const snapshot = get(this.state);
+		if (snapshot.saveStatus === 'failed') {
+			return { success: false, reason: 'save_failed' };
+		}
+
+		const targetGroup = snapshot.groups.find((g) => g.id === groupId);
+		if (!targetGroup) {
+			return { success: false, reason: 'group_not_found' };
+		}
+
+		const command: DeleteGroupCommand = {
+			type: 'DELETE_GROUP',
+			groupId,
+			previousGroup: { ...targetGroup, memberIds: [...targetGroup.memberIds] },
+			displacedStudentIds: [...targetGroup.memberIds]
+		};
+
+		this.state.update((current) => {
+			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			return {
+				...current,
+				groups: current.groups.filter((g) => g.id !== groupId),
+				history: [...truncatedHistory, command],
+				historyIndex: truncatedHistory.length,
+				pendingSave: true
+			};
+		});
+
+		this.scheduleSave();
+		this.scheduleAnalytics(); // Recompute since students may be unassigned
+		return { success: true };
+	}
+
+	// Coalescing support for rapid updates
+	private pendingUpdateCommand: UpdateGroupCommand | null = null;
+	private updateCoalesceTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	/**
+	 * Call this method to clean up all pending timeouts when the store is no longer needed.
+	 */
+	destroy() {
+		if (this.updateCoalesceTimeout !== null) {
+			clearTimeout(this.updateCoalesceTimeout);
+			this.updateCoalesceTimeout = null;
+		}
+		if (this.saveTimeout !== null) {
+			clearTimeout(this.saveTimeout);
+			this.saveTimeout = null;
+		}
+		if (this.analyticsTimeout !== null) {
+			clearTimeout(this.analyticsTimeout);
+			this.analyticsTimeout = null;
+		}
+		if (this.savedIdleTimeout !== null) {
+			clearTimeout(this.savedIdleTimeout);
+			this.savedIdleTimeout = null;
+		}
+	}
+	updateGroup(
+		groupId: string,
+		changes: Partial<Pick<Group, 'name' | 'capacity'>>
+	): { success: boolean; reason?: string } {
+		this.ensureInitialized();
+
+		const snapshot = get(this.state);
+		if (snapshot.saveStatus === 'failed') {
+			return { success: false, reason: 'save_failed' };
+		}
+
+		const targetGroup = snapshot.groups.find((g) => g.id === groupId);
+		if (!targetGroup) {
+			return { success: false, reason: 'group_not_found' };
+		}
+
+		// Validate unique name if changing name
+		if (changes.name !== undefined) {
+			const trimmedName = changes.name.trim();
+			if (trimmedName.length === 0) {
+				return { success: false, reason: 'empty_name' };
+			}
+			const otherNames = snapshot.groups
+				.filter((g) => g.id !== groupId)
+				.map((g) => g.name.toLowerCase());
+			if (otherNames.includes(trimmedName.toLowerCase())) {
+				return { success: false, reason: 'duplicate_name' };
+			}
+		}
+
+		// Build previous values for undo
+		const previousValues: Partial<Pick<Group, 'name' | 'capacity'>> = {};
+		if ('name' in changes) previousValues.name = targetGroup.name;
+		if ('capacity' in changes) previousValues.capacity = targetGroup.capacity;
+
+		// Coalesce rapid updates to same group into single command
+		if (this.pendingUpdateCommand?.groupId === groupId) {
+			// Merge changes, keep original previousValues
+			this.pendingUpdateCommand.changes = {
+				...this.pendingUpdateCommand.changes,
+				...changes
+			};
+		} else {
+			// Flush any pending update for different group
+			this.flushPendingUpdate();
+
+			this.pendingUpdateCommand = {
+				type: 'UPDATE_GROUP',
+				groupId,
+				changes,
+				previousValues
+			};
+		}
+
+		// Apply to state immediately (optimistic)
+		this.state.update((current) => ({
+			...current,
+			groups: current.groups.map((g) => (g.id === groupId ? { ...g, ...changes } : g)),
+			pendingSave: true
+		}));
+
+		// Debounce history commit
+		if (this.updateCoalesceTimeout) {
+			clearTimeout(this.updateCoalesceTimeout);
+		}
+		this.updateCoalesceTimeout = setTimeout(() => {
+			this.flushPendingUpdate();
+		}, 500); // 500ms debounce for typing
+
+		this.scheduleSave();
+		return { success: true };
+	}
+
+	private flushPendingUpdate(): void {
+		if (!this.pendingUpdateCommand) return;
+
+		const command = this.pendingUpdateCommand;
+		this.pendingUpdateCommand = null;
+
+		if (this.updateCoalesceTimeout) {
+			clearTimeout(this.updateCoalesceTimeout);
+			this.updateCoalesceTimeout = null;
+		}
+
+		this.state.update((current) => {
+			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			return {
+				...current,
+				history: [...truncatedHistory, command],
+				historyIndex: truncatedHistory.length
+			};
+		});
+	}
+
 	undo(): boolean {
 		this.ensureInitialized();
+
+		// Flush any pending update before undo
+		this.flushPendingUpdate();
+
 		const snapshot = get(this.state);
 		if (snapshot.historyIndex < 0 || snapshot.saveStatus === 'failed') {
 			return false;
 		}
 
 		const command = snapshot.history[snapshot.historyIndex];
-		const inverse: MoveStudentCommand = {
-			type: 'MOVE_STUDENT',
-			studentId: command.studentId,
-			source: command.target,
-			target: command.source
-		};
 
-		this.state.update((current) => ({
-			...current,
-			groups: this.applyMove(current.groups, inverse),
-			historyIndex: current.historyIndex - 1,
-			pendingSave: true
-		}));
+		this.state.update((current) => {
+			let newGroups: Group[];
+
+			switch (command.type) {
+				case 'MOVE_STUDENT': {
+					const inverse: MoveStudentCommand = {
+						type: 'MOVE_STUDENT',
+						studentId: command.studentId,
+						source: command.target,
+						target: command.source
+					};
+					newGroups = this.applyMove(current.groups, inverse);
+					break;
+				}
+
+				case 'CREATE_GROUP': {
+					newGroups = current.groups.filter((g) => g.id !== command.group.id);
+					break;
+				}
+
+				case 'DELETE_GROUP': {
+					// Restore the group (append for simplicity)
+					newGroups = [...current.groups, command.previousGroup];
+					break;
+				}
+
+				case 'UPDATE_GROUP': {
+					newGroups = current.groups.map((g) =>
+						g.id === command.groupId ? { ...g, ...command.previousValues } : g
+					);
+					break;
+				}
+
+				default:
+					newGroups = current.groups;
+			}
+
+			return {
+				...current,
+				groups: newGroups,
+				historyIndex: current.historyIndex - 1,
+				pendingSave: true
+			};
+		});
 
 		this.scheduleSave();
 		this.scheduleAnalytics();
@@ -250,6 +514,10 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 	redo(): boolean {
 		this.ensureInitialized();
+
+		// Flush any pending update before redo
+		this.flushPendingUpdate();
+
 		const snapshot = get(this.state);
 		if (snapshot.historyIndex >= snapshot.history.length - 1 || snapshot.saveStatus === 'failed') {
 			return false;
@@ -257,12 +525,43 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 		const command = snapshot.history[snapshot.historyIndex + 1];
 
-		this.state.update((current) => ({
-			...current,
-			groups: this.applyMove(current.groups, command),
-			historyIndex: current.historyIndex + 1,
-			pendingSave: true
-		}));
+		this.state.update((current) => {
+			let newGroups: Group[];
+
+			switch (command.type) {
+				case 'MOVE_STUDENT': {
+					newGroups = this.applyMove(current.groups, command);
+					break;
+				}
+
+				case 'CREATE_GROUP': {
+					newGroups = [...current.groups, command.group];
+					break;
+				}
+
+				case 'DELETE_GROUP': {
+					newGroups = current.groups.filter((g) => g.id !== command.groupId);
+					break;
+				}
+
+				case 'UPDATE_GROUP': {
+					newGroups = current.groups.map((g) =>
+						g.id === command.groupId ? { ...g, ...command.changes } : g
+					);
+					break;
+				}
+
+				default:
+					newGroups = current.groups;
+			}
+
+			return {
+				...current,
+				groups: newGroups,
+				historyIndex: current.historyIndex + 1,
+				pendingSave: true
+			};
+		});
 
 		this.scheduleSave();
 		this.scheduleAnalytics();

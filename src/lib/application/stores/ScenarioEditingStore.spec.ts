@@ -3,7 +3,14 @@ import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import type { Preference, Scenario } from '$lib/domain';
 import { ScenarioEditingStore } from './ScenarioEditingStore.svelte';
 import { InMemoryScenarioRepository } from '$lib/infrastructure/repositories/inMemory';
-import type { ScenarioRepository } from '$lib/application/ports';
+import type { ScenarioRepository, IdGenerator } from '$lib/application/ports';
+
+class MockIdGenerator implements IdGenerator {
+	private counter = 0;
+	generateId(): string {
+		return `test-id-${++this.counter}`;
+	}
+}
 
 function createScenario(): Scenario {
 	return {
@@ -37,7 +44,11 @@ afterEach(() => {
 describe('ScenarioEditingStore', () => {
 	it('moves students, tracks history, and supports undo/redo', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const result = store.dispatch({
@@ -71,7 +82,11 @@ describe('ScenarioEditingStore', () => {
 		const scenario = createScenario();
 		scenario.groups[1].capacity = 1; // g2 already has one member
 		const repo = new InMemoryScenarioRepository([scenario]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(scenario, preferences);
 
 		const result = store.dispatch({
@@ -90,7 +105,11 @@ describe('ScenarioEditingStore', () => {
 	it('debounces saves and transitions to saved then idle', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
 		const updateSpy = vi.spyOn(repo, 'update');
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.dispatch({
@@ -125,7 +144,7 @@ describe('ScenarioEditingStore', () => {
 			update: vi.fn().mockRejectedValue(new Error('nope')),
 			save: vi.fn().mockRejectedValue(new Error('still nope'))
 		};
-		const store = new ScenarioEditingStore({ scenarioRepo: failingRepo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({ scenarioRepo: failingRepo, idGenerator: new MockIdGenerator(), debounceMs: 10 });
 		store.initialize(createScenario(), preferences);
 
 		store.dispatch({
@@ -152,7 +171,11 @@ describe('ScenarioEditingStore', () => {
 
 	it('recomputes analytics and delta after changes', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		const baseline = get(store).currentAnalytics;
@@ -173,7 +196,11 @@ describe('ScenarioEditingStore', () => {
 
 	it('regenerates groups, clears history, and resets baseline', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.dispatch({
@@ -192,5 +219,333 @@ describe('ScenarioEditingStore', () => {
 		expect(view.historyIndex).toBe(-1);
 		expect(view.baseline?.percentAssignedTopChoice).toBeGreaterThanOrEqual(0);
 		expect(view.groups.find((g) => g.id === 'g1')?.memberIds).toEqual(['s1']);
+	});
+});
+
+describe('Group shell operations', () => {
+	it('creates a new group with unique name', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		const result = store.createGroup();
+
+		expect(result.success).toBe(true);
+		expect(result.groupId).toBeDefined();
+
+		const view = get(store);
+		expect(view.groups.length).toBe(3);
+		const newGroup = view.groups.find((g) => g.id === result.groupId);
+		expect(newGroup).toBeDefined();
+		// Default base name is "Group", which is unique since existing groups are "Group 1" and "Group 2"
+		expect(newGroup?.name).toBe('Group');
+		expect(newGroup?.capacity).toBeNull();
+		expect(newGroup?.memberIds).toEqual([]);
+		expect(view.canUndo).toBe(true);
+	});
+
+	it('auto-increments name when creating group with duplicate name', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		const result = store.createGroup('Group 1');
+
+		expect(result.success).toBe(true);
+		const view = get(store);
+		const newGroup = view.groups.find((g) => g.id === result.groupId);
+		// Should auto-increment since "Group 1" already exists
+		expect(newGroup?.name).not.toBe('Group 1');
+		expect(newGroup?.name).toMatch(/^Group 1 \d+$/);
+	});
+
+	it('deletes empty group immediately', () => {
+		const scenario = createScenario();
+		scenario.groups.push({ id: 'g3', name: 'Empty Group', capacity: 5, memberIds: [] });
+		const repo = new InMemoryScenarioRepository([scenario]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(scenario, preferences);
+
+		const result = store.deleteGroup('g3');
+
+		expect(result.success).toBe(true);
+		const view = get(store);
+		expect(view.groups.length).toBe(2);
+		expect(view.groups.find((g) => g.id === 'g3')).toBeUndefined();
+		expect(view.canUndo).toBe(true);
+	});
+
+	it('deletes group with students, displacing them to unassigned', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		// g1 has students s1 and s3
+		const result = store.deleteGroup('g1');
+
+		expect(result.success).toBe(true);
+		const view = get(store);
+		expect(view.groups.length).toBe(1);
+		expect(view.groups.find((g) => g.id === 'g1')).toBeUndefined();
+		// s1 and s3 should now be unassigned
+		expect(view.unassignedStudentIds).toContain('s1');
+		expect(view.unassignedStudentIds).toContain('s3');
+	});
+
+	it('undoes deleted group restoring students', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		store.deleteGroup('g1');
+		const undoResult = store.undo();
+
+		expect(undoResult).toBe(true);
+		const view = get(store);
+		expect(view.groups.length).toBe(2);
+		const restoredGroup = view.groups.find((g) => g.id === 'g1');
+		expect(restoredGroup).toBeDefined();
+		expect(restoredGroup?.memberIds).toContain('s1');
+		expect(restoredGroup?.memberIds).toContain('s3');
+	});
+
+	it('updates group name', async () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		const result = store.updateGroup('g1', { name: 'Alpha Team' });
+
+		expect(result.success).toBe(true);
+		let view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Alpha Team');
+
+		// Wait for coalesce timeout to commit to history
+		await vi.advanceTimersByTimeAsync(500);
+
+		view = get(store);
+		expect(view.canUndo).toBe(true);
+	});
+
+	it('updates group capacity', async () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		const result = store.updateGroup('g1', { capacity: 10 });
+
+		expect(result.success).toBe(true);
+		const view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.capacity).toBe(10);
+	});
+
+	it('undoes group name update', async () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		store.updateGroup('g1', { name: 'New Name' });
+
+		// Wait for coalesce timeout
+		await vi.advanceTimersByTimeAsync(500);
+
+		const undoResult = store.undo();
+		expect(undoResult).toBe(true);
+
+		const view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Group 1');
+	});
+
+	it('flushes pending updates before undo', async () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		store.initialize(createScenario(), preferences);
+
+		store.updateGroup('g1', { name: 'New Name' });
+		// Don't wait for coalesce - undo immediately
+		const undoResult = store.undo();
+
+		expect(undoResult).toBe(true);
+		const view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Group 1');
+	});
+
+	it('rejects duplicate group name on update', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		const result = store.updateGroup('g1', { name: 'Group 2' });
+
+		expect(result.success).toBe(false);
+		expect(result.reason).toBe('duplicate_name');
+		// Name should remain unchanged
+		const view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Group 1');
+	});
+
+	it('rejects empty group name on update', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		const result = store.updateGroup('g1', { name: '   ' });
+
+		expect(result.success).toBe(false);
+		expect(result.reason).toBe('empty_name');
+	});
+
+	it('coalesces rapid name updates into single history entry', async () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		// Simulate typing character by character
+		store.updateGroup('g1', { name: 'A' });
+		await vi.advanceTimersByTimeAsync(100);
+		store.updateGroup('g1', { name: 'Al' });
+		await vi.advanceTimersByTimeAsync(100);
+		store.updateGroup('g1', { name: 'Alp' });
+		await vi.advanceTimersByTimeAsync(100);
+		store.updateGroup('g1', { name: 'Alph' });
+		await vi.advanceTimersByTimeAsync(100);
+		store.updateGroup('g1', { name: 'Alpha' });
+
+		// Before coalesce timeout, no history entry yet
+		let view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Alpha');
+
+		// Wait for full coalesce timeout
+		await vi.advanceTimersByTimeAsync(500);
+
+		view = get(store);
+		// Should only have one command in history
+		expect(view.historyLength).toBe(1);
+		expect(view.canUndo).toBe(true);
+
+		// Undo should revert to original name, not intermediate
+		store.undo();
+		view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Group 1');
+	});
+
+	it('returns group_not_found when deleting non-existent group', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		const result = store.deleteGroup('non-existent');
+
+		expect(result.success).toBe(false);
+		expect(result.reason).toBe('group_not_found');
+	});
+
+	it('redoes create group operation', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		const createResult = store.createGroup('New Group');
+		const groupId = createResult.groupId;
+
+		store.undo();
+		let view = get(store);
+		expect(view.groups.find((g) => g.id === groupId)).toBeUndefined();
+
+		store.redo();
+		view = get(store);
+		expect(view.groups.find((g) => g.id === groupId)).toBeDefined();
+	});
+
+	it('redoes delete group operation', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		store.deleteGroup('g1');
+		store.undo();
+		let view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')).toBeDefined();
+
+		store.redo();
+		view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')).toBeUndefined();
+	});
+
+	it('redoes update group operation', async () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(createScenario(), preferences);
+
+		store.updateGroup('g1', { name: 'Updated Name' });
+		await vi.advanceTimersByTimeAsync(500);
+
+		store.undo();
+		let view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Group 1');
+
+		store.redo();
+		view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.name).toBe('Updated Name');
 	});
 });

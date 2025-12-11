@@ -52,6 +52,11 @@
 	let showStartOverConfirm = $state(false);
 	let isRegenerating = $state(false);
 
+	// --- Group shell editing state ---
+	let newGroupId = $state<string | null>(null);
+	let showDeleteGroupConfirm = $state(false);
+	let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
+
 	// --- Toast ---
 	let toastMessage = $state('');
 	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -120,7 +125,10 @@
 	}
 
 	function initializeEditingStore(s: Scenario) {
-		editingStore = new ScenarioEditingStore({ scenarioRepo: env!.scenarioRepo });
+		editingStore = new ScenarioEditingStore({
+			scenarioRepo: env!.scenarioRepo,
+			idGenerator: env!.idGenerator
+		});
 		editingStore.initialize(s, preferences);
 		editingStore.subscribe((value) => {
 			view = value;
@@ -205,6 +213,76 @@
 			toastMessage = '';
 			toastTimeout = null;
 		}, 2000);
+	}
+
+	// --- Group Shell Operations ---
+
+	function handleAddGroup() {
+		if (!editingStore) return;
+
+		const result = editingStore.createGroup();
+		if (result.success && result.groupId) {
+			newGroupId = result.groupId;
+			// Clear newGroupId after a brief moment so the focus only happens once
+			setTimeout(() => {
+				newGroupId = null;
+			}, 100);
+		} else {
+			showToast('Failed to create group');
+		}
+	}
+
+	function handleUpdateGroup(groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) {
+		if (!editingStore) return;
+
+		const result = editingStore.updateGroup(groupId, changes);
+		if (!result.success) {
+			if (result.reason === 'duplicate_name') {
+				showToast('A group with this name already exists');
+			} else if (result.reason === 'empty_name') {
+				// Silently ignore - component will revert
+			}
+		}
+	}
+
+	function handleDeleteGroup(groupId: string) {
+		if (!editingStore || !view) return;
+
+		const group = view.groups.find((g) => g.id === groupId);
+		if (!group) return;
+
+		// If group has students, show confirmation
+		if (group.memberIds.length > 0) {
+			groupToDelete = {
+				id: groupId,
+				name: group.name,
+				memberCount: group.memberIds.length
+			};
+			showDeleteGroupConfirm = true;
+		} else {
+			// Empty group - delete immediately
+			const result = editingStore.deleteGroup(groupId);
+			if (!result.success) {
+				showToast('Failed to delete group');
+			}
+		}
+	}
+
+	function confirmDeleteGroup() {
+		if (!editingStore || !groupToDelete) return;
+
+		const result = editingStore.deleteGroup(groupToDelete.id);
+		if (!result.success) {
+			showToast('Failed to delete group');
+		}
+
+		showDeleteGroupConfirm = false;
+		groupToDelete = null;
+	}
+
+	function cancelDeleteGroup() {
+		showDeleteGroupConfirm = false;
+		groupToDelete = null;
 	}
 </script>
 
@@ -309,6 +387,10 @@
 							onDragStart={(id) => draggingId = id}
 							onDragEnd={() => draggingId = null}
 							{flashingIds}
+							onUpdateGroup={handleUpdateGroup}
+							onDeleteGroup={handleDeleteGroup}
+							onAddGroup={handleAddGroup}
+							{newGroupId}
 						/>
 					</div>
 				{/if}
@@ -326,7 +408,7 @@
 			{/if}
 		</div>
 
-		<!-- Confirm dialog -->
+		<!-- Start Over confirmation dialog -->
 		<ConfirmDialog
 			open={showStartOverConfirm}
 			title="Start over?"
@@ -334,6 +416,16 @@
 			confirmLabel="Start Over"
 			onConfirm={handleStartOver}
 			onCancel={() => { showStartOverConfirm = false; }}
+		/>
+
+		<!-- Delete Group confirmation dialog -->
+		<ConfirmDialog
+			open={showDeleteGroupConfirm}
+			title="Delete group?"
+			message={groupToDelete ? `"${groupToDelete.name}" has ${groupToDelete.memberCount} student${groupToDelete.memberCount !== 1 ? 's' : ''}. They will be moved to Unassigned.` : ''}
+			confirmLabel="Delete"
+			onConfirm={confirmDeleteGroup}
+			onCancel={cancelDeleteGroup}
 		/>
 
 		<!-- Toast -->
