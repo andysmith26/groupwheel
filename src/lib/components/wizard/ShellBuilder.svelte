@@ -28,9 +28,8 @@
 	// Track validation errors per row
 	let rowErrors = $state<Map<number, string>>(new Map());
 
-	// References to input elements for focus management
-	let nameInputs: HTMLInputElement[] = [];
-	let capacityInputs: HTMLInputElement[] = [];
+	// References to input elements for focus management, keyed by group index
+	let inputRefs = $state<Map<number, { name?: HTMLInputElement; capacity?: HTMLInputElement }>>(new Map());
 
 	// Derived total capacity
 	let totalCapacity = $derived(
