@@ -56,7 +56,7 @@
 			onValidityChange(true);
 		} else {
 			// Specific mode requires at least one valid group
-			onValidityChange(shellBuilderValid && shellGroups.length > 0);
+			onValidityChange(shellBuilderValid);
 		}
 	});
 
