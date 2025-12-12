@@ -24,6 +24,8 @@
 	import ConfirmDialog from '$lib/components/editing/ConfirmDialog.svelte';
 	import StudentSidebar from '$lib/components/workspace/StudentSidebar.svelte';
 	import EmptyWorkspaceState from '$lib/components/workspace/EmptyWorkspaceState.svelte';
+	import HistorySelector from '$lib/components/editing/HistorySelector.svelte';
+	import type { ScenarioSatisfaction } from '$lib/domain';
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
 	import { generateScenario } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
@@ -63,6 +65,20 @@
 	let newGroupId = $state<string | null>(null);
 	let showDeleteGroupConfirm = $state(false);
 	let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
+
+	// --- Result history state (session-only) ---
+	interface HistoryEntry {
+		id: string;
+		groups: Group[];
+		generatedAt: Date;
+		analytics: ScenarioSatisfaction;
+	}
+
+	const MAX_HISTORY = 3;
+	let resultHistory = $state<HistoryEntry[]>([]);
+	let currentHistoryIndex = $state<number>(-1); // -1 = current (live), 0+ = history index
+	let isTryingAnother = $state(false);
+	let savedCurrentGroups = $state<Group[] | null>(null); // Stores current groups when viewing history
 
 	// --- Toast ---
 	let toastMessage = $state('');
@@ -225,8 +241,99 @@
 			memberIds: g.memberIds
 		}));
 
+		// Clear history when starting over
+		resultHistory = [];
+		currentHistoryIndex = -1;
+		savedCurrentGroups = null;
+
 		await editingStore.regenerate(groups);
 		isRegenerating = false;
+	}
+
+	// --- History Functions ---
+
+	function addToHistory(groups: Group[], analytics: ScenarioSatisfaction) {
+		if (!env) return;
+		
+		const entry: HistoryEntry = {
+			id: env.idGenerator.generateId(),
+			groups: structuredClone(groups),
+			generatedAt: new Date(),
+			analytics
+		};
+
+		resultHistory = [entry, ...resultHistory].slice(0, MAX_HISTORY);
+		currentHistoryIndex = -1; // Switch to current (new result)
+	}
+
+	function switchToHistoryEntry(index: number) {
+		if (!editingStore) return;
+
+		if (index === -1) {
+			// Switch back to current (live) result
+			if (savedCurrentGroups && currentHistoryIndex !== -1) {
+				// Restore the saved current groups
+				editingStore.regenerate(savedCurrentGroups);
+				savedCurrentGroups = null;
+			}
+			currentHistoryIndex = -1;
+			return;
+		}
+
+		if (index < 0 || index >= resultHistory.length) return;
+
+		// Save current groups before switching to history (only once)
+		if (currentHistoryIndex === -1 && view?.groups) {
+			savedCurrentGroups = structuredClone(view.groups);
+		}
+
+		currentHistoryIndex = index;
+		const entry = resultHistory[index];
+		// Load groups into editing store, resetting undo history
+		editingStore.regenerate(entry.groups);
+	}
+
+	async function handleTryAnother() {
+		if (!env || !scenario || !editingStore) return;
+
+		// Save current state to history before generating new
+		const currentGroups = view?.groups ?? [];
+		const currentAnalytics = view?.currentAnalytics;
+		if (currentHistoryIndex === -1 && currentGroups.length > 0 && currentAnalytics) {
+			addToHistory(currentGroups, currentAnalytics);
+		}
+
+		// Clear saved current groups since we're generating a new current
+		savedCurrentGroups = null;
+
+		isTryingAnother = true;
+
+		// Generate with new seed for variation
+		const existingConfig = (scenario.algorithmConfig as Record<string, unknown>) ?? {};
+		const result = await env.groupingAlgorithm.generateGroups({
+			programId: scenario.programId,
+			studentIds: scenario.participantSnapshot,
+			algorithmConfig: {
+				...existingConfig,
+				seed: Date.now()
+			}
+		});
+
+		if (!result.success) {
+			showToast('Generation failed');
+			isTryingAnother = false;
+			return;
+		}
+
+		const groups: Group[] = result.groups.map((g) => ({
+			id: g.id,
+			name: g.name,
+			capacity: g.capacity,
+			memberIds: g.memberIds
+		}));
+
+		await editingStore.regenerate(groups);
+		isTryingAnother = false;
 	}
 
 	function metricSummary(): string {
@@ -403,11 +510,19 @@
 							metricSummary={metricSummary()}
 							{analyticsOpen}
 							{isRegenerating}
+							{isTryingAnother}
 							onUndo={() => editingStore?.undo()}
 							onRedo={() => editingStore?.redo()}
 							onStartOver={() => showStartOverConfirm = true}
+							onTryAnother={handleTryAnother}
 							onToggleAnalytics={() => analyticsOpen = !analyticsOpen}
 							onRetrySave={() => editingStore?.retrySave()}
+						/>
+
+						<HistorySelector
+							historyLength={resultHistory.length}
+							currentIndex={currentHistoryIndex}
+							onSelect={switchToHistoryEntry}
 						/>
 
 						<AnalyticsPanel

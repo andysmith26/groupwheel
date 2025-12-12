@@ -202,4 +202,82 @@ describe('BalancedGroupingAlgorithm', () => {
 			expect(result.message).toContain('No students');
 		}
 	});
+
+	describe('seed-based variation', () => {
+		it('should produce different results with different seeds', async () => {
+			// Create enough students to see variation
+			const students: Student[] = [];
+			for (let i = 1; i <= 20; i++) {
+				students.push({
+					id: `student-${i}`,
+					firstName: `Student${i}`,
+					lastName: 'Test',
+					gradeLevel: '5'
+				});
+			}
+			await studentRepo.saveMany(students);
+
+			const studentIds = students.map((s) => s.id);
+
+			const result1 = await algorithm.generateGroups({
+				programId: 'test-program',
+				studentIds,
+				algorithmConfig: { seed: 12345 }
+			});
+
+			const result2 = await algorithm.generateGroups({
+				programId: 'test-program',
+				studentIds,
+				algorithmConfig: { seed: 67890 }
+			});
+
+			expect(result1.success).toBe(true);
+			expect(result2.success).toBe(true);
+
+			if (result1.success && result2.success) {
+				// The group assignments should be different
+				const group1Members = result1.groups.map((g) => g.memberIds.sort().join(',')).sort();
+				const group2Members = result2.groups.map((g) => g.memberIds.sort().join(',')).sort();
+				expect(group1Members).not.toEqual(group2Members);
+			}
+		});
+
+		it('should produce same results with same seed', async () => {
+			const students: Student[] = [];
+			for (let i = 1; i <= 12; i++) {
+				students.push({
+					id: `student-${i}`,
+					firstName: `Student${i}`,
+					lastName: 'Test',
+					gradeLevel: '5'
+				});
+			}
+			await studentRepo.saveMany(students);
+
+			const studentIds = students.map((s) => s.id);
+			const seed = 42;
+
+			const result1 = await algorithm.generateGroups({
+				programId: 'test-program',
+				studentIds,
+				algorithmConfig: { seed }
+			});
+
+			const result2 = await algorithm.generateGroups({
+				programId: 'test-program',
+				studentIds,
+				algorithmConfig: { seed }
+			});
+
+			expect(result1.success).toBe(true);
+			expect(result2.success).toBe(true);
+
+			if (result1.success && result2.success) {
+				// The group assignments should be identical with same seed
+				const group1Members = result1.groups.map((g) => g.memberIds.sort().join(',')).sort();
+				const group2Members = result2.groups.map((g) => g.memberIds.sort().join(',')).sort();
+				expect(group1Members).toEqual(group2Members);
+			}
+		});
+	});
 });

@@ -107,3 +107,121 @@ Bob\tbob@test.com\t5`;
 	// Note: Full drag-drop testing requires more complex interaction
 	// This test verifies the workspace structure is correct
 });
+
+test('try another creates variation and preserves history', async ({ page }) => {
+	const rosterData = `name\tid\tgrade
+Alice\talice@test.com\t5
+Bob\tbob@test.com\t5
+Carol\tcarol@test.com\t5
+Dave\tdave@test.com\t5
+Eve\teve@test.com\t5
+Frank\tfrank@test.com\t5
+Grace\tgrace@test.com\t5
+Henry\thenry@test.com\t5`;
+
+	const activityName = `Try Another Test ${Date.now()}`;
+
+	await page.goto('/groups/new');
+
+	// Quick wizard completion
+	const startHeading = page.getByRole('heading', { name: 'Start from' });
+	try {
+		if (await startHeading.isVisible({ timeout: 500 })) {
+			await page.getByRole('button', { name: /Continue/ }).click();
+		}
+	} catch {
+		// ignore
+	}
+
+	await page.getByLabel('Roster data').fill(rosterData);
+	await page.getByRole('button', { name: /Continue/ }).click();
+	await page.getByRole('button', { name: /Skip/ }).click(); // skip preferences
+	await page.getByLabel('Activity name').fill(activityName);
+	await Promise.all([
+		page.waitForURL(/\/groups\/[^/]+$/),
+		page.getByRole('button', { name: /Create Groups/i }).click()
+	]);
+
+	// Verify workspace loaded
+	await expect(page.getByText('Not in groups')).toBeVisible();
+
+	// Verify Try Another button exists
+	const tryAnotherButton = page.getByRole('button', { name: /Try Another/ });
+	await expect(tryAnotherButton).toBeVisible();
+
+	// History selector should not be visible initially (no history yet)
+	await expect(page.getByText('Viewing:')).not.toBeVisible();
+
+	// Click Try Another
+	await tryAnotherButton.click();
+
+	// Wait for generation to complete
+	await expect(tryAnotherButton).not.toHaveText(/Generating/);
+	await expect(tryAnotherButton).toHaveText('Try Another');
+
+	// History selector should now be visible with "Previous" option
+	await expect(page.getByText('Viewing:')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Current' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Previous' })).toBeVisible();
+
+	// Click Previous to switch to previous result
+	await page.getByRole('button', { name: 'Previous' }).click();
+
+	// Previous button should now be active (has different styling)
+	// Click Current to switch back
+	await page.getByRole('button', { name: 'Current' }).click();
+});
+
+test('start over clears history', async ({ page }) => {
+	const rosterData = `name\tid\tgrade
+Alice\talice@test.com\t5
+Bob\tbob@test.com\t5
+Carol\tcarol@test.com\t5
+Dave\tdave@test.com\t5`;
+
+	const activityName = `Start Over Test ${Date.now()}`;
+
+	await page.goto('/groups/new');
+
+	// Quick wizard completion
+	const startHeading = page.getByRole('heading', { name: 'Start from' });
+	try {
+		if (await startHeading.isVisible({ timeout: 500 })) {
+			await page.getByRole('button', { name: /Continue/ }).click();
+		}
+	} catch {
+		// ignore
+	}
+
+	await page.getByLabel('Roster data').fill(rosterData);
+	await page.getByRole('button', { name: /Continue/ }).click();
+	await page.getByRole('button', { name: /Skip/ }).click();
+	await page.getByLabel('Activity name').fill(activityName);
+	await Promise.all([
+		page.waitForURL(/\/groups\/[^/]+$/),
+		page.getByRole('button', { name: /Create Groups/i }).click()
+	]);
+
+	// Verify workspace loaded
+	await expect(page.getByText('Not in groups')).toBeVisible();
+
+	// Click Try Another to build history
+	const tryAnotherButton = page.getByRole('button', { name: /Try Another/ });
+	await tryAnotherButton.click();
+	await expect(tryAnotherButton).toHaveText('Try Another');
+
+	// History selector should be visible
+	await expect(page.getByText('Viewing:')).toBeVisible();
+
+	// Click Start Over
+	await page.getByRole('button', { name: /Start Over/ }).click();
+
+	// Confirm in dialog
+	await page.getByRole('button', { name: 'Start Over' }).last().click();
+
+	// Wait for regeneration
+	await expect(page.getByRole('button', { name: /Regenerating/ })).not.toBeVisible();
+
+	// History selector should be hidden (history cleared)
+	await expect(page.getByText('Viewing:')).not.toBeVisible();
+});
