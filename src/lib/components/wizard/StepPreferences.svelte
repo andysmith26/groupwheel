@@ -308,19 +308,34 @@ bob@school.edu	alice@school.edu	dave@school.edu"
 					<div class="mt-3 space-y-1 border-t border-gray-200 pt-3">
 						{#if insights.unknownRefs > 0}
 							<p class="text-sm text-amber-700">
-								<span class="mr-1">&#9888;</span>
+								<span class="mr-1 inline-block align-middle" role="img" aria-label="Warning">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 20 20" stroke="currentColor" aria-hidden="true">
+										<circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
+										<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10 6v5m0 3h.01"/>
+									</svg>
+								</span>
 								{insights.unknownRefs} preference{insights.unknownRefs === 1 ? '' : 's'} reference students not in roster
 							</p>
 						{/if}
 						{#if insights.lowCoverage}
 							<p class="text-sm text-amber-700">
-								<span class="mr-1">&#9888;</span>
+								<span class="mr-1 inline-block align-middle" role="img" aria-label="Warning">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 20 20" stroke="currentColor" aria-hidden="true">
+										<circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
+										<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10 6v5m0 3h.01"/>
+									</svg>
+								</span>
 								Low preference coverage may reduce group satisfaction
 							</p>
 						{/if}
 						{#if insights.noMutual}
 							<p class="text-sm text-blue-600">
-								<span class="mr-1">&#8505;</span>
+								<span class="mr-1 inline-block align-middle" role="img" aria-label="Info">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 20 20" stroke="currentColor" aria-hidden="true">
+										<circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
+										<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10 8h.01M10 12v-2"/>
+									</svg>
+								</span>
 								No mutual preferences found (A&#8594;B and B&#8594;A)
 							</p>
 						{/if}
