@@ -13,11 +13,7 @@
 	 */
 
 	import ShellBuilder from './ShellBuilder.svelte';
-
-	interface GroupShell {
-		name: string;
-		capacity: number | null;
-	}
+	import { validateGroupShells, type GroupShell } from '$lib/utils/groupShellValidation';
 
 	interface SizeConfig {
 		min: number | null;
@@ -47,6 +43,21 @@
 	// Track ShellBuilder validity separately
 	let shellBuilderValid = $state(false);
 
+	// On mount or when props change, revalidate groups if in specific mode
+	// This handles the backtracking case where user returns from a later step
+	$effect(() => {
+		// Dependencies: mode, shellGroups (implicitly tracked)
+		if (mode === 'specific' && shellGroups.length > 0) {
+			const isValid = validateGroupShells(shellGroups);
+			// Only update if different to avoid unnecessary reactivity
+			if (isValid !== shellBuilderValid) {
+				shellBuilderValid = isValid;
+			}
+		} else if (mode !== 'specific') {
+			// Reset validity when not in specific mode
+			shellBuilderValid = false;
+		}
+	});
 	// Track validation error for size constraints
 	let sizeValidationError = $state<string | null>(null);
 
