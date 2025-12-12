@@ -12,6 +12,7 @@
 		ParsedStudent,
 		ParsedPreference
 	} from '$lib/application/useCases/createGroupingActivity';
+	import { computePreferenceInsights } from '$lib/utils/preferenceInsights';
 
 	interface Props {
 		/** Students from Step 1 (used to validate preferences) */
@@ -158,6 +159,9 @@ henry@school.edu	frank@school.edu	bob@school.edu	`;
 		const percent = total > 0 ? Math.round((withPrefs / total) * 100) : 0;
 		return { withPrefs, total, percent };
 	});
+
+	// Compute preference insights
+	let insights = $derived(computePreferenceInsights(preferences, warnings));
 </script>
 
 <div class="space-y-4">
@@ -278,6 +282,52 @@ bob@school.edu	alice@school.edu	dave@school.edu"
 				{/if}
 			</div>
 		</div>
+
+		<!-- Data Summary / Insights Panel -->
+		{#if insights}
+			<div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+				<h4 class="mb-2 text-sm font-medium text-gray-700">Data Summary</h4>
+				<div class="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+					<div class="flex justify-between sm:flex-col sm:gap-0.5">
+						<span class="text-gray-500">Coverage</span>
+						<span class="font-medium text-gray-900">
+							{coverageStats.withPrefs} of {coverageStats.total} ({coverageStats.percent}%)
+						</span>
+					</div>
+					<div class="flex justify-between sm:flex-col sm:gap-0.5">
+						<span class="text-gray-500">Avg friends listed</span>
+						<span class="font-medium text-gray-900">{insights.avgFriends}</span>
+					</div>
+					<div class="flex justify-between sm:flex-col sm:gap-0.5">
+						<span class="text-gray-500">Mutual friendships</span>
+						<span class="font-medium text-gray-900">{insights.mutualCount}</span>
+					</div>
+				</div>
+
+				{#if insights.lowCoverage || insights.noMutual || insights.unknownRefs > 0}
+					<div class="mt-3 space-y-1 border-t border-gray-200 pt-3">
+						{#if insights.unknownRefs > 0}
+							<p class="text-sm text-amber-700">
+								<span class="mr-1">&#9888;</span>
+								{insights.unknownRefs} preference{insights.unknownRefs === 1 ? '' : 's'} reference students not in roster
+							</p>
+						{/if}
+						{#if insights.lowCoverage}
+							<p class="text-sm text-amber-700">
+								<span class="mr-1">&#9888;</span>
+								Low preference coverage may reduce group satisfaction
+							</p>
+						{/if}
+						{#if insights.noMutual}
+							<p class="text-sm text-blue-600">
+								<span class="mr-1">&#8505;</span>
+								No mutual preferences found (A&#8594;B and B&#8594;A)
+							</p>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		{/if}
 	{/if}
 
 	<!-- Warnings -->
