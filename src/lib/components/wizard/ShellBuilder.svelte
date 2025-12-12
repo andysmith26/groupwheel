@@ -7,11 +7,7 @@
 	 */
 
 	import { tick } from 'svelte';
-
-	interface GroupShell {
-		name: string;
-		capacity: number | null;
-	}
+	import type { GroupShell } from '$lib/utils/groupShellValidation';
 
 	interface Props {
 		groups: GroupShell[];

@@ -13,12 +13,7 @@
 	 */
 
 	import ShellBuilder from './ShellBuilder.svelte';
-	import { validateGroupShells } from '$lib/utils/groupShellValidation';
-
-	interface GroupShell {
-		name: string;
-		capacity: number | null;
-	}
+	import { validateGroupShells, type GroupShell } from '$lib/utils/groupShellValidation';
 
 	interface SizeConfig {
 		min: number | null;
