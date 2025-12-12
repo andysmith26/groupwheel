@@ -6,6 +6,7 @@
 		canUndo = false,
 		canRedo = false,
 		saveStatus = 'idle',
+		lastSavedAt = null,
 		onUndo,
 		onRedo,
 		onStartOver,
@@ -18,6 +19,7 @@
 		canUndo?: boolean;
 		canRedo?: boolean;
 		saveStatus?: SaveStatus;
+		lastSavedAt?: Date | null;
 		onUndo?: () => void;
 		onRedo?: () => void;
 		onStartOver?: () => void;
@@ -60,7 +62,7 @@
 	</div>
 
 	<div class="flex flex-wrap items-center gap-2">
-		<SaveStatusIndicator status={saveStatus} onRetry={onRetrySave} />
+		<SaveStatusIndicator status={saveStatus} {lastSavedAt} onRetry={onRetrySave} />
 		<button
 			type="button"
 			class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
