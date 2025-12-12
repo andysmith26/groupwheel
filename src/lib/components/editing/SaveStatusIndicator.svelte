@@ -11,7 +11,10 @@
 	let now = $state(Date.now());
 
 	// Update 'now' every minute to keep time-ago display current
+	// Only run timer when we're showing the saved status with a timestamp
 	$effect(() => {
+		if (status !== 'saved' || !lastSavedAt) return;
+
 		const intervalId = setInterval(() => {
 			now = Date.now();
 		}, 60000); // Update every minute
