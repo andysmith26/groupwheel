@@ -22,8 +22,7 @@
         import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
         import StepSelectRoster from '$lib/components/wizard/StepSelectRoster.svelte';
         import StepStudents from '$lib/components/wizard/StepStudents.svelte';
-        import StepGroupsFork from '$lib/components/wizard/StepGroupsFork.svelte';
-        import ShellBuilder from '$lib/components/wizard/ShellBuilder.svelte';
+        import StepGroupsUnified from '$lib/components/wizard/StepGroupsUnified.svelte';
         import StepPreferences from '$lib/components/wizard/StepPreferences.svelte';
         import StepName from '$lib/components/wizard/StepName.svelte';
         import type { GroupShellConfig } from '$lib/components/wizard/StepGroups.svelte';
@@ -94,75 +93,30 @@
 	// --- Wizard state ---
 
 	// Step management
-        // Steps vary based on user type and group creation mode:
-        // New user: Students → Groups Fork → (Shell Builder if specific) → Preferences → Name
-        // Returning user: Start → Students → Groups Fork → (Shell Builder if specific) → Preferences → Name
+        // Steps vary based on user type (new vs. returning) but are fixed regardless of group creation mode:
+        // New user: Students → Groups → Preferences → Name
+        // Returning user: Start → Students → Groups → Preferences → Name
+        // The Groups step includes both the fork question and content (shell builder or size controls)
         let currentStep = $state(0);
         let hasExistingRosters = $derived(existingRosters.length > 0);
 
-        // Group creation mode: 'specific' (leads to shell builder) or 'auto' (skips shell builder)
+        // Group creation mode: 'specific' (shows shell builder) or 'auto' (shows size controls)
+        // Both modes are handled within the unified Groups step, keeping step count fixed
         let groupCreationMode = $state<'specific' | 'auto' | null>(null);
 
-        // Track the previous mode to detect when it changes
-        let previousGroupCreationMode = $state<'specific' | 'auto' | null>(null);
-
-        // Helper function to compute step labels based on mode and roster state
-        function computeStepLabels(mode: 'specific' | 'auto' | null, hasRosters: boolean): string[] {
+        // Helper function to compute step labels based on roster state
+        // Step labels are now fixed regardless of group creation mode
+        function computeStepLabels(hasRosters: boolean): string[] {
                 if (hasRosters) {
-                        if (mode === 'specific') {
-                                return ['Start', 'Students', 'Groups', 'Define Groups', 'Preferences', 'Name'];
-                        }
                         return ['Start', 'Students', 'Groups', 'Preferences', 'Name'];
-                } else {
-                        if (mode === 'specific') {
-                                return ['Students', 'Groups', 'Define Groups', 'Preferences', 'Name'];
-                        }
-                        return ['Students', 'Groups', 'Preferences', 'Name'];
                 }
+                return ['Students', 'Groups', 'Preferences', 'Name'];
         }
 
         // Determine actual step sequence based on whether user is new or returning
-        // The "Groups" step is now the fork + optional shell builder
-        let stepLabels = $derived.by(() => computeStepLabels(groupCreationMode, hasExistingRosters));
+        // The "Groups" step now contains both fork question and content (unified)
+        let stepLabels = $derived.by(() => computeStepLabels(hasExistingRosters));
         let totalSteps = $derived(stepLabels.length);
-
-        // Adjust currentStep when groupCreationMode changes
-        $effect(() => {
-                // Only adjust if mode actually changed (not initial null -> mode transition)
-                if (previousGroupCreationMode !== null && groupCreationMode !== previousGroupCreationMode) {
-                        // Calculate the previous step labels to get the current step label before mode changed
-                        const previousStepLabels = computeStepLabels(previousGroupCreationMode, hasExistingRosters);
-                        
-                        // Get the label of the step the user was on before the mode change
-                        const currentStepLabel = currentStep < previousStepLabels.length 
-                                ? previousStepLabels[currentStep] 
-                                : undefined;
-                        
-                        // Calculate the new step labels for the new mode
-                        const newStepLabels = computeStepLabels(groupCreationMode, hasExistingRosters);
-                        
-                        // Find where the current step label appears in the new sequence
-                        const newStepIndex = currentStepLabel 
-                                ? newStepLabels.findIndex(label => label === currentStepLabel)
-                                : -1;
-                        
-                        // If the current step still exists in the new sequence, move to it
-                        // Otherwise, move back to the "Groups" fork step to let user proceed from there
-                        if (newStepIndex >= 0) {
-                                currentStep = newStepIndex;
-                        } else {
-                                // Current step doesn't exist in new sequence (likely was on "Define Groups")
-                                // Move back to the "Groups" fork step
-                                const groupsForkIndex = newStepLabels.findIndex(label => label === 'Groups');
-                                if (groupsForkIndex >= 0) {
-                                        currentStep = groupsForkIndex;
-                                }
-                        }
-                }
-                
-                // Update the previous mode tracker
-                previousGroupCreationMode = groupCreationMode;
-        });
 
 	// Normalize step for display (1-indexed for progress indicator)
 	let displayStep = $derived(currentStep + 1);
@@ -180,7 +134,7 @@
                 minSize: 4,
                 maxSize: 6
         });
-        let groupsValid = $state(true);
+        let unifiedGroupsValid = $state(false);  // Validity from StepGroupsUnified
 
 	// Submission state
 	let isSubmitting = $state(false);
@@ -195,10 +149,8 @@
 				return true; // Always can proceed (either new or existing selected)
 			case 'students':
 				return selectedRosterId !== null || students.length > 0;
-			case 'groups-fork':
-				return groupCreationMode !== null;
-			case 'shell-builder':
-				return shellBuilderValid && groupCreationGroups.length > 0;
+			case 'groups-unified':
+				return unifiedGroupsValid;
 			case 'preferences':
 				return true; // Optional step
 			case 'name':
@@ -284,11 +236,13 @@
                 preferences = parsed;
         }
 
-        function handleGroupModeSelect(mode: 'specific' | 'auto') {
+        // --- Callbacks for StepGroupsUnified ---
+
+        function handleUnifiedModeChange(mode: 'specific' | 'auto') {
                 groupCreationMode = mode;
         }
 
-        function handleShellBuilderGroupsChange(groups: Array<{ name: string; capacity: number | null }>) {
+        function handleUnifiedShellGroupsChange(groups: Array<{ name: string; capacity: number | null }>) {
                 groupCreationGroups = groups;
                 // Also update groupConfig for algorithm
                 groupConfig = {
@@ -297,16 +251,16 @@
                 };
         }
 
-        function handleShellBuilderValidityChange(isValid: boolean) {
-                shellBuilderValid = isValid;
+        function handleUnifiedSizeConfigChange(config: { min: number | null; max: number | null }) {
+                groupConfig = {
+                        ...groupConfig,
+                        minSize: config.min,
+                        maxSize: config.max
+                };
         }
 
-        function handleGroupConfigChange(config: GroupShellConfig) {
-                groupConfig = config;
-        }
-
-        function handleGroupValidityChange(isValid: boolean) {
-                groupsValid = isValid;
+        function handleUnifiedValidityChange(isValid: boolean) {
+                unifiedGroupsValid = isValid;
         }
 
         function handleNameChange(name: string) {
@@ -379,9 +333,11 @@
                         });
 
 			if (isErr(generateResult)) {
-				// Activity created but generation failed - still redirect,
-				// page will show empty state with generate button
+				// Activity created but generation failed - redirect with error param
+				// so workspace page can show contextual error banner
 				console.warn('Auto-generation failed:', generateResult.error);
+				goto(`/groups/${program.id}?genError=${encodeURIComponent(generateResult.error.type)}`);
+				return;
 			}
 
 			// Step 3: Redirect to workspace
@@ -415,37 +371,32 @@
 	let isFirstStep = $derived(currentStep === 0);
 
 	// Determine which step component to show
-        let activeStepType = $derived.by((): 'select-roster' | 'students' | 'groups-fork' | 'shell-builder' | 'preferences' | 'name' => {
+        // Step sequence is now fixed: Start? → Students → Groups (unified) → Preferences → Name
+        let activeStepType = $derived.by((): 'select-roster' | 'students' | 'groups-unified' | 'preferences' | 'name' => {
                 if (hasExistingRosters) {
-                        // Returning user flow: Start → Students → Groups Fork → (Shell Builder) → Preferences → Name
+                        // Returning user flow: Start → Students → Groups → Preferences → Name
                         switch (currentStep) {
                                 case 0:
                                         return 'select-roster';
                                 case 1:
                                         return 'students';
                                 case 2:
-                                        return 'groups-fork';
+                                        return 'groups-unified';
                                 case 3:
-                                        // If specific mode selected, step 3 is shell builder
-                                        // Otherwise step 3 is preferences (since we skip shell builder)
-                                        return groupCreationMode === 'specific' ? 'shell-builder' : 'preferences';
+                                        return 'preferences';
                                 case 4:
-                                        return groupCreationMode === 'specific' ? 'preferences' : 'name';
-                                case 5:
                                         return 'name';
                         }
                 } else {
-                        // New user flow: Students → Groups Fork → (Shell Builder) → Preferences → Name
+                        // New user flow: Students → Groups → Preferences → Name
                         switch (currentStep) {
                                 case 0:
                                         return 'students';
                                 case 1:
-                                        return 'groups-fork';
+                                        return 'groups-unified';
                                 case 2:
-                                        return groupCreationMode === 'specific' ? 'shell-builder' : 'preferences';
+                                        return 'preferences';
                                 case 3:
-                                        return groupCreationMode === 'specific' ? 'preferences' : 'name';
-                                case 4:
                                         return 'name';
                         }
                 }
@@ -493,16 +444,15 @@
 			<StepSelectRoster {existingRosters} {selectedRosterId} onSelect={handleRosterSelect} />
                 {:else if activeStepType === 'students'}
                         <StepStudents {students} onStudentsParsed={handleStudentsParsed} />
-                {:else if activeStepType === 'groups-fork'}
-                        <StepGroupsFork
-                                selectedMode={groupCreationMode}
-                                onModeSelect={handleGroupModeSelect}
-                        />
-                {:else if activeStepType === 'shell-builder'}
-                        <ShellBuilder
-                                groups={groupCreationGroups}
-                                onGroupsChange={handleShellBuilderGroupsChange}
-                                onValidityChange={handleShellBuilderValidityChange}
+                {:else if activeStepType === 'groups-unified'}
+                        <StepGroupsUnified
+                                mode={groupCreationMode}
+                                shellGroups={groupCreationGroups}
+                                sizeConfig={{ min: groupConfig.minSize, max: groupConfig.maxSize }}
+                                onModeChange={handleUnifiedModeChange}
+                                onShellGroupsChange={handleUnifiedShellGroupsChange}
+                                onSizeConfigChange={handleUnifiedSizeConfigChange}
+                                onValidityChange={handleUnifiedValidityChange}
                         />
                 {:else if activeStepType === 'preferences'}
                         <StepPreferences {students} {preferences} onPreferencesParsed={handlePreferencesParsed} />

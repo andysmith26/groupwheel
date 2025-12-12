@@ -68,6 +68,7 @@ type InternalState = {
 	pendingSave: boolean;
 	retryCount: number;
 	status: ScenarioStatus;
+	lastSavedAt: Date | null;
 };
 
 export type ScenarioEditingView = {
@@ -84,6 +85,7 @@ export type ScenarioEditingView = {
 	analyticsDelta: AnalyticsDelta | null;
 	status: ScenarioStatus;
 	retryCount: number;
+	lastSavedAt: Date | null;
 };
 
 const DEFAULT_DEBOUNCE_MS = 400;
@@ -136,7 +138,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		preferences: [],
 		pendingSave: false,
 		retryCount: 0,
-		status: 'DRAFT'
+		status: 'DRAFT',
+		lastSavedAt: null
 	});
 
 	private readonly view = derived(this.state, (state): ScenarioEditingView => {
@@ -159,7 +162,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			currentAnalytics: state.currentAnalytics,
 			analyticsDelta,
 			status: state.status,
-			retryCount: state.retryCount
+			retryCount: state.retryCount,
+			lastSavedAt: state.lastSavedAt
 		};
 	});
 
@@ -211,7 +215,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			preferences: [...preferences],
 			pendingSave: false,
 			retryCount: 0,
-			status: scenario.status
+			status: scenario.status,
+			lastSavedAt: null
 		});
 	}
 
@@ -861,7 +866,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		this.state.update((current) => ({
 			...current,
 			saveStatus: 'saved',
-			retryCount: 0
+			retryCount: 0,
+			lastSavedAt: new Date()
 		}));
 
 		this.savedIdleTimeout = setTimeout(() => {
