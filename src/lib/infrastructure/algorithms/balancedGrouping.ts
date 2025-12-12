@@ -30,6 +30,12 @@ export interface BalancedGroupingConfig {
 	 * Number of swap iterations for optimization (default: 300).
 	 */
 	swapBudget?: number;
+
+	/**
+	 * Random seed for shuffling student order before assignment.
+	 * Different seeds produce different grouping results.
+	 */
+	seed?: number;
 }
 
 /**
@@ -105,6 +111,12 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 			// Parse algorithm config
 			const config = (params.algorithmConfig as BalancedGroupingConfig | undefined) ?? {};
 
+			// Shuffle student order if seed is provided for variation
+			let studentOrder = params.studentIds;
+			if (config.seed !== undefined) {
+				studentOrder = shuffleWithSeed([...params.studentIds], config.seed);
+			}
+
 			// Generate or use provided groups
 			let groups: Group[];
 			if (config.groups && config.groups.length > 0) {
@@ -123,7 +135,7 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 			// Call balanced assignment algorithm
 			const result = assignBalanced({
 				groups,
-				studentOrder: params.studentIds,
+				studentOrder,
 				preferencesById,
 				studentsById,
 				swapBudget: config.swapBudget ?? 300
@@ -236,4 +248,26 @@ function createEmptyPreference(studentId: string): StudentPreference {
 		likeGroupIds: [],
 		avoidGroupIds: []
 	};
+}
+
+/**
+ * Shuffle an array using a seeded random number generator.
+ * Uses a simple mulberry32 PRNG for deterministic results.
+ */
+function shuffleWithSeed<T>(array: T[], seed: number): T[] {
+	// Mulberry32 PRNG
+	let t = seed >>> 0;
+	const random = (): number => {
+		t = (t + 0x6d2b79f5) | 0;
+		let r = Math.imul(t ^ (t >>> 15), 1 | t);
+		r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+		return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+	};
+
+	// Fisher-Yates shuffle
+	for (let i = array.length - 1; i > 0; i--) {
+		const j = Math.floor(random() * (i + 1));
+		[array[i], array[j]] = [array[j], array[i]];
+	}
+	return array;
 }

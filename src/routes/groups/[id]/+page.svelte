@@ -24,6 +24,8 @@
 	import ConfirmDialog from '$lib/components/editing/ConfirmDialog.svelte';
 	import StudentSidebar from '$lib/components/workspace/StudentSidebar.svelte';
 	import EmptyWorkspaceState from '$lib/components/workspace/EmptyWorkspaceState.svelte';
+	import HistorySelector from '$lib/components/editing/HistorySelector.svelte';
+	import type { ScenarioSatisfaction } from '$lib/domain';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -56,6 +58,19 @@
 	let newGroupId = $state<string | null>(null);
 	let showDeleteGroupConfirm = $state(false);
 	let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
+
+	// --- Result history state (session-only) ---
+	interface HistoryEntry {
+		id: string;
+		groups: Group[];
+		generatedAt: Date;
+		analytics: ScenarioSatisfaction;
+	}
+
+	const MAX_HISTORY = 3;
+	let resultHistory = $state<HistoryEntry[]>([]);
+	let currentHistoryIndex = $state<number>(-1); // -1 = current (live), 0+ = history index
+	let isTryingAnother = $state(false);
 
 	// --- Toast ---
 	let toastMessage = $state('');
@@ -182,8 +197,83 @@
 			memberIds: g.memberIds
 		}));
 
+		// Clear history when starting over
+		resultHistory = [];
+		currentHistoryIndex = -1;
+
 		await editingStore.regenerate(groups);
 		isRegenerating = false;
+	}
+
+	// --- History Functions ---
+
+	function addToHistory(groups: Group[], analytics: ScenarioSatisfaction) {
+		const entry: HistoryEntry = {
+			id: crypto.randomUUID(),
+			groups: structuredClone(groups),
+			generatedAt: new Date(),
+			analytics
+		};
+
+		resultHistory = [entry, ...resultHistory].slice(0, MAX_HISTORY);
+		currentHistoryIndex = -1; // Switch to current (new result)
+	}
+
+	function switchToHistoryEntry(index: number) {
+		if (!editingStore) return;
+
+		if (index === -1) {
+			// Switch to current (live) result - nothing to do if already there
+			currentHistoryIndex = -1;
+			return;
+		}
+
+		if (index < 0 || index >= resultHistory.length) return;
+
+		currentHistoryIndex = index;
+		const entry = resultHistory[index];
+		// Load groups into editing store, resetting undo history
+		editingStore.regenerate(entry.groups);
+	}
+
+	async function handleTryAnother() {
+		if (!env || !scenario || !editingStore) return;
+
+		// Save current state to history before generating new
+		const currentGroups = view?.groups ?? [];
+		const currentAnalytics = view?.currentAnalytics;
+		if (currentGroups.length > 0 && currentAnalytics) {
+			addToHistory(currentGroups, currentAnalytics);
+		}
+
+		isTryingAnother = true;
+
+		// Generate with new seed for variation
+		const existingConfig = (scenario.algorithmConfig as Record<string, unknown>) ?? {};
+		const result = await env.groupingAlgorithm.generateGroups({
+			programId: scenario.programId,
+			studentIds: scenario.participantSnapshot,
+			algorithmConfig: {
+				...existingConfig,
+				seed: Date.now()
+			}
+		});
+
+		if (!result.success) {
+			showToast('Generation failed');
+			isTryingAnother = false;
+			return;
+		}
+
+		const groups: Group[] = result.groups.map((g) => ({
+			id: g.id,
+			name: g.name,
+			capacity: g.capacity,
+			memberIds: g.memberIds
+		}));
+
+		await editingStore.regenerate(groups);
+		isTryingAnother = false;
 	}
 
 	function metricSummary(): string {
@@ -349,11 +439,19 @@
 							metricSummary={metricSummary()}
 							{analyticsOpen}
 							{isRegenerating}
+							{isTryingAnother}
 							onUndo={() => editingStore?.undo()}
 							onRedo={() => editingStore?.redo()}
 							onStartOver={() => showStartOverConfirm = true}
+							onTryAnother={handleTryAnother}
 							onToggleAnalytics={() => analyticsOpen = !analyticsOpen}
 							onRetrySave={() => editingStore?.retrySave()}
+						/>
+
+						<HistorySelector
+							historyLength={resultHistory.length}
+							currentIndex={currentHistoryIndex}
+							onSelect={switchToHistoryEntry}
 						/>
 
 						<AnalyticsPanel
