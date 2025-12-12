@@ -50,7 +50,7 @@
 	{:else if status === 'failed'}
 		<button
 			type="button"
-			class="icon flex items-center gap-1.5 text-red-500 hover:text-red-600"
+			class="icon flex items-center gap-1.5 text-red-500 hover:text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
 			onclick={onRetry}
 			title="Click to retry"
 		>
