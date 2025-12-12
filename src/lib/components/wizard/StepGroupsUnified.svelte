@@ -67,22 +67,26 @@
 		shellBuilderValid = isValid;
 	}
 
+	function validateSizeConfig(min: number | null, max: number | null): string | null {
+		if (min !== null && max !== null && min > max) {
+			return 'Minimum group size cannot be greater than maximum';
+		}
+		return null;
+	}
+
 	function handleMinChange(e: Event) {
 		const value = (e.target as HTMLInputElement).value;
 		const parsed = value === '' ? null : parseInt(value, 10);
 		const newMin = Number.isNaN(parsed) ? null : parsed;
 		
-		// Validate min <= max if both are provided
-		if (newMin !== null && sizeConfig.max !== null && newMin > sizeConfig.max) {
-			sizeValidationError = 'Minimum group size cannot be greater than maximum';
-		} else {
-			sizeValidationError = null;
-		}
-		
+		// Update config first
 		onSizeConfigChange({
 			...sizeConfig,
 			min: newMin
 		});
+		
+		// Then validate with new min and current max
+		sizeValidationError = validateSizeConfig(newMin, sizeConfig.max);
 	}
 
 	function handleMaxChange(e: Event) {
@@ -90,17 +94,14 @@
 		const parsed = value === '' ? null : parseInt(value, 10);
 		const newMax = Number.isNaN(parsed) ? null : parsed;
 		
-		// Validate min <= max if both are provided
-		if (sizeConfig.min !== null && newMax !== null && sizeConfig.min > newMax) {
-			sizeValidationError = 'Maximum group size cannot be less than minimum';
-		} else {
-			sizeValidationError = null;
-		}
-		
+		// Update config first
 		onSizeConfigChange({
 			...sizeConfig,
 			max: newMax
 		});
+		
+		// Then validate with current min and new max
+		sizeValidationError = validateSizeConfig(sizeConfig.min, newMax);
 	}
 </script>
 
