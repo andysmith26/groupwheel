@@ -100,7 +100,7 @@
 			<button
 				type="button"
 				role="radio"
-				aria-checked={mode === 'specific'}
+				aria-checked={mode === 'specific' ? 'true' : 'false'}
 				class="flex flex-col items-start gap-3 rounded-xl border-2 p-5 text-left transition-colors {mode ===
 				'specific'
 					? 'border-blue-500 bg-blue-50'
@@ -151,7 +151,7 @@
 			<button
 				type="button"
 				role="radio"
-				aria-checked={mode === 'auto'}
+				aria-checked={mode === 'auto' ? 'true' : 'false'}
 				class="flex flex-col items-start gap-3 rounded-xl border-2 p-5 text-left transition-colors {mode ===
 				'auto'
 					? 'border-blue-500 bg-blue-50'
