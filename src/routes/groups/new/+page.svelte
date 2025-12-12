@@ -132,7 +132,6 @@
                 minSize: 4,
                 maxSize: 6
         });
-        let groupsValid = $state(true);
         let unifiedGroupsValid = $state(false);  // Validity from StepGroupsUnified
 
 	// Submission state
