@@ -47,13 +47,16 @@
 	// Track ShellBuilder validity separately
 	let shellBuilderValid = $state(false);
 
+	// Track validation error for size constraints
+	let sizeValidationError = $state<string | null>(null);
+
 	// Compute overall validity and report to parent
 	$effect(() => {
 		if (mode === null) {
 			onValidityChange(false);
 		} else if (mode === 'auto') {
-			// Auto mode is always valid (size controls have reasonable defaults)
-			onValidityChange(true);
+			// Auto mode is valid if no size validation errors
+			onValidityChange(sizeValidationError === null);
 		} else {
 			// Specific mode requires at least one valid group
 			onValidityChange(shellBuilderValid);
@@ -64,22 +67,41 @@
 		shellBuilderValid = isValid;
 	}
 
+	function validateSizeConfig(min: number | null, max: number | null): string | null {
+		if (min !== null && max !== null && min > max) {
+			return 'Minimum group size cannot be greater than maximum';
+		}
+		return null;
+	}
+
 	function handleMinChange(e: Event) {
 		const value = (e.target as HTMLInputElement).value;
 		const parsed = value === '' ? null : parseInt(value, 10);
+		const newMin = Number.isNaN(parsed) ? null : parsed;
+		
+		// Update config first
 		onSizeConfigChange({
 			...sizeConfig,
-			min: Number.isNaN(parsed) ? null : parsed
+			min: newMin
 		});
+		
+		// Then validate with new min and current max
+		sizeValidationError = validateSizeConfig(newMin, sizeConfig.max);
 	}
 
 	function handleMaxChange(e: Event) {
 		const value = (e.target as HTMLInputElement).value;
 		const parsed = value === '' ? null : parseInt(value, 10);
+		const newMax = Number.isNaN(parsed) ? null : parsed;
+		
+		// Update config first
 		onSizeConfigChange({
 			...sizeConfig,
-			max: Number.isNaN(parsed) ? null : parsed
+			max: newMax
 		});
+		
+		// Then validate with current min and new max
+		sizeValidationError = validateSizeConfig(sizeConfig.min, newMax);
 	}
 </script>
 
@@ -228,7 +250,9 @@
 							id="min-size"
 							type="number"
 							min="1"
-							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm {sizeValidationError
+								? 'border-red-500 ring-red-500'
+								: ''}"
 							value={sizeConfig.min ?? ''}
 							placeholder="No minimum"
 							oninput={handleMinChange}
@@ -242,13 +266,36 @@
 							id="max-size"
 							type="number"
 							min="1"
-							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm {sizeValidationError
+								? 'border-red-500 ring-red-500'
+								: ''}"
 							value={sizeConfig.max ?? ''}
 							placeholder="No maximum"
 							oninput={handleMaxChange}
 						/>
 					</div>
 				</div>
+
+				{#if sizeValidationError}
+					<div class="rounded-md bg-red-50 p-3">
+						<div class="flex">
+							<svg
+								class="h-5 w-5 text-red-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							<p class="ml-3 text-sm text-red-700">{sizeValidationError}</p>
+						</div>
+					</div>
+				{/if}
 
 				<p class="text-sm text-gray-500">
 					Leave empty for no constraint. The algorithm will create appropriately-sized groups based
