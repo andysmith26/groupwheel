@@ -144,6 +144,15 @@ Students may supply preferences that the grouping algorithm can consume. In MVP 
 - `studentId: string`
 - `payload: unknown` _(e.g., club ranked list)_
 
+The payload is typically a `StudentPreference` value object with the following shape:
+
+- `studentId: string` — identifier for the student who expressed the preference
+- `likeStudentIds: string[]` — ordered list of classmates they would like to be grouped with
+- `avoidStudentIds: string[]` — unordered set of classmates they would prefer to avoid
+- `likeGroupIds: string[]` — ranked list of group IDs they would like to join
+- `avoidGroupIds: string[]` — set of group IDs they would rather not join
+- `meta?: Record<string, string | number | boolean | null | undefined>` — optional flags for extra signals (e.g., `preferredGroupSize`)
+
 **Status:** MVP (only the minimal preference shape required for analytics)
 
 ### 4.2 Analytics / Scenario Satisfaction (MVP)

@@ -149,6 +149,8 @@ The infrastructure layer provides **adapters** that implement ports plus related
   - `InMemoryProgramRepository`
   - `InMemoryScenarioRepository`
   - `InMemoryPreferenceRepository`
+- `src/lib/infrastructure/repositories/indexedDb/*`:
+  - `IndexedDbScenarioRepository`
 
 **Services:**
 

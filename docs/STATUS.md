@@ -1,6 +1,6 @@
 # Friend Hat — Current Status
 
-**Last verified:** December 2025
+**Last verified:** December 2024
 
 This document tracks what's actually implemented. Update when features ship.
 
@@ -10,18 +10,21 @@ This document tracks what's actually implemented. Update when features ship.
 
 ### MVP Features
 
-| Feature                     | Status  | Route/Location                 | Notes                    |
-| --------------------------- | ------- | ------------------------------ | ------------------------ |
-| Create Groups wizard        | ✅ Done | `/groups/new`                  | 4-step flow              |
-| CSV roster import           | ✅ Done | Wizard step 2                  | TSV also supported       |
-| Preference import           | ✅ Done | Wizard step 3                  | Mismatch warnings        |
-| Balanced grouping algorithm | ✅ Done | `generateScenario` use case    | 300 swap iterations      |
-| Basic analytics             | ✅ Done | Activity detail page           | Top %, top 2 %, avg rank |
-| Drag-drop editing           | ✅ Done | Activity detail page           | Undo/redo works          |
-| Read-only student view      | ✅ Done | `/scenarios/[id]/student-view` | Print-friendly           |
-| Roster reuse                | ✅ Done | Wizard step 1                  | "Start from existing"    |
-| Auto-save                   | ✅ Done | Activity detail                | 500ms debounce           |
-| Activity dashboard          | ✅ Done | `/groups`                      | Lists all activities     |
+| Feature                     | Status  | Route/Location                 | Notes                                                    |
+| --------------------------- | ------- | ------------------------------ | -------------------------------------------------------- |
+| Create Groups wizard        | ✅ Done | `/groups/new`                  | New users: 4 steps; Returning: 5 steps with roster reuse |
+| CSV roster import           | ✅ Done | Wizard Students step           | TSV also supported                                       |
+| Preference import           | ✅ Done | Wizard Preferences step        | Mismatch warnings shown                                  |
+| Group configuration         | ✅ Done | Wizard Groups step             | "Specific groups" or "Auto split" modes                  |
+| Balanced grouping algorithm | ✅ Done | `generateScenario` use case    | 300 swap iterations, 4-6 students/group                  |
+| Basic analytics             | ✅ Done | Activity detail page           | Top %, top 2 %, avg rank                                 |
+| Drag-drop editing           | ✅ Done | Activity detail page           | Via ScenarioEditingStore                                 |
+| Undo/redo                   | ✅ Done | Activity detail page           | Session-scoped command history                           |
+| Read-only student view      | ✅ Done | `/scenarios/[id]/student-view` | Print-friendly                                           |
+| Roster reuse                | ✅ Done | Wizard Start step              | Shows existing rosters for returning users               |
+| Auto-save                   | ✅ Done | Activity detail                | 500ms debounce to IndexedDB                              |
+| Activity dashboard          | ✅ Done | `/groups`                      | Lists all activities                                     |
+| Browser persistence         | ✅ Done | IndexedDB                      | Scenarios persist across sessions                        |
 
 ### NEXT Features
 
@@ -48,15 +51,16 @@ This document tracks what's actually implemented. Update when features ship.
 
 ## Architecture Status
 
-| Layer                 | Status      | Location                             |
-| --------------------- | ----------- | ------------------------------------ |
-| Domain entities       | ✅ Complete | `src/lib/domain/`                    |
-| Domain factories      | ✅ Complete | `createPool`, `createScenario`, etc. |
-| Application ports     | ✅ Complete | `src/lib/application/ports/`         |
-| Use cases             | ✅ Complete | `src/lib/application/useCases/`      |
-| InMemory repositories | ✅ Complete | `src/lib/infrastructure/`            |
-| IndexedDB persistence | ✅ Complete | Browser storage                      |
-| Svelte context wiring | ✅ Complete | `src/lib/contexts/appEnv.ts`         |
+| Layer                 | Status      | Location                                         |
+| --------------------- | ----------- | ------------------------------------------------ |
+| Domain entities       | ✅ Complete | `src/lib/domain/`                                |
+| Domain factories      | ✅ Complete | `createPool`, `createScenario`, etc.             |
+| Application ports     | ✅ Complete | `src/lib/application/ports/`                     |
+| Use cases             | ✅ Complete | `src/lib/application/useCases/`                  |
+| InMemory repositories | ✅ Complete | `src/lib/infrastructure/repositories/inMemory/`  |
+| IndexedDB persistence | ✅ Complete | `src/lib/infrastructure/repositories/indexedDb/` |
+| Svelte context wiring | ✅ Complete | `src/lib/contexts/appEnv.ts`                     |
+| ScenarioEditingStore  | ✅ Complete | `src/lib/application/stores/` — undo/redo        |
 
 ---
 
@@ -79,6 +83,13 @@ This document tracks what's actually implemented. Update when features ship.
 | Mobile untested      | Touch drag-drop may have issues      | Target is laptop; defer mobile   |
 | Algorithm single-run | Teacher gets one option              | Candidate Gallery in NEXT phase  |
 | No conflict rules UI | Teachers can't specify "never group" | Manual editing as workaround     |
+
+## Documentation Gaps (Fix When Time Allows)
+
+| Document        | Issue                                                                                                                                  |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| DOMAIN_MODEL.md | Preference `payload` documented as `unknown`; actual code has rich `StudentPreference` type with likeStudentIds, avoidStudentIds, etc. |
+| ARCHITECTURE.md | Missing IndexedDbScenarioRepository in repository list                                                                                 |
 
 ---
 
