@@ -241,7 +241,7 @@
 		// Save current state to history before generating new
 		const currentGroups = view?.groups ?? [];
 		const currentAnalytics = view?.currentAnalytics;
-		if (currentGroups.length > 0 && currentAnalytics) {
+		if (currentHistoryIndex === -1 && currentGroups.length > 0 && currentAnalytics) {
 			addToHistory(currentGroups, currentAnalytics);
 		}
 
