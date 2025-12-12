@@ -13,6 +13,7 @@
 	 */
 
 	import ShellBuilder from './ShellBuilder.svelte';
+	import { validateGroupShells } from '$lib/utils/groupShellValidation';
 
 	interface GroupShell {
 		name: string;
@@ -47,34 +48,11 @@
 	// Track ShellBuilder validity separately
 	let shellBuilderValid = $state(false);
 
-	// Validate groups on mount if we have existing groups (for backtracking)
-	// This replicates the validation logic from ShellBuilder
-	function validateShellGroups(groups: GroupShell[]): boolean {
-		if (groups.length === 0) return false;
-
-		const seenNames = new Set<string>();
-		for (const group of groups) {
-			const trimmedName = group.name.trim();
-			
-			// Empty name is invalid
-			if (trimmedName.length === 0) return false;
-			
-			// Duplicate names are invalid
-			if (seenNames.has(trimmedName.toLowerCase())) return false;
-			seenNames.add(trimmedName.toLowerCase());
-			
-			// Negative or zero capacity is invalid
-			if (group.capacity !== null && group.capacity <= 0) return false;
-		}
-		
-		return true;
-	}
-
 	// On mount, if we have groups in specific mode, revalidate them
 	// This handles the backtracking case where user returns from a later step
 	$effect(() => {
 		if (mode === 'specific' && shellGroups.length > 0) {
-			const isValid = validateShellGroups(shellGroups);
+			const isValid = validateGroupShells(shellGroups);
 			if (isValid !== shellBuilderValid) {
 				shellBuilderValid = isValid;
 			}
