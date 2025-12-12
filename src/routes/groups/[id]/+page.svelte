@@ -64,7 +64,6 @@
 		id: string;
 		groups: Group[];
 		generatedAt: Date;
-		analytics: ScenarioSatisfaction;
 	}
 
 	const MAX_HISTORY = 3;
