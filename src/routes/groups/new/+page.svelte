@@ -379,9 +379,11 @@
                         });
 
 			if (isErr(generateResult)) {
-				// Activity created but generation failed - still redirect,
-				// page will show empty state with generate button
+				// Activity created but generation failed - redirect with error param
+				// so workspace page can show contextual error banner
 				console.warn('Auto-generation failed:', generateResult.error);
+				goto(`/groups/${program.id}?genError=${encodeURIComponent(generateResult.error.type)}`);
+				return;
 			}
 
 			// Step 3: Redirect to workspace

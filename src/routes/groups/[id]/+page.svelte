@@ -24,6 +24,9 @@
 	import ConfirmDialog from '$lib/components/editing/ConfirmDialog.svelte';
 	import StudentSidebar from '$lib/components/workspace/StudentSidebar.svelte';
 	import EmptyWorkspaceState from '$lib/components/workspace/EmptyWorkspaceState.svelte';
+	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
+	import { generateScenario } from '$lib/services/appEnvUseCases';
+	import { isErr } from '$lib/types/result';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -52,6 +55,10 @@
 	let showStartOverConfirm = $state(false);
 	let isRegenerating = $state(false);
 
+	// --- Generation error state (from wizard redirect) ---
+	let generationError = $state<string | null>(null);
+	let isRetryingGeneration = $state(false);
+
 	// --- Group shell editing state ---
 	let newGroupId = $state<string | null>(null);
 	let showDeleteGroupConfirm = $state(false);
@@ -77,6 +84,17 @@
 
 	onMount(async () => {
 		env = getAppEnvContext();
+
+		// Check for generation error from wizard redirect
+		const errorParam = $page.url.searchParams.get('genError');
+		if (errorParam) {
+			generationError = errorParam;
+			// Clean the URL without triggering navigation
+			const cleanUrl = new URL($page.url);
+			cleanUrl.searchParams.delete('genError');
+			history.replaceState({}, '', cleanUrl.pathname);
+		}
+
 		await loadActivityData();
 	});
 
@@ -133,6 +151,31 @@
 		editingStore.subscribe((value) => {
 			view = value;
 		});
+	}
+
+	// --- Generation Retry Handler ---
+
+	async function handleRetryGeneration() {
+		if (!env || !program) return;
+
+		isRetryingGeneration = true;
+
+		const result = await generateScenario(env, {
+			programId: program.id
+		});
+
+		if (isErr(result)) {
+			// Update error message with new error
+			generationError = result.error.type;
+			isRetryingGeneration = false;
+			return;
+		}
+
+		// Success - initialize the editing store and clear error
+		scenario = result.value;
+		generationError = null;
+		initializeEditingStore(result.value);
+		isRetryingGeneration = false;
 	}
 
 	// --- Event Handlers ---
@@ -335,7 +378,17 @@
 		<div class="flex flex-1 overflow-hidden">
 			<!-- Workspace (main area) -->
 			<main class="flex-1 overflow-y-auto p-4">
-				{#if !scenario || !view}
+				{#if generationError && (!scenario || !view)}
+					<!-- Generation failed - show error banner with retry option -->
+					<div class="mx-auto max-w-2xl py-8">
+						<GenerationErrorBanner
+							errorType={generationError}
+							isRetrying={isRetryingGeneration}
+							onRetry={handleRetryGeneration}
+							programId={program.id}
+						/>
+					</div>
+				{:else if !scenario || !view}
 					<EmptyWorkspaceState
 						studentCount={students.length}
 						{preferencesCount}
