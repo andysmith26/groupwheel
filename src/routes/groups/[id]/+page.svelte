@@ -64,6 +64,7 @@
 		id: string;
 		groups: Group[];
 		generatedAt: Date;
+		analytics: ScenarioSatisfaction;
 	}
 
 	const MAX_HISTORY = 3;
@@ -207,8 +208,10 @@
 	// --- History Functions ---
 
 	function addToHistory(groups: Group[], analytics: ScenarioSatisfaction) {
+		if (!env) return;
+		
 		const entry: HistoryEntry = {
-			id: crypto.randomUUID(),
+			id: env.idGenerator.generateId(),
 			groups: structuredClone(groups),
 			generatedAt: new Date(),
 			analytics
