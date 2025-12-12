@@ -48,14 +48,19 @@
 	// Track ShellBuilder validity separately
 	let shellBuilderValid = $state(false);
 
-	// On mount, if we have groups in specific mode, revalidate them
+	// On mount or when props change, revalidate groups if in specific mode
 	// This handles the backtracking case where user returns from a later step
 	$effect(() => {
+		// Dependencies: mode, shellGroups (implicitly tracked)
 		if (mode === 'specific' && shellGroups.length > 0) {
 			const isValid = validateGroupShells(shellGroups);
+			// Only update if different to avoid unnecessary reactivity
 			if (isValid !== shellBuilderValid) {
 				shellBuilderValid = isValid;
 			}
+		} else if (mode !== 'specific') {
+			// Reset validity when not in specific mode
+			shellBuilderValid = false;
 		}
 	});
 
