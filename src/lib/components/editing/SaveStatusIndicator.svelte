@@ -7,9 +7,24 @@
 		onRetry?: () => void;
 	}>();
 
+	// Reactive state to trigger recalculation of time-ago display
+	let now = $state(Date.now());
+
+	// Update 'now' every minute to keep time-ago display current
+	// Only run timer when we're showing the saved status with a timestamp
+	$effect(() => {
+		if (status !== 'saved' || !lastSavedAt) return;
+
+		const intervalId = setInterval(() => {
+			now = Date.now();
+		}, 60000); // Update every minute
+
+		return () => clearInterval(intervalId);
+	});
+
 	const timeAgo = $derived.by(() => {
 		if (!lastSavedAt) return null;
-		const seconds = Math.floor((Date.now() - lastSavedAt.getTime()) / 1000);
+		const seconds = Math.floor((now - lastSavedAt.getTime()) / 1000);
 		if (seconds < 60) return 'just now';
 		const minutes = Math.floor(seconds / 60);
 		if (minutes < 60) return `${minutes}m ago`;
