@@ -1,0 +1,100 @@
+# Friend Hat — Current Status
+
+**Last verified:** December 2025
+
+This document tracks what's actually implemented. Update when features ship.
+
+---
+
+## Implementation Status
+
+### MVP Features
+
+| Feature                     | Status  | Route/Location                 | Notes                    |
+| --------------------------- | ------- | ------------------------------ | ------------------------ |
+| Create Groups wizard        | ✅ Done | `/groups/new`                  | 4-step flow              |
+| CSV roster import           | ✅ Done | Wizard step 2                  | TSV also supported       |
+| Preference import           | ✅ Done | Wizard step 3                  | Mismatch warnings        |
+| Balanced grouping algorithm | ✅ Done | `generateScenario` use case    | 300 swap iterations      |
+| Basic analytics             | ✅ Done | Activity detail page           | Top %, top 2 %, avg rank |
+| Drag-drop editing           | ✅ Done | Activity detail page           | Undo/redo works          |
+| Read-only student view      | ✅ Done | `/scenarios/[id]/student-view` | Print-friendly           |
+| Roster reuse                | ✅ Done | Wizard step 1                  | "Start from existing"    |
+| Auto-save                   | ✅ Done | Activity detail                | 500ms debounce           |
+| Activity dashboard          | ✅ Done | `/groups`                      | Lists all activities     |
+
+### NEXT Features
+
+| Feature                  | Status         | Notes                       |
+| ------------------------ | -------------- | --------------------------- |
+| Candidate Gallery        | 🔲 Not started | Phase 2 UX evolution        |
+| Inline workspace editing | 🔲 Not started | Merge edit into detail page |
+| Conflict rules           | 🔲 Not started | Domain model ready          |
+| Adjustment logging       | 🔲 Not started | —                           |
+| Pool manual edit UI      | 🔲 Not started | Use cases ready, no UI      |
+| Analytics dashboard      | 🔲 Not started | Route exists as placeholder |
+
+### LATER Features
+
+| Feature              | Status         |
+| -------------------- | -------------- |
+| Student portal       | 🔲 Not started |
+| Authentication       | 🔲 Not started |
+| SIS integration      | 🔲 Not started |
+| Multi-teacher collab | 🔲 Not started |
+| LMS export           | 🔲 Not started |
+
+---
+
+## Architecture Status
+
+| Layer                 | Status      | Location                             |
+| --------------------- | ----------- | ------------------------------------ |
+| Domain entities       | ✅ Complete | `src/lib/domain/`                    |
+| Domain factories      | ✅ Complete | `createPool`, `createScenario`, etc. |
+| Application ports     | ✅ Complete | `src/lib/application/ports/`         |
+| Use cases             | ✅ Complete | `src/lib/application/useCases/`      |
+| InMemory repositories | ✅ Complete | `src/lib/infrastructure/`            |
+| IndexedDB persistence | ✅ Complete | Browser storage                      |
+| Svelte context wiring | ✅ Complete | `src/lib/contexts/appEnv.ts`         |
+
+---
+
+## Test Coverage
+
+| Area                | Status     | Notes                |
+| ------------------- | ---------- | -------------------- |
+| Domain unit tests   | ✅ Good    | Factories, analytics |
+| Use case unit tests | ⚠️ Partial | Core paths covered   |
+| Component tests     | ⚠️ Partial | Wizard steps         |
+| E2E tests           | ✅ Good    | Full wizard flow     |
+
+---
+
+## Known Gaps
+
+| Gap                  | Impact                               | Mitigation                       |
+| -------------------- | ------------------------------------ | -------------------------------- |
+| No authentication    | Can't persist across devices         | Browser storage + export planned |
+| Mobile untested      | Touch drag-drop may have issues      | Target is laptop; defer mobile   |
+| Algorithm single-run | Teacher gets one option              | Candidate Gallery in NEXT phase  |
+| No conflict rules UI | Teachers can't specify "never group" | Manual editing as workaround     |
+
+---
+
+## Recent Changes
+
+| Date     | Change                                             |
+| -------- | -------------------------------------------------- |
+| Dec 2024 | MVP complete; wizard flow, analytics, student view |
+| Nov 2024 | Hexagonal architecture migration                   |
+| Nov 2024 | Domain model consolidation                         |
+
+---
+
+## How to Update This Document
+
+1. When you ship a feature, change its status from 🔲 to ✅
+2. Update "Last verified" date
+3. Add entry to "Recent Changes"
+4. Keep it factual—aspirations go in [PRODUCT.md](PRODUCT.md)
