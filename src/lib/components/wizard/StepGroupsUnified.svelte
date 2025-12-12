@@ -87,16 +87,20 @@
 	<!-- Fork question (always visible) -->
 	<div class="space-y-4">
 		<div>
-			<h2 class="text-lg font-medium text-gray-900">How do you want to create groups?</h2>
+			<h2 id="mode-selection-label" class="text-lg font-medium text-gray-900">
+				How do you want to create groups?
+			</h2>
 			<p class="mt-1 text-sm text-gray-600">
 				Choose how you'd like to set up your groups. You can always edit them later.
 			</p>
 		</div>
 
-		<div class="grid gap-4 md:grid-cols-2">
+		<div class="grid gap-4 md:grid-cols-2" role="radiogroup" aria-labelledby="mode-selection-label">
 			<!-- Specific groups option -->
 			<button
 				type="button"
+				role="radio"
+				aria-checked={mode === 'specific'}
 				class="flex flex-col items-start gap-3 rounded-xl border-2 p-5 text-left transition-colors {mode ===
 				'specific'
 					? 'border-blue-500 bg-blue-50'
@@ -146,6 +150,8 @@
 			<!-- Auto split option -->
 			<button
 				type="button"
+				role="radio"
+				aria-checked={mode === 'auto'}
 				class="flex flex-col items-start gap-3 rounded-xl border-2 p-5 text-left transition-colors {mode ===
 				'auto'
 					? 'border-blue-500 bg-blue-50'
