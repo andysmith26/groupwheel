@@ -22,7 +22,7 @@
 </script>
 
 <div
-	class="save-indicator flex w-20 items-center justify-start gap-1.5 text-xs"
+	class="save-indicator flex w-28 items-center justify-start gap-1.5 text-xs"
 	title={tooltipText}
 >
 	{#if status === 'saving'}
