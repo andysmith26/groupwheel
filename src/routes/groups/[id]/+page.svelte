@@ -71,6 +71,7 @@
 	let resultHistory = $state<HistoryEntry[]>([]);
 	let currentHistoryIndex = $state<number>(-1); // -1 = current (live), 0+ = history index
 	let isTryingAnother = $state(false);
+	let savedCurrentGroups = $state<Group[] | null>(null); // Stores current groups when viewing history
 
 	// --- Toast ---
 	let toastMessage = $state('');
@@ -200,6 +201,7 @@
 		// Clear history when starting over
 		resultHistory = [];
 		currentHistoryIndex = -1;
+		savedCurrentGroups = null;
 
 		await editingStore.regenerate(groups);
 		isRegenerating = false;
@@ -223,12 +225,22 @@
 		if (!editingStore) return;
 
 		if (index === -1) {
-			// Switch to current (live) result - nothing to do if already there
+			// Switch back to current (live) result
+			if (savedCurrentGroups && currentHistoryIndex !== -1) {
+				// Restore the saved current groups
+				editingStore.regenerate(savedCurrentGroups);
+				savedCurrentGroups = null;
+			}
 			currentHistoryIndex = -1;
 			return;
 		}
 
 		if (index < 0 || index >= resultHistory.length) return;
+
+		// Save current groups before switching to history (only once)
+		if (currentHistoryIndex === -1 && view?.groups) {
+			savedCurrentGroups = structuredClone(view.groups);
+		}
 
 		currentHistoryIndex = index;
 		const entry = resultHistory[index];
@@ -245,6 +257,9 @@
 		if (currentGroups.length > 0 && currentAnalytics) {
 			addToHistory(currentGroups, currentAnalytics);
 		}
+
+		// Clear saved current groups since we're generating a new current
+		savedCurrentGroups = null;
 
 		isTryingAnother = true;
 
