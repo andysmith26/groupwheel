@@ -346,6 +346,7 @@
 							canUndo={view.canUndo}
 							canRedo={view.canRedo}
 							saveStatus={view.saveStatus}
+							lastSavedAt={view.lastSavedAt}
 							metricSummary={metricSummary()}
 							{analyticsOpen}
 							{isRegenerating}
