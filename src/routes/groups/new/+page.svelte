@@ -93,13 +93,15 @@
 	// --- Wizard state ---
 
 	// Step management
-        // Steps vary based on user type and group creation mode:
-        // New user: Students → Groups Fork → (Shell Builder if specific) → Preferences → Name
-        // Returning user: Start → Students → Groups Fork → (Shell Builder if specific) → Preferences → Name
+        // Steps vary based on user type (new vs. returning) but are fixed regardless of group creation mode:
+        // New user: Students → Groups → Preferences → Name
+        // Returning user: Start → Students → Groups → Preferences → Name
+        // The Groups step includes both the fork question and content (shell builder or size controls)
         let currentStep = $state(0);
         let hasExistingRosters = $derived(existingRosters.length > 0);
 
-        // Group creation mode: 'specific' (leads to shell builder) or 'auto' (skips shell builder)
+        // Group creation mode: 'specific' (shows shell builder) or 'auto' (shows size controls)
+        // Both modes are handled within the unified Groups step, keeping step count fixed
         let groupCreationMode = $state<'specific' | 'auto' | null>(null);
 
         // Helper function to compute step labels based on roster state
