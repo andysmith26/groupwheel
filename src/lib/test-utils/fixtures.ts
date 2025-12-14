@@ -1,5 +1,5 @@
 /**
- * Test fixtures for Friend Hat.
+ * Test fixtures for Turntable.
  *
  * Provides pre-built test data with deterministic IDs for use in integration
  * tests and spec files. These fixtures allow tests to have predictable data
@@ -11,6 +11,10 @@
  * - Tests need deterministic IDs (e.g., 'stu-1') for assertions
  * - Fixtures may need to bypass business rules to set up edge cases
  * - Use case APIs don't expose ID specification
+ *
+ * Note: As of the Turntable pivot (December 2025), friend-based preferences
+ * (likeStudentIds) have been removed. Preferences now use group requests
+ * (likeGroupIds) instead. See PROJECT_HISTORY.md.
  *
  * @module test-utils/fixtures
  */
@@ -68,11 +72,9 @@ export const smallProgram: Program = {
 
 /**
  * Simple preferences for small dataset:
- * - Alex ↔ Bailey (mutual friends)
- * - Casey ↔ Drew (mutual friends)
- * - Elliot → Finley (one-way)
  * - Gray wants Red Team
  * - Harper avoids Blue Team
+ * (Friend preferences removed in Turntable pivot)
  */
 export const smallPreferences: Preference[] = [
 	{
@@ -81,7 +83,6 @@ export const smallPreferences: Preference[] = [
 		studentId: 'stu-s1',
 		payload: {
 			studentId: 'stu-s1',
-			likeStudentIds: ['stu-s2'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -93,7 +94,6 @@ export const smallPreferences: Preference[] = [
 		studentId: 'stu-s2',
 		payload: {
 			studentId: 'stu-s2',
-			likeStudentIds: ['stu-s1'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -105,7 +105,6 @@ export const smallPreferences: Preference[] = [
 		studentId: 'stu-s3',
 		payload: {
 			studentId: 'stu-s3',
-			likeStudentIds: ['stu-s4'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -117,7 +116,6 @@ export const smallPreferences: Preference[] = [
 		studentId: 'stu-s4',
 		payload: {
 			studentId: 'stu-s4',
-			likeStudentIds: ['stu-s3'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -129,7 +127,6 @@ export const smallPreferences: Preference[] = [
 		studentId: 'stu-s5',
 		payload: {
 			studentId: 'stu-s5',
-			likeStudentIds: ['stu-s6'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -141,7 +138,6 @@ export const smallPreferences: Preference[] = [
 		studentId: 'stu-s6',
 		payload: {
 			studentId: 'stu-s6',
-			likeStudentIds: [],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -153,7 +149,6 @@ export const smallPreferences: Preference[] = [
 		studentId: 'stu-s7',
 		payload: {
 			studentId: 'stu-s7',
-			likeStudentIds: [],
 			avoidStudentIds: [],
 			likeGroupIds: ['grp-s1'], // Wants Red Team
 			avoidGroupIds: []
@@ -165,7 +160,6 @@ export const smallPreferences: Preference[] = [
 		studentId: 'stu-s8',
 		payload: {
 			studentId: 'stu-s8',
-			likeStudentIds: [],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: ['grp-s2'] // Avoids Blue Team
@@ -261,7 +255,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-1',
 		payload: {
 			studentId: 'stu-1',
-			likeStudentIds: ['stu-2'],
 			avoidStudentIds: ['stu-4'], // Alice avoids Diego
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -273,7 +266,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-2',
 		payload: {
 			studentId: 'stu-2',
-			likeStudentIds: ['stu-1'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -285,7 +277,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-3',
 		payload: {
 			studentId: 'stu-3',
-			likeStudentIds: ['stu-4'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -297,7 +288,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-4',
 		payload: {
 			studentId: 'stu-4',
-			likeStudentIds: ['stu-3'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -309,7 +299,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-5',
 		payload: {
 			studentId: 'stu-5',
-			likeStudentIds: ['stu-6', 'stu-7'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -321,7 +310,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-6',
 		payload: {
 			studentId: 'stu-6',
-			likeStudentIds: ['stu-5', 'stu-7'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -333,7 +321,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-7',
 		payload: {
 			studentId: 'stu-7',
-			likeStudentIds: ['stu-5', 'stu-6'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -345,7 +332,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-8',
 		payload: {
 			studentId: 'stu-8',
-			likeStudentIds: ['stu-9'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -357,7 +343,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-9',
 		payload: {
 			studentId: 'stu-9',
-			likeStudentIds: ['stu-8'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: ['grp-3'] // Isaac avoids Group Gamma
@@ -369,7 +354,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-10',
 		payload: {
 			studentId: 'stu-10',
-			likeStudentIds: ['stu-11'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -381,7 +365,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-11',
 		payload: {
 			studentId: 'stu-11',
-			likeStudentIds: [],
 			avoidStudentIds: ['stu-2'], // Kevin avoids Brandon
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -393,7 +376,6 @@ export const testPreferences: Preference[] = [
 		studentId: 'stu-12',
 		payload: {
 			studentId: 'stu-12',
-			likeStudentIds: [],
 			avoidStudentIds: [],
 			likeGroupIds: ['grp-1'], // Luna wants Group Alpha
 			avoidGroupIds: []
@@ -500,7 +482,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l1',
 		payload: {
 			studentId: 'stu-l1',
-			likeStudentIds: ['stu-l2', 'stu-l3'],
 			avoidStudentIds: ['stu-l4'],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -512,7 +493,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l2',
 		payload: {
 			studentId: 'stu-l2',
-			likeStudentIds: ['stu-l1', 'stu-l3'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -524,7 +504,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l3',
 		payload: {
 			studentId: 'stu-l3',
-			likeStudentIds: ['stu-l1', 'stu-l2'],
 			avoidStudentIds: ['stu-l15'],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -537,7 +516,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l4',
 		payload: {
 			studentId: 'stu-l4',
-			likeStudentIds: ['stu-l5'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -549,7 +527,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l5',
 		payload: {
 			studentId: 'stu-l5',
-			likeStudentIds: ['stu-l4'],
 			avoidStudentIds: ['stu-l16'],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -562,7 +539,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l6',
 		payload: {
 			studentId: 'stu-l6',
-			likeStudentIds: ['stu-l7', 'stu-l8'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -574,7 +550,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l7',
 		payload: {
 			studentId: 'stu-l7',
-			likeStudentIds: ['stu-l6', 'stu-l8', 'stu-l9'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -586,7 +561,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l8',
 		payload: {
 			studentId: 'stu-l8',
-			likeStudentIds: ['stu-l6', 'stu-l7', 'stu-l9'],
 			avoidStudentIds: ['stu-l17'],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -598,7 +572,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l9',
 		payload: {
 			studentId: 'stu-l9',
-			likeStudentIds: ['stu-l7', 'stu-l8'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -611,7 +584,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l10',
 		payload: {
 			studentId: 'stu-l10',
-			likeStudentIds: ['stu-l11'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -623,7 +595,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l11',
 		payload: {
 			studentId: 'stu-l11',
-			likeStudentIds: ['stu-l10'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -636,7 +607,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l12',
 		payload: {
 			studentId: 'stu-l12',
-			likeStudentIds: ['stu-l13', 'stu-l14'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -648,7 +618,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l13',
 		payload: {
 			studentId: 'stu-l13',
-			likeStudentIds: ['stu-l12', 'stu-l14'],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -660,7 +629,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l14',
 		payload: {
 			studentId: 'stu-l14',
-			likeStudentIds: ['stu-l12', 'stu-l13'],
 			avoidStudentIds: ['stu-l18'],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -673,7 +641,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l15',
 		payload: {
 			studentId: 'stu-l15',
-			likeStudentIds: ['stu-l16'],
 			avoidStudentIds: [],
 			likeGroupIds: ['grp-l1'], // wants Eagles
 			avoidGroupIds: []
@@ -686,7 +653,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l16',
 		payload: {
 			studentId: 'stu-l16',
-			likeStudentIds: [],
 			avoidStudentIds: [],
 			likeGroupIds: ['grp-l2'], // wants Hawks
 			avoidGroupIds: []
@@ -699,7 +665,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l17',
 		payload: {
 			studentId: 'stu-l17',
-			likeStudentIds: [],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: ['grp-l3'] // avoids Falcons
@@ -712,7 +677,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l18',
 		payload: {
 			studentId: 'stu-l18',
-			likeStudentIds: ['stu-l19'],
 			avoidStudentIds: [],
 			likeGroupIds: ['grp-l4'], // wants Ravens
 			avoidGroupIds: []
@@ -725,7 +689,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l19',
 		payload: {
 			studentId: 'stu-l19',
-			likeStudentIds: [],
 			avoidStudentIds: ['stu-l20'],
 			likeGroupIds: [],
 			avoidGroupIds: ['grp-l1'] // avoids Eagles
@@ -738,7 +701,6 @@ export const largePreferences: Preference[] = [
 		studentId: 'stu-l20',
 		payload: {
 			studentId: 'stu-l20',
-			likeStudentIds: [],
 			avoidStudentIds: [],
 			likeGroupIds: ['grp-l3'], // wants Falcons
 			avoidGroupIds: []

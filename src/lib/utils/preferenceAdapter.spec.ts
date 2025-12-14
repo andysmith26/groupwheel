@@ -11,9 +11,8 @@ describe('buildPreferenceMap', () => {
 				studentId: 's1',
 				payload: {
 					studentId: 's1',
-					likeStudentIds: ['s2'],
 					avoidStudentIds: [],
-					likeGroupIds: [],
+					likeGroupIds: ['g1'],
 					avoidGroupIds: []
 				}
 			},
@@ -28,8 +27,8 @@ describe('buildPreferenceMap', () => {
 		const map = buildPreferenceMap(preferences);
 
 		expect(map.s1.studentId).toBe('s1');
-		expect(map.s1.likeStudentIds).toEqual(['s2']);
+		expect(map.s1.likeGroupIds).toEqual(['g1']);
 		expect(map.s2.studentId).toBe('s2');
-		expect(map.s2.likeStudentIds).toEqual([]);
+		expect(map.s2.likeGroupIds).toEqual([]);
 	});
 });

@@ -1,9 +1,8 @@
 import type { Student, StudentPreference } from '$lib/domain';
 
 export const SHEET_DATA_GUIDANCE = [
-	'"Students" tab: columns A–D should be ID, First Name, Last Name, Gender (with a header row).',
-	'"Connections" tab: each row must start with the same student ID/email used on the Students tab followed by friend IDs in additional columns.',
-	'Friend IDs have to match the IDs from the Students tab exactly (case-insensitive).'
+	'"Students" tab: columns should include ID and Name (with a header row).',
+	'Each student needs a unique ID (email or other identifier).'
 ];
 
 export class SheetDataError extends Error {
@@ -19,6 +18,7 @@ export interface RosterData {
 	studentsById: Record<string, Student>;
 	preferencesById: Record<string, StudentPreference>;
 	studentOrder: string[];
+	/** @deprecated No longer used - kept for API compatibility */
 	unknownFriendIds: Set<string>;
 }
 
@@ -36,6 +36,10 @@ export interface SheetApiPayload {
 	studentCount?: number;
 }
 
+/**
+ * Parse roster data from pasted text (CSV or TSV).
+ * Creates students with empty preferences (group requests will be imported separately).
+ */
 export function parseRosterFromPaste(text: string): RosterData {
 	const lines = text
 		.trim()
@@ -55,16 +59,9 @@ export function parseRosterFromPaste(text: string): RosterData {
 		throw new Error('Headers must include "display name" (or "name") and "id".');
 	}
 
-	const friendIdxs = header
-		.map((h, i) => ({ h, i }))
-		.filter(({ h }) => /^friend\s*\d+\s*id$/i.test(h))
-		.map(({ i }) => i)
-		.sort((a, b) => a - b);
-
 	const map: Record<string, Student> = {};
 	const order: string[] = [];
 	const prefMap: Record<string, StudentPreference> = {};
-	const unknownSet = new Set<string>();
 
 	for (let r = 1; r < lines.length; r++) {
 		const raw = lines[r];
@@ -81,10 +78,6 @@ export function parseRosterFromPaste(text: string): RosterData {
 			throw new Error(`Duplicate id found on row ${r + 1}: ${id}`);
 		}
 
-		const friendIds = friendIdxs
-			.map((idx) => (cells[idx] ?? '').trim().toLowerCase())
-			.filter((fid) => fid.length > 0);
-
 		const nameParts = name.trim().split(' ');
 		const firstName = nameParts[0] || '';
 		const lastName = nameParts.slice(1).join(' ') || '';
@@ -97,9 +90,9 @@ export function parseRosterFromPaste(text: string): RosterData {
 		};
 		order.push(id);
 
+		// Create empty preference - group requests will be imported separately
 		prefMap[id] = {
 			studentId: id,
-			likeStudentIds: friendIds,
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: [],
@@ -107,35 +100,25 @@ export function parseRosterFromPaste(text: string): RosterData {
 		};
 	}
 
-	for (const id of Object.keys(prefMap)) {
-		const pref = prefMap[id];
-		const validFriends: string[] = [];
-		for (const fid of pref.likeStudentIds) {
-			if (map[fid]) {
-				validFriends.push(fid);
-			} else {
-				unknownSet.add(fid);
-			}
-		}
-		pref.likeStudentIds = validFriends;
-	}
-
 	return {
 		studentsById: map,
 		preferencesById: prefMap,
 		studentOrder: order,
-		unknownFriendIds: unknownSet
+		unknownFriendIds: new Set() // Deprecated, kept for compatibility
 	};
 }
 
+/**
+ * Parse roster data from structured sheets data.
+ * Creates students with empty preferences (group requests will be imported separately).
+ */
 export function parseRosterFromSheets(
 	students: Array<{ id: string; firstName: string; lastName: string; gender: string }>,
-	connections: Record<string, string[]>
+	_connections: Record<string, string[]> = {} // Deprecated parameter, ignored
 ): RosterData {
 	const map: Record<string, Student> = {};
 	const prefMap: Record<string, StudentPreference> = {};
 	const order: string[] = [];
-	const unknownSet = new Set<string>();
 
 	for (const student of students) {
 		if (!student.id) continue;
@@ -146,10 +129,6 @@ export function parseRosterFromSheets(
 			throw new Error(`Duplicate student ID: ${student.id}`);
 		}
 
-		const friendList =
-			connections[student.id] || connections[id] || connections[student.id.toUpperCase()] || [];
-		const friendIds = friendList.map((fid) => fid.toLowerCase());
-
 		map[id] = {
 			id,
 			firstName: student.firstName,
@@ -157,9 +136,9 @@ export function parseRosterFromSheets(
 			gender: student.gender
 		};
 
+		// Create empty preference - group requests will be imported separately
 		prefMap[id] = {
 			studentId: id,
-			likeStudentIds: friendIds,
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: [],
@@ -169,24 +148,11 @@ export function parseRosterFromSheets(
 		order.push(id);
 	}
 
-	for (const id of Object.keys(prefMap)) {
-		const pref = prefMap[id];
-		const validFriends: string[] = [];
-		for (const fid of pref.likeStudentIds) {
-			if (map[fid]) {
-				validFriends.push(fid);
-			} else {
-				unknownSet.add(fid);
-			}
-		}
-		pref.likeStudentIds = validFriends;
-	}
-
 	return {
 		studentsById: map,
 		preferencesById: prefMap,
 		studentOrder: order,
-		unknownFriendIds: unknownSet
+		unknownFriendIds: new Set() // Deprecated, kept for compatibility
 	};
 }
 
@@ -230,24 +196,13 @@ export function normalizeSheetResponse(payload: unknown) {
 		);
 	}
 
-	const normalizedConnections: Record<string, string[]> = {};
-	const rawConnections =
-		data.connections && typeof data.connections === 'object' ? data.connections : {};
-	for (const [rawKey, rawValue] of Object.entries(rawConnections)) {
-		const key = rawKey.trim().toLowerCase();
-		if (!key) continue;
-		if (!Array.isArray(rawValue)) continue;
-		const cleaned = rawValue
-			.map((fid) => (typeof fid === 'string' ? fid.trim().toLowerCase() : ''))
-			.filter((fid) => fid.length > 0);
-		if (cleaned.length > 0) {
-			normalizedConnections[key] = cleaned;
-		}
-	}
-
-	return { students: validStudents, connections: normalizedConnections };
+	// Connections are no longer used - return empty object
+	return { students: validStudents, connections: {} as Record<string, string[]> };
 }
 
+/**
+ * Get a test dataset for development/testing.
+ */
 export function getTestRosterDataset() {
 	const students = [
 		{ id: 'and-al-1', firstName: 'Alice', lastName: 'Anderson', gender: 'F' },
@@ -272,28 +227,8 @@ export function getTestRosterDataset() {
 		{ id: 'tay-ti-1', firstName: 'Tina', lastName: 'Taylor', gender: 'F' }
 	];
 
-	const connections: Record<string, string[]> = {
-		'and-al-1': ['bro-bo-1', 'che-ca-1', 'iva-ir-1'],
-		'bro-bo-1': ['and-al-1', 'mil-ma-1', 'tay-ti-1'],
-		'che-ca-1': ['and-al-1', 'eva-ev-1', 'kim-ka-1'],
-		'dav-da-1': ['fos-fr-1', 'par-pa-1', 'smi-sa-1'],
-		'eva-ev-1': ['che-ca-1', 'kim-ka-1', 'rob-ro-1'],
-		'fos-fr-1': ['dav-da-1', 'lop-le-1', 'qui-qu-1'],
-		'gar-gr-1': ['ngu-ni-1', 'rob-ro-1'],
-		'har-he-1': ['jac-ja-1', 'ort-os-1', 'smi-sa-1'],
-		'iva-ir-1': ['and-al-1', 'mil-ma-1'],
-		'jac-ja-1': ['har-he-1', 'ort-os-1'],
-		'kim-ka-1': ['che-ca-1', 'eva-ev-1', 'par-pa-1'],
-		'lop-le-1': ['fos-fr-1', 'qui-qu-1'],
-		'mil-ma-1': ['bro-bo-1', 'iva-ir-1', 'tay-ti-1'],
-		'ngu-ni-1': ['gar-gr-1', 'rob-ro-1'],
-		'ort-os-1': ['har-he-1', 'jac-ja-1'],
-		'par-pa-1': ['dav-da-1', 'kim-ka-1'],
-		'qui-qu-1': ['fos-fr-1', 'lop-le-1'],
-		'rob-ro-1': ['eva-ev-1', 'gar-gr-1', 'ngu-ni-1'],
-		'smi-sa-1': ['dav-da-1', 'har-he-1'],
-		'tay-ti-1': ['bro-bo-1', 'mil-ma-1']
-	};
+	// No connections - these are now handled via group requests
+	const connections: Record<string, string[]> = {};
 
 	return { students, connections };
 }

@@ -47,10 +47,14 @@ export interface ParsedStudent {
 
 /**
  * A parsed preference from the preferences paste step.
+ * Now supports group requests (likeGroupIds) instead of friend preferences.
  */
 export interface ParsedPreference {
 	studentId: string;
-	likeStudentIds: string[];
+	/** Ranked list of group IDs the student wants to join */
+	likeGroupIds?: string[];
+	/** List of student IDs to avoid (optional constraint) */
+	avoidStudentIds?: string[];
 }
 
 /**
@@ -220,13 +224,13 @@ export async function createGroupingActivity(
 				continue;
 			}
 
-			// Filter friend IDs to only include valid roster members
-			const validFriendIds = parsedPref.likeStudentIds
+			// Filter avoid IDs to only include valid roster members
+			const validAvoidIds = (parsedPref.avoidStudentIds || [])
 				.map((id) => id.toLowerCase())
-				.filter((friendId) => {
-					if (!studentIdSet.has(friendId)) {
+				.filter((avoidId) => {
+					if (!studentIdSet.has(avoidId)) {
 						warnings.push(
-							`Unknown friend ID "${friendId}" in preferences for ${parsedPref.studentId}`
+							`Unknown student ID "${avoidId}" in avoid list for ${parsedPref.studentId}`
 						);
 						return false;
 					}
@@ -239,9 +243,8 @@ export async function createGroupingActivity(
 				studentId: studentId,
 				payload: {
 					studentId: studentId,
-					likeStudentIds: validFriendIds,
-					avoidStudentIds: [],
-					likeGroupIds: [],
+					avoidStudentIds: validAvoidIds,
+					likeGroupIds: parsedPref.likeGroupIds || [],
 					avoidGroupIds: []
 				} satisfies StudentPreference
 			};

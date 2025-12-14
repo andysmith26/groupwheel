@@ -1,8 +1,8 @@
-# Friend‑Hat Domain Model (reduced MVP + target vocabulary)
+# Turntable Domain Model (reduced MVP + target vocabulary)
 
-_Last updated: 2025-12-07_
+_Last updated: 2025-12-13_
 
-This conceptual domain model defines the canonical nouns and relationships for Friend‑Hat. It reflects the reduced MVP decisions (explicitly annotated) while preserving vocabulary for planned and future features so migration and refactors are straightforward.
+This conceptual domain model defines the canonical nouns and relationships for Turntable. It reflects the reduced MVP decisions (explicitly annotated) while preserving vocabulary for planned and future features so migration and refactors are straightforward.
 
 ---
 
@@ -137,7 +137,7 @@ ActiveGrouping and AdjustmentEvent are not part of the reduced MVP. They are doc
 
 ### 4.1 Preference (MVP — for analytics)
 
-Students may supply preferences that the grouping algorithm can consume. In MVP preferences are supplied via CSV import alongside pool membership or via a simple upload format.
+Students may supply group requests that the grouping algorithm can consume. In MVP preferences are supplied via CSV import alongside pool membership or via a simple upload format.
 
 - `id: string`
 - `programId: string`
@@ -147,8 +147,7 @@ Students may supply preferences that the grouping algorithm can consume. In MVP 
 The payload is typically a `StudentPreference` value object with the following shape:
 
 - `studentId: string` — identifier for the student who expressed the preference
-- `likeStudentIds: string[]` — ordered list of classmates they would like to be grouped with
-- `avoidStudentIds: string[]` — unordered set of classmates they would prefer to avoid
+- `avoidStudentIds: string[]` — unordered set of classmates they would prefer to avoid (for future constraint support)
 - `likeGroupIds: string[]` — ranked list of group IDs they would like to join
 - `avoidGroupIds: string[]` — set of group IDs they would rather not join
 - `meta?: Record<string, string | number | boolean | null | undefined>` — optional flags for extra signals (e.g., `preferredGroupSize`)
@@ -157,11 +156,12 @@ The payload is typically a `StudentPreference` value object with the following s
 
 ### 4.2 Analytics / Scenario Satisfaction (MVP)
 
-Minimal analytics we compute for a Scenario:
+Minimal analytics we compute for a Scenario based on group request satisfaction:
 
-- `PercentAssignedTopChoice` — percentage of students assigned to their first choice.
-- `AveragePreferenceRankAssigned` — mean numeric rank of assigned choice (lower is better).
-- (Optional) `PercentAssignedTop2` — percent assigned to top 2.
+- `PercentAssignedTopChoice` — percentage of students assigned to their first choice group.
+- `AveragePreferenceRankAssigned` — mean numeric rank of assigned group choice (lower is better).
+- `PercentAssignedTop2` — percent assigned to one of their top 2 group choices.
+- `PercentAssignedTop3` — percent assigned to one of their top 3 group choices.
 
 **Status:** MVP
 

@@ -27,11 +27,6 @@ export interface BalancedGroupingConfig {
 	maxGroupSize?: number;
 
 	/**
-	 * Number of swap iterations for optimization (default: 300).
-	 */
-	swapBudget?: number;
-
-	/**
 	 * Random seed for shuffling student order before assignment.
 	 * Different seeds produce different grouping results.
 	 */
@@ -138,7 +133,7 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 				studentOrder,
 				preferencesById,
 				studentsById,
-				swapBudget: config.swapBudget ?? 300
+				seed: config.seed
 			});
 
 			// Check for unassigned students
@@ -229,7 +224,6 @@ function parsePreferencePayload(payload: unknown, studentId: string): StudentPre
 
 	return {
 		studentId: pref.studentId ?? studentId,
-		likeStudentIds: Array.isArray(pref.likeStudentIds) ? pref.likeStudentIds : [],
 		avoidStudentIds: Array.isArray(pref.avoidStudentIds) ? pref.avoidStudentIds : [],
 		likeGroupIds: Array.isArray(pref.likeGroupIds) ? pref.likeGroupIds : [],
 		avoidGroupIds: Array.isArray(pref.avoidGroupIds) ? pref.avoidGroupIds : [],
@@ -243,7 +237,6 @@ function parsePreferencePayload(payload: unknown, studentId: string): StudentPre
 function createEmptyPreference(studentId: string): StudentPreference {
 	return {
 		studentId,
-		likeStudentIds: [],
 		avoidStudentIds: [],
 		likeGroupIds: [],
 		avoidGroupIds: []

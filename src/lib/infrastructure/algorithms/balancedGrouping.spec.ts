@@ -55,7 +55,7 @@ describe('BalancedGroupingAlgorithm', () => {
 		}
 	});
 
-	it('should respect mutual friend preferences', async () => {
+	it('should distribute students evenly with group preferences', async () => {
 		// Create 8 students
 		const students: Student[] = [
 			{ id: 'alice', firstName: 'Alice', lastName: 'A', gradeLevel: '5' },
@@ -69,7 +69,7 @@ describe('BalancedGroupingAlgorithm', () => {
 		];
 		await studentRepo.saveMany(students);
 
-		// Create preferences: Alice <-> Bob mutual friends
+		// Create preferences with group choices
 		const preferences: Preference[] = [
 			{
 				id: 'pref-alice',
@@ -77,9 +77,8 @@ describe('BalancedGroupingAlgorithm', () => {
 				studentId: 'alice',
 				payload: {
 					studentId: 'alice',
-					likeStudentIds: ['bob'],
 					avoidStudentIds: [],
-					likeGroupIds: [],
+					likeGroupIds: ['group-1'],
 					avoidGroupIds: []
 				} satisfies StudentPreference
 			},
@@ -89,9 +88,8 @@ describe('BalancedGroupingAlgorithm', () => {
 				studentId: 'bob',
 				payload: {
 					studentId: 'bob',
-					likeStudentIds: ['alice'],
 					avoidStudentIds: [],
-					likeGroupIds: [],
+					likeGroupIds: ['group-2'],
 					avoidGroupIds: []
 				} satisfies StudentPreference
 			}
@@ -106,12 +104,10 @@ describe('BalancedGroupingAlgorithm', () => {
 
 		expect(result.success).toBe(true);
 		if (result.success) {
-			// Find which group Alice is in
-			const aliceGroup = result.groups.find((g) => g.memberIds.includes('alice'));
-			expect(aliceGroup).toBeDefined();
-
-			// Bob should be in the same group as Alice (mutual friends)
-			expect(aliceGroup!.memberIds).toContain('bob');
+			// All students should be assigned
+			const allMemberIds = result.groups.flatMap((g) => g.memberIds);
+			expect(allMemberIds).toHaveLength(8);
+			expect(new Set(allMemberIds).size).toBe(8); // No duplicates
 		}
 	});
 

@@ -89,13 +89,8 @@
 		Object.fromEntries(students.map((s) => [s.id, s]))
 	);
 	let preferenceMap = $derived(buildPreferenceMap(preferences));
-	let friendIds = $derived(() => {
-		if (!selectedStudentId) return new Set<string>();
-		const pref = preferenceMap[selectedStudentId];
-		return new Set(pref?.likeStudentIds ?? []);
-	});
 	let preferencesCount = $derived(
-		students.filter((s) => preferenceMap[s.id]?.likeStudentIds?.length > 0).length
+		students.filter((s) => preferenceMap[s.id]?.likeGroupIds?.length > 0).length
 	);
 
 	onMount(async () => {
@@ -437,7 +432,7 @@
 </script>
 
 <svelte:head>
-	<title>{program?.name ?? 'Activity'} | Friend Hat</title>
+	<title>{program?.name ?? 'Activity'} | Turntable</title>
 </svelte:head>
 
 <div class="flex h-screen flex-col">
@@ -538,7 +533,6 @@
 							{selectedStudentId}
 							{draggingId}
 							onDrop={handleDrop}
-							friendIds={friendIds()}
 							onSelect={selectStudent}
 							onDragStart={(id) => draggingId = id}
 							onDragEnd={() => draggingId = null}
@@ -551,7 +545,6 @@
 							{selectedStudentId}
 							{draggingId}
 							onDrop={handleDrop}
-							friendIds={friendIds()}
 							onSelect={selectStudent}
 							onDragStart={(id) => draggingId = id}
 							onDragEnd={() => draggingId = null}

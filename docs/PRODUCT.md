@@ -1,4 +1,4 @@
-# Friend Hat — Product Vision
+# Turntable — Product Vision
 
 **Last updated:** December 2025
 
@@ -15,18 +15,18 @@ Help K-12 teachers make better grouping decisions through data-informed, reprodu
 Teachers constantly form student groups: lab partners, reading circles, clubs, advisories, cabin assignments. Current approaches are:
 
 - **Manual spreadsheets** — Time-consuming, error-prone, no optimization
-- **Random generators** — Ignore social dynamics and preferences
+- **Random generators** — Ignore student requests and capacity constraints
 - **Gut instinct** — Unreproducible, vulnerable to bias
 
-Teachers lack tools to balance student preferences, avoid conflicts, and evaluate whether groupings are working.
+Teachers lack tools to balance student group requests, avoid conflicts, and evaluate whether groupings are working.
 
 ---
 
 ## Solution
 
-Friend Hat provides:
+Turntable provides:
 
-1. **Preference-aware grouping** — Students indicate who they want to work with; algorithm optimizes satisfaction
+1. **Request-aware grouping** — Students rank which groups they want to join; algorithm optimizes satisfaction
 2. **Instant analytics** — See what percentage got their top choice before committing
 3. **Workspace, not wizard** — Groups are living documents refined throughout the semester
 4. **Privacy-first** — All processing happens in-browser; no student data stored on servers
@@ -79,17 +79,17 @@ Friend Hat provides:
 
 ---
 
-### UC3: Import Preferences
+### UC3: Import Group Requests
 
-**Actor:** Teacher  
-**Goal:** Add student preference data to activity  
+**Actor:** Teacher
+**Goal:** Add student group request data to activity
 **Flow:**
 
-1. Teacher pastes preference CSV (student ID, ranked friend choices)
+1. Teacher pastes request CSV (student ID, ranked group choices)
 2. System validates against roster; warns on mismatches
-3. Preferences attached to activity
+3. Requests attached to activity
 
-**Success criteria:** Preferences imported; mismatches clearly surfaced; teacher can proceed to generation.
+**Success criteria:** Requests imported; mismatches clearly surfaced; teacher can proceed to generation.
 
 ---
 

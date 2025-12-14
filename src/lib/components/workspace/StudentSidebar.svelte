@@ -15,21 +15,15 @@
 		onClose?: () => void;
 	}>();
 
-	// Build student name lookup
-	const studentNameById = $derived<Record<string, string>>(
-		Object.fromEntries(
-			students.map((s: Student) => [s.id, `${s.firstName} ${s.lastName}`.trim() || s.id])
-		)
-	);
-
-	function getPreferenceNames(studentId: string): string[] {
+	// Get group choices for a student (now showing requested group IDs)
+	function getGroupChoices(studentId: string): string[] {
 		const pref = preferenceMap[studentId];
-		if (!pref?.likeStudentIds?.length) return [];
-		return pref.likeStudentIds.map((id: string) => studentNameById[id] || id);
+		if (!pref?.likeGroupIds?.length) return [];
+		return pref.likeGroupIds;
 	}
 
 	const studentsWithPrefs = $derived(
-		students.filter((s: Student) => preferenceMap[s.id]?.likeStudentIds?.length > 0).length
+		students.filter((s: Student) => preferenceMap[s.id]?.likeGroupIds?.length > 0).length
 	);
 </script>
 
@@ -38,7 +32,7 @@
 		<div>
 			<h2 class="font-semibold text-gray-900">Students</h2>
 			<p class="text-xs text-gray-500">
-				{students.length} total · {studentsWithPrefs} with preferences
+				{students.length} total · {studentsWithPrefs} with requests
 			</p>
 		</div>
 		<button
@@ -56,7 +50,7 @@
 	<div class="h-full overflow-y-auto">
 		<ul class="divide-y divide-gray-200">
 			{#each students as student (student.id)}
-				{@const prefs = getPreferenceNames(student.id)}
+				{@const choices = getGroupChoices(student.id)}
 				{@const isSelected = selectedStudentId === student.id}
 				<li>
 					<button
@@ -67,12 +61,12 @@
 						<p class="font-medium text-gray-900">
 							{student.firstName} {student.lastName}
 						</p>
-						{#if prefs.length > 0}
+						{#if choices.length > 0}
 							<p class="mt-1 text-xs text-gray-500">
-								→ {prefs.join(', ')}
+								Choices: {choices.join(' → ')}
 							</p>
 						{:else}
-							<p class="mt-1 text-xs text-gray-400">No preferences</p>
+							<p class="mt-1 text-xs text-gray-400">No requests</p>
 						{/if}
 					</button>
 				</li>

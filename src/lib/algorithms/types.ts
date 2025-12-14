@@ -23,11 +23,10 @@ export interface AssignmentOptions {
 	studentsById: Record<string, Student>;
 
 	/**
-	 * Number of swap iterations to attempt for optimization.
-	 * Higher values may produce better results but take longer.
-	 * Default: 300
+	 * Random seed for deterministic results.
+	 * If not provided, uses Math.random().
 	 */
-	swapBudget?: number;
+	seed?: number;
 }
 
 /**
@@ -42,9 +41,9 @@ export interface AssignmentResult {
 }
 
 /**
- * Context needed for happiness calculations.
+ * Context needed for group preference scoring.
  */
-export interface HappinessContext {
+export interface ScoringContext {
 	/** Lookup table of preferences by student ID. */
 	preferencesById: Record<string, StudentPreference>;
 

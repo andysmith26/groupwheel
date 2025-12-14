@@ -1,19 +1,18 @@
 /**
- * Preference types for the Friend Hat domain.
+ * Preference types for the Turntable domain.
  *
  * This module contains two related but distinct concepts:
  *
  * 1. `StudentPreference` - A value object representing the preferences expressed
- *    by a single student (who they want to work with, avoid, etc.). This is the
- *    "payload" that gets stored and used by algorithms.
+ *    by a single student (which groups they want to join, avoid, etc.). This is
+ *    the "payload" that gets stored and used by algorithms.
  *
  * 2. `Preference` - A persisted entity that wraps a StudentPreference with
  *    identity (id) and context (programId, studentId). This is what gets stored
  *    in the PreferenceRepository.
  *
- * TODO: Consider renaming these for clarity. Options:
- *   - StudentPreference → PreferencePayload or PreferenceData
- *   - Preference → StoredPreference or PreferenceRecord
+ * Note: This module previously supported friend-based preferences (likeStudentIds).
+ * That feature was removed in the Turntable pivot (December 2025). See PROJECT_HISTORY.md.
  *
  * @module domain/preference
  */
@@ -57,20 +56,15 @@ export interface StudentPreference {
 	studentId: StudentId;
 
 	/**
-	 * An ordered list of other student IDs this student would like to
-	 * work with. The first entry is considered the highest priority.
-	 */
-	likeStudentIds: StudentId[];
-
-	/**
 	 * A set of student IDs this student would prefer to avoid.
-	 * Order has no meaning.
+	 * Order has no meaning. Used for constraint-based grouping.
 	 */
 	avoidStudentIds: StudentId[];
 
 	/**
 	 * An ordered list of group IDs representing the student's ranked
-	 * choices of groups they would prefer to join.
+	 * choices of groups they would prefer to join (e.g., club selections).
+	 * The first entry is considered the highest priority.
 	 * Leave empty if the student has no group preference.
 	 */
 	likeGroupIds: GroupId[];
@@ -83,7 +77,7 @@ export interface StudentPreference {
 
 	/**
 	 * Optional catch-all for additional preference flags.
-	 * Examples: `{ wantsAtLeastOneFriend: true, preferredGroupSize: 4 }`
+	 * Examples: `{ preferredGroupSize: 4 }`
 	 */
 	meta?: Record<string, string | number | boolean | null | undefined>;
 }
@@ -128,7 +122,6 @@ export interface Preference {
 export function createEmptyStudentPreference(studentId: string): StudentPreference {
 	return {
 		studentId,
-		likeStudentIds: [],
 		avoidStudentIds: [],
 		likeGroupIds: [],
 		avoidGroupIds: []
@@ -143,7 +136,6 @@ export function isStudentPreference(payload: unknown): payload is StudentPrefere
 	const p = payload as Record<string, unknown>;
 	return (
 		typeof p.studentId === 'string' &&
-		Array.isArray(p.likeStudentIds) &&
 		Array.isArray(p.avoidStudentIds) &&
 		Array.isArray(p.likeGroupIds) &&
 		Array.isArray(p.avoidGroupIds)

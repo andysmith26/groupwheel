@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document describes the core architecture of the Friend Hat MVP application.
+This document describes the core architecture of the Turntable MVP application.
 
 **Goals:**
 

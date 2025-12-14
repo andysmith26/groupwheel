@@ -82,7 +82,7 @@
 </script>
 
 <svelte:head>
-	<title>Activities | Friend Hat</title>
+	<title>Activities | Turntable</title>
 </svelte:head>
 
 <div class="mx-auto max-w-4xl space-y-6 p-4">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { StudentPreference } from '$lib/types/preferences';
+import type { StudentPreference } from '$lib/domain';
 import { ensurePreferences, parseSheetRows } from './roster';
 
 describe('parseSheetRows', () => {
@@ -37,9 +37,8 @@ describe('ensurePreferences', () => {
 		const preferences: StudentPreference[] = [
 			{
 				studentId: 's1',
-				likeStudentIds: ['s2'],
 				avoidStudentIds: [],
-				likeGroupIds: [],
+				likeGroupIds: ['g1'],
 				avoidGroupIds: []
 			}
 		];
@@ -47,10 +46,9 @@ describe('ensurePreferences', () => {
 		const map = ensurePreferences(students, preferences);
 
 		expect(Object.keys(map)).toEqual(['s1', 's2']);
-		expect(map.s1.likeStudentIds).toEqual(['s2']);
+		expect(map.s1.likeGroupIds).toEqual(['g1']);
 		expect(map.s2).toEqual({
 			studentId: 's2',
-			likeStudentIds: [],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: [],

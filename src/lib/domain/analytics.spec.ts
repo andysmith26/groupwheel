@@ -6,13 +6,13 @@ import type { Preference } from './preference';
 function createPreference(
 	studentId: string,
 	programId: string,
-	likeStudentIds: string[]
+	likeGroupIds: string[]
 ): Preference {
 	return {
 		id: `pref-${studentId}`,
 		programId,
 		studentId,
-		payload: { likeStudentIds }
+		payload: { likeGroupIds }
 	};
 }
 
@@ -30,17 +30,18 @@ function createTestScenario(
 }
 
 describe('computeScenarioSatisfaction', () => {
-	it('returns 100% when all students get top choice', () => {
+	it('returns 100% when all students get top choice group', () => {
 		const scenario = createTestScenario([
 			{ id: 'g1', name: 'G1', memberIds: ['a', 'b'] },
 			{ id: 'g2', name: 'G2', memberIds: ['c', 'd'] }
 		]);
 
+		// Each student got their first choice group
 		const preferences = [
-			createPreference('a', 'p1', ['b']),
-			createPreference('b', 'p1', ['a']),
-			createPreference('c', 'p1', ['d']),
-			createPreference('d', 'p1', ['c'])
+			createPreference('a', 'p1', ['g1', 'g2']), // got g1, their top choice
+			createPreference('b', 'p1', ['g1']), // got g1, their top choice
+			createPreference('c', 'p1', ['g2', 'g1']), // got g2, their top choice
+			createPreference('d', 'p1', ['g2']) // got g2, their top choice
 		];
 
 		const result = computeScenarioSatisfaction({
@@ -68,13 +69,15 @@ describe('computeScenarioSatisfaction', () => {
 
 	it('calculates partial satisfaction correctly', () => {
 		const scenario = createTestScenario([
-			{ id: 'g1', name: 'G1', memberIds: ['a', 'c'] },
-			{ id: 'g2', name: 'G2', memberIds: ['b', 'd'] }
+			{ id: 'g1', name: 'G1', memberIds: ['a'] },
+			{ id: 'g2', name: 'G2', memberIds: ['b'] }
 		]);
 
+		// a got g1 but wanted g2 first, g1 second
+		// b got g2 but wanted g1 first, g2 second
 		const preferences = [
-			createPreference('a', 'p1', ['b', 'c']),
-			createPreference('b', 'p1', ['a', 'd'])
+			createPreference('a', 'p1', ['g2', 'g1']), // got g1, their 2nd choice
+			createPreference('b', 'p1', ['g1', 'g2']) // got g2, their 2nd choice
 		];
 
 		const result = computeScenarioSatisfaction({
@@ -91,7 +94,11 @@ describe('computeScenarioSatisfaction', () => {
 	it('handles students not in scenario gracefully', () => {
 		const scenario = createTestScenario([{ id: 'g1', name: 'G1', memberIds: ['a', 'b'] }]);
 
-		const preferences = [createPreference('a', 'p1', ['b']), createPreference('x', 'p1', ['a'])];
+		// 'x' is not in the scenario, should be skipped
+		const preferences = [
+			createPreference('a', 'p1', ['g1']), // got their top choice
+			createPreference('x', 'p1', ['g1']) // not in scenario
+		];
 
 		const result = computeScenarioSatisfaction({
 			scenario,
@@ -103,10 +110,14 @@ describe('computeScenarioSatisfaction', () => {
 		expect(result.averagePreferenceRankAssigned).toBe(1);
 	});
 
-	it('handles empty friend lists in preferences', () => {
+	it('handles empty group choice lists in preferences', () => {
 		const scenario = createTestScenario([{ id: 'g1', name: 'G1', memberIds: ['a', 'b'] }]);
 
-		const preferences = [createPreference('a', 'p1', []), createPreference('b', 'p1', ['a'])];
+		// 'a' has no group choices, 'b' got their choice
+		const preferences = [
+			createPreference('a', 'p1', []), // no preferences
+			createPreference('b', 'p1', ['g1']) // got their top choice
+		];
 
 		const result = computeScenarioSatisfaction({
 			scenario,
@@ -114,16 +125,19 @@ describe('computeScenarioSatisfaction', () => {
 			students: []
 		});
 
+		// Only 'b' has preferences and got their top choice
 		expect(result.percentAssignedTopChoice).toBe(100);
+		expect(result.studentsWithNoPreferences).toBe(1);
 	});
 
-	it('calculates correct rank when no friends are in group', () => {
+	it('calculates correct rank when not assigned to requested group', () => {
 		const scenario = createTestScenario([
-			{ id: 'g1', name: 'G1', memberIds: ['a', 'x'] },
+			{ id: 'g1', name: 'G1', memberIds: ['a'] },
 			{ id: 'g2', name: 'G2', memberIds: ['b', 'c'] }
 		]);
 
-		const preferences = [createPreference('a', 'p1', ['b', 'c'])];
+		// 'a' got g1 but wanted g2 then g3 (neither of which they got)
+		const preferences = [createPreference('a', 'p1', ['g2', 'g3'])];
 
 		const result = computeScenarioSatisfaction({
 			scenario,
@@ -133,6 +147,8 @@ describe('computeScenarioSatisfaction', () => {
 
 		expect(result.percentAssignedTopChoice).toBe(0);
 		expect(result.percentAssignedTop2).toBe(0);
+		expect(result.studentsUnassignedToRequest).toBe(1);
+		// Average rank is 3 (beyond their 2 choices)
 		expect(result.averagePreferenceRankAssigned).toBe(3);
 	});
 });

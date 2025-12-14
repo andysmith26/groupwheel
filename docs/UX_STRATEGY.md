@@ -1,15 +1,15 @@
-# Friend Hat — UX Strategy
+# Turntable — UX Strategy
 
 **From Wizard to Workspace: Redesigning Group Management**
 
-**Last updated:** December 2025  
+**Last updated:** December 2025
 **Status:** Approved — Phase 1 complete, Phase 2 in planning
 
 ---
 
 ## Executive Summary
 
-Friend Hat's original UX treated group creation as a discrete task with a clear endpoint. User research revealed a fundamentally different reality: **group management is a continuous, semester-long activity** involving repeated refinement, conflict resolution, and structural changes.
+Turntable's original UX treated group creation as a discrete task with a clear endpoint. User research revealed a fundamentally different reality: **group management is a continuous, semester-long activity** involving repeated refinement, conflict resolution, and structural changes.
 
 This document proposes transitioning from a **wizard-to-results paradigm** to a **living workspace paradigm**—where the Activity Detail page becomes an always-editable canvas that teachers inhabit throughout a program's lifecycle.
 

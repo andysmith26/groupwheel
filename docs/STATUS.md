@@ -1,6 +1,6 @@
-# Friend Hat — Current Status
+# Turntable — Current Status
 
-**Last verified:** December 2024
+**Last verified:** December 2025
 
 This document tracks what's actually implemented. Update when features ship.
 
@@ -16,7 +16,7 @@ This document tracks what's actually implemented. Update when features ship.
 | CSV roster import           | ✅ Done | Wizard Students step           | TSV also supported                                       |
 | Preference import           | ✅ Done | Wizard Preferences step        | Mismatch warnings shown                                  |
 | Group configuration         | ✅ Done | Wizard Groups step             | "Specific groups" or "Auto split" modes                  |
-| Balanced grouping algorithm | ✅ Done | `generateScenario` use case    | 300 swap iterations, 4-6 students/group                  |
+| Balanced grouping algorithm | ✅ Done | `generateScenario` use case    | Seeded random balanced assignment                        |
 | Basic analytics             | ✅ Done | Activity detail page           | Top %, top 2 %, avg rank                                 |
 | Drag-drop editing           | ✅ Done | Activity detail page           | Via ScenarioEditingStore                                 |
 | Undo/redo                   | ✅ Done | Activity detail page           | Session-scoped command history                           |
@@ -86,20 +86,20 @@ This document tracks what's actually implemented. Update when features ship.
 
 ## Documentation Gaps (Fix When Time Allows)
 
-| Document        | Issue                                                                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| DOMAIN_MODEL.md | Preference `payload` documented as `unknown`; actual code has rich `StudentPreference` type with likeStudentIds, avoidStudentIds, etc. |
-| ARCHITECTURE.md | Missing IndexedDbScenarioRepository in repository list                                                                                 |
+| Document        | Issue                                                  |
+| --------------- | ------------------------------------------------------ |
+| ARCHITECTURE.md | Missing IndexedDbScenarioRepository in repository list |
 
 ---
 
 ## Recent Changes
 
-| Date     | Change                                             |
-| -------- | -------------------------------------------------- |
-| Dec 2024 | MVP complete; wizard flow, analytics, student view |
-| Nov 2024 | Hexagonal architecture migration                   |
-| Nov 2024 | Domain model consolidation                         |
+| Date     | Change                                                                   |
+| -------- | ------------------------------------------------------------------------ |
+| Dec 2025 | **Turntable pivot**: Removed friend-based preferences, request-only mode |
+| Dec 2024 | MVP complete; wizard flow, analytics, student view                       |
+| Nov 2024 | Hexagonal architecture migration                                         |
+| Nov 2024 | Domain model consolidation                                               |
 
 ---
 

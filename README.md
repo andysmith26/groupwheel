@@ -1,6 +1,6 @@
-# Friend Hat
+# Turntable
 
-**Privacy-first student grouping for K-12 teachers.** Create balanced groups based on student preferences—from five-minute class activities to semester-long clubs.
+**Groups shaped together.** A privacy-first toolbox for K-12 teachers to form student groups—from five-minute discussion pairs to semester-long clubs.
 
 [![Status: MVP Complete](https://img.shields.io/badge/status-MVP%20complete-green)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)]()
@@ -17,8 +17,8 @@ pnpm test             # Run all tests
 ## What It Does
 
 1. **Import roster** — Paste CSV/TSV student data
-2. **Add preferences** — Paste who-wants-to-be-with-whom data
-3. **Generate groups** — Algorithm optimizes for preference satisfaction
+2. **Define groups** — Create named groups with optional capacity limits
+3. **Generate groupings** — Random/balanced assignment (request-based coming soon)
 4. **Review & refine** — Drag-drop editing with undo/redo
 5. **Present to class** — Read-only student view for projection
 
@@ -30,10 +30,11 @@ No accounts required. All data stays in your browser.
 | ------------------------------------ | ----------------------------------------------- |
 | [Product & Roadmap](docs/PRODUCT.md) | Vision, use cases, what's planned               |
 | [Architecture](docs/ARCHITECTURE.md) | Technical design, layer boundaries, conventions |
-| [Domain Model](docs/DOMAIN_MODEL.md) | Entity definitions and relationships            |
+| [Domain Model](docs/domain_model.md) | Entity definitions and relationships            |
 | [UX Strategy](docs/UX_STRATEGY.md)   | Design principles and phased UX evolution       |
 | [Current Status](docs/STATUS.md)     | What's built, what works, known gaps            |
 | [Research Log](docs/RESEARCH.md)     | User research findings                          |
+| [Project History](PROJECT_HISTORY.md)| Major pivots and historical context             |
 | [Decisions](docs/decisions/)         | Architectural decision records                  |
 | [Spikes](docs/spikes/)               | Technical experiments                           |
 

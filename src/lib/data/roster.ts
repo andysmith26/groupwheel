@@ -87,7 +87,6 @@ export function ensurePreferences(
 		if (!studentId) continue;
 		result[studentId] = {
 			studentId,
-			likeStudentIds: [...(pref.likeStudentIds ?? [])],
 			avoidStudentIds: [...(pref.avoidStudentIds ?? [])],
 			likeGroupIds: [...(pref.likeGroupIds ?? [])],
 			avoidGroupIds: [...(pref.avoidGroupIds ?? [])],

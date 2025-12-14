@@ -4,41 +4,62 @@ import type { Student } from './student';
 
 export interface ScenarioSatisfaction {
 	/**
-	 * Percentage of students assigned to their first choice (0–100).
+	 * Percentage of students assigned to their first choice group (0–100).
 	 */
 	percentAssignedTopChoice: number;
 
 	/**
-	 * Mean numeric rank of assigned choice (lower is better).
+	 * Mean numeric rank of assigned group choice (lower is better).
 	 * If there are no usable preferences, this may be NaN or a sentinel.
 	 */
 	averagePreferenceRankAssigned: number;
 
 	/**
-	 * Optional: percentage assigned to one of their top 2 choices (0–100).
+	 * Percentage assigned to one of their top 2 group choices (0–100).
 	 */
 	percentAssignedTop2?: number;
+
+	/**
+	 * Percentage assigned to one of their top 3 group choices (0–100).
+	 */
+	percentAssignedTop3?: number;
+
+	/**
+	 * Number of students who had no group preferences.
+	 */
+	studentsWithNoPreferences?: number;
+
+	/**
+	 * Number of students who were not assigned to any of their requested groups.
+	 */
+	studentsUnassignedToRequest?: number;
 }
 
 /**
- * Extract friend ("like") student IDs from a Preference payload.
- * Handles the StudentPreference shape used by the grouping algorithm and
- * roster import code, but gracefully returns an empty list for unknown shapes.
+ * Extract ranked group choices from a Preference payload.
+ * Returns the likeGroupIds array if present, otherwise an empty array.
  */
-function extractFriendIds(pref: Preference): string[] {
+function extractGroupChoices(pref: Preference): string[] {
 	if (!pref.payload || typeof pref.payload !== 'object') {
 		return [];
 	}
 
 	const payload = pref.payload as Record<string, unknown>;
 
-	if (Array.isArray(payload.likeStudentIds)) {
-		return payload.likeStudentIds.filter((id): id is string => typeof id === 'string');
+	if (Array.isArray(payload.likeGroupIds)) {
+		return payload.likeGroupIds.filter((id): id is string => typeof id === 'string');
 	}
 
 	return [];
 }
 
+/**
+ * Compute satisfaction metrics for a scenario based on how well students
+ * were assigned to their requested groups.
+ *
+ * This measures request satisfaction: what percentage of students got
+ * their 1st choice, top 2, top 3, etc.
+ */
 export function computeScenarioSatisfaction(params: {
 	scenario: Scenario;
 	preferences: Preference[];
@@ -46,6 +67,7 @@ export function computeScenarioSatisfaction(params: {
 }): ScenarioSatisfaction {
 	const { scenario, preferences } = params;
 
+	// Build a map from student ID to their assigned group ID
 	const studentToGroup = new Map<string, string>();
 	for (const group of scenario.groups) {
 		for (const studentId of group.memberIds) {
@@ -53,62 +75,70 @@ export function computeScenarioSatisfaction(params: {
 		}
 	}
 
-	const groupMembers = new Map<string, Set<string>>();
-	for (const group of scenario.groups) {
-		groupMembers.set(group.id, new Set(group.memberIds));
-	}
-
 	let topChoiceCount = 0;
 	let top2Count = 0;
+	let top3Count = 0;
 	let totalRank = 0;
 	let studentsWithPrefs = 0;
+	let studentsWithNoPrefs = 0;
+	let unassignedToRequest = 0;
 
 	for (const pref of preferences) {
-		const studentGroupId = studentToGroup.get(pref.studentId);
-		if (!studentGroupId) {
+		const assignedGroupId = studentToGroup.get(pref.studentId);
+		if (!assignedGroupId) {
+			// Student not assigned to any group
 			continue;
 		}
 
-		const friendIds = extractFriendIds(pref);
-		if (friendIds.length === 0) {
-			continue;
-		}
-
-		const groupMemberSet = groupMembers.get(studentGroupId);
-		if (!groupMemberSet) {
+		const groupChoices = extractGroupChoices(pref);
+		if (groupChoices.length === 0) {
+			studentsWithNoPrefs++;
 			continue;
 		}
 
 		studentsWithPrefs++;
 
-		let rank = friendIds.length + 1;
-		for (let i = 0; i < friendIds.length; i++) {
-			if (groupMemberSet.has(friendIds[i])) {
-				rank = i + 1;
-				break;
+		// Find the rank of the assigned group in the student's preferences
+		const assignedRank = groupChoices.indexOf(assignedGroupId);
+
+		if (assignedRank === -1) {
+			// Student was not assigned to any of their requested groups
+			unassignedToRequest++;
+			// Treat as rank beyond their choices for averaging
+			totalRank += groupChoices.length + 1;
+		} else {
+			const rank = assignedRank + 1; // 1-indexed
+			totalRank += rank;
+
+			if (rank === 1) {
+				topChoiceCount++;
+			}
+			if (rank <= 2) {
+				top2Count++;
+			}
+			if (rank <= 3) {
+				top3Count++;
 			}
 		}
-
-		if (rank === 1) {
-			topChoiceCount++;
-		}
-		if (rank <= 2) {
-			top2Count++;
-		}
-		totalRank += rank;
 	}
 
 	if (studentsWithPrefs === 0) {
 		return {
 			percentAssignedTopChoice: 0,
 			averagePreferenceRankAssigned: NaN,
-			percentAssignedTop2: 0
+			percentAssignedTop2: 0,
+			percentAssignedTop3: 0,
+			studentsWithNoPreferences: studentsWithNoPrefs,
+			studentsUnassignedToRequest: 0
 		};
 	}
 
 	return {
 		percentAssignedTopChoice: (topChoiceCount / studentsWithPrefs) * 100,
 		averagePreferenceRankAssigned: totalRank / studentsWithPrefs,
-		percentAssignedTop2: (top2Count / studentsWithPrefs) * 100
+		percentAssignedTop2: (top2Count / studentsWithPrefs) * 100,
+		percentAssignedTop3: (top3Count / studentsWithPrefs) * 100,
+		studentsWithNoPreferences: studentsWithNoPrefs,
+		studentsUnassignedToRequest: unassignedToRequest
 	};
 }

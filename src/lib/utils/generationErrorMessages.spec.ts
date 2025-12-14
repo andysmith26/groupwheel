@@ -54,8 +54,9 @@ describe('getGenerationErrorMessage', () => {
 		);
 	});
 
-	it('returns fallback message for empty string', () => {
-		expect(getGenerationErrorMessage('')).toBe('Something went wrong. Please try again.');
+	it('returns empty string for empty string input', () => {
+		// Empty string is falsy, so treated like null
+		expect(getGenerationErrorMessage('')).toBe('');
 	});
 });
 

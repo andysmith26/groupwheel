@@ -1,28 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { computeGroupsAnalytics, type ComputeGroupsAnalyticsInput } from './computeGroupsAnalytics';
+import { computeGroupsAnalytics } from './computeGroupsAnalytics';
 import type { Group, Preference } from '$lib/domain';
 
 describe('computeGroupsAnalytics', () => {
 	it('computes metrics from in-memory groups', () => {
-		// Setup: 2 groups, 4 students, 2 with preferences
+		// Setup: 2 groups, 4 students, 2 with group preferences
 		const groups: Group[] = [
 			{ id: 'group-1', name: 'Group 1', capacity: 2, memberIds: ['alice', 'bob'] },
 			{ id: 'group-2', name: 'Group 2', capacity: 2, memberIds: ['charlie', 'diana'] }
 		];
 
-		// Alice wants bob (got top choice), Charlie wants bob (didn't get)
+		// Alice wants group-1 (got top choice), Charlie wants group-1 (didn't get)
 		const preferences: Preference[] = [
 			{
 				id: 'pref-1',
 				studentId: 'alice',
 				programId: 'program-1',
-				payload: { likeStudentIds: ['bob'] }
+				payload: { likeGroupIds: ['group-1'] }
 			},
 			{
 				id: 'pref-2',
 				studentId: 'charlie',
 				programId: 'program-1',
-				payload: { likeStudentIds: ['bob'] }
+				payload: { likeGroupIds: ['group-1'] }
 			}
 		];
 
@@ -37,7 +37,7 @@ describe('computeGroupsAnalytics', () => {
 
 		// Assert
 		expect(result).toBeDefined();
-		// Alice got bob (top choice), Charlie didn't get bob
+		// Alice got group-1 (top choice), Charlie didn't get group-1
 		// So 1 out of 2 students with preferences got their top choice = 50%
 		expect(result.percentAssignedTopChoice).toBe(50);
 	});
@@ -57,9 +57,9 @@ describe('computeGroupsAnalytics', () => {
 		expect(result.percentAssignedTop2).toBe(0);
 	});
 
-	it('handles multiple friend choices correctly', () => {
-		// Alice wants [bob, charlie, diana] in order
-		// Alice is in group with charlie (2nd choice)
+	it('handles multiple group choices correctly', () => {
+		// Alice wants [group-2, group-1] in order
+		// Alice is in group-1 (2nd choice)
 		const groups: Group[] = [
 			{ id: 'group-1', name: 'Group 1', capacity: 2, memberIds: ['alice', 'charlie'] },
 			{ id: 'group-2', name: 'Group 2', capacity: 2, memberIds: ['bob', 'diana'] }
@@ -70,7 +70,7 @@ describe('computeGroupsAnalytics', () => {
 				id: 'pref-1',
 				studentId: 'alice',
 				programId: 'program-1',
-				payload: { likeStudentIds: ['bob', 'charlie', 'diana'] }
+				payload: { likeGroupIds: ['group-2', 'group-1'] }
 			}
 		];
 
@@ -80,7 +80,7 @@ describe('computeGroupsAnalytics', () => {
 			participantSnapshot: ['alice', 'bob', 'charlie', 'diana']
 		});
 
-		// Alice got 2nd choice, so:
+		// Alice got 2nd choice group, so:
 		// - Top choice: 0%
 		// - Top 2: 100%
 		expect(result.percentAssignedTopChoice).toBe(0);
@@ -88,8 +88,8 @@ describe('computeGroupsAnalytics', () => {
 	});
 
 	it('calculates average rank correctly', () => {
-		// Student A got rank 1 (top choice)
-		// Student B got rank 2 (second choice)
+		// Student A got rank 1 (top choice group)
+		// Student B got rank 2 (second choice group)
 		// Average = 1.5
 		const groups: Group[] = [
 			{ id: 'group-1', name: 'Group 1', capacity: 2, memberIds: ['alice', 'bob'] },
@@ -101,13 +101,13 @@ describe('computeGroupsAnalytics', () => {
 				id: 'pref-1',
 				studentId: 'alice',
 				programId: 'program-1',
-				payload: { likeStudentIds: ['bob', 'charlie'] } // Got top choice (bob)
+				payload: { likeGroupIds: ['group-1', 'group-2'] } // Got top choice (group-1)
 			},
 			{
 				id: 'pref-2',
 				studentId: 'charlie',
 				programId: 'program-1',
-				payload: { likeStudentIds: ['alice', 'diana'] } // Got 2nd choice (diana)
+				payload: { likeGroupIds: ['group-1', 'group-2'] } // Got 2nd choice (group-2)
 			}
 		];
 
@@ -132,7 +132,7 @@ describe('computeGroupsAnalytics', () => {
 				id: 'pref-1',
 				studentId: 'charlie', // Not in any group
 				programId: 'program-1',
-				payload: { likeStudentIds: ['alice'] }
+				payload: { likeGroupIds: ['group-1'] }
 			}
 		];
 

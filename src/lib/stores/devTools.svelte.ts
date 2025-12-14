@@ -11,7 +11,7 @@
 
 import { dev, browser } from '$app/environment';
 
-const STORAGE_KEY = 'friend-hat-devtools';
+const STORAGE_KEY = 'turntable-devtools';
 
 function createDevToolsStore() {
 	let enabled = $state(dev);

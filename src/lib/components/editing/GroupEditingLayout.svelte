@@ -9,7 +9,6 @@
 		selectedStudentId = null,
 		draggingId = null,
 		onDrop,
-		friendIds = new Set(),
 		onSelect,
 		onDragStart,
 		onDragEnd,
@@ -24,7 +23,6 @@
 		selectedStudentId?: string | null;
 		draggingId?: string | null;
 		onDrop?: (payload: { studentId: string; source: string; target: string }) => void;
-		friendIds?: Set<string>;
 		onSelect?: (id: string) => void;
 		onDragStart?: (id: string) => void;
 		onDragEnd?: () => void;
@@ -43,7 +41,6 @@
 			{studentsById}
 			{selectedStudentId}
 			{draggingId}
-			{friendIds}
 			onDrop={onDrop}
 			onSelect={onSelect}
 			onDragStart={onDragStart}

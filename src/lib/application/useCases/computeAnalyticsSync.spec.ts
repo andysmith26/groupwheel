@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { Preference } from '$lib/domain';
 import { computeAnalyticsSync } from './computeAnalyticsSync';
 
-function pref(studentId: string, likeStudentIds: string[]): Preference {
+function pref(studentId: string, likeGroupIds: string[]): Preference {
 	return {
 		id: `pref-${studentId}`,
 		programId: 'prog-1',
 		studentId,
-		payload: { likeStudentIds }
+		payload: { likeGroupIds }
 	};
 }
 
@@ -18,7 +18,13 @@ describe('computeAnalyticsSync', () => {
 				{ id: 'g1', name: 'G1', memberIds: ['a', 'b'], capacity: 2 },
 				{ id: 'g2', name: 'G2', memberIds: ['c', 'd'], capacity: 2 }
 			],
-			preferences: [pref('a', ['b']), pref('b', ['a']), pref('c', ['d']), pref('d', ['c'])],
+			// Each student got their first choice group
+			preferences: [
+				pref('a', ['g1']),
+				pref('b', ['g1']),
+				pref('c', ['g2']),
+				pref('d', ['g2'])
+			],
 			participantSnapshot: ['a', 'b', 'c', 'd']
 		});
 

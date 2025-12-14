@@ -27,9 +27,9 @@ function createScenario(): Scenario {
 }
 
 const preferences: Preference[] = [
-	{ id: 'p1', programId: 'prog-1', studentId: 's1', payload: { likeStudentIds: ['s2'] } },
-	{ id: 'p2', programId: 'prog-1', studentId: 's2', payload: { likeStudentIds: ['s1'] } },
-	{ id: 'p3', programId: 'prog-1', studentId: 's3', payload: { likeStudentIds: ['s2'] } }
+	{ id: 'p1', programId: 'prog-1', studentId: 's1', payload: { likeGroupIds: ['g1'] } },
+	{ id: 'p2', programId: 'prog-1', studentId: 's2', payload: { likeGroupIds: ['g2'] } },
+	{ id: 'p3', programId: 'prog-1', studentId: 's3', payload: { likeGroupIds: ['g1'] } }
 ];
 
 beforeEach(() => {
@@ -142,7 +142,8 @@ describe('ScenarioEditingStore', () => {
 			getById: vi.fn(),
 			getByProgramId: vi.fn(),
 			update: vi.fn().mockRejectedValue(new Error('nope')),
-			save: vi.fn().mockRejectedValue(new Error('still nope'))
+			save: vi.fn().mockRejectedValue(new Error('still nope')),
+			delete: vi.fn()
 		};
 		const store = new ScenarioEditingStore({ scenarioRepo: failingRepo, idGenerator: new MockIdGenerator(), debounceMs: 10 });
 		store.initialize(createScenario(), preferences);
@@ -176,11 +177,19 @@ describe('ScenarioEditingStore', () => {
 			idGenerator: new MockIdGenerator(),
 			debounceMs: 10
 		});
-		store.initialize(createScenario(), preferences);
+		// Preferences with students wanting specific groups
+		const prefsWithGroupChoices: Preference[] = [
+			{ id: 'p1', programId: 'prog-1', studentId: 's1', payload: { likeGroupIds: ['g2'] } }, // s1 wants g2
+			{ id: 'p2', programId: 'prog-1', studentId: 's2', payload: { likeGroupIds: ['g2'] } }, // s2 wants g2
+			{ id: 'p3', programId: 'prog-1', studentId: 's3', payload: { likeGroupIds: ['g1'] } } // s3 wants g1
+		];
+		store.initialize(createScenario(), prefsWithGroupChoices);
 
+		// s1 is in g1 but wants g2, so baseline satisfaction is not 100%
 		const baseline = get(store).currentAnalytics;
-		expect(baseline?.percentAssignedTopChoice).toBe(0);
+		expect(baseline?.percentAssignedTopChoice).toBeLessThan(100);
 
+		// Move s1 from g1 to g2 (where they want to be)
 		store.dispatch({
 			type: 'MOVE_STUDENT',
 			studentId: 's1',
@@ -190,8 +199,10 @@ describe('ScenarioEditingStore', () => {
 
 		await vi.advanceTimersByTimeAsync(10);
 		const view = get(store);
-		expect(view.currentAnalytics?.percentAssignedTopChoice).toBeGreaterThan(0);
-		expect(view.analyticsDelta?.topChoice).toBeGreaterThan(0);
+		// After moving s1 to g2, satisfaction should improve
+		expect(view.currentAnalytics?.percentAssignedTopChoice).toBeGreaterThan(
+			baseline?.percentAssignedTopChoice ?? 0
+		);
 	});
 
 	it('regenerates groups, clears history, and resets baseline', async () => {
@@ -390,7 +401,7 @@ describe('Group shell operations', () => {
 
 	it('flushes pending updates before undo', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, debounceMs: 10 });
+		const store = new ScenarioEditingStore({ scenarioRepo: repo, idGenerator: new MockIdGenerator(), debounceMs: 10 });
 		store.initialize(createScenario(), preferences);
 
 		store.updateGroup('g1', { name: 'New Name' });

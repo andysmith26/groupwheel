@@ -1,139 +1,97 @@
-import type { Group } from '$lib/domain';
-import { neighborsHappinessImpact, studentHappinessForMembers } from './happiness';
-import type { AssignmentOptions, AssignmentResult, HappinessContext } from './types';
+/**
+ * Balanced assignment algorithm for distributing students into groups.
+ *
+ * This module provides a simple balanced assignment that distributes
+ * students evenly across groups while respecting capacity constraints.
+ *
+ * Note: This replaces the previous friend-based optimization algorithm.
+ * The request-based assignment algorithm (for club placement based on
+ * student choices) will be implemented in a future milestone.
+ *
+ * @module algorithms/balanced-assignment
+ */
 
+import type { Group } from '$lib/domain';
+import type { AssignmentOptions, AssignmentResult } from './types';
+
+/**
+ * Simple seeded random number generator for deterministic results.
+ * Uses a linear congruential generator (LCG).
+ */
+function createSeededRandom(seed: number): () => number {
+	let state = seed;
+	return () => {
+		// LCG parameters (same as glibc)
+		state = (state * 1103515245 + 12345) & 0x7fffffff;
+		return state / 0x7fffffff;
+	};
+}
+
+/**
+ * Shuffle an array in place using Fisher-Yates algorithm.
+ */
+function shuffleArray<T>(array: T[], random: () => number): T[] {
+	const result = [...array];
+	for (let i = result.length - 1; i > 0; i--) {
+		const j = Math.floor(random() * (i + 1));
+		[result[i], result[j]] = [result[j], result[i]];
+	}
+	return result;
+}
+
+/**
+ * Assign students to groups in a balanced manner.
+ *
+ * This algorithm:
+ * 1. Shuffles students (using seed for determinism if provided)
+ * 2. Assigns students round-robin to groups with available capacity
+ * 3. Returns any students that couldn't be assigned due to capacity limits
+ *
+ * @param options - Assignment configuration
+ * @returns Groups with assigned students and any unassigned student IDs
+ */
 export function assignBalanced(options: AssignmentOptions): AssignmentResult {
-	const emptyGroups = options.groups.map((group) => ({
+	const random = options.seed !== undefined ? createSeededRandom(options.seed) : Math.random;
+
+	// Create empty copies of groups
+	const workingGroups: Group[] = options.groups.map((group) => ({
 		...group,
-		memberIds: [] as string[]
+		memberIds: []
 	}));
 
-	const adjacency = buildMutualFriendAdjacency(options);
-	const degree = (id: string) => adjacency.get(id)?.size ?? 0;
-	const order = [...options.studentOrder].sort((a, b) => degree(b) - degree(a));
-
-	const memberMap: Record<string, string[]> = {};
-	for (const group of emptyGroups) memberMap[group.id] = [];
+	// Shuffle students for random distribution
+	const shuffledStudents = shuffleArray(options.studentOrder, random);
 
 	const unassigned: string[] = [];
 
-	for (const studentId of order) {
+	// Assign students round-robin to groups
+	for (const studentId of shuffledStudents) {
+		// Find group with most remaining capacity
 		let bestGroup: Group | null = null;
-		let bestScore = -1;
+		let bestRemaining = 0;
 
-		for (const group of emptyGroups) {
-			const remaining = remainingCapacity(group, memberMap[group.id]);
-			if (remaining <= 0) continue;
-
-			const members = memberMap[group.id];
-			const set = new Set(members);
-			let score = 0;
-			for (const friendId of adjacency.get(studentId) ?? []) {
-				if (set.has(friendId)) score++;
-			}
-
-			if (score > bestScore) {
-				bestScore = score;
+		for (const group of workingGroups) {
+			const remaining = remainingCapacity(group);
+			if (remaining > bestRemaining) {
+				bestRemaining = remaining;
 				bestGroup = group;
 			}
 		}
 
-		if (bestGroup) {
-			memberMap[bestGroup.id].push(studentId);
+		if (bestGroup && bestRemaining > 0) {
+			bestGroup.memberIds.push(studentId);
 		} else {
 			unassigned.push(studentId);
-		}
-	}
-
-	const workingGroups = emptyGroups.map((group) => ({
-		...group,
-		memberIds: memberMap[group.id]
-	}));
-
-	const context: HappinessContext = {
-		preferencesById: options.preferencesById,
-		studentsById: options.studentsById
-	};
-	const swapBudget = options.swapBudget ?? 300;
-
-	for (let i = 0; i < swapBudget; i++) {
-		const a = pickRandomPlaced(workingGroups);
-		const b = pickRandomPlaced(workingGroups);
-		if (!a || !b || a.id === b.id || a.group.id === b.group.id) continue;
-
-		const delta = swapDeltaHappiness(a.id, b.id, a.group, b.group, context);
-		if (delta > 0) {
-			const ai = a.group.memberIds.indexOf(a.id);
-			const bi = b.group.memberIds.indexOf(b.id);
-			a.group.memberIds[ai] = b.id;
-			b.group.memberIds[bi] = a.id;
 		}
 	}
 
 	return { groups: workingGroups, unassignedStudentIds: unassigned };
 }
 
-function remainingCapacity(group: Group, memberIds: string[]): number {
+/**
+ * Calculate remaining capacity for a group.
+ */
+function remainingCapacity(group: Group): number {
 	if (group.capacity == null) return Infinity;
-	return group.capacity - memberIds.length;
-}
-
-function pickRandomPlaced(groups: Group[]): { id: string; group: Group } | null {
-	const placed: { id: string; group: Group }[] = [];
-	for (const group of groups) {
-		for (const id of group.memberIds) {
-			placed.push({ id, group });
-		}
-	}
-	if (!placed.length) return null;
-	return placed[(Math.random() * placed.length) | 0];
-}
-
-function swapDeltaHappiness(
-	aId: string,
-	bId: string,
-	groupA: Group,
-	groupB: Group,
-	context: HappinessContext
-): number {
-	const before =
-		studentHappinessForMembers(aId, groupA.memberIds, context) +
-		studentHappinessForMembers(bId, groupB.memberIds, context) +
-		neighborsHappinessImpact(groupA.memberIds, aId, context) +
-		neighborsHappinessImpact(groupB.memberIds, bId, context);
-
-	const ai = groupA.memberIds.indexOf(aId);
-	const bi = groupB.memberIds.indexOf(bId);
-	groupA.memberIds[ai] = bId;
-	groupB.memberIds[bi] = aId;
-
-	const after =
-		studentHappinessForMembers(aId, groupB.memberIds, context) +
-		studentHappinessForMembers(bId, groupA.memberIds, context) +
-		neighborsHappinessImpact(groupA.memberIds, bId, context) +
-		neighborsHappinessImpact(groupB.memberIds, aId, context);
-
-	groupA.memberIds[ai] = aId;
-	groupB.memberIds[bi] = bId;
-
-	return after - before;
-}
-
-function buildMutualFriendAdjacency(options: AssignmentOptions): Map<string, Set<string>> {
-	const adjacency = new Map<string, Set<string>>();
-	for (const id of options.studentOrder) adjacency.set(id, new Set());
-
-	const { preferencesById, studentsById } = options;
-	for (const [studentId, pref] of Object.entries(preferencesById)) {
-		for (const friendId of pref.likeStudentIds ?? []) {
-			if (!studentsById[friendId] || !studentsById[studentId]) continue;
-			const friendPref = preferencesById[friendId];
-			if (friendPref?.likeStudentIds?.includes(studentId)) {
-				adjacency.get(studentId)?.add(friendId);
-				adjacency.get(friendId)?.add(studentId);
-			}
-		}
-	}
-
-	return adjacency;
+	return group.capacity - group.memberIds.length;
 }

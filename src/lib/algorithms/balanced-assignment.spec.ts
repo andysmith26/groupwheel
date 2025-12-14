@@ -22,7 +22,7 @@ function buildOptions(
 }
 
 describe('assignBalanced', () => {
-	it('clusters mutual friends into the same group when capacity allows', () => {
+	it('distributes students evenly across groups', () => {
 		const groups: Group[] = [
 			{ id: 'g1', name: 'Group 1', capacity: 2, memberIds: [] },
 			{ id: 'g2', name: 'Group 2', capacity: 2, memberIds: [] }
@@ -36,28 +36,24 @@ describe('assignBalanced', () => {
 		const preferences: StudentPreference[] = [
 			{
 				studentId: 'a',
-				likeStudentIds: ['b'],
 				avoidStudentIds: [],
 				likeGroupIds: [],
 				avoidGroupIds: []
 			},
 			{
 				studentId: 'b',
-				likeStudentIds: ['a'],
 				avoidStudentIds: [],
 				likeGroupIds: [],
 				avoidGroupIds: []
 			},
 			{
 				studentId: 'c',
-				likeStudentIds: ['d'],
 				avoidStudentIds: [],
 				likeGroupIds: [],
 				avoidGroupIds: []
 			},
 			{
 				studentId: 'd',
-				likeStudentIds: ['c'],
 				avoidStudentIds: [],
 				likeGroupIds: [],
 				avoidGroupIds: []
@@ -73,16 +69,14 @@ describe('assignBalanced', () => {
 			)
 		);
 
-		const hasAB = result.groups.some(
-			(group) => group.memberIds.includes('a') && group.memberIds.includes('b')
-		);
-		const hasCD = result.groups.some(
-			(group) => group.memberIds.includes('c') && group.memberIds.includes('d')
-		);
-
-		expect(hasAB).toBe(true);
-		expect(hasCD).toBe(true);
+		// All students should be assigned
+		const totalAssigned = result.groups.reduce((sum, group) => sum + group.memberIds.length, 0);
+		expect(totalAssigned).toBe(4);
 		expect(result.unassignedStudentIds).toHaveLength(0);
+
+		// Groups should be balanced (2 each)
+		expect(result.groups[0].memberIds.length).toBe(2);
+		expect(result.groups[1].memberIds.length).toBe(2);
 	});
 
 	it('honors capacity limits and reports unassigned students', () => {
@@ -94,7 +88,6 @@ describe('assignBalanced', () => {
 		];
 		const preferences: StudentPreference[] = students.map((student) => ({
 			studentId: student.id,
-			likeStudentIds: [],
 			avoidStudentIds: [],
 			likeGroupIds: [],
 			avoidGroupIds: []
@@ -114,5 +107,35 @@ describe('assignBalanced', () => {
 		expect(totalAssigned).toBe(2);
 		expect(result.unassignedStudentIds).toHaveLength(1);
 		expect(result.unassignedStudentIds[0]).toBeDefined();
+	});
+
+	it('produces deterministic results with the same seed', () => {
+		const groups: Group[] = [
+			{ id: 'g1', name: 'Group 1', capacity: 2, memberIds: [] },
+			{ id: 'g2', name: 'Group 2', capacity: 2, memberIds: [] }
+		];
+		const students: Student[] = [
+			{ id: 'a', firstName: 'A' },
+			{ id: 'b', firstName: 'B' },
+			{ id: 'c', firstName: 'C' },
+			{ id: 'd', firstName: 'D' }
+		];
+		const preferences: StudentPreference[] = students.map((student) => ({
+			studentId: student.id,
+			avoidStudentIds: [],
+			likeGroupIds: [],
+			avoidGroupIds: []
+		}));
+
+		const result1 = assignBalanced(
+			buildOptions(groups, students, preferences, students.map((s) => s.id), { seed: 42 })
+		);
+		const result2 = assignBalanced(
+			buildOptions(groups, students, preferences, students.map((s) => s.id), { seed: 42 })
+		);
+
+		// Same seed should produce same assignment
+		expect(result1.groups[0].memberIds).toEqual(result2.groups[0].memberIds);
+		expect(result1.groups[1].memberIds).toEqual(result2.groups[1].memberIds);
 	});
 });

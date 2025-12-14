@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
 import { createTestFixtures } from './fixtures';
 import { generateScenarioForProgram } from '$lib/application/useCases/generateScenario';
+import type { StudentPreference } from '$lib/domain';
 
 describe('Test Fixtures with Balanced Grouping', () => {
 	describe('Medium Dataset (default)', () => {
-		it('should create fixtures and generate balanced groups respecting preferences', async () => {
+		it('should create fixtures and generate balanced groups', async () => {
 			const env = createInMemoryEnvironment();
 			const { program } = await createTestFixtures(env);
 
@@ -37,29 +38,6 @@ describe('Test Fixtures with Balanced Grouping', () => {
 				expect(group.memberIds.length).toBeGreaterThanOrEqual(4);
 				expect(group.memberIds.length).toBeLessThanOrEqual(6);
 			}
-
-			// Test mutual friend preferences are respected
-			// Alice (stu-1) and Brandon (stu-2) should be in the same group
-			const aliceGroup = scenario.groups.find((g) => g.memberIds.includes('stu-1'));
-			expect(aliceGroup).toBeDefined();
-			expect(aliceGroup!.memberIds).toContain('stu-2');
-
-			// Carmen (stu-3) and Diego (stu-4) should be in the same group
-			const carmenGroup = scenario.groups.find((g) => g.memberIds.includes('stu-3'));
-			expect(carmenGroup).toBeDefined();
-			expect(carmenGroup!.memberIds).toContain('stu-4');
-
-			// Emi, Farah, Gabriel (stu-5, stu-6, stu-7) - triangle of mutual friends
-			// Should be in the same group
-			const emiGroup = scenario.groups.find((g) => g.memberIds.includes('stu-5'));
-			expect(emiGroup).toBeDefined();
-			expect(emiGroup!.memberIds).toContain('stu-6');
-			expect(emiGroup!.memberIds).toContain('stu-7');
-
-			// Hannah (stu-8) and Isaac (stu-9) should be in the same group
-			const hannahGroup = scenario.groups.find((g) => g.memberIds.includes('stu-8'));
-			expect(hannahGroup).toBeDefined();
-			expect(hannahGroup!.memberIds).toContain('stu-9');
 		});
 
 		it('should include predefined groups', async () => {
@@ -78,10 +56,12 @@ describe('Test Fixtures with Balanced Grouping', () => {
 			const { preferences } = await createTestFixtures(env, 'medium');
 
 			const lunaPrefs = preferences.find((p) => p.studentId === 'stu-12');
-			expect(lunaPrefs?.payload.likeGroupIds).toContain('grp-1'); // Luna wants Group Alpha
+			const lunaPayload = lunaPrefs?.payload as StudentPreference | undefined;
+			expect(lunaPayload?.likeGroupIds).toContain('grp-1'); // Luna wants Group Alpha
 
 			const isaacPrefs = preferences.find((p) => p.studentId === 'stu-9');
-			expect(isaacPrefs?.payload.avoidGroupIds).toContain('grp-3'); // Isaac avoids Group Gamma
+			const isaacPayload = isaacPrefs?.payload as StudentPreference | undefined;
+			expect(isaacPayload?.avoidGroupIds).toContain('grp-3'); // Isaac avoids Group Gamma
 		});
 
 		it('should include avoidance preferences', async () => {
@@ -89,20 +69,19 @@ describe('Test Fixtures with Balanced Grouping', () => {
 			const { preferences } = await createTestFixtures(env, 'medium');
 
 			const alicePrefs = preferences.find((p) => p.studentId === 'stu-1');
-			expect(alicePrefs?.payload.avoidStudentIds).toContain('stu-4'); // Alice avoids Diego
+			const alicePayload = alicePrefs?.payload as StudentPreference | undefined;
+			expect(alicePayload?.avoidStudentIds).toContain('stu-4'); // Alice avoids Diego
 
 			const kevinPrefs = preferences.find((p) => p.studentId === 'stu-11');
-			expect(kevinPrefs?.payload.avoidStudentIds).toContain('stu-2'); // Kevin avoids Brandon
+			const kevinPayload = kevinPrefs?.payload as StudentPreference | undefined;
+			expect(kevinPayload?.avoidStudentIds).toContain('stu-2'); // Kevin avoids Brandon
 		});
 	});
 
 	describe('Small Dataset', () => {
 		it('should create small dataset with 8 students', async () => {
 			const env = createInMemoryEnvironment();
-			const { students, pool, groups, preferences } = await createTestFixtures(
-				env,
-				'small'
-			);
+			const { students, pool, groups, preferences } = await createTestFixtures(env, 'small');
 
 			expect(students).toHaveLength(8);
 			expect(pool.memberIds).toHaveLength(8);
@@ -116,20 +95,19 @@ describe('Test Fixtures with Balanced Grouping', () => {
 			const { preferences } = await createTestFixtures(env, 'small');
 
 			const grayPrefs = preferences.find((p) => p.studentId === 'stu-s7');
-			expect(grayPrefs?.payload.likeGroupIds).toContain('grp-s1'); // Gray wants Red Team
+			const grayPayload = grayPrefs?.payload as StudentPreference | undefined;
+			expect(grayPayload?.likeGroupIds).toContain('grp-s1'); // Gray wants Red Team
 
 			const harperPrefs = preferences.find((p) => p.studentId === 'stu-s8');
-			expect(harperPrefs?.payload.avoidGroupIds).toContain('grp-s2'); // Harper avoids Blue Team
+			const harperPayload = harperPrefs?.payload as StudentPreference | undefined;
+			expect(harperPayload?.avoidGroupIds).toContain('grp-s2'); // Harper avoids Blue Team
 		});
 	});
 
 	describe('Large Dataset', () => {
 		it('should create large dataset with 20 students', async () => {
 			const env = createInMemoryEnvironment();
-			const { students, pool, groups, preferences } = await createTestFixtures(
-				env,
-				'large'
-			);
+			const { students, pool, groups, preferences } = await createTestFixtures(env, 'large');
 
 			expect(students).toHaveLength(20);
 			expect(pool.memberIds).toHaveLength(20);
@@ -142,18 +120,19 @@ describe('Test Fixtures with Balanced Grouping', () => {
 			const env = createInMemoryEnvironment();
 			const { preferences } = await createTestFixtures(env, 'large');
 
-			// Triangle: Aiden ↔ Bella ↔ Carter
+			// Aiden avoids Dylan
 			const aidenPrefs = preferences.find((p) => p.studentId === 'stu-l1');
-			expect(aidenPrefs?.payload.likeStudentIds).toContain('stu-l2');
-			expect(aidenPrefs?.payload.likeStudentIds).toContain('stu-l3');
-			expect(aidenPrefs?.payload.avoidStudentIds).toContain('stu-l4'); // Avoids Dylan
+			const aidenPayload = aidenPrefs?.payload as StudentPreference | undefined;
+			expect(aidenPayload?.avoidStudentIds).toContain('stu-l4'); // Avoids Dylan
 
 			// Group preferences
 			const owenPrefs = preferences.find((p) => p.studentId === 'stu-l15');
-			expect(owenPrefs?.payload.likeGroupIds).toContain('grp-l1'); // Owen wants Eagles
+			const owenPayload = owenPrefs?.payload as StudentPreference | undefined;
+			expect(owenPayload?.likeGroupIds).toContain('grp-l1'); // Owen wants Eagles
 
 			const quinnPrefs = preferences.find((p) => p.studentId === 'stu-l17');
-			expect(quinnPrefs?.payload.avoidGroupIds).toContain('grp-l3'); // Quinn avoids Falcons
+			const quinnPayload = quinnPrefs?.payload as StudentPreference | undefined;
+			expect(quinnPayload?.avoidGroupIds).toContain('grp-l3'); // Quinn avoids Falcons
 		});
 
 		it('should generate balanced groups for large dataset', async () => {

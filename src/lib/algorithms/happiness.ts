@@ -1,44 +1,16 @@
-import type { Group } from '$lib/domain';
-import type { HappinessContext } from './types';
+/**
+ * This module previously contained friend-based "happiness" calculations.
+ * It was removed in the Turntable pivot (December 2025).
+ *
+ * See PROJECT_HISTORY.md for context.
+ *
+ * The new approach uses group-based request satisfaction instead of
+ * friend-based happiness scoring.
+ *
+ * @module algorithms/happiness
+ * @deprecated This module is deprecated and will be removed.
+ */
 
-export function studentHappinessInGroups(
-	studentId: string,
-	groups: Group[],
-	context: HappinessContext
-): number {
-	const group = groups.find((g) => g.memberIds.includes(studentId));
-	if (!group) return 0;
-	return studentHappinessForMembers(studentId, group.memberIds, context);
-}
-
-export function studentHappinessForMembers(
-	studentId: string,
-	memberIds: readonly string[],
-	context: HappinessContext
-): number {
-	const pref = context.preferencesById[studentId];
-	if (!pref?.likeStudentIds?.length) return 0;
-
-	const memberSet = new Set(memberIds);
-	let count = 0;
-	for (const friendId of pref.likeStudentIds) {
-		if (!context.studentsById[friendId]) continue;
-		if (memberSet.has(friendId)) count++;
-	}
-	return count;
-}
-
-export function neighborsHappinessImpact(
-	memberIds: readonly string[],
-	movedStudentId: string,
-	context: HappinessContext
-): number {
-	let sum = 0;
-	for (const otherId of memberIds) {
-		if (otherId === movedStudentId) continue;
-		const pref = context.preferencesById[otherId];
-		if (!pref?.likeStudentIds?.includes(movedStudentId)) continue;
-		sum += studentHappinessForMembers(otherId, memberIds, context);
-	}
-	return sum;
-}
+// This file is intentionally empty.
+// The happiness-based optimization has been removed.
+// Group satisfaction is now computed in src/lib/domain/analytics.ts

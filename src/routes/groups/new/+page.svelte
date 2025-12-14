@@ -411,7 +411,7 @@
 </script>
 
 <svelte:head>
-	<title>Create Groups | Friend Hat</title>
+	<title>Create Groups | Turntable</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl p-4">
