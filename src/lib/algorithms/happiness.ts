@@ -1,6 +1,6 @@
 /**
  * This module previously contained friend-based "happiness" calculations.
- * It was removed in the Turntable pivot (December 2025).
+ * It was removed in the December 2025 pivot.
  *
  * See PROJECT_HISTORY.md for context.
  *

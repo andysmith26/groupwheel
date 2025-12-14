@@ -419,7 +419,7 @@
 </script>
 
 <svelte:head>
-	<title>Create Groups | Turntable</title>
+	<title>Create Groups | Groupwheel</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl p-4">

@@ -11,7 +11,7 @@
 
 import { dev, browser } from '$app/environment';
 
-const STORAGE_KEY = 'turntable-devtools';
+const STORAGE_KEY = 'groupwheel-devtools';
 
 function createDevToolsStore() {
 	let enabled = $state(dev);

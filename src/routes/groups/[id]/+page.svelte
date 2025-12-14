@@ -432,7 +432,7 @@
 </script>
 
 <svelte:head>
-	<title>{program?.name ?? 'Activity'} | Turntable</title>
+	<title>{program?.name ?? 'Activity'} | Groupwheel</title>
 </svelte:head>
 
 <div class="flex h-screen flex-col">

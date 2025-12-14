@@ -1,4 +1,4 @@
-# Turntable
+# Groupwheel
 
 **Groups shaped together.** A privacy-first toolbox for K-12 teachers to form student groups—from five-minute discussion pairs to semester-long clubs.
 

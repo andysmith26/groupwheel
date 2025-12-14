@@ -61,7 +61,7 @@
 			class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between"
 		>
 			<div>
-				<p class="text-xs tracking-wide text-gray-500 uppercase">Turntable</p>
+				<p class="text-xs tracking-wide text-gray-500 uppercase">Groupwheel</p>
 				<h1 class="text-lg font-semibold">Teacher workspace</h1>
 			</div>
 			<nav aria-label="Site sections" class="grid gap-3 text-sm md:grid-cols-3">

@@ -1,8 +1,8 @@
-# Turntable Domain Model (reduced MVP + target vocabulary)
+# Groupwheel Domain Model (reduced MVP + target vocabulary)
 
 _Last updated: 2025-12-13_
 
-This conceptual domain model defines the canonical nouns and relationships for Turntable. It reflects the reduced MVP decisions (explicitly annotated) while preserving vocabulary for planned and future features so migration and refactors are straightforward.
+This conceptual domain model defines the canonical nouns and relationships for Groupwheel. It reflects the reduced MVP decisions (explicitly annotated) while preserving vocabulary for planned and future features so migration and refactors are straightforward.
 
 ---
 

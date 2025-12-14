@@ -1,4 +1,4 @@
-# Turntable — UX Strategy
+# Groupwheel — UX Strategy
 
 **From Wizard to Workspace: Redesigning Group Management**
 
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-Turntable's original UX treated group creation as a discrete task with a clear endpoint. User research revealed a fundamentally different reality: **group management is a continuous, semester-long activity** involving repeated refinement, conflict resolution, and structural changes.
+Groupwheel's original UX (as Turntable) treated group creation as a discrete task with a clear endpoint. User research revealed a fundamentally different reality: **group management is a continuous, semester-long activity** involving repeated refinement, conflict resolution, and structural changes.
 
 This document proposes transitioning from a **wizard-to-results paradigm** to a **living workspace paradigm**—where the Activity Detail page becomes an always-editable canvas that teachers inhabit throughout a program's lifecycle.
 

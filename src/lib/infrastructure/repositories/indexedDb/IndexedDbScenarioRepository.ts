@@ -2,7 +2,7 @@ import type { Scenario } from '$lib/domain';
 import type { ScenarioRepository } from '$lib/application/ports/ScenarioRepository';
 import { browser } from '$app/environment';
 
-const DB_NAME = 'turntable';
+const DB_NAME = 'groupwheel';
 const DB_VERSION = 1;
 const STORE_NAME = 'scenarios';
 

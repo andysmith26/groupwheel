@@ -1,5 +1,5 @@
 /**
- * Preference types for the Turntable domain.
+ * Preference types for the Groupwheel domain.
  *
  * This module contains two related but distinct concepts:
  *
@@ -12,7 +12,7 @@
  *    in the PreferenceRepository.
  *
  * Note: This module previously supported friend-based preferences (likeStudentIds).
- * That feature was removed in the Turntable pivot (December 2025). See PROJECT_HISTORY.md.
+ * That feature was removed in the December 2025 pivot. See PROJECT_HISTORY.md.
  *
  * @module domain/preference
  */

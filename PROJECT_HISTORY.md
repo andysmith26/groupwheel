@@ -1,6 +1,6 @@
 # Project History
 
-This document records significant pivots and historical context for the Turntable project.
+This document records significant pivots and historical context for the Groupwheel project.
 
 ---
 
@@ -16,7 +16,7 @@ The project was originally named **Friend Hat** and focused on grouping students
 
 ### New Direction: Turntable
 
-**Turntable** is a toolbox for forming groups under multiple modes:
+**Turntable** (now **Groupwheel**) is a toolbox for forming groups under multiple modes:
 
 - **Request-based placement** into named groups ("clubs") with optional capacities
 - **Random/ad-hoc grouping** (quick splits) with optional constraints
@@ -41,7 +41,7 @@ Students submit **requests/choices** for groups (e.g., which club they want to j
 
 ### Brand
 
-- **Product name:** Turntable
+- **Product name:** Groupwheel (formerly Turntable)
 - **Tagline:** Groups shaped together
 
 ---

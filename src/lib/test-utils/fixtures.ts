@@ -1,5 +1,5 @@
 /**
- * Test fixtures for Turntable.
+ * Test fixtures for Groupwheel.
  *
  * Provides pre-built test data with deterministic IDs for use in integration
  * tests and spec files. These fixtures allow tests to have predictable data
@@ -12,7 +12,7 @@
  * - Fixtures may need to bypass business rules to set up edge cases
  * - Use case APIs don't expose ID specification
  *
- * Note: As of the Turntable pivot (December 2025), friend-based preferences
+ * Note: As of the December 2025 pivot, friend-based preferences
  * (likeStudentIds) have been removed. Preferences now use group requests
  * (likeGroupIds) instead. See PROJECT_HISTORY.md.
  *
@@ -74,7 +74,7 @@ export const smallProgram: Program = {
  * Simple preferences for small dataset:
  * - Gray wants Red Team
  * - Harper avoids Blue Team
- * (Friend preferences removed in Turntable pivot)
+ * (Friend preferences removed in the December 2025 pivot)
  */
 export const smallPreferences: Preference[] = [
 	{

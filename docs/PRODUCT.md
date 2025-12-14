@@ -1,4 +1,4 @@
-# Turntable — Product Vision
+# Groupwheel — Product Vision
 
 **Last updated:** December 2025
 
@@ -24,7 +24,7 @@ Teachers lack tools to balance student group requests, avoid conflicts, and eval
 
 ## Solution
 
-Turntable provides:
+Groupwheel provides:
 
 1. **Request-aware grouping** — Students rank which groups they want to join; algorithm optimizes satisfaction
 2. **Instant analytics** — See what percentage got their top choice before committing
