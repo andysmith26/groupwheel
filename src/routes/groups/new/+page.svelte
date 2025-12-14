@@ -408,6 +408,14 @@
 	let reusedRosterName = $derived(
 		existingRosters.find((r) => r.pool.id === selectedRosterId)?.activityName
 	);
+
+	// Extract group names from shell builder for preferences step
+	// Only available when in 'specific' mode with defined groups
+	let shellGroupNames = $derived(
+		groupCreationMode === 'specific'
+			? groupCreationGroups.map((g) => g.name).filter((n) => n.trim().length > 0)
+			: []
+	);
 </script>
 
 <svelte:head>
@@ -455,7 +463,7 @@
                                 onValidityChange={handleUnifiedValidityChange}
                         />
                 {:else if activeStepType === 'preferences'}
-                        <StepPreferences {students} {preferences} onPreferencesParsed={handlePreferencesParsed} />
+                        <StepPreferences {students} {preferences} groupNames={shellGroupNames} onPreferencesParsed={handlePreferencesParsed} />
                 {:else if activeStepType === 'name'}
                         <StepName
                                 {activityName}

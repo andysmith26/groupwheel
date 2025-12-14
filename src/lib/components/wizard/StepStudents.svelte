@@ -22,15 +22,28 @@
 	let showFormatHelp = $state(false);
 
 	// Sample data for dev mode testing
+	// 20 students to demonstrate meaningful group formation
 	const SAMPLE_ROSTER = `name	id	grade
-Alice Smith	alice@school.edu	9
-Bob Jones	bob@school.edu	9
-Carol White	carol@school.edu	9
-Dave Brown	dave@school.edu	9
-Eve Davis	eve@school.edu	10
-Frank Miller	frank@school.edu	10
-Grace Wilson	grace@school.edu	10
-Henry Taylor	henry@school.edu	10`;
+Alice Chen	alice@school.edu	9
+Brandon Kim	brandon@school.edu	9
+Carmen Lopez	carmen@school.edu	9
+David Patel	david@school.edu	9
+Emma Wilson	emma@school.edu	9
+Felix Nguyen	felix@school.edu	9
+Grace Thompson	grace@school.edu	10
+Henry Martinez	henry@school.edu	10
+Iris Johnson	iris@school.edu	10
+James Lee	james@school.edu	10
+Kai Anderson	kai@school.edu	10
+Luna Garcia	luna@school.edu	10
+Mason Brown	mason@school.edu	11
+Nora Davis	nora@school.edu	11
+Owen Taylor	owen@school.edu	11
+Priya Singh	priya@school.edu	11
+Quinn Murphy	quinn@school.edu	11
+Riley Jackson	riley@school.edu	11
+Sofia Clark	sofia@school.edu	12
+Tyler White	tyler@school.edu	12`;
 
 	function loadSampleData() {
 		pastedText = SAMPLE_ROSTER;

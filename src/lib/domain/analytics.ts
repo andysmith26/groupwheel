@@ -75,6 +75,13 @@ export function computeScenarioSatisfaction(params: {
 		}
 	}
 
+	// Build a map from group name (lowercase) to group ID for name-based matching
+	// This supports the case where preferences store group names instead of IDs
+	const groupNameToId = new Map<string, string>();
+	for (const group of scenario.groups) {
+		groupNameToId.set(group.name.toLowerCase(), group.id);
+	}
+
 	let topChoiceCount = 0;
 	let top2Count = 0;
 	let top3Count = 0;
@@ -99,7 +106,14 @@ export function computeScenarioSatisfaction(params: {
 		studentsWithPrefs++;
 
 		// Find the rank of the assigned group in the student's preferences
-		const assignedRank = groupChoices.indexOf(assignedGroupId);
+		// Try matching by ID first, then by name (case-insensitive)
+		let assignedRank = groupChoices.indexOf(assignedGroupId);
+		if (assignedRank === -1) {
+			// Try matching by name - preferences might store group names instead of IDs
+			assignedRank = groupChoices.findIndex(
+				(choice) => groupNameToId.get(choice.toLowerCase()) === assignedGroupId
+			);
+		}
 
 		if (assignedRank === -1) {
 			// Student was not assigned to any of their requested groups

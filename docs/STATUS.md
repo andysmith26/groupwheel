@@ -16,7 +16,7 @@ This document tracks what's actually implemented. Update when features ship.
 | CSV roster import           | ✅ Done | Wizard Students step           | TSV also supported                                       |
 | Preference import           | ✅ Done | Wizard Preferences step        | Mismatch warnings shown                                  |
 | Group configuration         | ✅ Done | Wizard Groups step             | "Specific groups" or "Auto split" modes                  |
-| Balanced grouping algorithm | ✅ Done | `generateScenario` use case    | Seeded random balanced assignment                        |
+| Balanced grouping algorithm | ✅ Done | `generateScenario` use case    | Request-aware two-phase algorithm                        |
 | Basic analytics             | ✅ Done | Activity detail page           | Top %, top 2 %, avg rank                                 |
 | Drag-drop editing           | ✅ Done | Activity detail page           | Via ScenarioEditingStore                                 |
 | Undo/redo                   | ✅ Done | Activity detail page           | Session-scoped command history                           |
@@ -84,18 +84,14 @@ This document tracks what's actually implemented. Update when features ship.
 | Algorithm single-run | Teacher gets one option              | Candidate Gallery in NEXT phase  |
 | No conflict rules UI | Teachers can't specify "never group" | Manual editing as workaround     |
 
-## Documentation Gaps (Fix When Time Allows)
-
-| Document        | Issue                                                  |
-| --------------- | ------------------------------------------------------ |
-| ARCHITECTURE.md | Missing IndexedDbScenarioRepository in repository list |
-
 ---
 
 ## Recent Changes
 
 | Date     | Change                                                                   |
 | -------- | ------------------------------------------------------------------------ |
+| Dec 2025 | Request-aware grouping algorithm (two-phase: preferences first, balanced fallback) |
+| Dec 2025 | Group request import with CSV/TSV parser and validation UI               |
 | Dec 2025 | **Turntable pivot**: Removed friend-based preferences, request-only mode |
 | Dec 2024 | MVP complete; wizard flow, analytics, student view                       |
 | Nov 2024 | Hexagonal architecture migration                                         |
