@@ -5,7 +5,7 @@
 	 * Unified Groups step that combines:
 	 * - Fork question ("specific groups" vs "auto split")
 	 * - Conditional content based on selection:
-	 *   - ShellBuilder for specific mode
+	 *   - ShellBuilder for specific mode (with template selection)
 	 *   - Size controls for auto mode
 	 *
 	 * This keeps the step count fixed regardless of which mode is selected.
@@ -14,6 +14,7 @@
 
 	import ShellBuilder from './ShellBuilder.svelte';
 	import { validateGroupShells, type GroupShell } from '$lib/utils/groupShellValidation';
+	import type { GroupTemplate } from '$lib/domain';
 
 	interface SizeConfig {
 		min: number | null;
@@ -24,20 +25,29 @@
 		mode: 'specific' | 'auto' | null;
 		shellGroups: GroupShell[];
 		sizeConfig: SizeConfig;
+		/** Available group templates to choose from */
+		templates?: GroupTemplate[];
+		/** Currently selected template ID (if any) */
+		selectedTemplateId?: string | null;
 		onModeChange: (mode: 'specific' | 'auto') => void;
 		onShellGroupsChange: (groups: GroupShell[]) => void;
 		onSizeConfigChange: (config: SizeConfig) => void;
 		onValidityChange: (isValid: boolean) => void;
+		/** Called when a template is selected */
+		onTemplateSelect?: (templateId: string | null) => void;
 	}
 
 	const {
 		mode,
 		shellGroups,
 		sizeConfig,
+		templates = [],
+		selectedTemplateId = null,
 		onModeChange,
 		onShellGroupsChange,
 		onSizeConfigChange,
-		onValidityChange
+		onValidityChange,
+		onTemplateSelect
 	}: Props = $props();
 
 	// Track ShellBuilder validity separately
@@ -235,7 +245,52 @@
 
 	<!-- Conditional content based on mode -->
 	{#if mode === 'specific'}
-		<div class="border-t border-gray-200 pt-6">
+		<div class="border-t border-gray-200 pt-6 space-y-6">
+			<!-- Template selector (if templates available) -->
+			{#if templates.length > 0}
+				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+					<label for="template-select" class="block text-sm font-medium text-gray-700">
+						Use a saved template (optional)
+					</label>
+					<div class="mt-2 flex items-center gap-3">
+						<select
+							id="template-select"
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+							value={selectedTemplateId ?? ''}
+							onchange={(e) => {
+								const value = (e.target as HTMLSelectElement).value;
+								onTemplateSelect?.(value || null);
+							}}
+						>
+							<option value="">Create new groups...</option>
+							{#each templates as template (template.id)}
+								<option value={template.id}>
+									{template.name} ({template.groups.length} groups)
+								</option>
+							{/each}
+						</select>
+						{#if selectedTemplateId}
+							<button
+								type="button"
+								class="text-sm text-gray-500 hover:text-gray-700"
+								onclick={() => onTemplateSelect?.(null)}
+							>
+								Clear
+							</button>
+						{/if}
+					</div>
+					{#if selectedTemplateId}
+						{@const selected = templates.find((t) => t.id === selectedTemplateId)}
+						{#if selected?.description}
+							<p class="mt-2 text-xs text-gray-500">{selected.description}</p>
+						{/if}
+					{/if}
+					<p class="mt-2 text-xs text-gray-500">
+						<a href="/groups/templates" class="text-blue-600 hover:underline">Manage templates</a>
+					</p>
+				</div>
+			{/if}
+
 			<ShellBuilder
 				groups={shellGroups}
 				onGroupsChange={onShellGroupsChange}

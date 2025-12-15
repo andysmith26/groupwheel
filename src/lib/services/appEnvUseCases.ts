@@ -49,6 +49,13 @@ import {
 import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
 import { listPools as listPoolsUseCase } from '$lib/application/useCases/listPools';
+import {
+	createGroupTemplate as createGroupTemplateFactory,
+	updateGroupTemplate as updateGroupTemplateFactory,
+	type GroupTemplate,
+	type CreateGroupTemplateInput
+} from '$lib/domain/groupTemplate';
+import { ok, err } from '$lib/types/result';
 
 export async function importPool(
 	env: InMemoryEnvironment,
@@ -204,4 +211,124 @@ export async function importRoster(
 		},
 		input
 	);
+}
+
+// =============================================================================
+// Group Template Operations
+// =============================================================================
+
+export type CreateGroupTemplateError = { type: 'VALIDATION_ERROR'; message: string };
+
+/**
+ * Create a new group template.
+ */
+export async function createGroupTemplate(
+	env: InMemoryEnvironment,
+	input: {
+		name: string;
+		description?: string;
+		groups: Array<{ name: string; capacity?: number | null }>;
+		ownerStaffId?: string;
+	}
+): Promise<Result<GroupTemplate, CreateGroupTemplateError>> {
+	try {
+		const templateInput: CreateGroupTemplateInput = {
+			id: env.idGenerator.generate(),
+			ownerStaffId: input.ownerStaffId ?? 'owner-1',
+			name: input.name,
+			description: input.description,
+			groups: input.groups.map((g) => ({
+				id: env.idGenerator.generate(),
+				name: g.name,
+				capacity: g.capacity ?? null
+			}))
+		};
+
+		const template = createGroupTemplateFactory(templateInput);
+		await env.groupTemplateRepo.save(template);
+		return ok(template);
+	} catch (e) {
+		return err({
+			type: 'VALIDATION_ERROR',
+			message: e instanceof Error ? e.message : 'Unknown error'
+		});
+	}
+}
+
+/**
+ * List all group templates for the current user.
+ */
+export async function listGroupTemplates(
+	env: InMemoryEnvironment,
+	ownerStaffId?: string
+): Promise<GroupTemplate[]> {
+	if (ownerStaffId) {
+		return env.groupTemplateRepo.listByOwnerId(ownerStaffId);
+	}
+	return env.groupTemplateRepo.listAll();
+}
+
+/**
+ * Get a group template by ID.
+ */
+export async function getGroupTemplate(
+	env: InMemoryEnvironment,
+	templateId: string
+): Promise<GroupTemplate | null> {
+	return env.groupTemplateRepo.getById(templateId);
+}
+
+export type UpdateGroupTemplateError =
+	| { type: 'NOT_FOUND' }
+	| { type: 'VALIDATION_ERROR'; message: string };
+
+/**
+ * Update an existing group template.
+ */
+export async function updateGroupTemplate(
+	env: InMemoryEnvironment,
+	templateId: string,
+	updates: {
+		name?: string;
+		description?: string;
+		groups?: Array<{ id?: string; name: string; capacity?: number | null }>;
+	}
+): Promise<Result<GroupTemplate, UpdateGroupTemplateError>> {
+	const existing = await env.groupTemplateRepo.getById(templateId);
+	if (!existing) {
+		return err({ type: 'NOT_FOUND' });
+	}
+
+	try {
+		// If groups are being updated, ensure each has an ID
+		const updatedGroups = updates.groups?.map((g) => ({
+			id: g.id ?? env.idGenerator.generate(),
+			name: g.name,
+			capacity: g.capacity ?? null
+		}));
+
+		const updated = updateGroupTemplateFactory(existing, {
+			name: updates.name,
+			description: updates.description,
+			groups: updatedGroups
+		});
+
+		await env.groupTemplateRepo.update(updated);
+		return ok(updated);
+	} catch (e) {
+		return err({
+			type: 'VALIDATION_ERROR',
+			message: e instanceof Error ? e.message : 'Unknown error'
+		});
+	}
+}
+
+/**
+ * Delete a group template.
+ */
+export async function deleteGroupTemplate(
+	env: InMemoryEnvironment,
+	templateId: string
+): Promise<void> {
+	await env.groupTemplateRepo.delete(templateId);
 }

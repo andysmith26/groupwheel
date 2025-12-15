@@ -3,7 +3,7 @@ import type { ScenarioRepository } from '$lib/application/ports/ScenarioReposito
 import { browser } from '$app/environment';
 
 const DB_NAME = 'groupwheel';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // v2 adds groupTemplates store
 const STORE_NAME = 'scenarios';
 
 /**
@@ -23,9 +23,17 @@ function openDb(): Promise<IDBDatabase> {
 
 		request.onupgradeneeded = (event) => {
 			const db = (event.target as IDBOpenDBRequest).result;
+
+			// Create scenarios store (v1)
 			if (!db.objectStoreNames.contains(STORE_NAME)) {
 				const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
 				store.createIndex('programId', 'programId', { unique: true });
+			}
+
+			// Create groupTemplates store (v2)
+			if (!db.objectStoreNames.contains('groupTemplates')) {
+				const templateStore = db.createObjectStore('groupTemplates', { keyPath: 'id' });
+				templateStore.createIndex('ownerStaffId', 'ownerStaffId', { unique: false });
 			}
 		};
 	});

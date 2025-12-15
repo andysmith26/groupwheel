@@ -14,8 +14,8 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import type { Pool } from '$lib/domain';
-        import { createGroupingActivity, generateScenario } from '$lib/services/appEnvUseCases';
+	import type { Pool, GroupTemplate } from '$lib/domain';
+        import { createGroupingActivity, generateScenario, listGroupTemplates } from '$lib/services/appEnvUseCases';
         import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
         import { isErr } from '$lib/types/result';
 
@@ -32,8 +32,37 @@
 
 	onMount(async () => {
 		env = getAppEnvContext();
-		await loadExistingRosters();
+		await Promise.all([loadExistingRosters(), loadGroupTemplates()]);
 	});
+
+	// --- Group templates ---
+	let groupTemplates = $state<GroupTemplate[]>([]);
+	let selectedTemplateId = $state<string | null>(null);
+
+	async function loadGroupTemplates() {
+		if (!env) return;
+		try {
+			groupTemplates = await listGroupTemplates(env);
+		} catch (e) {
+			console.error('Failed to load group templates:', e);
+		}
+	}
+
+	function handleTemplateSelect(templateId: string | null) {
+		selectedTemplateId = templateId;
+
+		if (templateId) {
+			// Find the template and populate groups
+			const template = groupTemplates.find((t) => t.id === templateId);
+			if (template) {
+				groupCreationGroups = template.groups.map((g) => ({
+					name: g.name,
+					capacity: g.capacity
+				}));
+			}
+		}
+		// Don't clear groups when deselecting - let user keep their edits
+	}
 
 	// --- Existing rosters (for returning users) ---
 	interface RosterOption {
@@ -457,10 +486,13 @@
                                 mode={groupCreationMode}
                                 shellGroups={groupCreationGroups}
                                 sizeConfig={{ min: groupConfig.minSize, max: groupConfig.maxSize }}
+                                templates={groupTemplates}
+                                {selectedTemplateId}
                                 onModeChange={handleUnifiedModeChange}
                                 onShellGroupsChange={handleUnifiedShellGroupsChange}
                                 onSizeConfigChange={handleUnifiedSizeConfigChange}
                                 onValidityChange={handleUnifiedValidityChange}
+                                onTemplateSelect={handleTemplateSelect}
                         />
                 {:else if activeStepType === 'preferences'}
                         <StepPreferences {students} {preferences} groupNames={shellGroupNames} onPreferencesParsed={handlePreferencesParsed} />

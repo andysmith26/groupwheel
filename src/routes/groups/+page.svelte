@@ -93,12 +93,20 @@
 				Create and manage student groupings for projects, labs, and activities.
 			</p>
 		</div>
-		<a
-			href="/groups/new"
-			class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-		>
-			Create Groups
-		</a>
+		<div class="flex items-center gap-3">
+			<a
+				href="/groups/templates"
+				class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+			>
+				Templates
+			</a>
+			<a
+				href="/groups/new"
+				class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+			>
+				Create Groups
+			</a>
+		</div>
 	</header>
 
 	{#if loading}

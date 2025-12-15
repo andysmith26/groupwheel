@@ -14,6 +14,7 @@ export * from './staff';
 export * from './pool';
 export * from './program';
 export * from './group';
+export * from './groupTemplate';
 export * from './scenario';
 export * from './preference';
 export * from './analytics';
@@ -28,3 +29,5 @@ export type { StudentPreference, Preference, StudentId, GroupId } from './prefer
 export type { Scenario, ScenarioStatus } from './scenario';
 
 export type { ScenarioSatisfaction } from './analytics';
+
+export type { GroupTemplate, TemplateGroup } from './groupTemplate';

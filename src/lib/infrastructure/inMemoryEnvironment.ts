@@ -5,6 +5,7 @@ import type {
 	ProgramRepository,
 	ScenarioRepository,
 	PreferenceRepository,
+	GroupTemplateRepository,
 	IdGenerator,
 	Clock,
 	GroupingAlgorithm
@@ -17,10 +18,12 @@ import {
 	InMemoryScenarioRepository,
 	InMemoryPreferenceRepository
 } from '$lib/infrastructure/repositories/inMemory';
+import { InMemoryGroupTemplateRepository } from '$lib/infrastructure/repositories/inMemory/InMemoryGroupTemplateRepository';
 import { IndexedDbScenarioRepository } from '$lib/infrastructure/repositories/indexedDb';
+import { IndexedDbGroupTemplateRepository } from '$lib/infrastructure/repositories/indexedDb/IndexedDbGroupTemplateRepository';
 import { UuidIdGenerator, SystemClock } from '$lib/infrastructure/services';
 import { BalancedGroupingAlgorithm } from '$lib/infrastructure/algorithms/balancedGrouping';
-import type { Pool, Program, Scenario, Student, Staff, Preference } from '$lib/domain';
+import type { Pool, Program, Scenario, Student, Staff, Preference, GroupTemplate } from '$lib/domain';
 import { browser } from '$app/environment';
 
 /**
@@ -37,6 +40,7 @@ export interface InMemoryEnvironment {
 	programRepo: ProgramRepository;
 	scenarioRepo: ScenarioRepository;
 	preferenceRepo: PreferenceRepository;
+	groupTemplateRepo: GroupTemplateRepository;
 	idGenerator: IdGenerator;
 	clock: Clock;
 	groupingAlgorithm: GroupingAlgorithm;
@@ -47,11 +51,11 @@ export interface InMemoryEnvironment {
  */
 export interface CreateEnvironmentOptions {
 	/**
-	 * Use IndexedDB for scenario persistence.
-	 * When true, scenarios persist across browser sessions.
+	 * Use IndexedDB for persistence.
+	 * When true, scenarios and group templates persist across browser sessions.
 	 * Defaults to true in browser, false on server.
 	 */
-	useIndexedDbForScenarios?: boolean;
+	useIndexedDb?: boolean;
 }
 
 /**
@@ -68,6 +72,7 @@ export function createInMemoryEnvironment(
 		programs?: Program[];
 		scenarios?: Scenario[];
 		preferences?: Preference[];
+		groupTemplates?: GroupTemplate[];
 	},
 	options?: CreateEnvironmentOptions
 ): InMemoryEnvironment {
@@ -85,11 +90,16 @@ export function createInMemoryEnvironment(
 	const programRepo = new InMemoryProgramRepository(seed?.programs ?? []);
 	const preferenceRepo = new InMemoryPreferenceRepository(seed?.preferences ?? []);
 
-	// Use IndexedDB for scenarios in browser mode by default for persistence
-	const useIndexedDb = options?.useIndexedDbForScenarios ?? browser;
+	// Use IndexedDB in browser mode by default for persistence
+	const useIndexedDb = options?.useIndexedDb ?? browser;
+
 	const scenarioRepo: ScenarioRepository = useIndexedDb
 		? new IndexedDbScenarioRepository()
 		: new InMemoryScenarioRepository(seed?.scenarios ?? []);
+
+	const groupTemplateRepo: GroupTemplateRepository = useIndexedDb
+		? new IndexedDbGroupTemplateRepository()
+		: new InMemoryGroupTemplateRepository(seed?.groupTemplates ?? []);
 
 	const idGenerator = new UuidIdGenerator();
 	const clock = new SystemClock();
@@ -102,6 +112,7 @@ export function createInMemoryEnvironment(
 		programRepo,
 		scenarioRepo,
 		preferenceRepo,
+		groupTemplateRepo,
 		idGenerator,
 		clock,
 		groupingAlgorithm
