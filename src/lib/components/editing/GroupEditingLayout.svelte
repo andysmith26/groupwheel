@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Group, Student } from '$lib/domain';
+	import { calculateRowSpan } from '$lib/utils/groups';
 	import EditableGroupColumn from './EditableGroupColumn.svelte';
 	import AddGroupCard from './AddGroupCard.svelte';
 
@@ -13,10 +14,10 @@
 		onDragStart,
 		onDragEnd,
 		flashingIds = new Set<string>(),
-		onUpdateGroup,
-		onDeleteGroup,
-		onAddGroup,
-		newGroupId = null
+	onUpdateGroup,
+	onDeleteGroup,
+	onAddGroup,
+	newGroupId = null
 	} = $props<{
 		groups?: Group[];
 		studentsById?: Record<string, Student>;
@@ -34,13 +35,14 @@
 	}>();
 </script>
 
-<div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+<div class="group-grid">
 	{#each groups as group (group.id)}
 		<EditableGroupColumn
 			{group}
 			{studentsById}
 			{selectedStudentId}
 			{draggingId}
+			rowSpan={calculateRowSpan(group)}
 			onDrop={onDrop}
 			onSelect={onSelect}
 			onDragStart={onDragStart}
@@ -53,6 +55,28 @@
 	{/each}
 
 	{#if onAddGroup}
-		<AddGroupCard {onAddGroup} />
+		<AddGroupCard rowSpan={4} {onAddGroup} />
 	{/if}
 </div>
+
+<style>
+	.group-grid {
+		display: grid;
+		grid-template-columns: repeat(1, 1fr);
+		grid-auto-rows: 40px;
+		grid-auto-flow: dense;
+		gap: 16px;
+	}
+
+	@media (min-width: 768px) {
+		.group-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.group-grid {
+			grid-template-columns: repeat(3, 1fr);
+		}
+	}
+</style>

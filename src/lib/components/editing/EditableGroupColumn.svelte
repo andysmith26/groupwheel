@@ -16,7 +16,8 @@
 		flashingIds = new Set<string>(),
 		onUpdateGroup,
 		onDeleteGroup,
-		focusNameOnMount = false
+		focusNameOnMount = false,
+		rowSpan = 1
 	} = $props<{
 		group: Group;
 		studentsById: Record<string, Student>;
@@ -30,6 +31,7 @@
 		onUpdateGroup?: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
 		onDeleteGroup?: (groupId: string) => void;
 		focusNameOnMount?: boolean;
+		rowSpan?: number;
 	}>();
 
 	import { onMount, tick } from 'svelte';
@@ -147,7 +149,10 @@
 	}
 </script>
 
-<div class="relative flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+<div
+	class="relative flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm"
+	style={`grid-row: span ${rowSpan};`}
+>
 	<div class="flex items-center justify-between gap-2">
 		<div class="min-w-0 flex-1">
 			<input
@@ -225,7 +230,7 @@
 
 	<div
 		use:droppable={{ container: group.id, callbacks: { onDrop: handleDrop } }}
-		class={`flex min-h-[140px] flex-col gap-2 rounded-lg border border-dashed px-2 py-2 ${
+		class={`flex flex-1 flex-col gap-2 rounded-lg border border-dashed px-2 py-2 ${
 			draggingId ? 'border-blue-200 bg-white' : 'border-gray-200'
 		}`}
 	>

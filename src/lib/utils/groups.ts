@@ -37,3 +37,22 @@ export function getCapacityStatus(group: Group): CapacityStatus {
 		return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
 	}
 }
+
+/**
+ * Calculate how many grid rows a group card should span in the editing layout.
+ *
+ * Uses a simple capacity-based span so the drop zone fits the target capacity:
+ * - 40px per row (student slot)
+ * - 2 header rows for name/capacity/badge/padding
+ * - Buffer of +2 slots when capacity is unlimited
+ */
+export function calculateRowSpan(group: Pick<Group, 'capacity' | 'memberIds'>): number {
+	const HEADER_ROWS = 2;
+	const MIN_CONTENT_ROWS = 1;
+	const UNLIMITED_BUFFER = 2;
+
+	const contentSlots =
+		group.capacity !== null ? group.capacity : group.memberIds.length + UNLIMITED_BUFFER;
+
+	return HEADER_ROWS + Math.max(MIN_CONTENT_ROWS, contentSlots);
+}
