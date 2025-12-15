@@ -29,6 +29,7 @@
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
 	import { generateScenario } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
+	import { buildAssignmentList, exportToCSV, exportToTSV, exportGroupsToCSV, copyToClipboard } from '$lib/utils/csvExport';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -65,6 +66,9 @@
 	let newGroupId = $state<string | null>(null);
 	let showDeleteGroupConfirm = $state(false);
 	let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
+
+	// --- Export menu state ---
+	let showExportMenu = $state(false);
 
 	// --- Result history state (session-only) ---
 	interface HistoryEntry {
@@ -429,6 +433,36 @@
 		showDeleteGroupConfirm = false;
 		groupToDelete = null;
 	}
+
+	// --- Export functions ---
+	async function handleExportCSV() {
+		if (!view) return;
+		const studentsMap = new Map(Object.entries(studentsById));
+		const assignments = buildAssignmentList(view.groups, studentsMap);
+		const csv = exportToCSV(assignments);
+		const success = await copyToClipboard(csv);
+		showToast(success ? 'CSV copied to clipboard!' : 'Failed to copy');
+		showExportMenu = false;
+	}
+
+	async function handleExportTSV() {
+		if (!view) return;
+		const studentsMap = new Map(Object.entries(studentsById));
+		const assignments = buildAssignmentList(view.groups, studentsMap);
+		const tsv = exportToTSV(assignments);
+		const success = await copyToClipboard(tsv);
+		showToast(success ? 'Copied! Paste directly into Google Sheets' : 'Failed to copy');
+		showExportMenu = false;
+	}
+
+	async function handleExportGroupsSummary() {
+		if (!view) return;
+		const studentsMap = new Map(Object.entries(studentsById));
+		const csv = exportGroupsToCSV(view.groups, studentsMap);
+		const success = await copyToClipboard(csv);
+		showToast(success ? 'Groups summary copied!' : 'Failed to copy');
+		showExportMenu = false;
+	}
 </script>
 
 <svelte:head>
@@ -464,14 +498,67 @@
 				>
 					{sidebarOpen ? 'Hide Students' : 'Students'}
 				</button>
-				{#if scenario}
-					<a
-						href="/scenarios/{scenario.id}/student-view"
-						target="_blank"
-						class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-					>
-						Student View ↗
-					</a>
+				{#if scenario && view}
+					<!-- Export dropdown -->
+					<div class="relative">
+						<button
+							type="button"
+							class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+							onclick={() => showExportMenu = !showExportMenu}
+						>
+							Export ▾
+						</button>
+						{#if showExportMenu}
+							<div
+								class="absolute right-0 z-20 mt-1 w-56 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+								role="menu"
+							>
+								<button
+									type="button"
+									class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+									onclick={handleExportTSV}
+									role="menuitem"
+								>
+									Copy for Google Sheets
+									<span class="block text-xs text-gray-500">Tab-separated, paste directly</span>
+								</button>
+								<button
+									type="button"
+									class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+									onclick={handleExportCSV}
+									role="menuitem"
+								>
+									Copy as CSV
+									<span class="block text-xs text-gray-500">Student ID, Name, Grade, Group</span>
+								</button>
+								<button
+									type="button"
+									class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+									onclick={handleExportGroupsSummary}
+									role="menuitem"
+								>
+									Copy Groups Summary
+									<span class="block text-xs text-gray-500">One row per group with members</span>
+								</button>
+								<div class="my-1 border-t border-gray-100"></div>
+								<a
+									href="/groups/{$page.params.id}/students"
+									class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+									role="menuitem"
+								>
+									Student View
+									<span class="block text-xs text-gray-500">Shareable read-only view</span>
+								</a>
+							</div>
+							<!-- Backdrop to close menu -->
+							<button
+								type="button"
+								class="fixed inset-0 z-10"
+								onclick={() => showExportMenu = false}
+								aria-label="Close menu"
+							></button>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</header>
