@@ -10,43 +10,9 @@
 import type { GroupTemplate } from '$lib/domain';
 import type { GroupTemplateRepository } from '$lib/application/ports/GroupTemplateRepository';
 import { browser } from '$app/environment';
+import { openDb } from './db';
 
-const DB_NAME = 'groupwheel';
-const DB_VERSION = 2; // Bumped to add groupTemplates store
 const STORE_NAME = 'groupTemplates';
-
-/**
- * Open the IndexedDB database, creating object stores if needed.
- */
-function openDb(): Promise<IDBDatabase> {
-	return new Promise((resolve, reject) => {
-		if (!browser) {
-			reject(new Error('IndexedDB not available on server'));
-			return;
-		}
-
-		const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-		request.onerror = () => reject(request.error);
-		request.onsuccess = () => resolve(request.result);
-
-		request.onupgradeneeded = (event) => {
-			const db = (event.target as IDBOpenDBRequest).result;
-
-			// Create scenarios store if it doesn't exist (from v1)
-			if (!db.objectStoreNames.contains('scenarios')) {
-				const scenarioStore = db.createObjectStore('scenarios', { keyPath: 'id' });
-				scenarioStore.createIndex('programId', 'programId', { unique: true });
-			}
-
-			// Create groupTemplates store (v2)
-			if (!db.objectStoreNames.contains(STORE_NAME)) {
-				const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-				store.createIndex('ownerStaffId', 'ownerStaffId', { unique: false });
-			}
-		};
-	});
-}
 
 /**
  * Serialize a GroupTemplate for storage in IndexedDB.

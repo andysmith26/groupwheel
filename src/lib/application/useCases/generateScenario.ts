@@ -95,11 +95,16 @@ export async function generateScenarioForProgram(
 		});
 	}
 
+	// Sanitize algorithm config to ensure no proxies or non-serializable data
+	const sanitizedConfig = input.algorithmConfig
+		? JSON.parse(JSON.stringify(input.algorithmConfig))
+		: undefined;
+
 	// Call grouping algorithm.
 	const groupingResult = await deps.groupingAlgorithm.generateGroups({
 		programId: program.id,
 		studentIds: pool.memberIds,
-		algorithmConfig: input.algorithmConfig
+		algorithmConfig: sanitizedConfig
 	});
 
 	if (!groupingResult.success) {
@@ -125,7 +130,7 @@ export async function generateScenarioForProgram(
 			participantIds: pool.memberIds,
 			createdAt,
 			createdByStaffId: input.createdByStaffId,
-			algorithmConfig: input.algorithmConfig
+			algorithmConfig: sanitizedConfig
 		});
 	} catch (e) {
 		const message = e instanceof Error ? e.message : 'Unknown domain validation error';

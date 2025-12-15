@@ -19,8 +19,15 @@ import {
 	InMemoryPreferenceRepository
 } from '$lib/infrastructure/repositories/inMemory';
 import { InMemoryGroupTemplateRepository } from '$lib/infrastructure/repositories/inMemory/InMemoryGroupTemplateRepository';
-import { IndexedDbScenarioRepository } from '$lib/infrastructure/repositories/indexedDb';
-import { IndexedDbGroupTemplateRepository } from '$lib/infrastructure/repositories/indexedDb/IndexedDbGroupTemplateRepository';
+import {
+	IndexedDbScenarioRepository,
+	IndexedDbGroupTemplateRepository,
+	IndexedDbProgramRepository,
+	IndexedDbPoolRepository,
+	IndexedDbStudentRepository,
+	IndexedDbStaffRepository,
+	IndexedDbPreferenceRepository
+} from '$lib/infrastructure/repositories/indexedDb';
 import { UuidIdGenerator, SystemClock } from '$lib/infrastructure/services';
 import { BalancedGroupingAlgorithm } from '$lib/infrastructure/algorithms/balancedGrouping';
 import type { Pool, Program, Scenario, Student, Staff, Preference, GroupTemplate } from '$lib/domain';
@@ -84,14 +91,24 @@ export function createInMemoryEnvironment(
 			roles: ['TEACHER']
 		}
 	];
-	const studentRepo = new InMemoryStudentRepository(seed?.students ?? []);
-	const staffRepo = new InMemoryStaffRepository([...(seed?.staff ?? []), ...defaultStaff]);
-	const poolRepo = new InMemoryPoolRepository(seed?.pools ?? []);
-	const programRepo = new InMemoryProgramRepository(seed?.programs ?? []);
-	const preferenceRepo = new InMemoryPreferenceRepository(seed?.preferences ?? []);
-
 	// Use IndexedDB in browser mode by default for persistence
 	const useIndexedDb = options?.useIndexedDb ?? browser;
+
+	const studentRepo = useIndexedDb
+		? new IndexedDbStudentRepository()
+		: new InMemoryStudentRepository(seed?.students ?? []);
+	const staffRepo = useIndexedDb
+		? new IndexedDbStaffRepository()
+		: new InMemoryStaffRepository([...(seed?.staff ?? []), ...defaultStaff]);
+	const poolRepo = useIndexedDb
+		? new IndexedDbPoolRepository()
+		: new InMemoryPoolRepository(seed?.pools ?? []);
+	const programRepo: ProgramRepository = useIndexedDb
+		? new IndexedDbProgramRepository()
+		: new InMemoryProgramRepository(seed?.programs ?? []);
+	const preferenceRepo = useIndexedDb
+		? new IndexedDbPreferenceRepository()
+		: new InMemoryPreferenceRepository(seed?.preferences ?? []);
 
 	const scenarioRepo: ScenarioRepository = useIndexedDb
 		? new IndexedDbScenarioRepository()

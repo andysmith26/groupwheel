@@ -6,3 +6,11 @@
  */
 
 export { IndexedDbScenarioRepository } from './IndexedDbScenarioRepository';
+export { IndexedDbGroupTemplateRepository } from './IndexedDbGroupTemplateRepository';
+export { IndexedDbProgramRepository } from './IndexedDbProgramRepository';
+export { IndexedDbPoolRepository } from './IndexedDbPoolRepository';
+export { IndexedDbStudentRepository } from './IndexedDbStudentRepository';
+export { IndexedDbStaffRepository } from './IndexedDbStaffRepository';
+export { IndexedDbPreferenceRepository } from './IndexedDbPreferenceRepository';
+
+

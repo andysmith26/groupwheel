@@ -160,12 +160,13 @@ export async function createGroupingActivity(
 		}
 
 		// Convert parsed students to domain Student objects
+		// Note: We explicitly copy properties to ensure we don't pass Svelte proxies to IndexedDB
 		students = input.students.map((ps) => ({
 			id: ps.id,
 			firstName: ps.firstName,
 			lastName: ps.lastName || undefined,
 			gradeLevel: ps.grade,
-			meta: ps.meta
+			meta: ps.meta ? { ...ps.meta } : undefined
 		}));
 
 		// Save students
@@ -244,7 +245,7 @@ export async function createGroupingActivity(
 				payload: {
 					studentId: studentId,
 					avoidStudentIds: validAvoidIds,
-					likeGroupIds: parsedPref.likeGroupIds || [],
+					likeGroupIds: parsedPref.likeGroupIds ? [...parsedPref.likeGroupIds] : [],
 					avoidGroupIds: []
 				} satisfies StudentPreference
 			};
