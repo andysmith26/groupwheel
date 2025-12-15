@@ -61,6 +61,7 @@ type InternalState = {
 	history: Command[];
 	historyIndex: number;
 	saveStatus: SaveStatus;
+	saveError: string | null;
 	baseline: ScenarioSatisfaction | null;
 	currentAnalytics: ScenarioSatisfaction | null;
 	participantSnapshot: string[];
@@ -86,6 +87,7 @@ export type ScenarioEditingView = {
 	status: ScenarioStatus;
 	retryCount: number;
 	lastSavedAt: Date | null;
+	saveError: string | null;
 };
 
 const DEFAULT_DEBOUNCE_MS = 400;
@@ -126,12 +128,23 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function extractErrorMessage(error: unknown): string {
+	if (error instanceof Error && error.message) return error.message;
+	if (typeof error === 'string') return error;
+	try {
+		return JSON.stringify(error);
+	} catch {
+		return 'Unknown error';
+	}
+}
+
 export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	private readonly state = writable<InternalState>({
 		groups: [],
 		history: [],
 		historyIndex: -1,
 		saveStatus: 'idle',
+		saveError: null,
 		baseline: null,
 		currentAnalytics: null,
 		participantSnapshot: [],
@@ -163,7 +176,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			analyticsDelta,
 			status: state.status,
 			retryCount: state.retryCount,
-			lastSavedAt: state.lastSavedAt
+			lastSavedAt: state.lastSavedAt,
+			saveError: state.saveError
 		};
 	});
 
@@ -209,6 +223,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			history: [],
 			historyIndex: -1,
 			saveStatus: 'idle',
+			saveError: null,
 			baseline,
 			currentAnalytics: baseline,
 			participantSnapshot: [...scenario.participantSnapshot],
@@ -637,6 +652,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		this.state.update((current) => ({
 			...current,
 			saveStatus: 'idle',
+			saveError: null,
 			pendingSave: true,
 			retryCount: 0
 		}));
@@ -801,6 +817,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			...current,
 			pendingSave: false,
 			saveStatus: 'saving',
+			saveError: null,
 			retryCount: 0
 		}));
 
@@ -826,11 +843,17 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 				this.markSaved();
 				return;
 			} catch (error) {
+				console.error('Failed to persist scenario', {
+					attempt: attempt + 1,
+					scenarioId: this.metadata?.id,
+					error
+				});
 				if (attempt === MAX_RETRIES) {
 					this.state.update((current) => ({
 						...current,
 						saveStatus: 'failed',
-						retryCount: attempt + 1
+						retryCount: attempt + 1,
+						saveError: extractErrorMessage(error)
 					}));
 					return;
 				}
@@ -838,6 +861,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 				this.state.update((current) => ({
 					...current,
 					saveStatus: 'error',
+					saveError: extractErrorMessage(error),
 					retryCount: attempt + 1
 				}));
 
@@ -866,6 +890,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		this.state.update((current) => ({
 			...current,
 			saveStatus: 'saved',
+			saveError: null,
 			retryCount: 0,
 			lastSavedAt: new Date()
 		}));

@@ -12,7 +12,11 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import { ScenarioEditingStore, type ScenarioEditingView } from '$lib/stores/scenarioEditingStore';
+	import {
+		ScenarioEditingStore,
+		type ScenarioEditingView,
+		type SaveStatus
+	} from '$lib/stores/scenarioEditingStore';
 	import { buildPreferenceMap } from '$lib/utils/preferenceAdapter';
 	import type { Program, Pool, Scenario, Student, Preference, Group } from '$lib/domain';
 
@@ -86,6 +90,7 @@
 	// --- Toast ---
 	let toastMessage = $state('');
 	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
+	let lastSaveStatus = $state<SaveStatus | null>(null);
 
 	// --- Derived ---
 	let studentsById = $derived<Record<string, Student>>(
@@ -203,7 +208,13 @@
 		});
 
 		if (!result.success) {
-			showToast(result.reason === 'target_full' ? 'Group is at capacity' : 'Move not allowed');
+			if (result.reason === 'target_full') {
+				showToast('Group is at capacity');
+			} else if (result.reason === 'save_failed') {
+				showToast('Save failed. Retry the save, then move students again.');
+			} else {
+				showToast('Move not allowed');
+			}
 		} else {
 			flashStudent(payload.studentId);
 		}
@@ -356,6 +367,22 @@
 			toastTimeout = null;
 		}, 2000);
 	}
+
+	$effect(() => {
+		const status = view?.saveStatus ?? null;
+		const error = view?.saveError ?? null;
+
+		if (status && status !== lastSaveStatus) {
+			if (status === 'failed') {
+				showToast(error ? `Save failed: ${error}` : 'Save failed. Please retry.');
+				console.error('Scenario save failed', { error });
+			} else if (status === 'error' && error) {
+				console.warn('Scenario auto-save retrying after error', { error });
+			}
+		}
+
+		lastSaveStatus = status;
+	});
 
 	// --- Group Shell Operations ---
 

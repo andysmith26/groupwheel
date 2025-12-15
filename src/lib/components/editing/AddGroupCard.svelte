@@ -8,14 +8,16 @@
 
 	interface Props {
 		onAddGroup: () => void;
+		rowSpan?: number;
 	}
 
-	const { onAddGroup }: Props = $props();
+	const { onAddGroup, rowSpan = 4 }: Props = $props();
 </script>
 
 <button
 	type="button"
-	class="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/50 transition-colors hover:border-gray-400 hover:bg-gray-100"
+	class="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/50 transition-colors hover:border-gray-400 hover:bg-gray-100"
+	style={`grid-row: span ${rowSpan};`}
 	onclick={onAddGroup}
 	aria-label="Add new group"
 >

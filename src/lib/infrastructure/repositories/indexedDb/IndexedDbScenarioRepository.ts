@@ -10,10 +10,36 @@ const STORE_NAME = 'scenarios';
  * Converts Date objects to ISO strings for storage.
  */
 function serializeScenario(scenario: Scenario): object {
-	return {
+	const serializable = {
 		...scenario,
-		createdAt: scenario.createdAt.toISOString()
+		createdAt: scenario.createdAt.toISOString(),
+		// Ensure algorithmConfig is cloneable; fall back to null if not
+		algorithmConfig: sanitizeConfig(scenario.algorithmConfig)
 	};
+
+	// Ensure the whole payload is structured-cloneable for IndexedDB
+	try {
+		// structuredClone available in modern browsers
+		return structuredClone(serializable);
+	} catch (error) {
+		console.warn('Structured clone failed for scenario; falling back to JSON clone', {
+			scenarioId: scenario.id,
+			error
+		});
+		try {
+			return JSON.parse(JSON.stringify(serializable));
+		} catch (jsonError) {
+			console.error('Failed to serialize scenario for IndexedDB', {
+				scenarioId: scenario.id,
+				error: jsonError
+			});
+			// Last resort: drop algorithmConfig to maximize chance of persistence
+			return {
+				...serializable,
+				algorithmConfig: null
+			};
+		}
+	}
 }
 
 /**
@@ -25,6 +51,26 @@ function deserializeScenario(data: Record<string, unknown>): Scenario {
 		...(data as unknown as Scenario),
 		createdAt: new Date(data.createdAt as string)
 	};
+}
+
+/**
+ * Attempts to make an arbitrary config value safe for structured cloning / IndexedDB.
+ */
+function sanitizeConfig(config: unknown): unknown {
+	if (config === undefined) return undefined;
+
+	try {
+		return structuredClone(config);
+	} catch {
+		// Ignore and try JSON clone
+	}
+
+	try {
+		return JSON.parse(JSON.stringify(config));
+	} catch (error) {
+		console.warn('Dropping non-serializable algorithmConfig', { error });
+		return null;
+	}
 }
 
 /**
