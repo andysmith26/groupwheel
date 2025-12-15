@@ -50,12 +50,51 @@ import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
 import { listPools as listPoolsUseCase } from '$lib/application/useCases/listPools';
 import {
-	createGroupTemplate as createGroupTemplateFactory,
-	updateGroupTemplate as updateGroupTemplateFactory,
-	type GroupTemplate,
-	type CreateGroupTemplateInput
-} from '$lib/domain/groupTemplate';
-import { ok, err } from '$lib/types/result';
+	listActivities as listActivitiesUseCase,
+	type ActivityDisplay
+} from '$lib/application/useCases/listActivities';
+import {
+	getActivityData as getActivityDataUseCase,
+	type GetActivityDataInput,
+	type GetActivityDataError,
+	type ActivityData
+} from '$lib/application/useCases/getActivityData';
+import {
+	getStudentActivityView as getStudentActivityViewUseCase,
+	type GetStudentActivityViewInput,
+	type GetStudentActivityViewError,
+	type StudentActivityViewData
+} from '$lib/application/useCases/getStudentActivityView';
+import {
+	getPoolWithStudents as getPoolWithStudentsUseCase,
+	type GetPoolWithStudentsInput,
+	type GetPoolWithStudentsError,
+	type PoolWithStudents
+} from '$lib/application/useCases/getPoolWithStudents';
+import type { GroupTemplate } from '$lib/domain/groupTemplate';
+import {
+	createGroupTemplate as createGroupTemplateUseCase,
+	type CreateGroupTemplateInput as CreateGroupTemplateUseCaseInput,
+	type CreateGroupTemplateError
+} from '$lib/application/useCases/createGroupTemplate';
+import {
+	listGroupTemplates as listGroupTemplatesUseCase,
+	type ListGroupTemplatesInput
+} from '$lib/application/useCases/listGroupTemplates';
+import {
+	getGroupTemplate as getGroupTemplateUseCase,
+	type GetGroupTemplateInput,
+	type GetGroupTemplateError
+} from '$lib/application/useCases/getGroupTemplate';
+import {
+	updateGroupTemplate as updateGroupTemplateUseCase,
+	type UpdateGroupTemplateInput,
+	type UpdateGroupTemplateError
+} from '$lib/application/useCases/updateGroupTemplate';
+import {
+	deleteGroupTemplate as deleteGroupTemplateUseCase,
+	type DeleteGroupTemplateInput
+} from '$lib/application/useCases/deleteGroupTemplate';
 
 export async function importPool(
 	env: InMemoryEnvironment,
@@ -217,42 +256,20 @@ export async function importRoster(
 // Group Template Operations
 // =============================================================================
 
-export type CreateGroupTemplateError = { type: 'VALIDATION_ERROR'; message: string };
-
 /**
  * Create a new group template.
  */
 export async function createGroupTemplate(
 	env: InMemoryEnvironment,
-	input: {
-		name: string;
-		description?: string;
-		groups: Array<{ name: string; capacity?: number | null }>;
-		ownerStaffId?: string;
-	}
+	input: CreateGroupTemplateUseCaseInput
 ): Promise<Result<GroupTemplate, CreateGroupTemplateError>> {
-	try {
-		const templateInput: CreateGroupTemplateInput = {
-			id: env.idGenerator.generateId(),
-			ownerStaffId: input.ownerStaffId ?? 'owner-1',
-			name: input.name,
-			description: input.description,
-			groups: input.groups.map((g) => ({
-				id: env.idGenerator.generateId(),
-				name: g.name,
-				capacity: g.capacity ?? null
-			}))
-		};
-
-		const template = createGroupTemplateFactory(templateInput);
-		await env.groupTemplateRepo.save(template);
-		return ok(template);
-	} catch (e) {
-		return err({
-			type: 'VALIDATION_ERROR',
-			message: e instanceof Error ? e.message : 'Unknown error'
-		});
-	}
+	return createGroupTemplateUseCase(
+		{
+			groupTemplateRepo: env.groupTemplateRepo,
+			idGenerator: env.idGenerator
+		},
+		input
+	);
 }
 
 /**
@@ -261,11 +278,13 @@ export async function createGroupTemplate(
 export async function listGroupTemplates(
 	env: InMemoryEnvironment,
 	ownerStaffId?: string
-): Promise<GroupTemplate[]> {
-	if (ownerStaffId) {
-		return env.groupTemplateRepo.listByOwnerId(ownerStaffId);
-	}
-	return env.groupTemplateRepo.listAll();
+): Promise<Result<GroupTemplate[], never>> {
+	return listGroupTemplatesUseCase(
+		{
+			groupTemplateRepo: env.groupTemplateRepo
+		},
+		{ ownerStaffId }
+	);
 }
 
 /**
@@ -274,53 +293,29 @@ export async function listGroupTemplates(
 export async function getGroupTemplate(
 	env: InMemoryEnvironment,
 	templateId: string
-): Promise<GroupTemplate | null> {
-	return env.groupTemplateRepo.getById(templateId);
+): Promise<Result<GroupTemplate, GetGroupTemplateError>> {
+	return getGroupTemplateUseCase(
+		{
+			groupTemplateRepo: env.groupTemplateRepo
+		},
+		{ templateId }
+	);
 }
-
-export type UpdateGroupTemplateError =
-	| { type: 'NOT_FOUND' }
-	| { type: 'VALIDATION_ERROR'; message: string };
 
 /**
  * Update an existing group template.
  */
 export async function updateGroupTemplate(
 	env: InMemoryEnvironment,
-	templateId: string,
-	updates: {
-		name?: string;
-		description?: string;
-		groups?: Array<{ id?: string; name: string; capacity?: number | null }>;
-	}
+	input: UpdateGroupTemplateInput
 ): Promise<Result<GroupTemplate, UpdateGroupTemplateError>> {
-	const existing = await env.groupTemplateRepo.getById(templateId);
-	if (!existing) {
-		return err({ type: 'NOT_FOUND' });
-	}
-
-	try {
-		// If groups are being updated, ensure each has an ID
-		const updatedGroups = updates.groups?.map((g) => ({
-			id: g.id ?? env.idGenerator.generateId(),
-			name: g.name,
-			capacity: g.capacity ?? null
-		}));
-
-		const updated = updateGroupTemplateFactory(existing, {
-			name: updates.name,
-			description: updates.description,
-			groups: updatedGroups
-		});
-
-		await env.groupTemplateRepo.update(updated);
-		return ok(updated);
-	} catch (e) {
-		return err({
-			type: 'VALIDATION_ERROR',
-			message: e instanceof Error ? e.message : 'Unknown error'
-		});
-	}
+	return updateGroupTemplateUseCase(
+		{
+			groupTemplateRepo: env.groupTemplateRepo,
+			idGenerator: env.idGenerator
+		},
+		input
+	);
 }
 
 /**
@@ -329,6 +324,93 @@ export async function updateGroupTemplate(
 export async function deleteGroupTemplate(
 	env: InMemoryEnvironment,
 	templateId: string
-): Promise<void> {
-	await env.groupTemplateRepo.delete(templateId);
+): Promise<Result<void, never>> {
+	return deleteGroupTemplateUseCase(
+		{
+			groupTemplateRepo: env.groupTemplateRepo
+		},
+		{ templateId }
+	);
 }
+
+// Re-export group template types for convenience
+export type {
+	CreateGroupTemplateUseCaseInput as CreateGroupTemplateInput,
+	CreateGroupTemplateError,
+	UpdateGroupTemplateInput,
+	UpdateGroupTemplateError,
+	GetGroupTemplateError
+};
+
+// =============================================================================
+// Activity Data Operations
+// =============================================================================
+
+/**
+ * List all grouping activities with display metadata.
+ */
+export async function listActivities(
+	env: InMemoryEnvironment
+): Promise<Result<ActivityDisplay[], import('$lib/application/useCases/listActivities').ListActivitiesError>> {
+	return listActivitiesUseCase({
+		programRepo: env.programRepo,
+		poolRepo: env.poolRepo,
+		scenarioRepo: env.scenarioRepo
+	});
+}
+
+/**
+ * Get complete activity data for the workspace view.
+ */
+export async function getActivityData(
+	env: InMemoryEnvironment,
+	input: GetActivityDataInput
+): Promise<Result<ActivityData, GetActivityDataError>> {
+	return getActivityDataUseCase(
+		{
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo,
+			studentRepo: env.studentRepo,
+			preferenceRepo: env.preferenceRepo,
+			scenarioRepo: env.scenarioRepo
+		},
+		input
+	);
+}
+
+/**
+ * Get activity data for student view.
+ */
+export async function getStudentActivityView(
+	env: InMemoryEnvironment,
+	input: GetStudentActivityViewInput
+): Promise<Result<StudentActivityViewData, GetStudentActivityViewError>> {
+	return getStudentActivityViewUseCase(
+		{
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo,
+			scenarioRepo: env.scenarioRepo,
+			studentRepo: env.studentRepo
+		},
+		input
+	);
+}
+
+/**
+ * Get a pool with its associated students.
+ */
+export async function getPoolWithStudents(
+	env: InMemoryEnvironment,
+	input: GetPoolWithStudentsInput
+): Promise<Result<PoolWithStudents, GetPoolWithStudentsError>> {
+	return getPoolWithStudentsUseCase(
+		{
+			poolRepo: env.poolRepo,
+			studentRepo: env.studentRepo
+		},
+		input
+	);
+}
+
+// Re-export types for convenience
+export type { ActivityDisplay, ActivityData, StudentActivityViewData, PoolWithStudents };

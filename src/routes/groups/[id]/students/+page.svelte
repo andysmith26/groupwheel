@@ -12,9 +12,11 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import type { Program, Pool, Scenario, Student, Group } from '$lib/domain';
+	import type { Program, Scenario, Student } from '$lib/domain';
 	import { getStudentDisplayName } from '$lib/domain/student';
 	import { buildAssignmentList, exportToTSV, copyToClipboard } from '$lib/utils/csvExport';
+	import { getStudentActivityView } from '$lib/services/appEnvUseCases';
+	import { isErr } from '$lib/types/result';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -77,38 +79,33 @@
 		loading = true;
 		loadError = null;
 
-		try {
-			const programId = $page.params.id;
-
-			// Load program
-			program = await env.programRepo.getById(programId);
-			if (!program) {
-				loadError = 'Activity not found';
-				loading = false;
-				return;
-			}
-
-			// Load scenario
-			scenario = await env.scenarioRepo.getByProgramId(programId);
-			if (!scenario) {
-				loadError = 'Groups have not been created yet';
-				loading = false;
-				return;
-			}
-
-			// Load students from pool
-			const poolId = program.primaryPoolId ?? program.poolIds?.[0];
-			if (poolId) {
-				const pool = await env.poolRepo.getById(poolId);
-				if (pool) {
-					students = await env.studentRepo.getByIds(pool.memberIds);
-				}
-			}
-		} catch (e) {
-			loadError = e instanceof Error ? e.message : 'Failed to load data';
-		} finally {
+		const programId = $page.params.id;
+		if (!programId) {
+			loadError = 'No activity ID provided';
 			loading = false;
+			return;
 		}
+
+		const result = await getStudentActivityView(env, { programId });
+
+		if (isErr(result)) {
+			if (result.error.type === 'PROGRAM_NOT_FOUND') {
+				loadError = 'Activity not found';
+			} else if (result.error.type === 'SCENARIO_NOT_FOUND') {
+				loadError = 'Groups have not been created yet';
+			} else {
+				loadError = result.error.message;
+			}
+			loading = false;
+			return;
+		}
+
+		const data = result.value;
+		program = data.program;
+		scenario = data.scenario;
+		students = data.students;
+
+		loading = false;
 	}
 
 	async function handleCopyAll() {

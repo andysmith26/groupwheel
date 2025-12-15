@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ScenarioSatisfaction } from '$lib/domain';
-	import type { AnalyticsDelta } from '$lib/application/stores/ScenarioEditingStore.svelte';
+	import type { AnalyticsDelta } from '$lib/stores/scenarioEditingStore';
 
 	const {
 		open = false,

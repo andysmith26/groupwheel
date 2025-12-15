@@ -15,9 +15,16 @@
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { Pool, GroupTemplate } from '$lib/domain';
-        import { createGroupingActivity, generateScenario, listGroupTemplates } from '$lib/services/appEnvUseCases';
-        import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
-        import { isErr } from '$lib/types/result';
+	import {
+		createGroupingActivity,
+		generateScenario,
+		listGroupTemplates,
+		listPools,
+		listPrograms,
+		getPoolWithStudents
+	} from '$lib/services/appEnvUseCases';
+	import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
+	import { isErr } from '$lib/types/result';
 
         import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
         import StepSelectRoster from '$lib/components/wizard/StepSelectRoster.svelte';
@@ -41,10 +48,11 @@
 
 	async function loadGroupTemplates() {
 		if (!env) return;
-		try {
-			groupTemplates = await listGroupTemplates(env);
-		} catch (e) {
-			console.error('Failed to load group templates:', e);
+		const result = await listGroupTemplates(env);
+		if (isErr(result)) {
+			console.error('Failed to load group templates');
+		} else {
+			groupTemplates = result.value;
 		}
 	}
 
@@ -80,8 +88,19 @@
 		loadingRosters = true;
 
 		try {
-			const pools = await env.poolRepo.listAll();
-			const programs = await env.programRepo.listAll();
+			const [poolsResult, programsResult] = await Promise.all([
+				listPools(env),
+				listPrograms(env)
+			]);
+
+			if (isErr(poolsResult) || isErr(programsResult)) {
+				console.error('Failed to load rosters or programs');
+				loadingRosters = false;
+				return;
+			}
+
+			const pools = poolsResult.value;
+			const programs = programsResult.value;
 
 			// Build roster options from pools, using associated program name
 			const options: RosterOption[] = [];
@@ -89,9 +108,11 @@
 			for (const pool of pools) {
 				// Find programs using this pool
 				const associatedPrograms = programs.filter(
-					(p) => p.primaryPoolId === pool.id || p.poolIds?.includes(pool.id)
+					(p) => p.program.primaryPoolId === pool.id || p.program.poolIds?.includes(pool.id)
 				);
-				const latestProgram = associatedPrograms.sort((a, b) => a.name.localeCompare(b.name))[0];
+				const latestProgram = associatedPrograms.sort((a, b) =>
+					a.program.name.localeCompare(b.program.name)
+				)[0]?.program;
 				let lastUsed = new Date();
 				if (latestProgram?.timeSpan) {
 					if ('start' in latestProgram.timeSpan && latestProgram.timeSpan.start) {
@@ -217,33 +238,33 @@
 	async function loadStudentsFromPool(poolId: string) {
 		if (!env) return;
 
-		const pool = await env.poolRepo.getById(poolId);
-		if (!pool) return;
-
-		// Load students from pool
-		const loadedStudents: ParsedStudent[] = [];
-		for (const studentId of pool.memberIds) {
-			const student = await env.studentRepo.getById(studentId);
-			if (student) {
-				const meta =
-					student.meta && typeof student.meta === 'object'
-						? Object.fromEntries(
-								Object.entries(student.meta).filter(
-									([, value]) => typeof value === 'string'
-								) as Array<[string, string]>
-							)
-						: undefined;
-				loadedStudents.push({
-					id: student.id,
-					firstName: student.firstName ?? '',
-					lastName: student.lastName ?? '',
-					displayName: `${student.firstName ?? ''} ${student.lastName ?? ''}`.trim() || student.id,
-					grade: typeof student.meta?.grade === 'string' ? student.meta.grade : undefined,
-					meta
-				});
-			}
+		const result = await getPoolWithStudents(env, { poolId });
+		if (isErr(result)) {
+			console.error('Failed to load pool with students:', result.error);
+			return;
 		}
-		students = loadedStudents;
+
+		const { students: loadedStudents } = result.value;
+
+		// Transform students to ParsedStudent format for the wizard
+		students = loadedStudents.map((student) => {
+			const meta =
+				student.meta && typeof student.meta === 'object'
+					? Object.fromEntries(
+							Object.entries(student.meta).filter(
+								([, value]) => typeof value === 'string'
+							) as Array<[string, string]>
+						)
+					: undefined;
+			return {
+				id: student.id,
+				firstName: student.firstName ?? '',
+				lastName: student.lastName ?? '',
+				displayName: `${student.firstName ?? ''} ${student.lastName ?? ''}`.trim() || student.id,
+				grade: typeof student.meta?.grade === 'string' ? student.meta.grade : undefined,
+				meta
+			};
+		});
 	}
 
 	// --- Callbacks from step components ---

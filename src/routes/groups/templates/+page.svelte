@@ -45,13 +45,14 @@
 		loading = true;
 		error = null;
 
-		try {
-			templates = await listGroupTemplates(env);
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load templates';
-		} finally {
-			loading = false;
+		const result = await listGroupTemplates(env);
+		if (isErr(result)) {
+			error = 'Failed to load templates';
+		} else {
+			templates = result.value;
 		}
+
+		loading = false;
 	}
 
 	function openCreateModal() {
@@ -121,8 +122,11 @@
 		if (!env || !deleteTarget) return;
 
 		deleting = true;
-		await deleteGroupTemplate(env, deleteTarget.id);
+		const result = await deleteGroupTemplate(env, deleteTarget.id);
 		deleting = false;
+
+		// Delete never fails (idempotent), so we don't need error handling
+
 		deleteTarget = null;
 		await loadTemplates();
 	}

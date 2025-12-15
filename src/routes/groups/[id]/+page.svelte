@@ -12,10 +12,9 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import { ScenarioEditingStore } from '$lib/application/stores/ScenarioEditingStore.svelte';
+	import { ScenarioEditingStore, type ScenarioEditingView } from '$lib/stores/scenarioEditingStore';
 	import { buildPreferenceMap } from '$lib/utils/preferenceAdapter';
 	import type { Program, Pool, Scenario, Student, Preference, Group } from '$lib/domain';
-	import type { ScenarioEditingView } from '$lib/application/stores/ScenarioEditingStore.svelte';
 
 	import EditingToolbar from '$lib/components/editing/EditingToolbar.svelte';
 	import AnalyticsPanel from '$lib/components/editing/AnalyticsPanel.svelte';
@@ -27,7 +26,7 @@
 	import HistorySelector from '$lib/components/editing/HistorySelector.svelte';
 	import type { ScenarioSatisfaction } from '$lib/domain';
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
-	import { generateScenario } from '$lib/services/appEnvUseCases';
+	import { generateScenario, getActivityData } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 	import { buildAssignmentList, exportToCSV, exportToTSV, exportGroupsToCSV, copyToClipboard } from '$lib/utils/csvExport';
 
@@ -123,38 +122,32 @@
 			return;
 		}
 
-		try {
-			program = await env.programRepo.getById(programId);
-			if (!program) {
+		const result = await getActivityData(env, { programId });
+
+		if (isErr(result)) {
+			if (result.error.type === 'PROGRAM_NOT_FOUND') {
 				loadError = `Activity not found: ${programId}`;
-				loading = false;
-				return;
+			} else {
+				loadError = result.error.message;
 			}
-
-			const poolId = program.primaryPoolId ?? program.poolIds?.[0];
-			if (poolId) {
-				pool = await env.poolRepo.getById(poolId);
-			}
-
-			if (pool) {
-				students = await env.studentRepo.getByIds(pool.memberIds);
-			}
-
-			preferences = await env.preferenceRepo.listByProgramId(programId);
-
-			// Load scenario
-			const existingScenario = await env.scenarioRepo.getByProgramId(programId);
-			if (existingScenario) {
-				scenario = existingScenario;
-				initializeEditingStore(existingScenario);
-			}
-			// Note: If no scenario, page shows EmptyWorkspaceState (edge case -
-			// normally wizard auto-generates before redirecting here)
-		} catch (e) {
-			loadError = e instanceof Error ? e.message : 'Failed to load activity data';
-		} finally {
 			loading = false;
+			return;
 		}
+
+		const data = result.value;
+		program = data.program;
+		pool = data.pool;
+		students = data.students;
+		preferences = data.preferences;
+		scenario = data.scenario;
+
+		if (scenario) {
+			initializeEditingStore(scenario);
+		}
+		// Note: If no scenario, page shows EmptyWorkspaceState (edge case -
+		// normally wizard auto-generates before redirecting here)
+
+		loading = false;
 	}
 
 	function initializeEditingStore(s: Scenario) {

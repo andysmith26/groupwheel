@@ -1,6 +1,6 @@
 <script lang="ts">
 	import SaveStatusIndicator from './SaveStatusIndicator.svelte';
-	import type { SaveStatus } from '$lib/application/stores/ScenarioEditingStore.svelte';
+	import type { SaveStatus } from '$lib/stores/scenarioEditingStore';
 
 	const {
 		canUndo = false,

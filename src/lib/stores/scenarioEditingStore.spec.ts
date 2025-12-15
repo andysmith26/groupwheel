@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import type { Preference, Scenario } from '$lib/domain';
-import { ScenarioEditingStore } from './ScenarioEditingStore.svelte';
+import { ScenarioEditingStore } from './scenarioEditingStore';
 import { InMemoryScenarioRepository } from '$lib/infrastructure/repositories/inMemory';
 import type { ScenarioRepository, IdGenerator } from '$lib/application/ports';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SaveStatus } from '$lib/application/stores/ScenarioEditingStore.svelte';
+	import type { SaveStatus } from '$lib/stores/scenarioEditingStore';
 
 	const { status, lastSavedAt = null, onRetry } = $props<{
 		status: SaveStatus;

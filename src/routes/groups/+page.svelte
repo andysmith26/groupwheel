@@ -7,18 +7,12 @@
 	 */
 
 	import { onMount } from 'svelte';
-	import { SvelteMap } from 'svelte/reactivity';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import type { Program, Pool } from '$lib/domain';
+	import { listActivities, type ActivityDisplay } from '$lib/services/appEnvUseCases';
+	import { isErr } from '$lib/types/result';
+	import type { Program } from '$lib/domain';
 
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
-
-	interface ActivityDisplay {
-		program: Program;
-		pool: Pool | null;
-		studentCount: number;
-		hasScenario: boolean;
-	}
 
 	let activities = $state<ActivityDisplay[]>([]);
 	let loading = $state(true);
@@ -35,39 +29,15 @@
 		loading = true;
 		error = null;
 
-		try {
-			// Use listAll() on programRepo and poolRepo (these exist)
-			const programs = await env.programRepo.listAll();
-			const pools = await env.poolRepo.listAll();
+		const result = await listActivities(env);
 
-			const poolMap = new SvelteMap(pools.map((p) => [p.id, p]));
-
-			// For scenarios, check each program individually
-			// since ScenarioRepository only has getByProgramId(), not listAll()
-			const scenarioByProgram = new SvelteMap<string, boolean>();
-			for (const program of programs) {
-				const scenario = await env.scenarioRepo.getByProgramId(program.id);
-				scenarioByProgram.set(program.id, scenario !== null);
-			}
-
-			activities = programs
-				.map((program) => {
-					// Program uses primaryPoolId or first poolIds entry
-					const poolId = program.primaryPoolId ?? program.poolIds?.[0];
-					const pool = poolId ? (poolMap.get(poolId) ?? null) : null;
-					return {
-						program,
-						pool,
-						studentCount: pool?.memberIds.length ?? 0,
-						hasScenario: scenarioByProgram.get(program.id) ?? false
-					};
-				})
-				.sort((a, b) => a.program.name.localeCompare(b.program.name));
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load activities';
-		} finally {
-			loading = false;
+		if (isErr(result)) {
+			error = result.error.message;
+		} else {
+			activities = result.value;
 		}
+
+		loading = false;
 	}
 
 	function getProgramTimeLabel(program: Program): string {
