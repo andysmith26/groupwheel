@@ -233,12 +233,12 @@ export async function createGroupTemplate(
 ): Promise<Result<GroupTemplate, CreateGroupTemplateError>> {
 	try {
 		const templateInput: CreateGroupTemplateInput = {
-			id: env.idGenerator.generate(),
+			id: env.idGenerator.generateId(),
 			ownerStaffId: input.ownerStaffId ?? 'owner-1',
 			name: input.name,
 			description: input.description,
 			groups: input.groups.map((g) => ({
-				id: env.idGenerator.generate(),
+				id: env.idGenerator.generateId(),
 				name: g.name,
 				capacity: g.capacity ?? null
 			}))
@@ -302,7 +302,7 @@ export async function updateGroupTemplate(
 	try {
 		// If groups are being updated, ensure each has an ID
 		const updatedGroups = updates.groups?.map((g) => ({
-			id: g.id ?? env.idGenerator.generate(),
+			id: g.id ?? env.idGenerator.generateId(),
 			name: g.name,
 			capacity: g.capacity ?? null
 		}));

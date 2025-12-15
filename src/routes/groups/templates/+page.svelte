@@ -84,10 +84,13 @@
 
 		const validGroups = createGroups
 			.filter((g) => g.name.trim())
-			.map((g) => ({
-				name: g.name.trim(),
-				capacity: g.capacity.trim() ? parseInt(g.capacity.trim(), 10) : null
-			}));
+			.map((g) => {
+				const capStr = (g.capacity ?? '').toString().trim();
+				return {
+					name: g.name.trim(),
+					capacity: capStr ? parseInt(capStr, 10) : null
+				};
+			});
 
 		if (validGroups.length === 0) {
 			createError = 'Please add at least one group';
