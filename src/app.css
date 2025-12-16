@@ -30,3 +30,17 @@
 		transform: scale(1);
 	}
 }
+
+/* Preference indicator animations and styles */
+.preference-pulse {
+	animation: preference-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes preference-pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.7;
+	}
+}

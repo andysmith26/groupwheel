@@ -101,6 +101,26 @@
 		students.filter((s) => preferenceMap[s.id]?.likeGroupIds?.length > 0).length
 	);
 
+	// Get preferences for currently selected or dragging student
+	let activeStudentId = $derived(draggingId ?? selectedStudentId);
+
+	// Map group names from preferences to actual group IDs
+	let activeStudentPreferences = $derived.by(() => {
+		if (!activeStudentId || !view) return null;
+		const groupNamePrefs = preferenceMap[activeStudentId]?.likeGroupIds ?? null;
+		if (!groupNamePrefs || groupNamePrefs.length === 0) return null;
+
+		// Build a name-to-ID map from current groups
+		const nameToId = new Map(view.groups.map(g => [g.name, g.id]));
+
+		// Map preference names to IDs
+		const groupIdPrefs = groupNamePrefs
+			.map(name => nameToId.get(name))
+			.filter((id): id is string => id !== undefined);
+
+		return groupIdPrefs.length > 0 ? groupIdPrefs : null;
+	});
+
 	onMount(async () => {
 		env = getAppEnvContext();
 
@@ -652,14 +672,15 @@
 							{selectedStudentId}
 							{draggingId}
 							onDrop={handleDrop}
-							onSelect={selectStudent}
 							onDragStart={(id) => draggingId = id}
+						onSelect={selectStudent}
 							onDragEnd={() => draggingId = null}
 							{flashingIds}
 							onUpdateGroup={handleUpdateGroup}
 							onDeleteGroup={handleDeleteGroup}
 							onAddGroup={handleAddGroup}
 							{newGroupId}
+							selectedStudentPreferences={activeStudentPreferences}
 						/>
 					</div>
 				{/if}

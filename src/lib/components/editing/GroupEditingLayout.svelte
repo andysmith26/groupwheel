@@ -14,10 +14,11 @@
 		onDragStart,
 		onDragEnd,
 		flashingIds = new Set<string>(),
-	onUpdateGroup,
-	onDeleteGroup,
-	onAddGroup,
-	newGroupId = null
+		onUpdateGroup,
+		onDeleteGroup,
+		onAddGroup,
+		newGroupId = null,
+		selectedStudentPreferences = null
 	} = $props<{
 		groups?: Group[];
 		studentsById?: Record<string, Student>;
@@ -32,7 +33,18 @@
 		onDeleteGroup?: (groupId: string) => void;
 		onAddGroup?: () => void;
 		newGroupId?: string | null;
+		selectedStudentPreferences?: string[] | null;
 	}>();
+
+	// Helper to get preference rank for a group
+	function getPreferenceRank(groupId: string): number | null {
+		if (!selectedStudentPreferences || selectedStudentPreferences.length === 0) {
+			return null;
+		}
+		const index = selectedStudentPreferences.indexOf(groupId);
+		const rank = index >= 0 ? index + 1 : null;
+		return rank;
+	}
 </script>
 
 <div class="group-grid">
@@ -51,6 +63,7 @@
 			onUpdateGroup={onUpdateGroup}
 			onDeleteGroup={onDeleteGroup}
 			focusNameOnMount={group.id === newGroupId}
+			preferenceRank={getPreferenceRank(group.id)}
 		/>
 	{/each}
 

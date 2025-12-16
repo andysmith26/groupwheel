@@ -17,7 +17,8 @@
 		onUpdateGroup,
 		onDeleteGroup,
 		focusNameOnMount = false,
-		rowSpan = 1
+		rowSpan = 1,
+		preferenceRank = null
 	} = $props<{
 		group: Group;
 		studentsById: Record<string, Student>;
@@ -32,11 +33,46 @@
 		onDeleteGroup?: (groupId: string) => void;
 		focusNameOnMount?: boolean;
 		rowSpan?: number;
+		preferenceRank?: number | null;
 	}>();
 
 	import { onMount, tick } from 'svelte';
 
 	const capacityStatus = $derived(getCapacityStatus(group));
+
+	// Configuration: only highlight top N choices with border/background (future: make this user-configurable)
+	const MAX_HIGHLIGHTED_RANK = 1;
+
+	// Preference rank styling
+	const preferenceStyles = $derived(() => {
+		if (preferenceRank === null) return null;
+
+		// Determine label
+		const label = preferenceRank === 1 ? '1st Choice' :
+		              preferenceRank === 2 ? '2nd Choice' :
+		              preferenceRank === 3 ? '3rd Choice' :
+		              `Choice ${preferenceRank}`;
+
+		// Only highlight top choice with border and background
+		if (preferenceRank <= MAX_HIGHLIGHTED_RANK) {
+			return {
+				borderColor: 'border-green-500',
+				bgColor: 'bg-green-50',
+				textColor: 'text-green-700',
+				badgeBg: 'bg-green-100',
+				label
+			};
+		}
+
+		// Other choices: show badge only, no border/background highlight
+		return {
+			borderColor: null,
+			bgColor: null,
+			textColor: 'text-gray-700',
+			badgeBg: 'bg-gray-100',
+			label
+		};
+	});
 
 	// Menu state
 	let menuOpen = $state(false);
@@ -150,20 +186,33 @@
 </script>
 
 <div
-	class="relative flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm"
+	class={`relative flex flex-col gap-3 rounded-xl border-2 p-4 shadow-sm ${
+		preferenceStyles()
+			? `${preferenceStyles()!.borderColor} ${preferenceStyles()!.bgColor}`
+			: 'border-gray-200 bg-gray-50'
+	}`}
 	style={`grid-row: span ${rowSpan};`}
 >
 	<div class="flex items-center justify-between gap-2">
 		<div class="min-w-0 flex-1">
-			<input
-				bind:this={nameInput}
-				type="text"
-				class="w-full border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold text-gray-900 hover:border-gray-300 focus:border-blue-500 focus:ring-0"
-				value={editingName}
-				oninput={handleNameInput}
-				onblur={handleNameBlur}
-				aria-label="Group name"
-			/>
+			<div class="flex items-center gap-2">
+				<input
+					bind:this={nameInput}
+					type="text"
+					class="w-full border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold text-gray-900 hover:border-gray-300 focus:border-blue-500 focus:ring-0"
+					value={editingName}
+					oninput={handleNameInput}
+					onblur={handleNameBlur}
+					aria-label="Group name"
+				/>
+				{#if preferenceStyles()}
+					<span
+						class={`preference-pulse whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${preferenceStyles()!.badgeBg} ${preferenceStyles()!.textColor}`}
+					>
+						{preferenceStyles()!.label}
+					</span>
+				{/if}
+			</div>
 			<div class="mt-0.5 flex items-center gap-1 px-1 text-xs text-gray-600">
 				<span>{group.memberIds.length}</span>
 				<span>/</span>
