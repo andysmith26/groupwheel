@@ -34,7 +34,7 @@
 				type="button"
 				class="rounded-md px-3 py-1 text-sm font-medium transition-colors {currentIndex === -1
 					? 'bg-blue-600 text-white'
-					: 'bg-white text-gray-700 hover:bg-blue-50 border border-gray-300'}"
+					: 'border border-gray-300 bg-white text-gray-700 hover:bg-blue-50'}"
 				onclick={() => onSelect?.(-1)}
 			>
 				Current
@@ -44,7 +44,7 @@
 					type="button"
 					class="rounded-md px-3 py-1 text-sm font-medium transition-colors {currentIndex === i
 						? 'bg-blue-600 text-white'
-						: 'bg-white text-gray-700 hover:bg-blue-50 border border-gray-300'}"
+						: 'border border-gray-300 bg-white text-gray-700 hover:bg-blue-50'}"
 					onclick={() => onSelect?.(i)}
 				>
 					{getLabel(i)}

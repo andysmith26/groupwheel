@@ -26,17 +26,17 @@ No accounts required. All data stays in your browser.
 
 ## Documentation
 
-| Document                             | Description                                     |
-| ------------------------------------ | ----------------------------------------------- |
-| [Product & Roadmap](docs/PRODUCT.md) | Vision, use cases, what's planned               |
-| [Architecture](docs/ARCHITECTURE.md) | Technical design, layer boundaries, conventions |
-| [Domain Model](docs/domain_model.md) | Entity definitions and relationships            |
-| [UX Strategy](docs/UX_STRATEGY.md)   | Design principles and phased UX evolution       |
-| [Current Status](docs/STATUS.md)     | What's built, what works, known gaps            |
-| [Research Log](docs/RESEARCH.md)     | User research findings                          |
-| [Project History](PROJECT_HISTORY.md)| Major pivots and historical context             |
-| [Decisions](docs/decisions/)         | Architectural decision records                  |
-| [Spikes](docs/spikes/)               | Technical experiments                           |
+| Document                              | Description                                     |
+| ------------------------------------- | ----------------------------------------------- |
+| [Product & Roadmap](docs/PRODUCT.md)  | Vision, use cases, what's planned               |
+| [Architecture](docs/ARCHITECTURE.md)  | Technical design, layer boundaries, conventions |
+| [Domain Model](docs/domain_model.md)  | Entity definitions and relationships            |
+| [UX Strategy](docs/UX_STRATEGY.md)    | Design principles and phased UX evolution       |
+| [Current Status](docs/STATUS.md)      | What's built, what works, known gaps            |
+| [Research Log](docs/RESEARCH.md)      | User research findings                          |
+| [Project History](PROJECT_HISTORY.md) | Major pivots and historical context             |
+| [Decisions](docs/decisions/)          | Architectural decision records                  |
+| [Spikes](docs/spikes/)                | Technical experiments                           |
 
 ## Tech Stack
 

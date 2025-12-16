@@ -14,7 +14,10 @@
 	 */
 
 	import { devTools } from '$lib/stores/devTools.svelte';
-	import type { ParsedStudent, ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
+	import type {
+		ParsedStudent,
+		ParsedPreference
+	} from '$lib/application/useCases/createGroupingActivity';
 	import { parseGroupRequests, generateExampleCsv } from '$lib/services/groupRequestImport';
 
 	interface Props {
@@ -144,8 +147,8 @@
 				</svg>
 				<div class="ml-3">
 					<p class="text-sm text-amber-700">
-						<strong>No groups defined.</strong> Go back to the Groups step to create named groups
-						before importing requests. Or skip this step to use random assignment.
+						<strong>No groups defined.</strong> Go back to the Groups step to create named groups before
+						importing requests. Or skip this step to use random assignment.
 					</p>
 				</div>
 			</div>
@@ -222,9 +225,13 @@
 						<div class="mt-3 border-t border-gray-200 pt-3">
 							<details class="text-sm">
 								<summary class="cursor-pointer text-amber-700">
-									{parseResult.warnings.length} warning{parseResult.warnings.length === 1 ? '' : 's'}
+									{parseResult.warnings.length} warning{parseResult.warnings.length === 1
+										? ''
+										: 's'}
 								</summary>
-								<ul class="mt-2 max-h-32 list-inside list-disc overflow-y-auto text-xs text-gray-600">
+								<ul
+									class="mt-2 max-h-32 list-inside list-disc overflow-y-auto text-xs text-gray-600"
+								>
 									{#each parseResult.warnings.slice(0, 20) as warning}
 										<li>{warning}</li>
 									{/each}

@@ -19,12 +19,7 @@ describe('computeAnalyticsSync', () => {
 				{ id: 'g2', name: 'G2', memberIds: ['c', 'd'], capacity: 2 }
 			],
 			// Each student got their first choice group
-			preferences: [
-				pref('a', ['g1']),
-				pref('b', ['g1']),
-				pref('c', ['g2']),
-				pref('d', ['g2'])
-			],
+			preferences: [pref('a', ['g1']), pref('b', ['g1']), pref('c', ['g2']), pref('d', ['g2'])],
 			participantSnapshot: ['a', 'b', 'c', 'd']
 		});
 

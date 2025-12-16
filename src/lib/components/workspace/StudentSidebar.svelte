@@ -42,7 +42,12 @@
 			aria-label="Close sidebar"
 		>
 			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M6 18L18 6M6 6l12 12"
+				/>
 			</svg>
 		</button>
 	</div>
@@ -55,11 +60,14 @@
 				<li>
 					<button
 						type="button"
-						class="w-full px-4 py-3 text-left transition-colors hover:bg-white {isSelected ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : ''}"
+						class="w-full px-4 py-3 text-left transition-colors hover:bg-white {isSelected
+							? 'bg-blue-50 ring-1 ring-blue-200 ring-inset'
+							: ''}"
 						onclick={() => onSelect?.(student.id)}
 					>
 						<p class="font-medium text-gray-900">
-							{student.firstName} {student.lastName}
+							{student.firstName}
+							{student.lastName}
 						</p>
 						{#if choices.length > 0}
 							<p class="mt-1 text-xs text-gray-500">

@@ -351,7 +351,9 @@ export type {
  */
 export async function listActivities(
 	env: InMemoryEnvironment
-): Promise<Result<ActivityDisplay[], import('$lib/application/useCases/listActivities').ListActivitiesError>> {
+): Promise<
+	Result<ActivityDisplay[], import('$lib/application/useCases/listActivities').ListActivitiesError>
+> {
 	return listActivitiesUseCase({
 		programRepo: env.programRepo,
 		poolRepo: env.poolRepo,

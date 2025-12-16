@@ -63,9 +63,7 @@
 				</span>
 			</div>
 			{#if baseline}
-				<p class="pt-2 text-xs text-gray-500">
-					Baseline captured from latest generation.
-				</p>
+				<p class="pt-2 text-xs text-gray-500">Baseline captured from latest generation.</p>
 			{/if}
 		</div>
 	</div>

@@ -26,13 +26,13 @@
 	import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 
-        import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
-        import StepSelectRoster from '$lib/components/wizard/StepSelectRoster.svelte';
-        import StepStudents from '$lib/components/wizard/StepStudents.svelte';
-        import StepGroupsUnified from '$lib/components/wizard/StepGroupsUnified.svelte';
-        import StepPreferences from '$lib/components/wizard/StepPreferences.svelte';
-        import StepName from '$lib/components/wizard/StepName.svelte';
-        import type { GroupShellConfig } from '$lib/components/wizard/StepGroups.svelte';
+	import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
+	import StepSelectRoster from '$lib/components/wizard/StepSelectRoster.svelte';
+	import StepStudents from '$lib/components/wizard/StepStudents.svelte';
+	import StepGroupsUnified from '$lib/components/wizard/StepGroupsUnified.svelte';
+	import StepPreferences from '$lib/components/wizard/StepPreferences.svelte';
+	import StepName from '$lib/components/wizard/StepName.svelte';
+	import type { GroupShellConfig } from '$lib/components/wizard/StepGroups.svelte';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -88,10 +88,7 @@
 		loadingRosters = true;
 
 		try {
-			const [poolsResult, programsResult] = await Promise.all([
-				listPools(env),
-				listPrograms(env)
-			]);
+			const [poolsResult, programsResult] = await Promise.all([listPools(env), listPrograms(env)]);
 
 			if (isErr(poolsResult) || isErr(programsResult)) {
 				console.error('Failed to load rosters or programs');
@@ -143,48 +140,48 @@
 	// --- Wizard state ---
 
 	// Step management
-        // Steps vary based on user type (new vs. returning) but are fixed regardless of group creation mode:
-        // New user: Students → Groups → Preferences → Name
-        // Returning user: Start → Students → Groups → Preferences → Name
-        // The Groups step includes both the fork question and content (shell builder or size controls)
-        let currentStep = $state(0);
-        let hasExistingRosters = $derived(existingRosters.length > 0);
+	// Steps vary based on user type (new vs. returning) but are fixed regardless of group creation mode:
+	// New user: Students → Groups → Preferences → Name
+	// Returning user: Start → Students → Groups → Preferences → Name
+	// The Groups step includes both the fork question and content (shell builder or size controls)
+	let currentStep = $state(0);
+	let hasExistingRosters = $derived(existingRosters.length > 0);
 
-        // Group creation mode: 'specific' (shows shell builder) or 'auto' (shows size controls)
-        // Both modes are handled within the unified Groups step, keeping step count fixed
-        let groupCreationMode = $state<'specific' | 'auto' | null>(null);
+	// Group creation mode: 'specific' (shows shell builder) or 'auto' (shows size controls)
+	// Both modes are handled within the unified Groups step, keeping step count fixed
+	let groupCreationMode = $state<'specific' | 'auto' | null>(null);
 
-        // Helper function to compute step labels based on roster state
-        // Step labels are now fixed regardless of group creation mode
-        function computeStepLabels(hasRosters: boolean): string[] {
-                if (hasRosters) {
-                        return ['Start', 'Students', 'Groups', 'Preferences', 'Name'];
-                }
-                return ['Students', 'Groups', 'Preferences', 'Name'];
-        }
+	// Helper function to compute step labels based on roster state
+	// Step labels are now fixed regardless of group creation mode
+	function computeStepLabels(hasRosters: boolean): string[] {
+		if (hasRosters) {
+			return ['Start', 'Students', 'Groups', 'Preferences', 'Name'];
+		}
+		return ['Students', 'Groups', 'Preferences', 'Name'];
+	}
 
-        // Determine actual step sequence based on whether user is new or returning
-        // The "Groups" step now contains both fork question and content (unified)
-        let stepLabels = $derived.by(() => computeStepLabels(hasExistingRosters));
-        let totalSteps = $derived(stepLabels.length);
+	// Determine actual step sequence based on whether user is new or returning
+	// The "Groups" step now contains both fork question and content (unified)
+	let stepLabels = $derived.by(() => computeStepLabels(hasExistingRosters));
+	let totalSteps = $derived(stepLabels.length);
 
 	// Normalize step for display (1-indexed for progress indicator)
 	let displayStep = $derived(currentStep + 1);
 
 	// Data collected through wizard
-        let selectedRosterId = $state<string | null>(null);
-        let students = $state<ParsedStudent[]>([]);
-        let preferences = $state<ParsedPreference[]>([]);
-        let activityName = $state('');
-        let groupCreationGroups = $state<Array<{ name: string; capacity: number | null }>>([]);
-        let shellBuilderValid = $state(false);
-        let groupConfig = $state<GroupShellConfig>({
-                groups: [],
-                targetGroupCount: null,
-                minSize: 4,
-                maxSize: 6
-        });
-        let unifiedGroupsValid = $state(false);  // Validity from StepGroupsUnified
+	let selectedRosterId = $state<string | null>(null);
+	let students = $state<ParsedStudent[]>([]);
+	let preferences = $state<ParsedPreference[]>([]);
+	let activityName = $state('');
+	let groupCreationGroups = $state<Array<{ name: string; capacity: number | null }>>([]);
+	let shellBuilderValid = $state(false);
+	let groupConfig = $state<GroupShellConfig>({
+		groups: [],
+		targetGroupCount: null,
+		minSize: 4,
+		maxSize: 6
+	});
+	let unifiedGroupsValid = $state(false); // Validity from StepGroupsUnified
 
 	// Submission state
 	let isSubmitting = $state(false);
@@ -207,17 +204,17 @@
 				return activityName.trim().length > 0;
 		}
 		return false;
-        }
+	}
 
-        function nextStep() {
-                // Special handling: if reusing roster, skip students step
-                if (hasExistingRosters && currentStep === 0 && selectedRosterId !== null) {
-                        // Load students from selected pool
-                        loadStudentsFromPool(selectedRosterId);
-                        groupCreationMode = null; // Reset group creation mode to ensure consistent wizard state
-                        currentStep = 2; // Jump to groups fork
-                        return;
-                }
+	function nextStep() {
+		// Special handling: if reusing roster, skip students step
+		if (hasExistingRosters && currentStep === 0 && selectedRosterId !== null) {
+			// Load students from selected pool
+			loadStudentsFromPool(selectedRosterId);
+			groupCreationMode = null; // Reset group creation mode to ensure consistent wizard state
+			currentStep = 2; // Jump to groups fork
+			return;
+		}
 
 		if (currentStep < totalSteps - 1) {
 			currentStep++;
@@ -226,13 +223,13 @@
 
 	function prevStep() {
 		if (currentStep > 0) {
-                        // If we skipped students step, go back to roster selection
-                        if (hasExistingRosters && currentStep === 2 && selectedRosterId !== null) {
-                                currentStep = 0;
-                                return;
-                        }
-                        currentStep--;
-                }
+			// If we skipped students step, go back to roster selection
+			if (hasExistingRosters && currentStep === 2 && selectedRosterId !== null) {
+				currentStep = 0;
+				return;
+			}
+			currentStep--;
+		}
 	}
 
 	async function loadStudentsFromPool(poolId: string) {
@@ -281,66 +278,68 @@
 		students = parsed;
 	}
 
-        function handlePreferencesParsed(parsed: ParsedPreference[], _warnings: string[]) {
-                void _warnings;
-                preferences = parsed;
-        }
+	function handlePreferencesParsed(parsed: ParsedPreference[], _warnings: string[]) {
+		void _warnings;
+		preferences = parsed;
+	}
 
-        // --- Callbacks for StepGroupsUnified ---
+	// --- Callbacks for StepGroupsUnified ---
 
-        function handleUnifiedModeChange(mode: 'specific' | 'auto') {
-                groupCreationMode = mode;
-        }
+	function handleUnifiedModeChange(mode: 'specific' | 'auto') {
+		groupCreationMode = mode;
+	}
 
-        function handleUnifiedShellGroupsChange(groups: Array<{ name: string; capacity: number | null }>) {
-                groupCreationGroups = groups;
-                // Also update groupConfig for algorithm
-                groupConfig = {
-                        ...groupConfig,
-                        groups
-                };
-        }
+	function handleUnifiedShellGroupsChange(
+		groups: Array<{ name: string; capacity: number | null }>
+	) {
+		groupCreationGroups = groups;
+		// Also update groupConfig for algorithm
+		groupConfig = {
+			...groupConfig,
+			groups
+		};
+	}
 
-        function handleUnifiedSizeConfigChange(config: { min: number | null; max: number | null }) {
-                groupConfig = {
-                        ...groupConfig,
-                        minSize: config.min,
-                        maxSize: config.max
-                };
-        }
+	function handleUnifiedSizeConfigChange(config: { min: number | null; max: number | null }) {
+		groupConfig = {
+			...groupConfig,
+			minSize: config.min,
+			maxSize: config.max
+		};
+	}
 
-        function handleUnifiedValidityChange(isValid: boolean) {
-                unifiedGroupsValid = isValid;
-        }
+	function handleUnifiedValidityChange(isValid: boolean) {
+		unifiedGroupsValid = isValid;
+	}
 
-        function handleNameChange(name: string) {
-                activityName = name;
-        }
+	function handleNameChange(name: string) {
+		activityName = name;
+	}
 
-        function buildAlgorithmConfig() {
-                // If specific mode, use the groups from shell builder
-                if (groupCreationMode === 'specific') {
-                        const sanitizedGroups = groupCreationGroups
-                                .filter((g) => g.name.trim().length > 0)
-                                .map((g) => ({
-                                        name: g.name.trim(),
-                                        capacity: Number.isFinite(g.capacity ?? NaN) ? g.capacity : null
-                                }));
+	function buildAlgorithmConfig() {
+		// If specific mode, use the groups from shell builder
+		if (groupCreationMode === 'specific') {
+			const sanitizedGroups = groupCreationGroups
+				.filter((g) => g.name.trim().length > 0)
+				.map((g) => ({
+					name: g.name.trim(),
+					capacity: Number.isFinite(g.capacity ?? NaN) ? g.capacity : null
+				}));
 
-                        return {
-                                groups: sanitizedGroups.length > 0 ? sanitizedGroups : undefined,
-                                minGroupSize: groupConfig.minSize ?? undefined,
-                                maxGroupSize: groupConfig.maxSize ?? undefined
-                        } as const;
-                }
+			return {
+				groups: sanitizedGroups.length > 0 ? sanitizedGroups : undefined,
+				minGroupSize: groupConfig.minSize ?? undefined,
+				maxGroupSize: groupConfig.maxSize ?? undefined
+			} as const;
+		}
 
-                // Auto mode - let algorithm decide
-                return {
-                        targetGroupCount: groupConfig.targetGroupCount ?? undefined,
-                        minGroupSize: groupConfig.minSize ?? undefined,
-                        maxGroupSize: groupConfig.maxSize ?? undefined
-                } as const;
-        }
+		// Auto mode - let algorithm decide
+		return {
+			targetGroupCount: groupConfig.targetGroupCount ?? undefined,
+			minGroupSize: groupConfig.minSize ?? undefined,
+			maxGroupSize: groupConfig.maxSize ?? undefined
+		} as const;
+	}
 
 	// --- Submission ---
 
@@ -377,10 +376,10 @@
 			const { program } = result.value;
 
 			// Step 2: AUTO-GENERATE groups
-                        const generateResult = await generateScenario(env, {
-                                programId: program.id,
-                                algorithmConfig: buildAlgorithmConfig()
-                        });
+			const generateResult = await generateScenario(env, {
+				programId: program.id,
+				algorithmConfig: buildAlgorithmConfig()
+			});
 
 			if (isErr(generateResult)) {
 				// Activity created but generation failed - redirect with error param
@@ -421,37 +420,39 @@
 	let isFirstStep = $derived(currentStep === 0);
 
 	// Determine which step component to show
-        // Step sequence is now fixed: Start? → Students → Groups (unified) → Preferences → Name
-        let activeStepType = $derived.by((): 'select-roster' | 'students' | 'groups-unified' | 'preferences' | 'name' => {
-                if (hasExistingRosters) {
-                        // Returning user flow: Start → Students → Groups → Preferences → Name
-                        switch (currentStep) {
-                                case 0:
-                                        return 'select-roster';
-                                case 1:
-                                        return 'students';
-                                case 2:
-                                        return 'groups-unified';
-                                case 3:
-                                        return 'preferences';
-                                case 4:
-                                        return 'name';
-                        }
-                } else {
-                        // New user flow: Students → Groups → Preferences → Name
-                        switch (currentStep) {
-                                case 0:
-                                        return 'students';
-                                case 1:
-                                        return 'groups-unified';
-                                case 2:
-                                        return 'preferences';
-                                case 3:
-                                        return 'name';
-                        }
-                }
-                return 'students';
-        });
+	// Step sequence is now fixed: Start? → Students → Groups (unified) → Preferences → Name
+	let activeStepType = $derived.by(
+		(): 'select-roster' | 'students' | 'groups-unified' | 'preferences' | 'name' => {
+			if (hasExistingRosters) {
+				// Returning user flow: Start → Students → Groups → Preferences → Name
+				switch (currentStep) {
+					case 0:
+						return 'select-roster';
+					case 1:
+						return 'students';
+					case 2:
+						return 'groups-unified';
+					case 3:
+						return 'preferences';
+					case 4:
+						return 'name';
+				}
+			} else {
+				// New user flow: Students → Groups → Preferences → Name
+				switch (currentStep) {
+					case 0:
+						return 'students';
+					case 1:
+						return 'groups-unified';
+					case 2:
+						return 'preferences';
+					case 3:
+						return 'name';
+				}
+			}
+			return 'students';
+		}
+	);
 
 	// For roster reuse context in name step
 	let isReusingRoster = $derived(selectedRosterId !== null);
@@ -500,34 +501,39 @@
 			</div>
 		{:else if activeStepType === 'select-roster'}
 			<StepSelectRoster {existingRosters} {selectedRosterId} onSelect={handleRosterSelect} />
-                {:else if activeStepType === 'students'}
-                        <StepStudents {students} onStudentsParsed={handleStudentsParsed} />
-                {:else if activeStepType === 'groups-unified'}
-                        <StepGroupsUnified
-                                mode={groupCreationMode}
-                                shellGroups={groupCreationGroups}
-                                sizeConfig={{ min: groupConfig.minSize, max: groupConfig.maxSize }}
-                                templates={groupTemplates}
-                                {selectedTemplateId}
-                                onModeChange={handleUnifiedModeChange}
-                                onShellGroupsChange={handleUnifiedShellGroupsChange}
-                                onSizeConfigChange={handleUnifiedSizeConfigChange}
-                                onValidityChange={handleUnifiedValidityChange}
-                                onTemplateSelect={handleTemplateSelect}
-                        />
-                {:else if activeStepType === 'preferences'}
-                        <StepPreferences {students} {preferences} groupNames={shellGroupNames} onPreferencesParsed={handlePreferencesParsed} />
-                {:else if activeStepType === 'name'}
-                        <StepName
-                                {activityName}
+		{:else if activeStepType === 'students'}
+			<StepStudents {students} onStudentsParsed={handleStudentsParsed} />
+		{:else if activeStepType === 'groups-unified'}
+			<StepGroupsUnified
+				mode={groupCreationMode}
+				shellGroups={groupCreationGroups}
+				sizeConfig={{ min: groupConfig.minSize, max: groupConfig.maxSize }}
+				templates={groupTemplates}
+				{selectedTemplateId}
+				onModeChange={handleUnifiedModeChange}
+				onShellGroupsChange={handleUnifiedShellGroupsChange}
+				onSizeConfigChange={handleUnifiedSizeConfigChange}
+				onValidityChange={handleUnifiedValidityChange}
+				onTemplateSelect={handleTemplateSelect}
+			/>
+		{:else if activeStepType === 'preferences'}
+			<StepPreferences
+				{students}
+				{preferences}
+				groupNames={shellGroupNames}
+				onPreferencesParsed={handlePreferencesParsed}
+			/>
+		{:else if activeStepType === 'name'}
+			<StepName
+				{activityName}
 				onNameChange={handleNameChange}
-                                {students}
-                                groupConfig={groupConfig}
-                                {preferences}
-                                {isReusingRoster}
-                                {reusedRosterName}
-                        />
-                {/if}
+				{students}
+				{groupConfig}
+				{preferences}
+				{isReusingRoster}
+				{reusedRosterName}
+			/>
+		{/if}
 	</div>
 
 	<!-- Error display -->

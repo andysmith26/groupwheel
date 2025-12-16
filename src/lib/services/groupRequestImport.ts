@@ -261,7 +261,12 @@ export function generateExampleCsv(groupNames: string[]): string {
 	const choices = groupNames.slice(0, 3);
 	const headers = ['Student ID', 'Choice 1', 'Choice 2', 'Choice 3'];
 	const exampleRows = [
-		['student@example.com', choices[0] ?? 'Group A', choices[1] ?? 'Group B', choices[2] ?? 'Group C'],
+		[
+			'student@example.com',
+			choices[0] ?? 'Group A',
+			choices[1] ?? 'Group B',
+			choices[2] ?? 'Group C'
+		],
 		['another@example.com', choices[1] ?? 'Group B', choices[0] ?? 'Group A', '']
 	];
 

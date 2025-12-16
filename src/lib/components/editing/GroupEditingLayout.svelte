@@ -59,13 +59,13 @@
 			{selectedStudentId}
 			{draggingId}
 			rowSpan={layout === 'row' ? 1 : calculateRowSpan(group)}
-			onDrop={onDrop}
-			onSelect={onSelect}
-			onDragStart={onDragStart}
-			onDragEnd={onDragEnd}
-			flashingIds={flashingIds}
-			onUpdateGroup={onUpdateGroup}
-			onDeleteGroup={onDeleteGroup}
+			{onDrop}
+			{onSelect}
+			{onDragStart}
+			{onDragEnd}
+			{flashingIds}
+			{onUpdateGroup}
+			{onDeleteGroup}
 			focusNameOnMount={group.id === newGroupId}
 			preferenceRank={getPreferenceRank(group.id)}
 		/>

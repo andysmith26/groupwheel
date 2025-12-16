@@ -1,5 +1,5 @@
-> **⚠️ Historical Document:** This decision record describes the original preference schema 
-> that included friend-based preferences (`likeStudentIds`). That feature was removed in 
+> **⚠️ Historical Document:** This decision record describes the original preference schema
+> that included friend-based preferences (`likeStudentIds`). That feature was removed in
 > December 2025. See PROJECT_HISTORY.md. The group-request portions (`likeGroupIds`) remain valid.
 
 # Canonical Preference Schema and Import Wizard

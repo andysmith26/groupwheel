@@ -27,12 +27,7 @@
 	<div class="flex items-start gap-3">
 		<!-- Warning icon -->
 		<div class="flex-shrink-0">
-			<svg
-				class="h-5 w-5 text-amber-600"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-			>
+			<svg class="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -54,11 +49,7 @@
 					disabled={isRetrying}
 				>
 					{#if isRetrying}
-						<svg
-							class="-ml-0.5 mr-1.5 h-4 w-4 animate-spin"
-							fill="none"
-							viewBox="0 0 24 24"
-						>
+						<svg class="mr-1.5 -ml-0.5 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
 							<circle
 								class="opacity-25"
 								cx="12"
@@ -79,10 +70,7 @@
 					{/if}
 				</button>
 
-				<a
-					href="/groups/new"
-					class="text-sm text-amber-700 underline hover:text-amber-800"
-				>
+				<a href="/groups/new" class="text-sm text-amber-700 underline hover:text-amber-800">
 					Back to setup
 				</a>
 			</div>

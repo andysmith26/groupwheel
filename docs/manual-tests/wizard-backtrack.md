@@ -1,6 +1,7 @@
 # Manual Test Instructions: Wizard Backtrack in Specific Mode
 
 ## Purpose
+
 Verify that the wizard's Continue button remains enabled when backtracking to the Groups step after defining valid groups in specific mode.
 
 ## Test Steps
