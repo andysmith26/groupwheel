@@ -4,6 +4,8 @@
 	import EditableGroupColumn from './EditableGroupColumn.svelte';
 	import AddGroupCard from './AddGroupCard.svelte';
 
+	export type LayoutMode = 'masonry' | 'row';
+
 	const {
 		groups = [],
 		studentsById = {},
@@ -18,7 +20,8 @@
 		onDeleteGroup,
 		onAddGroup,
 		newGroupId = null,
-		selectedStudentPreferences = null
+		selectedStudentPreferences = null,
+		layout = 'masonry'
 	} = $props<{
 		groups?: Group[];
 		studentsById?: Record<string, Student>;
@@ -34,6 +37,7 @@
 		onAddGroup?: () => void;
 		newGroupId?: string | null;
 		selectedStudentPreferences?: string[] | null;
+		layout?: LayoutMode;
 	}>();
 
 	// Helper to get preference rank for a group
@@ -47,14 +51,14 @@
 	}
 </script>
 
-<div class="group-grid">
+<div class={layout === 'row' ? 'group-row' : 'group-grid'}>
 	{#each groups as group (group.id)}
 		<EditableGroupColumn
 			{group}
 			{studentsById}
 			{selectedStudentId}
 			{draggingId}
-			rowSpan={calculateRowSpan(group)}
+			rowSpan={layout === 'row' ? 1 : calculateRowSpan(group)}
 			onDrop={onDrop}
 			onSelect={onSelect}
 			onDragStart={onDragStart}
@@ -68,7 +72,7 @@
 	{/each}
 
 	{#if onAddGroup}
-		<AddGroupCard rowSpan={4} {onAddGroup} />
+		<AddGroupCard rowSpan={layout === 'row' ? 1 : 4} {onAddGroup} />
 	{/if}
 </div>
 
@@ -91,5 +95,20 @@
 		.group-grid {
 			grid-template-columns: repeat(3, 1fr);
 		}
+	}
+
+	.group-row {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		gap: 12px;
+		overflow-x: scroll;
+		padding-bottom: 8px;
+	}
+
+	.group-row > :global(*) {
+		flex: 0 0 180px;
+		height: 300px;
+		overflow-y: auto;
 	}
 </style>

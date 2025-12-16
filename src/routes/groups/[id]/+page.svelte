@@ -23,7 +23,7 @@
 	import EditingToolbar from '$lib/components/editing/EditingToolbar.svelte';
 	import AnalyticsPanel from '$lib/components/editing/AnalyticsPanel.svelte';
 	import UnassignedArea from '$lib/components/editing/UnassignedArea.svelte';
-	import GroupEditingLayout from '$lib/components/editing/GroupEditingLayout.svelte';
+	import GroupEditingLayout, { type LayoutMode } from '$lib/components/editing/GroupEditingLayout.svelte';
 	import ConfirmDialog from '$lib/components/editing/ConfirmDialog.svelte';
 	import StudentSidebar from '$lib/components/workspace/StudentSidebar.svelte';
 	import EmptyWorkspaceState from '$lib/components/workspace/EmptyWorkspaceState.svelte';
@@ -72,6 +72,9 @@
 
 	// --- Export menu state ---
 	let showExportMenu = $state(false);
+
+	// --- Layout mode ---
+	let layoutMode = $state<LayoutMode>('masonry');
 
 	// --- Result history state (session-only) ---
 	interface HistoryEntry {
@@ -666,6 +669,47 @@
 							{flashingIds}
 						/>
 
+						<!-- Layout toggle -->
+						<div class="flex justify-end">
+							<div class="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+								<button
+									type="button"
+									class={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+										layoutMode === 'masonry'
+											? 'bg-gray-100 text-gray-900'
+											: 'text-gray-500 hover:text-gray-700'
+									}`}
+									onclick={() => layoutMode = 'masonry'}
+									aria-pressed={layoutMode === 'masonry'}
+								>
+									<svg class="inline-block h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<rect x="3" y="3" width="7" height="7" rx="1" />
+										<rect x="14" y="3" width="7" height="10" rx="1" />
+										<rect x="3" y="14" width="7" height="7" rx="1" />
+										<rect x="14" y="17" width="7" height="4" rx="1" />
+									</svg>
+									Grid
+								</button>
+								<button
+									type="button"
+									class={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+										layoutMode === 'row'
+											? 'bg-gray-100 text-gray-900'
+											: 'text-gray-500 hover:text-gray-700'
+									}`}
+									onclick={() => layoutMode = 'row'}
+									aria-pressed={layoutMode === 'row'}
+								>
+									<svg class="inline-block h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<rect x="2" y="6" width="5" height="12" rx="1" />
+										<rect x="9" y="6" width="5" height="12" rx="1" />
+										<rect x="16" y="6" width="5" height="12" rx="1" />
+									</svg>
+									Row
+								</button>
+							</div>
+						</div>
+
 						<GroupEditingLayout
 							groups={view.groups}
 							{studentsById}
@@ -673,7 +717,7 @@
 							{draggingId}
 							onDrop={handleDrop}
 							onDragStart={(id) => draggingId = id}
-						onSelect={selectStudent}
+							onSelect={selectStudent}
 							onDragEnd={() => draggingId = null}
 							{flashingIds}
 							onUpdateGroup={handleUpdateGroup}
@@ -681,6 +725,7 @@
 							onAddGroup={handleAddGroup}
 							{newGroupId}
 							selectedStudentPreferences={activeStudentPreferences}
+							layout={layoutMode}
 						/>
 					</div>
 				{/if}
