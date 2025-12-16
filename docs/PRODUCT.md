@@ -186,7 +186,7 @@ Features for school-wide adoption:
 - **Multi-teacher collaboration** — Shared activities, presence indicators
 - **LMS export** — Push groups to Google Classroom, Canvas
 - **Advanced fairness** — Cross-term balancing, historical analysis
-- **Observations module** — Teacher micro-observations for social graph signals
+- **Observations module** — Teacher micro-observations to inform future groups
 
 ---
 
