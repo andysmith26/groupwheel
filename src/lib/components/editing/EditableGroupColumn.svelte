@@ -90,6 +90,12 @@
 		`w-8 border-0 border-b ${capacityError ? 'border-red-500' : 'border-transparent'} bg-transparent text-center text-xs hover:border-gray-300 focus:border-blue-500 focus:ring-0`
 	);
 
+	// Capacity progress (0-100, null if no limit)
+	const capacityProgress = $derived(() => {
+		if (group.capacity === null) return null;
+		return Math.min(100, (group.memberIds.length / group.capacity) * 100);
+	});
+
 	// Sync local state when group changes externally
 	$effect(() => {
 		editingName = group.name;
@@ -195,37 +201,46 @@
 >
 	<div class="flex items-center justify-between gap-2">
 		<div class="min-w-0 flex-1">
-			<div class="flex items-center gap-2">
-				<input
-					bind:this={nameInput}
-					type="text"
-					class="w-full border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold text-gray-900 hover:border-gray-300 focus:border-blue-500 focus:ring-0"
-					value={editingName}
-					oninput={handleNameInput}
-					onblur={handleNameBlur}
-					aria-label="Group name"
-				/>
-				{#if preferenceStyles()}
-					<span
-						class={`preference-pulse whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${preferenceStyles()!.badgeBg} ${preferenceStyles()!.textColor}`}
-					>
-						{preferenceStyles()!.label}
-					</span>
+			<input
+				bind:this={nameInput}
+				type="text"
+				class="w-full border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold text-gray-900 hover:border-gray-300 focus:border-blue-500 focus:ring-0"
+				value={editingName}
+				oninput={handleNameInput}
+				onblur={handleNameBlur}
+				aria-label="Group name"
+			/>
+			<div class="mt-1 flex items-center gap-2 px-1">
+				<div class="flex items-center gap-1 text-xs text-gray-600">
+					<span>{group.memberIds.length}</span>
+					<span>/</span>
+					<input
+						type="number"
+						min="1"
+						class={capacityInputClass}
+						value={group.capacity ?? ''}
+						placeholder="--"
+						oninput={handleCapacityInput}
+						aria-label="Group capacity"
+						aria-invalid={capacityError !== ''}
+					/>
+				</div>
+				{#if capacityProgress() !== null}
+					<div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+						<div
+							class={`h-full rounded-full transition-all ${
+								capacityStatus.isFull
+									? 'bg-red-500'
+									: capacityStatus.isWarning
+										? 'bg-amber-500'
+										: 'bg-gray-400'
+							}`}
+							style={`width: ${capacityProgress()}%`}
+						></div>
+					</div>
+				{:else}
+					<span class="text-xs text-gray-400">No limit</span>
 				{/if}
-			</div>
-			<div class="mt-0.5 flex items-center gap-1 px-1 text-xs text-gray-600">
-				<span>{group.memberIds.length}</span>
-				<span>/</span>
-				<input
-					type="number"
-					min="1"
-					class={capacityInputClass}
-					value={group.capacity ?? ''}
-					placeholder="--"
-					oninput={handleCapacityInput}
-					aria-label="Group capacity"
-					aria-invalid={capacityError !== ''}
-				/>
 			</div>
 			{#if capacityError}
 				<div class="mt-1 px-1 text-xs text-red-600">
@@ -233,49 +248,48 @@
 				</div>
 			{/if}
 		</div>
-		<div class="flex items-center gap-2">
-			<div
-				class={`rounded-full px-3 py-1 text-xs font-semibold ${
-					capacityStatus.isFull
-						? 'bg-red-100 text-red-700'
-						: capacityStatus.isWarning
-							? 'bg-amber-100 text-amber-700'
-							: 'bg-gray-200 text-gray-700'
-				}`}
-			>
-				{group.capacity === null ? 'No limit' : `${group.memberIds.length}/${group.capacity}`}
-			</div>
-			{#if onDeleteGroup}
-				<div bind:this={menuContainer} class="relative">
-					<button
-						type="button"
-						class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-						onclick={toggleMenu}
-						aria-label="Group options"
+		{#if onDeleteGroup}
+			<div bind:this={menuContainer} class="relative">
+				<button
+					type="button"
+					class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+					onclick={toggleMenu}
+					aria-label="Group options"
+				>
+					<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+						<path
+							d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+						/>
+					</svg>
+				</button>
+				{#if menuOpen}
+					<div
+						class="absolute right-0 z-10 mt-1 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
 					>
-						<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-							<path
-								d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
-							/>
-						</svg>
-					</button>
-					{#if menuOpen}
-						<div
-							class="absolute right-0 z-10 mt-1 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+						<button
+							type="button"
+							class="w-full whitespace-nowrap px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+							onclick={handleDeleteClick}
 						>
-							<button
-								type="button"
-								class="w-full whitespace-nowrap px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-								onclick={handleDeleteClick}
-							>
-								Delete group
-							</button>
-						</div>
-					{/if}
-				</div>
-			{/if}
-		</div>
+							Delete group
+						</button>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
+
+	<!-- Preference banner - shown only when a student is selected -->
+	{#if preferenceStyles()}
+		<div
+			class={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium ${preferenceStyles()!.badgeBg} ${preferenceStyles()!.textColor}`}
+		>
+			<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+			</svg>
+			<span>{preferenceStyles()!.label} for selected student</span>
+		</div>
+	{/if}
 
 	<div
 		use:droppable={{ container: group.id, callbacks: { onDrop: handleDrop } }}
