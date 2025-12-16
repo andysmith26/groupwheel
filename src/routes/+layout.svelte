@@ -92,7 +92,7 @@
 		</div>
 	</header>
 
-	<main class="mx-auto max-w-6xl p-4">
+	<main class={$page.route.id?.startsWith('/groups/[id]') ? '' : 'mx-auto max-w-6xl p-4'}>
 		<slot />
 	</main>
 </div>

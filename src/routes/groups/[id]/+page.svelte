@@ -607,9 +607,9 @@
 		</header>
 
 		<!-- Main content area -->
-		<div class="flex flex-1 overflow-hidden">
+		<div class={`flex flex-1 ${layoutMode === 'row' ? 'overflow-auto' : 'overflow-hidden'}`}>
 			<!-- Workspace (main area) -->
-			<main class="flex-1 overflow-y-auto p-4">
+			<main class={`flex-1 p-4 ${layoutMode === 'row' ? 'overflow-visible' : 'overflow-y-auto'}`}>
 				{#if generationError && (!scenario || !view)}
 					<!-- Generation failed - show error banner with retry option -->
 					<div class="mx-auto max-w-2xl py-8">
@@ -709,7 +709,9 @@
 								</button>
 							</div>
 						</div>
+					</div>
 
+					<div class={layoutMode === 'row' ? '' : 'mx-auto max-w-6xl'}>
 						<GroupEditingLayout
 							groups={view.groups}
 							{studentsById}
