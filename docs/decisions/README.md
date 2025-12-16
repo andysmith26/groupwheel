@@ -1,14 +1,14 @@
 # Decision Records
 
-Lightweight documentation of significant product, architectural, and process choices for Friend Hat.
+Lightweight documentation of significant product, architectural, and process choices.
 
 ## Purpose
 
 Decision Records (DRs) capture **why** we made important choices, not just **what** we did. They serve as:
 
-- Interview prep material (reasoning under constraints)
 - Context for future decisions (avoid repeating analysis)
 - Artifacts for AI pairing and team discussions
+- Discussion material (reasoning under constraints)
 
 ---
 
@@ -30,7 +30,7 @@ See `template.md` for copy-paste template.
 
 - **Strategic scope decisions:** "Defer undo/redo to post-MVP"
 - **Architectural choices:** "Use command pattern for state management"
-- **Product trade-offs:** "Prioritize friend-based over preference-based grouping"
+- **Product trade-offs:** "Prioritize interest-based over friend-based grouping"
 - **Process decisions:** "Timebox spikes to 3 hours"
 
 **Trigger phrase:** _"We could do X or Y, and I'm picking X because..."_
@@ -86,7 +86,7 @@ A good Decision Record:
 **Good names:**
 
 - `2025-01-20-defer-command-pattern.md`
-- `2025-01-22-use-friend-algorithm-first.md`
+- `2025-01-22-use-annealing-algorithm-first.md`
 - `2025-01-25-mobile-out-of-scope-for-mvp.md`
 
 **Bad names:**
@@ -107,7 +107,7 @@ A good Decision Record:
   README.md (this file)
   template.md (blank template)
   2025-01-20-defer-command-pattern.md
-  2025-01-22-friend-algorithm-first.md
+  2025-01-22-annealing-algorithm-first.md
   2025-01-25-mobile-out-of-scope.md
 ```
 
