@@ -56,7 +56,7 @@
 		<label
 			class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors
 				{selectedRosterId === null
-				? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+				? 'border-teal bg-teal-light ring-1 ring-teal'
 				: 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}"
 		>
 			<input
@@ -64,7 +64,7 @@
 				name="roster-choice"
 				checked={selectedRosterId === null}
 				onchange={() => onSelect(null)}
-				class="mt-0.5 h-4 w-4 text-blue-600"
+				class="mt-0.5 h-4 w-4 text-teal accent-teal"
 			/>
 			<div>
 				<span class="font-medium text-gray-900">New students</span>
@@ -77,7 +77,7 @@
 			<label
 				class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors
 					{selectedRosterId === roster.pool.id
-					? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+					? 'border-teal bg-teal-light ring-1 ring-teal'
 					: 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}"
 			>
 				<input
@@ -85,7 +85,7 @@
 					name="roster-choice"
 					checked={selectedRosterId === roster.pool.id}
 					onchange={() => onSelect(roster.pool.id)}
-					class="mt-0.5 h-4 w-4 text-blue-600"
+					class="mt-0.5 h-4 w-4 text-teal accent-teal"
 				/>
 				<div class="flex-1">
 					<div class="flex items-center justify-between">

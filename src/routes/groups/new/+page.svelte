@@ -574,7 +574,7 @@
 				{#if isLastStep}
 					<button
 						type="button"
-						class="rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+						class="rounded-md bg-coral px-6 py-2 text-sm font-medium text-white hover:bg-coral-dark disabled:opacity-50"
 						disabled={!canProceed() || isSubmitting}
 						onclick={handleSubmit}
 					>
@@ -583,7 +583,7 @@
 				{:else}
 					<button
 						type="button"
-						class="rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+						class="rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
 						disabled={!canProceed()}
 						onclick={nextStep}
 					>

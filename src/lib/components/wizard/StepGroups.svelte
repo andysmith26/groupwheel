@@ -164,7 +164,7 @@ Saturns\t4`;
 				type="number"
 				min="1"
 				step="1"
-				class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+				class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
 				value={groupConfig.targetGroupCount ?? ''}
 				oninput={(e) =>
 					updateNumeric(
@@ -185,7 +185,7 @@ Saturns\t4`;
 				type="number"
 				min="1"
 				step="1"
-				class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+				class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
 				value={groupConfig.minSize ?? ''}
 				oninput={(e) =>
 					updateNumeric('minSize', e.currentTarget.value ? Number(e.currentTarget.value) : null)}
@@ -203,7 +203,7 @@ Saturns\t4`;
 				type="number"
 				min="1"
 				step="1"
-				class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+				class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
 				value={groupConfig.maxSize ?? ''}
 				oninput={(e) =>
 					updateNumeric('maxSize', e.currentTarget.value ? Number(e.currentTarget.value) : null)}
@@ -231,7 +231,7 @@ Saturns\t4`;
 
 		<textarea
 			id="group-paste"
-			class="h-28 w-full rounded-lg border border-gray-300 p-3 font-mono text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+			class="h-28 w-full rounded-lg border border-gray-300 p-3 font-mono text-sm placeholder:text-gray-400 focus:border-teal focus:ring-1 focus:ring-teal"
 			bind:value={pastedText}
 			onpaste={handlePaste}
 			oninput={parseGroupList}
@@ -249,7 +249,7 @@ Saturns 4"
 	<div>
 		<button
 			type="button"
-			class="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+			class="flex items-center gap-1 text-sm text-teal hover:text-teal-dark"
 			onclick={() => (showFormatHelp = !showFormatHelp)}
 		>
 			<span class="text-xs">{showFormatHelp ? '▼' : '▸'}</span>

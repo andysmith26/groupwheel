@@ -60,7 +60,7 @@
 		{/if}
 		<button
 			type="button"
-			class="rounded px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+			class="rounded px-2 py-1 text-xs font-medium text-teal hover:bg-teal-light"
 			onclick={onToggleAnalytics}
 		>
 			{analyticsOpen ? 'Hide analytics' : 'Show analytics'}

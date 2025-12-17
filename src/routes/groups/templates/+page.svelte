@@ -154,7 +154,7 @@
 		</div>
 		<button
 			type="button"
-			class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+			class="rounded-md bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark"
 			onclick={openCreateModal}
 		>
 			New Template
@@ -163,7 +163,7 @@
 
 	<!-- Back link -->
 	<div>
-		<a href="/groups" class="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+		<a href="/groups" class="text-sm text-teal hover:text-teal-dark hover:underline">
 			&larr; Back to Activities
 		</a>
 	</div>
@@ -179,8 +179,8 @@
 	{:else if templates.length === 0}
 		<!-- Empty state -->
 		<div class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
-			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-				<svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-teal-light">
+				<svg class="h-6 w-6 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path
 						stroke-linecap="round"
 						stroke-linejoin="round"
@@ -195,7 +195,7 @@
 			</p>
 			<button
 				type="button"
-				class="mt-4 inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+				class="mt-4 inline-block rounded-md bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark"
 				onclick={openCreateModal}
 			>
 				Create Template
@@ -265,7 +265,7 @@
 					<input
 						id="template-name"
 						type="text"
-						class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+						class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal focus:ring-teal"
 						placeholder="e.g., Fall Clubs, Science Fair Teams"
 						bind:value={createName}
 					/>
@@ -279,7 +279,7 @@
 					<input
 						id="template-desc"
 						type="text"
-						class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+						class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal focus:ring-teal"
 						placeholder="e.g., After-school club signups"
 						bind:value={createDescription}
 					/>
@@ -291,7 +291,7 @@
 						<label class="block text-sm font-medium text-gray-700">Groups</label>
 						<button
 							type="button"
-							class="text-sm text-blue-600 hover:text-blue-800"
+							class="text-sm text-teal hover:text-teal-dark"
 							onclick={addGroup}
 						>
 							+ Add group
@@ -303,13 +303,13 @@
 							<div class="flex items-center gap-2">
 								<input
 									type="text"
-									class="block flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+									class="block flex-1 rounded-md border-gray-300 shadow-sm focus:border-teal focus:ring-teal"
 									placeholder="Group name"
 									bind:value={group.name}
 								/>
 								<input
 									type="number"
-									class="block w-20 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+									class="block w-20 rounded-md border-gray-300 shadow-sm focus:border-teal focus:ring-teal"
 									placeholder="Cap"
 									min="1"
 									bind:value={group.capacity}
@@ -353,7 +353,7 @@
 				</button>
 				<button
 					type="button"
-					class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+					class="rounded-md bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark disabled:opacity-50"
 					disabled={creating}
 					onclick={handleCreate}
 				>

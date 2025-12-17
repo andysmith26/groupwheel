@@ -1,18 +1,21 @@
 @import 'tailwindcss';
 
-/* Theme colors derived from the Groupwheel logo */
+/* Theme colors derived from the Groupwheel logo - vibrant & high contrast */
 @theme {
-	/* Primary: Coral (warm, energetic - for primary actions) */
-	--color-coral: #E8735C;
-	--color-coral-dark: #D35E47;
+	/* Primary: Coral (bold, energetic - for primary actions) */
+	--color-coral: #E05A3A;
+	--color-coral-dark: #C24829;
+	--color-coral-light: #FDEAE6;
 
-	/* Secondary: Teal (calm, trustworthy - for secondary elements) */
-	--color-teal: #6B9DAB;
-	--color-teal-dark: #5A8A98;
+	/* Secondary: Teal (vibrant, trustworthy - for secondary elements) */
+	--color-teal: #2A9D8F;
+	--color-teal-dark: #1F7A6E;
+	--color-teal-light: #E6F5F3;
 
-	/* Accent: Amber (warm, inviting - for highlights) */
-	--color-amber: #D4A86A;
-	--color-amber-dark: #C19555;
+	/* Accent: Amber (warm, golden - for highlights) */
+	--color-amber: #E9A83A;
+	--color-amber-dark: #D4922A;
+	--color-amber-light: #FDF6E6;
 }
 
 /* Performance optimization utilities */

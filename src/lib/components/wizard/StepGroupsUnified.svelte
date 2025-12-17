@@ -146,17 +146,17 @@
 				aria-checked={mode === 'specific' ? 'true' : 'false'}
 				class="flex flex-col items-start gap-3 rounded-xl border-2 p-5 text-left transition-colors {mode ===
 				'specific'
-					? 'border-blue-500 bg-blue-50'
+					? 'border-teal bg-teal-light'
 					: 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}"
 				onclick={() => onModeChange('specific')}
 			>
 				<div
 					class="flex h-10 w-10 items-center justify-center rounded-lg {mode === 'specific'
-						? 'bg-blue-100'
+						? 'bg-teal/20'
 						: 'bg-gray-100'}"
 				>
 					<svg
-						class="h-5 w-5 {mode === 'specific' ? 'text-blue-600' : 'text-gray-600'}"
+						class="h-5 w-5 {mode === 'specific' ? 'text-teal' : 'text-gray-600'}"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -171,11 +171,11 @@
 				</div>
 				<div>
 					<div class="flex items-center gap-2">
-						<span class="font-medium {mode === 'specific' ? 'text-blue-900' : 'text-gray-900'}">
+						<span class="font-medium {mode === 'specific' ? 'text-teal-dark' : 'text-gray-900'}">
 							I have specific groups to fill
 						</span>
 						{#if mode === 'specific'}
-							<svg class="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+							<svg class="h-5 w-5 text-teal" fill="currentColor" viewBox="0 0 20 20">
 								<path
 									fill-rule="evenodd"
 									d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -184,7 +184,7 @@
 							</svg>
 						{/if}
 					</div>
-					<p class="mt-1 text-sm {mode === 'specific' ? 'text-blue-700' : 'text-gray-500'}">
+					<p class="mt-1 text-sm {mode === 'specific' ? 'text-teal-dark' : 'text-gray-500'}">
 						Clubs, tables, teams with names I already know
 					</p>
 				</div>
@@ -197,17 +197,17 @@
 				aria-checked={mode === 'auto' ? 'true' : 'false'}
 				class="flex flex-col items-start gap-3 rounded-xl border-2 p-5 text-left transition-colors {mode ===
 				'auto'
-					? 'border-blue-500 bg-blue-50'
+					? 'border-teal bg-teal-light'
 					: 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}"
 				onclick={() => onModeChange('auto')}
 			>
 				<div
 					class="flex h-10 w-10 items-center justify-center rounded-lg {mode === 'auto'
-						? 'bg-blue-100'
+						? 'bg-teal/20'
 						: 'bg-gray-100'}"
 				>
 					<svg
-						class="h-5 w-5 {mode === 'auto' ? 'text-blue-600' : 'text-gray-600'}"
+						class="h-5 w-5 {mode === 'auto' ? 'text-teal' : 'text-gray-600'}"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -222,11 +222,11 @@
 				</div>
 				<div>
 					<div class="flex items-center gap-2">
-						<span class="font-medium {mode === 'auto' ? 'text-blue-900' : 'text-gray-900'}">
+						<span class="font-medium {mode === 'auto' ? 'text-teal-dark' : 'text-gray-900'}">
 							Just split students into groups
 						</span>
 						{#if mode === 'auto'}
-							<svg class="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+							<svg class="h-5 w-5 text-teal" fill="currentColor" viewBox="0 0 20 20">
 								<path
 									fill-rule="evenodd"
 									d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -235,7 +235,7 @@
 							</svg>
 						{/if}
 					</div>
-					<p class="mt-1 text-sm {mode === 'auto' ? 'text-blue-700' : 'text-gray-500'}">
+					<p class="mt-1 text-sm {mode === 'auto' ? 'text-teal-dark' : 'text-gray-500'}">
 						Algorithm decides based on roster size
 					</p>
 				</div>
@@ -286,7 +286,7 @@
 						{/if}
 					{/if}
 					<p class="mt-2 text-xs text-gray-500">
-						<a href="/groups/templates" class="text-blue-600 hover:underline">Manage templates</a>
+						<a href="/groups/templates" class="text-teal hover:underline">Manage templates</a>
 					</p>
 				</div>
 			{/if}
@@ -316,7 +316,7 @@
 							id="min-size"
 							type="number"
 							min="1"
-							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-gray-300 ring-inset placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm {sizeValidationError
+							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-gray-300 ring-inset placeholder:text-gray-400 focus:border-teal focus:ring-teal sm:text-sm {sizeValidationError
 								? 'border-red-500 ring-red-500'
 								: ''}"
 							value={sizeConfig.min ?? ''}
@@ -332,7 +332,7 @@
 							id="max-size"
 							type="number"
 							min="1"
-							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-gray-300 ring-inset placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm {sizeValidationError
+							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-gray-300 ring-inset placeholder:text-gray-400 focus:border-teal focus:ring-teal sm:text-sm {sizeValidationError
 								? 'border-red-500 ring-red-500'
 								: ''}"
 							value={sizeConfig.max ?? ''}

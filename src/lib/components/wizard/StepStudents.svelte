@@ -181,7 +181,7 @@ Tyler White	tyler@school.edu	12`;
 
 		<textarea
 			id="roster-paste"
-			class="h-40 w-full rounded-lg border border-gray-300 p-3 font-mono text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+			class="h-40 w-full rounded-lg border border-gray-300 p-3 font-mono text-sm placeholder:text-gray-400 focus:border-teal focus:ring-1 focus:ring-teal"
 			bind:value={pastedText}
 			onpaste={handlePaste}
 			oninput={parseRoster}
@@ -195,7 +195,7 @@ Bob Jones	bob@school.edu	9"
 	<div>
 		<button
 			type="button"
-			class="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+			class="flex items-center gap-1 text-sm text-teal hover:text-teal-dark"
 			onclick={() => (showFormatHelp = !showFormatHelp)}
 		>
 			<span class="text-xs">{showFormatHelp ? '▼' : '▸'}</span>
