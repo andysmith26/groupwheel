@@ -238,9 +238,8 @@
 					</div>
 
 					<div class="mt-3 text-xs text-gray-400">
-						{template.groups.length} group{template.groups.length === 1 ? '' : 's'} &middot; Updated {formatDate(
-							template.updatedAt
-						)}
+						{template.groups.length} group{template.groups.length === 1 ? '' : 's'} &middot; Updated
+						{formatDate(template.updatedAt)}
 					</div>
 				</div>
 			{/each}
@@ -334,9 +333,7 @@
 							</div>
 						{/each}
 					</div>
-					<p class="mt-1 text-xs text-gray-500">
-						Capacity is optional. Leave blank for unlimited.
-					</p>
+					<p class="mt-1 text-xs text-gray-500">Capacity is optional. Leave blank for unlimited.</p>
 				</div>
 			</div>
 

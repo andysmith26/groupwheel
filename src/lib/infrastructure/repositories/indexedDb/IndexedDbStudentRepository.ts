@@ -65,14 +65,14 @@ export class IndexedDbStudentRepository implements StudentRepository {
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readwrite');
 			const store = tx.objectStore(STORE_NAME);
-			
+
 			let completed = 0;
 			if (students.length === 0) {
 				resolve();
 				return;
 			}
 
-			students.forEach(student => {
+			students.forEach((student) => {
 				const request = store.put(student);
 				request.onsuccess = () => {
 					completed++;

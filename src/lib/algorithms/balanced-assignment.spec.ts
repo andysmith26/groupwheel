@@ -42,7 +42,12 @@ describe('assignBalanced', () => {
 			}));
 
 			const result = assignBalanced(
-				buildOptions(groups, students, preferences, students.map((s) => s.id))
+				buildOptions(
+					groups,
+					students,
+					preferences,
+					students.map((s) => s.id)
+				)
 			);
 
 			// All students should be assigned
@@ -70,7 +75,12 @@ describe('assignBalanced', () => {
 			}));
 
 			const result = assignBalanced(
-				buildOptions(groups, students, preferences, students.map((s) => s.id))
+				buildOptions(
+					groups,
+					students,
+					preferences,
+					students.map((s) => s.id)
+				)
 			);
 
 			const totalAssigned = result.groups.reduce((sum, group) => sum + group.memberIds.length, 0);
@@ -97,10 +107,22 @@ describe('assignBalanced', () => {
 			}));
 
 			const result1 = assignBalanced(
-				buildOptions(groups, students, preferences, students.map((s) => s.id), { seed: 42 })
+				buildOptions(
+					groups,
+					students,
+					preferences,
+					students.map((s) => s.id),
+					{ seed: 42 }
+				)
 			);
 			const result2 = assignBalanced(
-				buildOptions(groups, students, preferences, students.map((s) => s.id), { seed: 42 })
+				buildOptions(
+					groups,
+					students,
+					preferences,
+					students.map((s) => s.id),
+					{ seed: 42 }
+				)
 			);
 
 			// Same seed should produce same assignment
@@ -382,7 +404,12 @@ describe('assignBalanced', () => {
 			}));
 
 			const result = assignBalanced(
-				buildOptions(groups, students, preferences, students.map((s) => s.id))
+				buildOptions(
+					groups,
+					students,
+					preferences,
+					students.map((s) => s.id)
+				)
 			);
 
 			expect(result.groups[0].memberIds).toHaveLength(10);

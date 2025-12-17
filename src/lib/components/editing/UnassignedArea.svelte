@@ -58,9 +58,9 @@
 						container="unassigned"
 						selected={selectedStudentId === studentId}
 						isDragging={draggingId === studentId}
-						onSelect={onSelect}
+						{onSelect}
 						onDragStart={() => onDragStart?.(studentId)}
-						onDragEnd={onDragEnd}
+						{onDragEnd}
 						flash={flashingIds.has(studentId)}
 					/>
 				{/if}

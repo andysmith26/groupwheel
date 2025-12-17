@@ -99,13 +99,13 @@
 		const value = (e.target as HTMLInputElement).value;
 		const parsed = value === '' ? null : parseInt(value, 10);
 		const newMin = Number.isNaN(parsed) ? null : parsed;
-		
+
 		// Update config first
 		onSizeConfigChange({
 			...sizeConfig,
 			min: newMin
 		});
-		
+
 		// Then validate with new min and current max
 		sizeValidationError = validateSizeConfig(newMin, sizeConfig.max);
 	}
@@ -114,13 +114,13 @@
 		const value = (e.target as HTMLInputElement).value;
 		const parsed = value === '' ? null : parseInt(value, 10);
 		const newMax = Number.isNaN(parsed) ? null : parsed;
-		
+
 		// Update config first
 		onSizeConfigChange({
 			...sizeConfig,
 			max: newMax
 		});
-		
+
 		// Then validate with current min and new max
 		sizeValidationError = validateSizeConfig(sizeConfig.min, newMax);
 	}
@@ -245,7 +245,7 @@
 
 	<!-- Conditional content based on mode -->
 	{#if mode === 'specific'}
-		<div class="border-t border-gray-200 pt-6 space-y-6">
+		<div class="space-y-6 border-t border-gray-200 pt-6">
 			<!-- Template selector (if templates available) -->
 			{#if templates.length > 0}
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -316,7 +316,7 @@
 							id="min-size"
 							type="number"
 							min="1"
-							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm {sizeValidationError
+							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-gray-300 ring-inset placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm {sizeValidationError
 								? 'border-red-500 ring-red-500'
 								: ''}"
 							value={sizeConfig.min ?? ''}
@@ -332,7 +332,7 @@
 							id="max-size"
 							type="number"
 							min="1"
-							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm {sizeValidationError
+							class="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm ring-1 ring-gray-300 ring-inset placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm {sizeValidationError
 								? 'border-red-500 ring-red-500'
 								: ''}"
 							value={sizeConfig.max ?? ''}
@@ -371,9 +371,7 @@
 		</div>
 	{:else}
 		<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-			<p class="text-center text-sm text-gray-500">
-				Select an option above to continue.
-			</p>
+			<p class="text-center text-sm text-gray-500">Select an option above to continue.</p>
 		</div>
 	{/if}
 </div>

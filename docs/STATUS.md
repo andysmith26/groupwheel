@@ -88,14 +88,14 @@ This document tracks what's actually implemented. Update when features ship.
 
 ## Recent Changes
 
-| Date     | Change                                                                   |
-| -------- | ------------------------------------------------------------------------ |
+| Date     | Change                                                                             |
+| -------- | ---------------------------------------------------------------------------------- |
 | Dec 2025 | Request-aware grouping algorithm (two-phase: preferences first, balanced fallback) |
-| Dec 2025 | Group request import with CSV/TSV parser and validation UI               |
-| Dec 2025 | **Groupwheel pivot**: Removed friend-based preferences, request-only mode |
-| Dec 2024 | MVP complete; wizard flow, analytics, student view                       |
-| Nov 2024 | Hexagonal architecture migration                                         |
-| Nov 2024 | Domain model consolidation                                               |
+| Dec 2025 | Group request import with CSV/TSV parser and validation UI                         |
+| Dec 2025 | **Groupwheel pivot**: Removed friend-based preferences, request-only mode          |
+| Dec 2024 | MVP complete; wizard flow, analytics, student view                                 |
+| Nov 2024 | Hexagonal architecture migration                                                   |
+| Nov 2024 | Domain model consolidation                                                         |
 
 ---
 

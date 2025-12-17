@@ -30,7 +30,15 @@ import {
 } from '$lib/infrastructure/repositories/indexedDb';
 import { UuidIdGenerator, SystemClock } from '$lib/infrastructure/services';
 import { BalancedGroupingAlgorithm } from '$lib/infrastructure/algorithms/balancedGrouping';
-import type { Pool, Program, Scenario, Student, Staff, Preference, GroupTemplate } from '$lib/domain';
+import type {
+	Pool,
+	Program,
+	Scenario,
+	Student,
+	Staff,
+	Preference,
+	GroupTemplate
+} from '$lib/domain';
 import { browser } from '$app/environment';
 
 /**

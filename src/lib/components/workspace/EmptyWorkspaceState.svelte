@@ -1,8 +1,5 @@
 <script lang="ts">
-	const {
-		studentCount = 0,
-		preferencesCount = 0
-	} = $props<{
+	const { studentCount = 0, preferencesCount = 0 } = $props<{
 		studentCount?: number;
 		preferencesCount?: number;
 	}>();
