@@ -276,7 +276,7 @@
 	<!-- Help text -->
 	<div class="rounded-lg border border-teal/20 bg-teal-light p-4">
 		<h3 class="text-sm font-medium text-teal-dark">Tips</h3>
-		<ul class="mt-2 list-inside list-disc space-y-1 text-sm text-teal-dark"
+		<ul class="mt-2 list-inside list-disc space-y-1 text-sm text-teal-dark">
 			<li>Export your Google Form responses as CSV</li>
 			<li>Student IDs should match those from your roster</li>
 			<li>Group names should match the groups you created in the previous step</li>
