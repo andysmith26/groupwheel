@@ -30,8 +30,8 @@
 		<div class="flex items-center gap-2">
 			<div
 				class="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium
-					{isComplete ? 'bg-blue-600 text-white' : ''}
-					{isCurrent ? 'border-2 border-blue-600 bg-blue-50 text-blue-600' : ''}
+					{isComplete ? 'bg-teal text-white' : ''}
+					{isCurrent ? 'border-2 border-teal bg-teal-light text-teal' : ''}
 					{isPending ? 'border-2 border-gray-300 bg-white text-gray-400' : ''}"
 			>
 				{#if isComplete}
@@ -47,7 +47,7 @@
 			<!-- Label -->
 			<span
 				class="text-sm font-medium
-					{isCurrent ? 'text-blue-600' : ''}
+					{isCurrent ? 'text-teal' : ''}
 					{isComplete ? 'text-gray-700' : ''}
 					{isPending ? 'text-gray-400' : ''}"
 			>
@@ -59,7 +59,7 @@
 		{#if index < totalSteps - 1}
 			<div
 				class="h-0.5 w-12 flex-shrink-0
-					{stepNum < currentStep ? 'bg-blue-600' : 'bg-gray-300'}"
+					{stepNum < currentStep ? 'bg-teal' : 'bg-gray-300'}"
 			></div>
 		{/if}
 	{/each}

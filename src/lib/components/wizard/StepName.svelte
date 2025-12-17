@@ -95,7 +95,7 @@
 		<input
 			id="activity-name"
 			type="text"
-			class="w-full rounded-lg border border-gray-300 px-4 py-3 text-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+			class="w-full rounded-lg border border-gray-300 px-4 py-3 text-lg focus:border-teal focus:ring-1 focus:ring-teal"
 			value={activityName}
 			oninput={(e) => onNameChange(e.currentTarget.value)}
 			placeholder={placeholderExample}
@@ -112,8 +112,8 @@
 		<div class="mt-3 space-y-2">
 			<!-- Students -->
 			<div class="flex items-center gap-2">
-				<span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100">
-					<svg class="h-3 w-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<span class="flex h-5 w-5 items-center justify-center rounded-full bg-teal-light">
+					<svg class="h-3 w-3 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -132,8 +132,8 @@
 
 			<!-- Groups -->
 			<div class="flex items-center gap-2">
-				<span class="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100">
-					<svg class="h-3 w-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<span class="flex h-5 w-5 items-center justify-center rounded-full bg-amber-light">
+					<svg class="h-3 w-3 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -165,9 +165,9 @@
 
 			<!-- Preferences -->
 			<div class="flex items-center gap-2">
-				<span class="flex h-5 w-5 items-center justify-center rounded-full bg-purple-100">
+				<span class="flex h-5 w-5 items-center justify-center rounded-full bg-coral-light">
 					<svg
-						class="h-3 w-3 text-purple-600"
+						class="h-3 w-3 text-coral"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"

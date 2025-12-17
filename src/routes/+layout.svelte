@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import logo from '$lib/assets/logo.svg';
 
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
@@ -23,15 +24,18 @@
 <div class="min-h-screen bg-gray-50">
 	<header class="border-b bg-white shadow-sm">
 		<div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-			<a href="/" class="group">
-				<p
-					class="text-xs font-medium tracking-wide text-gray-500 uppercase group-hover:text-gray-700"
-				>
-					Groupwheel
-				</p>
-				{#if !isLandingPage}
-					<p class="text-sm text-gray-600">Teacher workspace</p>
-				{/if}
+			<a href="/" class="group flex items-center gap-2">
+				<img src={logo} alt="Groupwheel logo" class="h-8 w-8" />
+				<div>
+					<p
+						class="text-sm font-semibold tracking-wide text-gray-700 group-hover:text-coral"
+					>
+						Groupwheel
+					</p>
+					{#if !isLandingPage}
+						<p class="text-xs text-gray-500">Teacher workspace</p>
+					{/if}
+				</div>
 			</a>
 
 			{#if !isLandingPage}
@@ -42,8 +46,8 @@
 							$page.url.pathname,
 							'/groups'
 						)
-							? 'bg-blue-100 text-blue-900'
-							: 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}"
+							? 'bg-teal/10 text-teal'
+							: 'text-gray-700 hover:bg-gray-100 hover:text-coral'}"
 						aria-current={isActiveLink($page.url.pathname, '/groups') ? 'page' : undefined}
 					>
 						Activities

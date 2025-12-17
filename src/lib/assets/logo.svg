@@ -1,0 +1,35 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="coralGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E05A3A"/>
+      <stop offset="100%" style="stop-color:#E9A83A"/>
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E9A83A"/>
+      <stop offset="100%" style="stop-color:#7AB87A"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#5AAA5A"/>
+      <stop offset="100%" style="stop-color:#2A9D8F"/>
+    </linearGradient>
+    <linearGradient id="tealGrad" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" style="stop-color:#2A9D8F"/>
+      <stop offset="100%" style="stop-color:#3DB4A6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Coral petal (top right) -->
+  <path d="M50 50 Q75 20 65 10 Q55 5 50 25 Q48 35 50 50" fill="url(#coralGrad)"/>
+
+  <!-- Amber petal (right) -->
+  <path d="M50 50 Q80 50 90 40 Q95 55 70 60 Q60 58 50 50" fill="url(#amberGrad)"/>
+
+  <!-- Green petal (bottom) -->
+  <path d="M50 50 Q65 80 55 90 Q45 92 45 70 Q46 60 50 50" fill="url(#greenGrad)"/>
+
+  <!-- Teal petal (left) -->
+  <path d="M50 50 Q20 65 10 55 Q5 40 30 35 Q40 38 50 50" fill="url(#tealGrad)"/>
+
+  <!-- Center white circle for the aperture effect -->
+  <circle cx="50" cy="50" r="12" fill="white"/>
+</svg>

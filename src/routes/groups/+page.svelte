@@ -72,7 +72,7 @@
 			</a>
 			<a
 				href="/groups/new"
-				class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+				class="rounded-md bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark"
 			>
 				Create Groups
 			</a>
@@ -90,8 +90,8 @@
 	{:else if activities.length === 0}
 		<!-- Empty state -->
 		<div class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
-			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-				<svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-teal-light">
+				<svg class="h-6 w-6 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path
 						stroke-linecap="round"
 						stroke-linejoin="round"
@@ -104,7 +104,7 @@
 			<p class="mt-1 text-sm text-gray-500">Create your first grouping activity to get started.</p>
 			<a
 				href="/groups/new"
-				class="mt-4 inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+				class="mt-4 inline-block rounded-md bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark"
 			>
 				Create Groups
 			</a>
@@ -119,7 +119,7 @@
 				>
 					<div class="flex items-start justify-between">
 						<div class="min-w-0 flex-1">
-							<h3 class="truncate font-medium text-gray-900 group-hover:text-blue-600">
+							<h3 class="truncate font-medium text-gray-900 group-hover:text-teal">
 								{activity.program.name}
 							</h3>
 							<p class="mt-1 text-sm text-gray-500">

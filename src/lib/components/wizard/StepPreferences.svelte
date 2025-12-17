@@ -175,7 +175,7 @@
 				<textarea
 					id="paste-area"
 					bind:value={pastedText}
-					class="mt-1 block h-48 w-full rounded-md border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+					class="mt-1 block h-48 w-full rounded-md border-gray-300 font-mono text-sm shadow-sm focus:border-teal focus:ring-teal"
 					placeholder="Student ID,Choice 1,Choice 2,Choice 3&#10;alice@example.com,Art Club,Music Club,Drama Club&#10;bob@example.com,Chess Club,Art Club,"
 				></textarea>
 				<p class="mt-1 text-xs text-gray-500">
@@ -187,7 +187,7 @@
 			<div>
 				<button
 					type="button"
-					class="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+					class="text-sm text-teal hover:text-teal-dark hover:underline"
 					onclick={() => (showExample = !showExample)}
 				>
 					{showExample ? 'Hide example' : 'Show example format'}
@@ -274,9 +274,9 @@
 	{/if}
 
 	<!-- Help text -->
-	<div class="rounded-lg border border-blue-100 bg-blue-50 p-4">
-		<h3 class="text-sm font-medium text-blue-900">Tips</h3>
-		<ul class="mt-2 list-inside list-disc space-y-1 text-sm text-blue-700">
+	<div class="rounded-lg border border-teal/20 bg-teal-light p-4">
+		<h3 class="text-sm font-medium text-teal-dark">Tips</h3>
+		<ul class="mt-2 list-inside list-disc space-y-1 text-sm text-teal-dark">
 			<li>Export your Google Form responses as CSV</li>
 			<li>Student IDs should match those from your roster</li>
 			<li>Group names should match the groups you created in the previous step</li>

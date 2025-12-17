@@ -161,7 +161,7 @@
 								index
 							)
 								? 'ring-red-300 focus:ring-red-500'
-								: 'ring-gray-200 focus:ring-blue-500'} placeholder:text-gray-400 focus:ring-2"
+								: 'ring-gray-200 focus:ring-teal'} placeholder:text-gray-400 focus:ring-2"
 							value={group.name}
 							placeholder="Enter group name"
 							oninput={(e) => updateGroup(index, 'name', e.currentTarget.value)}
@@ -181,7 +181,7 @@
 							bind:this={capacityInputs[index]}
 							type="number"
 							min="1"
-							class="w-full rounded border-0 bg-transparent px-2 py-1.5 text-center text-sm text-gray-900 ring-1 ring-gray-200 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500"
+							class="w-full rounded border-0 bg-transparent px-2 py-1.5 text-center text-sm text-gray-900 ring-1 ring-gray-200 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-teal"
 							value={group.capacity ?? ''}
 							placeholder="--"
 							oninput={(e) => updateGroup(index, 'capacity', e.currentTarget.value)}
@@ -222,7 +222,7 @@
 		<!-- Add group button -->
 		<button
 			type="button"
-			class="flex w-full items-center gap-2 border-t border-gray-200 px-4 py-3 text-sm font-medium text-blue-600 hover:bg-blue-50"
+			class="flex w-full items-center gap-2 border-t border-gray-200 px-4 py-3 text-sm font-medium text-teal hover:bg-teal-light"
 			onclick={addGroup}
 		>
 			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
