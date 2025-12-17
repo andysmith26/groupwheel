@@ -53,6 +53,7 @@ For historical reference, the original Friend Hat vision was:
 > "Help K-12 teachers make better grouping decisions through data-informed, reproducible practice—without compromising student privacy."
 
 The core workflow was:
+
 1. Import roster
 2. Import friend preferences (who wants to work with whom)
 3. Generate groups optimizing for friend satisfaction

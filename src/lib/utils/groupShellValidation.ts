@@ -9,13 +9,13 @@ export interface GroupShell {
 
 /**
  * Validates a list of group shells.
- * 
+ *
  * A group shell list is valid if:
  * - It contains at least one group
  * - All groups have non-empty names (after trimming whitespace)
  * - No duplicate names (case-insensitive)
  * - All capacities are either null (unlimited) or positive numbers
- * 
+ *
  * @param groups - The list of group shells to validate
  * @returns true if the groups are valid, false otherwise
  */

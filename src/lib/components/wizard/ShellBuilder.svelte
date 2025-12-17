@@ -140,8 +140,8 @@
 	<div class="rounded-lg border border-gray-200 bg-white">
 		<!-- Header -->
 		<div class="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2">
-			<div class="flex-1 text-xs font-medium uppercase tracking-wide text-gray-500">Group Name</div>
-			<div class="w-24 text-xs font-medium uppercase tracking-wide text-gray-500">Capacity</div>
+			<div class="flex-1 text-xs font-medium tracking-wide text-gray-500 uppercase">Group Name</div>
+			<div class="w-24 text-xs font-medium tracking-wide text-gray-500 uppercase">Capacity</div>
 			<div class="w-8"></div>
 		</div>
 
@@ -181,7 +181,7 @@
 							bind:this={capacityInputs[index]}
 							type="number"
 							min="1"
-							class="w-full rounded border-0 bg-transparent px-2 py-1.5 text-center text-sm text-gray-900 ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500"
+							class="w-full rounded border-0 bg-transparent px-2 py-1.5 text-center text-sm text-gray-900 ring-1 ring-gray-200 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500"
 							value={group.capacity ?? ''}
 							placeholder="--"
 							oninput={(e) => updateGroup(index, 'capacity', e.currentTarget.value)}

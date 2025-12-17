@@ -38,7 +38,11 @@ export type UpdateGroupCommand = {
 	previousValues: Partial<Pick<Group, 'name' | 'capacity'>>;
 };
 
-export type Command = MoveStudentCommand | CreateGroupCommand | DeleteGroupCommand | UpdateGroupCommand;
+export type Command =
+	| MoveStudentCommand
+	| CreateGroupCommand
+	| DeleteGroupCommand
+	| UpdateGroupCommand;
 
 type ScenarioMetadata = {
 	id: string;

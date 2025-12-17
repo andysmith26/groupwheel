@@ -167,10 +167,7 @@ export function exportToTSV(
 /**
  * Export a group-centric view (one row per group with student names).
  */
-export function exportGroupsToCSV(
-	groups: Group[],
-	studentsById: Map<string, Student>
-): string {
+export function exportGroupsToCSV(groups: Group[], studentsById: Map<string, Student>): string {
 	const rows: string[] = [];
 
 	// Header

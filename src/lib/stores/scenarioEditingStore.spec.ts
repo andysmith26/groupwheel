@@ -145,7 +145,11 @@ describe('ScenarioEditingStore', () => {
 			save: vi.fn().mockRejectedValue(new Error('still nope')),
 			delete: vi.fn()
 		};
-		const store = new ScenarioEditingStore({ scenarioRepo: failingRepo, idGenerator: new MockIdGenerator(), debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: failingRepo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.dispatch({
@@ -401,7 +405,11 @@ describe('Group shell operations', () => {
 
 	it('flushes pending updates before undo', async () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
-		const store = new ScenarioEditingStore({ scenarioRepo: repo, idGenerator: new MockIdGenerator(), debounceMs: 10 });
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
 		store.initialize(createScenario(), preferences);
 
 		store.updateGroup('g1', { name: 'New Name' });

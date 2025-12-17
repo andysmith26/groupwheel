@@ -1,6 +1,6 @@
 /**
  * StepGroupsUnified validation logic test
- * 
+ *
  * Tests the validation function that determines if groups are valid.
  * This is used to restore validity when navigating back to the step
  * with previously valid groups in specific mode.

@@ -148,10 +148,7 @@
 						</p>
 					</div>
 					<div class="flex items-center gap-3">
-						<a
-							href="/groups/{$page.params.id}"
-							class="text-sm text-gray-500 hover:text-gray-700"
-						>
+						<a href="/groups/{$page.params.id}" class="text-sm text-gray-500 hover:text-gray-700">
 							← Edit view
 						</a>
 					</div>
@@ -199,9 +196,13 @@
 
 					{#if searchQuery.trim()}
 						{#if filteredAssignments.length === 0}
-							<div class="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center">
+							<div
+								class="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center"
+							>
 								<p class="text-gray-500">No students found matching "{searchQuery}"</p>
-								<p class="mt-2 text-sm text-gray-400">Try checking the spelling or use your full name</p>
+								<p class="mt-2 text-sm text-gray-400">
+									Try checking the spelling or use your full name
+								</p>
 							</div>
 						{:else}
 							<div class="mx-auto max-w-md space-y-3">
@@ -223,7 +224,9 @@
 							</div>
 						{/if}
 					{:else}
-						<div class="mx-auto max-w-md rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
+						<div
+							class="mx-auto max-w-md rounded-lg border border-gray-200 bg-gray-50 p-6 text-center"
+						>
 							<p class="text-gray-500">Start typing your name above to find your group</p>
 						</div>
 					{/if}

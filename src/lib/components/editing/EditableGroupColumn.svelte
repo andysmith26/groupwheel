@@ -48,10 +48,14 @@
 		if (preferenceRank === null) return null;
 
 		// Determine label
-		const label = preferenceRank === 1 ? '1st Choice' :
-		              preferenceRank === 2 ? '2nd Choice' :
-		              preferenceRank === 3 ? '3rd Choice' :
-		              `Choice ${preferenceRank}`;
+		const label =
+			preferenceRank === 1
+				? '1st Choice'
+				: preferenceRank === 2
+					? '2nd Choice'
+					: preferenceRank === 3
+						? '3rd Choice'
+						: `Choice ${preferenceRank}`;
 
 		// Only highlight top choice with border and background
 		if (preferenceRank <= MAX_HIGHLIGHTED_RANK) {
@@ -155,27 +159,27 @@
 
 	function handleCapacityInput(e: Event) {
 		const value = (e.target as HTMLInputElement).value;
-		
+
 		// Empty value means unlimited capacity (null)
 		if (value === '') {
 			capacityError = '';
 			onUpdateGroup?.(group.id, { capacity: null });
 			return;
 		}
-		
+
 		const parsed = parseInt(value, 10);
-		
+
 		// Check for invalid input
 		if (Number.isNaN(parsed)) {
 			capacityError = 'Please enter a valid number';
 			return;
 		}
-		
+
 		if (parsed <= 0) {
 			capacityError = 'Capacity must be greater than 0';
 			return;
 		}
-		
+
 		// Valid input - clear error and update
 		capacityError = '';
 		onUpdateGroup?.(group.id, { capacity: parsed });
@@ -226,7 +230,7 @@
 					/>
 				</div>
 				{#if capacityProgress() !== null}
-					<div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+					<div class="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
 						<div
 							class={`h-full rounded-full transition-all ${
 								capacityStatus.isFull
@@ -268,7 +272,7 @@
 					>
 						<button
 							type="button"
-							class="w-full whitespace-nowrap px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+							class="w-full px-4 py-2 text-left text-sm whitespace-nowrap text-red-600 hover:bg-red-50"
 							onclick={handleDeleteClick}
 						>
 							Delete group
@@ -307,9 +311,9 @@
 						container={group.id}
 						selected={selectedStudentId === memberId}
 						isDragging={draggingId === memberId}
-						onSelect={onSelect}
+						{onSelect}
 						onDragStart={() => onDragStart?.(memberId)}
-						onDragEnd={onDragEnd}
+						{onDragEnd}
 						flash={flashingIds.has(memberId)}
 					/>
 				{/if}

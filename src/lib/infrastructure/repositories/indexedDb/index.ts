@@ -12,5 +12,3 @@ export { IndexedDbPoolRepository } from './IndexedDbPoolRepository';
 export { IndexedDbStudentRepository } from './IndexedDbStudentRepository';
 export { IndexedDbStaffRepository } from './IndexedDbStaffRepository';
 export { IndexedDbPreferenceRepository } from './IndexedDbPreferenceRepository';
-
-

@@ -43,13 +43,13 @@ export class IndexedDbPreferenceRepository implements PreferenceRepository {
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readwrite');
 			const store = tx.objectStore(STORE_NAME);
-			
+
 			// This is a bit naive, ideally we should delete old ones for this program first?
 			// The interface doesn't specify "replace", but "setForProgram" implies it might.
 			// However, for MVP, just saving them is probably fine, assuming IDs are unique.
 			// If we want to replace, we'd need to delete by programId first.
 			// IndexedDB doesn't support "delete by index" easily without iterating.
-			
+
 			// For now, let's just save them.
 			let completed = 0;
 			if (preferences.length === 0) {
@@ -57,7 +57,7 @@ export class IndexedDbPreferenceRepository implements PreferenceRepository {
 				return;
 			}
 
-			preferences.forEach(pref => {
+			preferences.forEach((pref) => {
 				const request = store.put(pref);
 				request.onsuccess = () => {
 					completed++;

@@ -23,7 +23,9 @@
 	import EditingToolbar from '$lib/components/editing/EditingToolbar.svelte';
 	import AnalyticsPanel from '$lib/components/editing/AnalyticsPanel.svelte';
 	import UnassignedArea from '$lib/components/editing/UnassignedArea.svelte';
-	import GroupEditingLayout, { type LayoutMode } from '$lib/components/editing/GroupEditingLayout.svelte';
+	import GroupEditingLayout, {
+		type LayoutMode
+	} from '$lib/components/editing/GroupEditingLayout.svelte';
 	import ConfirmDialog from '$lib/components/editing/ConfirmDialog.svelte';
 	import StudentSidebar from '$lib/components/workspace/StudentSidebar.svelte';
 	import EmptyWorkspaceState from '$lib/components/workspace/EmptyWorkspaceState.svelte';
@@ -32,7 +34,13 @@
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
 	import { generateScenario, getActivityData } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
-	import { buildAssignmentList, exportToCSV, exportToTSV, exportGroupsToCSV, copyToClipboard } from '$lib/utils/csvExport';
+	import {
+		buildAssignmentList,
+		exportToCSV,
+		exportToTSV,
+		exportGroupsToCSV,
+		copyToClipboard
+	} from '$lib/utils/csvExport';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -114,11 +122,11 @@
 		if (!groupNamePrefs || groupNamePrefs.length === 0) return null;
 
 		// Build a name-to-ID map from current groups
-		const nameToId = new Map(view.groups.map(g => [g.name, g.id]));
+		const nameToId = new Map(view.groups.map((g) => [g.name, g.id]));
 
 		// Map preference names to IDs
 		const groupIdPrefs = groupNamePrefs
-			.map(name => nameToId.get(name))
+			.map((name) => nameToId.get(name))
 			.filter((id): id is string => id !== undefined);
 
 		return groupIdPrefs.length > 0 ? groupIdPrefs : null;
@@ -280,7 +288,7 @@
 
 	function addToHistory(groups: Group[], analytics: ScenarioSatisfaction) {
 		if (!env) return;
-		
+
 		const entry: HistoryEntry = {
 			id: env.idGenerator.generateId(),
 			groups: structuredClone(groups),
@@ -537,7 +545,7 @@
 				<button
 					type="button"
 					class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-					onclick={() => sidebarOpen = !sidebarOpen}
+					onclick={() => (sidebarOpen = !sidebarOpen)}
 				>
 					{sidebarOpen ? 'Hide Students' : 'Students'}
 				</button>
@@ -547,7 +555,7 @@
 						<button
 							type="button"
 							class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-							onclick={() => showExportMenu = !showExportMenu}
+							onclick={() => (showExportMenu = !showExportMenu)}
 						>
 							Export ▾
 						</button>
@@ -597,7 +605,7 @@
 							<button
 								type="button"
 								class="fixed inset-0 z-10"
-								onclick={() => showExportMenu = false}
+								onclick={() => (showExportMenu = false)}
 								aria-label="Close menu"
 							></button>
 						{/if}
@@ -621,10 +629,7 @@
 						/>
 					</div>
 				{:else if !scenario || !view}
-					<EmptyWorkspaceState
-						studentCount={students.length}
-						{preferencesCount}
-					/>
+					<EmptyWorkspaceState studentCount={students.length} {preferencesCount} />
 				{:else}
 					<div class="mx-auto max-w-6xl space-y-4">
 						<EditingToolbar
@@ -638,9 +643,9 @@
 							{isTryingAnother}
 							onUndo={() => editingStore?.undo()}
 							onRedo={() => editingStore?.redo()}
-							onStartOver={() => showStartOverConfirm = true}
+							onStartOver={() => (showStartOverConfirm = true)}
 							onTryAnother={handleTryAnother}
-							onToggleAnalytics={() => analyticsOpen = !analyticsOpen}
+							onToggleAnalytics={() => (analyticsOpen = !analyticsOpen)}
 							onRetrySave={() => editingStore?.retrySave()}
 						/>
 
@@ -664,8 +669,8 @@
 							{draggingId}
 							onDrop={handleDrop}
 							onSelect={selectStudent}
-							onDragStart={(id) => draggingId = id}
-							onDragEnd={() => draggingId = null}
+							onDragStart={(id) => (draggingId = id)}
+							onDragEnd={() => (draggingId = null)}
 							{flashingIds}
 						/>
 
@@ -679,10 +684,16 @@
 											? 'bg-gray-100 text-gray-900'
 											: 'text-gray-500 hover:text-gray-700'
 									}`}
-									onclick={() => layoutMode = 'masonry'}
+									onclick={() => (layoutMode = 'masonry')}
 									aria-pressed={layoutMode === 'masonry'}
 								>
-									<svg class="inline-block h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<svg
+										class="mr-1 inline-block h-4 w-4"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+									>
 										<rect x="3" y="3" width="7" height="7" rx="1" />
 										<rect x="14" y="3" width="7" height="10" rx="1" />
 										<rect x="3" y="14" width="7" height="7" rx="1" />
@@ -697,10 +708,16 @@
 											? 'bg-gray-100 text-gray-900'
 											: 'text-gray-500 hover:text-gray-700'
 									}`}
-									onclick={() => layoutMode = 'row'}
+									onclick={() => (layoutMode = 'row')}
 									aria-pressed={layoutMode === 'row'}
 								>
-									<svg class="inline-block h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<svg
+										class="mr-1 inline-block h-4 w-4"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+									>
 										<rect x="2" y="6" width="5" height="12" rx="1" />
 										<rect x="9" y="6" width="5" height="12" rx="1" />
 										<rect x="16" y="6" width="5" height="12" rx="1" />
@@ -718,9 +735,9 @@
 							{selectedStudentId}
 							{draggingId}
 							onDrop={handleDrop}
-							onDragStart={(id) => draggingId = id}
+							onDragStart={(id) => (draggingId = id)}
 							onSelect={selectStudent}
-							onDragEnd={() => draggingId = null}
+							onDragEnd={() => (draggingId = null)}
 							{flashingIds}
 							onUpdateGroup={handleUpdateGroup}
 							onDeleteGroup={handleDeleteGroup}
@@ -740,7 +757,7 @@
 					{preferenceMap}
 					{selectedStudentId}
 					onSelect={selectStudent}
-					onClose={() => sidebarOpen = false}
+					onClose={() => (sidebarOpen = false)}
 				/>
 			{/if}
 		</div>
@@ -752,14 +769,18 @@
 			message="This will discard all manual edits and regenerate groups from scratch."
 			confirmLabel="Start Over"
 			onConfirm={handleStartOver}
-			onCancel={() => { showStartOverConfirm = false; }}
+			onCancel={() => {
+				showStartOverConfirm = false;
+			}}
 		/>
 
 		<!-- Delete Group confirmation dialog -->
 		<ConfirmDialog
 			open={showDeleteGroupConfirm}
 			title="Delete group?"
-			message={groupToDelete ? `"${groupToDelete.name}" has ${groupToDelete.memberCount} student${groupToDelete.memberCount !== 1 ? 's' : ''}. They will be moved to Unassigned.` : ''}
+			message={groupToDelete
+				? `"${groupToDelete.name}" has ${groupToDelete.memberCount} student${groupToDelete.memberCount !== 1 ? 's' : ''}. They will be moved to Unassigned.`
+				: ''}
 			confirmLabel="Delete"
 			onConfirm={confirmDeleteGroup}
 			onCancel={cancelDeleteGroup}
@@ -767,7 +788,9 @@
 
 		<!-- Toast -->
 		{#if toastMessage}
-			<div class="fixed bottom-4 right-4 z-50 rounded-lg bg-gray-900/90 px-4 py-2 text-sm text-white shadow-lg">
+			<div
+				class="fixed right-4 bottom-4 z-50 rounded-lg bg-gray-900/90 px-4 py-2 text-sm text-white shadow-lg"
+			>
 				{toastMessage}
 			</div>
 		{/if}

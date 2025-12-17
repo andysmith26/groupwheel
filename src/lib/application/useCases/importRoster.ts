@@ -14,10 +14,8 @@ import type {
 } from './createPoolFromRosterData';
 import { createPoolFromRosterData } from './createPoolFromRosterData';
 
-export interface ImportRosterInput extends Omit<
-	CreatePoolFromRosterDataInput,
-	'rosterData' | 'poolType' | 'poolName'
-> {
+export interface ImportRosterInput
+	extends Omit<CreatePoolFromRosterDataInput, 'rosterData' | 'poolType' | 'poolName'> {
 	pastedText: string;
 	poolName: string;
 	poolType: PoolType;
