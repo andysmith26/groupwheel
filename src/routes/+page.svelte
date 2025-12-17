@@ -11,6 +11,7 @@
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import { listActivities } from '$lib/services/appEnvUseCases';
 	import { isOk } from '$lib/types/result';
+	import logo from '$lib/assets/logo.svg';
 
 	let checking = $state(true);
 
@@ -42,6 +43,7 @@
 	<div class="mx-auto max-w-3xl px-4 py-12">
 		<!-- Hero -->
 		<section class="text-center">
+			<img src={logo} alt="Groupwheel" class="mx-auto mb-6 h-24 w-24" />
 			<h1 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
 				Stop wrestling with spreadsheets to make student groups.
 			</h1>
@@ -52,7 +54,7 @@
 			<div class="mt-8">
 				<a
 					href="/groups/new"
-					class="inline-block rounded-lg bg-blue-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+					class="inline-block rounded-lg bg-coral px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-coral-dark focus:ring-2 focus:ring-coral focus:ring-offset-2 focus:outline-none"
 				>
 					Get Started — it's free
 				</a>
@@ -62,8 +64,8 @@
 		<!-- Value props -->
 		<section class="mt-16 grid gap-8 sm:grid-cols-2">
 			<div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-					<svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-coral/10">
+					<svg class="h-5 w-5 text-coral" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -80,8 +82,8 @@
 			</div>
 
 			<div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-					<svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-teal/10">
+					<svg class="h-5 w-5 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -98,8 +100,8 @@
 			</div>
 
 			<div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-					<svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-amber/10">
+					<svg class="h-5 w-5 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -115,8 +117,8 @@
 			</div>
 
 			<div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-					<svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-teal/10">
+					<svg class="h-5 w-5 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -137,7 +139,7 @@
 		<section class="mt-12 text-center">
 			<p class="text-sm text-gray-500">
 				Already have activities?
-				<a href="/groups" class="font-medium text-blue-600 hover:text-blue-700 hover:underline">
+				<a href="/groups" class="font-medium text-teal hover:text-teal-dark hover:underline">
 					Go to your dashboard →
 				</a>
 			</p>

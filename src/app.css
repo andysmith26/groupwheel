@@ -1,5 +1,20 @@
 @import 'tailwindcss';
 
+/* Theme colors derived from the Groupwheel logo */
+@theme {
+	/* Primary: Coral (warm, energetic - for primary actions) */
+	--color-coral: #E8735C;
+	--color-coral-dark: #D35E47;
+
+	/* Secondary: Teal (calm, trustworthy - for secondary elements) */
+	--color-teal: #6B9DAB;
+	--color-teal-dark: #5A8A98;
+
+	/* Accent: Amber (warm, inviting - for highlights) */
+	--color-amber: #D4A86A;
+	--color-amber-dark: #C19555;
+}
+
 /* Performance optimization utilities */
 /* Rendering isolation to prevent layout thrashing during animations */
 .rendering-isolated {
