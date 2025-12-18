@@ -83,7 +83,6 @@
 	let isDragging = $state(false);
 	let dragStartX = $state(0);
 	let dragScrollLeft = $state(0);
-	let buttonsVisible = $state(false);
 	let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// Computed scroll amount
@@ -202,7 +201,6 @@
 
 	function handleMouseLeave() {
 		if (isDragging) handleMouseUp();
-		buttonsVisible = false;
 	}
 
 	// =============================================================================
@@ -239,7 +237,6 @@
 	class="scroll-container-wrapper"
 	role="region"
 	aria-label={ariaLabel}
-	onmouseenter={() => (buttonsVisible = true)}
 	onmouseleave={handleMouseLeave}
 >
 	<!-- Left fade gradient -->
@@ -256,7 +253,6 @@
 		<button
 			type="button"
 			class="nav-button nav-button-left"
-			class:visible={buttonsVisible}
 			onclick={handleScrollLeft}
 			aria-label="Scroll left"
 			tabindex={-1}
@@ -294,7 +290,6 @@
 		<button
 			type="button"
 			class="nav-button nav-button-right"
-			class:visible={buttonsVisible}
 			onclick={handleScrollRight}
 			aria-label="Scroll right"
 			tabindex={-1}
@@ -397,44 +392,42 @@
 
 	.fade-left {
 		left: 0;
-		background: linear-gradient(to right, rgb(249 250 251) 0%, transparent 100%);
+		background: linear-gradient(to right, white 0%, transparent 100%);
 	}
 
 	.fade-right {
 		right: 0;
-		background: linear-gradient(to left, rgb(249 250 251) 0%, transparent 100%);
+		background: linear-gradient(to left, white 0%, transparent 100%);
 	}
 
 	/* Navigation buttons */
 	.nav-button {
 		position: absolute;
 		top: 50%;
-		transform: translateY(-50%) scale(0.9);
+		transform: translateY(-50%);
 		z-index: 3;
 		width: 36px;
 		height: 36px;
 		border-radius: 50%;
 		background: white;
-		border: 1px solid #e5e7eb;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		border: 1px solid #d1d5db;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
-		opacity: 0;
+		opacity: 0.9;
 		transition:
 			opacity 0.2s ease,
 			transform 0.2s ease,
-			background-color 0.15s ease;
-	}
-
-	.nav-button.visible {
-		opacity: 1;
-		transform: translateY(-50%) scale(1);
+			background-color 0.15s ease,
+			box-shadow 0.15s ease;
 	}
 
 	.nav-button:hover {
+		opacity: 1;
 		background: #f3f4f6;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 	}
 
 	.nav-button:active {
