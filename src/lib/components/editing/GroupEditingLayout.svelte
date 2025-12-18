@@ -100,15 +100,14 @@
 	.group-row {
 		display: flex;
 		flex-direction: row;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 		align-items: flex-start;
-		justify-content: center;
+		justify-content: flex-start;
 		gap: 12px;
 	}
 
 	.group-row > :global(*) {
-		flex: 1 1 200px;
-		min-width: 180px;
-		max-width: 280px;
+		flex: 0 0 auto;
+		width: 220px;
 	}
 </style>
