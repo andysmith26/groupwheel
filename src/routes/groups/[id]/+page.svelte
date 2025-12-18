@@ -615,9 +615,9 @@
 		</header>
 
 		<!-- Main content area -->
-		<div class={`flex flex-1 ${layoutMode === 'row' ? 'overflow-auto' : 'overflow-hidden'}`}>
+		<div class="flex flex-1 overflow-hidden">
 			<!-- Workspace (main area) -->
-			<main class={`flex-1 p-4 ${layoutMode === 'row' ? 'overflow-visible' : 'overflow-y-auto'}`}>
+			<main class="flex-1 overflow-y-auto p-4">
 				{#if generationError && (!scenario || !view)}
 					<!-- Generation failed - show error banner with retry option -->
 					<div class="mx-auto max-w-2xl py-8">
