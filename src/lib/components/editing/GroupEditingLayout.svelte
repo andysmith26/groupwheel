@@ -3,8 +3,27 @@
 	import { calculateRowSpan } from '$lib/utils/groups';
 	import EditableGroupColumn from './EditableGroupColumn.svelte';
 	import AddGroupCard from './AddGroupCard.svelte';
+	import HorizontalScrollContainer from '$lib/components/ui/HorizontalScrollContainer.svelte';
 
 	export type LayoutMode = 'masonry' | 'row';
+
+	// =============================================================================
+	// ROW MODE CONFIGURATION - Centralized magic numbers
+	// =============================================================================
+	const ROW_CONFIG = {
+		/** Width of each group card in pixels */
+		itemWidth: 220,
+		/** Gap between cards in pixels */
+		itemGap: 12,
+		/** Number of cards to scroll per button click */
+		scrollItemCount: 3,
+		/** Width of edge fade gradients in pixels */
+		fadeWidth: 48,
+		/** Debounce delay for scroll events in ms */
+		scrollDebounceMs: 50,
+		/** Threshold to consider "at edge" in pixels */
+		edgeThreshold: 5
+	} as const;
 
 	const {
 		groups = [],
@@ -51,30 +70,65 @@
 	}
 </script>
 
-<div class={layout === 'row' ? 'group-row' : 'group-grid'}>
-	{#each groups as group (group.id)}
-		<EditableGroupColumn
-			{group}
-			{studentsById}
-			{selectedStudentId}
-			{draggingId}
-			rowSpan={layout === 'row' ? 1 : calculateRowSpan(group)}
-			{onDrop}
-			{onSelect}
-			{onDragStart}
-			{onDragEnd}
-			{flashingIds}
-			{onUpdateGroup}
-			{onDeleteGroup}
-			focusNameOnMount={group.id === newGroupId}
-			preferenceRank={getPreferenceRank(group.id)}
-		/>
-	{/each}
+{#if layout === 'row'}
+	<HorizontalScrollContainer
+		totalItems={groups.length + (onAddGroup ? 1 : 0)}
+		config={ROW_CONFIG}
+		showProgress={true}
+		progressVariant="fraction"
+		ariaLabel="Group cards"
+	>
+		<div class="group-row">
+			{#each groups as group (group.id)}
+				<EditableGroupColumn
+					{group}
+					{studentsById}
+					{selectedStudentId}
+					{draggingId}
+					rowSpan={1}
+					{onDrop}
+					{onSelect}
+					{onDragStart}
+					{onDragEnd}
+					{flashingIds}
+					{onUpdateGroup}
+					{onDeleteGroup}
+					focusNameOnMount={group.id === newGroupId}
+					preferenceRank={getPreferenceRank(group.id)}
+				/>
+			{/each}
 
-	{#if onAddGroup}
-		<AddGroupCard rowSpan={layout === 'row' ? 1 : 4} {onAddGroup} />
-	{/if}
-</div>
+			{#if onAddGroup}
+				<AddGroupCard rowSpan={1} {onAddGroup} />
+			{/if}
+		</div>
+	</HorizontalScrollContainer>
+{:else}
+	<div class="group-grid">
+		{#each groups as group (group.id)}
+			<EditableGroupColumn
+				{group}
+				{studentsById}
+				{selectedStudentId}
+				{draggingId}
+				rowSpan={calculateRowSpan(group)}
+				{onDrop}
+				{onSelect}
+				{onDragStart}
+				{onDragEnd}
+				{flashingIds}
+				{onUpdateGroup}
+				{onDeleteGroup}
+				focusNameOnMount={group.id === newGroupId}
+				preferenceRank={getPreferenceRank(group.id)}
+			/>
+		{/each}
+
+		{#if onAddGroup}
+			<AddGroupCard rowSpan={4} {onAddGroup} />
+		{/if}
+	</div>
+{/if}
 
 <style>
 	.group-grid {
