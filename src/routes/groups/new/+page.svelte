@@ -6,7 +6,7 @@
 	 * Consolidates the previous Pool import + Program creation + Preferences upload
 	 * into a single guided flow.
 	 *
-	 * On completion, auto-generates groups and redirects to the workspace.
+	 * On completion, redirects to the candidate gallery for selection.
 	 *
 	 * See: docs/decisions/2025-12-01-unified-create-groups-wizard.md
 	 */
@@ -17,13 +17,13 @@
 	import type { Pool, GroupTemplate } from '$lib/domain';
 	import {
 		createGroupingActivity,
-		generateScenario,
 		listGroupTemplates,
 		listPools,
 		listPrograms,
 		getPoolWithStudents
 	} from '$lib/services/appEnvUseCases';
 	import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
+	import { setCandidateConfig } from '$lib/stores/candidateConfigStore';
 	import { isErr } from '$lib/types/result';
 
 	import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
@@ -375,22 +375,14 @@
 
 			const { program } = result.value;
 
-			// Step 2: AUTO-GENERATE groups
-			const generateResult = await generateScenario(env, {
-				programId: program.id,
-				algorithmConfig: buildAlgorithmConfig()
+			// Step 2: Store config for the candidate gallery
+			setCandidateConfig(program.id, {
+				algorithmConfig: buildAlgorithmConfig(),
+				candidateCount: 5
 			});
 
-			if (isErr(generateResult)) {
-				// Activity created but generation failed - redirect with error param
-				// so workspace page can show contextual error banner
-				console.warn('Auto-generation failed:', generateResult.error);
-				goto(`/groups/${program.id}?genError=${encodeURIComponent(generateResult.error.type)}`);
-				return;
-			}
-
-			// Step 3: Redirect to workspace
-			goto(`/groups/${program.id}`);
+			// Step 3: Redirect to candidate gallery
+			goto(`/groups/${program.id}/candidates`);
 		} catch (e) {
 			submitError = `Unexpected error: ${e instanceof Error ? e.message : 'Unknown error'}`;
 			isSubmitting = false;

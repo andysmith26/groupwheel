@@ -26,6 +26,8 @@ export * from './listPrograms';
 
 // Scenario operations
 export * from './generateScenario';
+export * from './generateMultipleCandidates';
+export * from './createScenarioFromGroups';
 export * from './computeScenarioAnalytics';
 export * from './computeAnalyticsSync';
 export * from './getStudentView';

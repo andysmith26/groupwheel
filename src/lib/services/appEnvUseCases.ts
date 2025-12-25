@@ -10,6 +10,17 @@ import type {
 } from '$lib/application/useCases/generateScenario';
 import { generateScenarioForProgram } from '$lib/application/useCases/generateScenario';
 import type {
+	GenerateMultipleCandidatesInput,
+	GenerateMultipleCandidatesError,
+	CandidateGrouping
+} from '$lib/application/useCases/generateMultipleCandidates';
+import { generateMultipleCandidates } from '$lib/application/useCases/generateMultipleCandidates';
+import type {
+	CreateScenarioFromGroupsInput,
+	CreateScenarioFromGroupsError
+} from '$lib/application/useCases/createScenarioFromGroups';
+import { createScenarioFromGroups } from '$lib/application/useCases/createScenarioFromGroups';
+import type {
 	ComputeScenarioAnalyticsInput,
 	ComputeScenarioAnalyticsError
 } from '$lib/application/useCases/computeScenarioAnalytics';
@@ -144,6 +155,39 @@ export async function generateScenario(
 			idGenerator: env.idGenerator,
 			clock: env.clock,
 			groupingAlgorithm: env.groupingAlgorithm
+		},
+		input
+	);
+}
+
+export async function generateCandidates(
+	env: InMemoryEnvironment,
+	input: GenerateMultipleCandidatesInput
+): Promise<Result<CandidateGrouping[], GenerateMultipleCandidatesError>> {
+	return generateMultipleCandidates(
+		{
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo,
+			preferenceRepo: env.preferenceRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock,
+			groupingAlgorithm: env.groupingAlgorithm
+		},
+		input
+	);
+}
+
+export async function createScenarioFromCandidate(
+	env: InMemoryEnvironment,
+	input: CreateScenarioFromGroupsInput
+): Promise<Result<import('$lib/domain').Scenario, CreateScenarioFromGroupsError>> {
+	return createScenarioFromGroups(
+		{
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo,
+			scenarioRepo: env.scenarioRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock
 		},
 		input
 	);

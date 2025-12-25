@@ -10,6 +10,7 @@
 	 * - Auto-save functionality
 	 */
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import {
@@ -177,11 +178,12 @@
 		preferences = data.preferences;
 		scenario = data.scenario;
 
-		if (scenario) {
-			initializeEditingStore(scenario);
+		if (!scenario) {
+			goto(`/groups/${programId}/candidates`);
+			return;
 		}
-		// Note: If no scenario, page shows EmptyWorkspaceState (edge case -
-		// normally wizard auto-generates before redirecting here)
+
+		initializeEditingStore(scenario);
 
 		loading = false;
 	}
@@ -542,6 +544,13 @@
 				<h1 class="text-xl font-semibold text-gray-900">{program.name}</h1>
 			</div>
 			<div class="flex items-center gap-3">
+				<button
+					type="button"
+					class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+					onclick={() => goto(`/groups/${program.id}/candidates`)}
+				>
+					View candidates
+				</button>
 				<button
 					type="button"
 					class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"

@@ -30,6 +30,10 @@ import {
 } from '$lib/infrastructure/repositories/indexedDb';
 import { UuidIdGenerator, SystemClock } from '$lib/infrastructure/services';
 import { BalancedGroupingAlgorithm } from '$lib/infrastructure/algorithms/balancedGrouping';
+import { RandomGroupingAlgorithm } from '$lib/infrastructure/algorithms/randomGrouping';
+import { RoundRobinGroupingAlgorithm } from '$lib/infrastructure/algorithms/roundRobinGrouping';
+import { PreferenceFirstGroupingAlgorithm } from '$lib/infrastructure/algorithms/preferenceFirstGrouping';
+import { MultiAlgorithmGroupingAlgorithm } from '$lib/infrastructure/algorithms/multiAlgorithm';
 import type {
 	Pool,
 	Program,
@@ -128,7 +132,31 @@ export function createInMemoryEnvironment(
 
 	const idGenerator = new UuidIdGenerator();
 	const clock = new SystemClock();
-	const groupingAlgorithm = new BalancedGroupingAlgorithm(studentRepo, preferenceRepo, idGenerator);
+	const groupingAlgorithm = new MultiAlgorithmGroupingAlgorithm(
+		[
+			{
+				id: 'balanced',
+				label: 'Balanced',
+				algorithm: new BalancedGroupingAlgorithm(studentRepo, preferenceRepo, idGenerator)
+			},
+			{
+				id: 'random',
+				label: 'Random Shuffle',
+				algorithm: new RandomGroupingAlgorithm(idGenerator)
+			},
+			{
+				id: 'round-robin',
+				label: 'Round Robin',
+				algorithm: new RoundRobinGroupingAlgorithm(idGenerator)
+			},
+			{
+				id: 'preference-first',
+				label: 'Preference-First',
+				algorithm: new PreferenceFirstGroupingAlgorithm(preferenceRepo, idGenerator)
+			}
+		],
+		'balanced'
+	);
 
 	return {
 		studentRepo,
