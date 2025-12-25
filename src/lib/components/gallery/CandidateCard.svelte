@@ -8,7 +8,8 @@
 		label,
 		isSelected = false,
 		disabled = false,
-		onSelect
+		onSelect,
+		onInfo
 	} = $props<{
 		candidate: CandidateGrouping;
 		studentsById: Record<string, Student>;
@@ -16,6 +17,7 @@
 		isSelected?: boolean;
 		disabled?: boolean;
 		onSelect?: (candidate: CandidateGrouping) => void;
+		onInfo?: (candidate: CandidateGrouping) => void;
 	}>();
 
 	const groupSizeSummary = $derived.by(() => {
@@ -96,8 +98,21 @@
 			{groupSizeSummary || 'Sizing TBD'}
 			</div>
 			{#if candidate.algorithmLabel}
-				<div class="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white">
-					{candidate.algorithmLabel}
+				<div class="flex items-center gap-1">
+					<div class="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white">
+						{candidate.algorithmLabel}
+					</div>
+					<button
+						type="button"
+						class="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+						aria-label={`About ${candidate.algorithmLabel}`}
+						onclick={(event) => {
+							event.stopPropagation();
+							onInfo?.(candidate);
+						}}
+					>
+						?
+					</button>
 				</div>
 			{/if}
 		</div>
