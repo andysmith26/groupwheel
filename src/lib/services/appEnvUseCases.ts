@@ -10,6 +10,12 @@ import type {
 } from '$lib/application/useCases/generateScenario';
 import { generateScenarioForProgram } from '$lib/application/useCases/generateScenario';
 import type {
+	GenerateCandidateInput,
+	GenerateCandidateError,
+	CandidateGrouping as CandidateGroupingSingle
+} from '$lib/application/useCases/generateCandidate';
+import { generateCandidate as generateCandidateUseCase } from '$lib/application/useCases/generateCandidate';
+import type {
 	GenerateMultipleCandidatesInput,
 	GenerateMultipleCandidatesError,
 	CandidateGrouping
@@ -165,6 +171,23 @@ export async function generateCandidates(
 	input: GenerateMultipleCandidatesInput
 ): Promise<Result<CandidateGrouping[], GenerateMultipleCandidatesError>> {
 	return generateMultipleCandidates(
+		{
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo,
+			preferenceRepo: env.preferenceRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock,
+			groupingAlgorithm: env.groupingAlgorithm
+		},
+		input
+	);
+}
+
+export async function generateCandidate(
+	env: InMemoryEnvironment,
+	input: GenerateCandidateInput
+): Promise<Result<CandidateGroupingSingle, GenerateCandidateError>> {
+	return generateCandidateUseCase(
 		{
 			programRepo: env.programRepo,
 			poolRepo: env.poolRepo,

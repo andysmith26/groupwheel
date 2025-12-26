@@ -26,6 +26,7 @@ export * from './listPrograms';
 
 // Scenario operations
 export * from './generateScenario';
+export * from './generateCandidate';
 export * from './generateMultipleCandidates';
 export * from './createScenarioFromGroups';
 export * from './computeScenarioAnalytics';

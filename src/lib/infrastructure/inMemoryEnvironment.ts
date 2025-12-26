@@ -33,6 +33,8 @@ import { BalancedGroupingAlgorithm } from '$lib/infrastructure/algorithms/balanc
 import { RandomGroupingAlgorithm } from '$lib/infrastructure/algorithms/randomGrouping';
 import { RoundRobinGroupingAlgorithm } from '$lib/infrastructure/algorithms/roundRobinGrouping';
 import { PreferenceFirstGroupingAlgorithm } from '$lib/infrastructure/algorithms/preferenceFirstGrouping';
+import { SimulatedAnnealingGroupingAlgorithm } from '$lib/infrastructure/algorithms/simulatedAnnealingGrouping';
+import { GeneticGroupingAlgorithm } from '$lib/infrastructure/algorithms/geneticGrouping';
 import { MultiAlgorithmGroupingAlgorithm } from '$lib/infrastructure/algorithms/multiAlgorithm';
 import type {
 	Pool,
@@ -153,6 +155,16 @@ export function createInMemoryEnvironment(
 				id: 'preference-first',
 				label: 'Preference-First',
 				algorithm: new PreferenceFirstGroupingAlgorithm(preferenceRepo, idGenerator)
+			},
+			{
+				id: 'simulated-annealing',
+				label: 'Simulated Annealing',
+				algorithm: new SimulatedAnnealingGroupingAlgorithm(preferenceRepo, idGenerator)
+			},
+			{
+				id: 'genetic',
+				label: 'Genetic Algorithm',
+				algorithm: new GeneticGroupingAlgorithm(preferenceRepo, idGenerator)
 			}
 		],
 		'balanced'

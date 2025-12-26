@@ -68,6 +68,36 @@ export const algorithmTutorials: AlgorithmTutorial[] = [
 			'Use when student choice is the priority.',
 			'Expect more variation in group sizes or composition.'
 		]
+	},
+	{
+		id: 'simulated-annealing',
+		label: 'Simulated Annealing',
+		summary: 'Improves an initial grouping by making small swaps that increase overall satisfaction.',
+		metaphor: 'Like rearranging seats bit by bit until the room feels better overall.',
+		details: [
+			'This option starts with a grouping and tries lots of small swaps.',
+			'It keeps changes that help and sometimes accepts small setbacks to escape local ruts.',
+			'It is useful when you want a more refined result and can wait a little longer.'
+		],
+		tips: [
+			'Use when you want a more optimized mix.',
+			'Expect a longer generate time than the faster methods.'
+		]
+	},
+	{
+		id: 'genetic',
+		label: 'Genetic Algorithm',
+		summary: 'Evolves multiple groupings and keeps the best ideas across rounds.',
+		metaphor: 'Like trying a few lineups, keeping the best, and mixing them into stronger teams.',
+		details: [
+			'This option creates several candidate groupings at once.',
+			'It keeps the strongest results and combines them over a few rounds.',
+			'It can discover good combinations but is more computationally intensive.'
+		],
+		tips: [
+			'Use when you want diversity and optimization.',
+			'Expect a longer generate time than the faster methods.'
+		]
 	}
 ];
 

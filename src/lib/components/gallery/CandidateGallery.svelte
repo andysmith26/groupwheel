@@ -1,31 +1,36 @@
 <script lang="ts">
 	import type { CandidateGrouping } from '$lib/application/useCases/generateMultipleCandidates';
 	import type { Student } from '$lib/domain';
-	import CandidateCard from '$lib/components/gallery/CandidateCard.svelte';
-	import AlgorithmTutorialContent from '$lib/components/gallery/AlgorithmTutorialContent.svelte';
-	import { algorithmTutorialsById } from '$lib/content/algorithmTutorials';
+import CandidateCard from '$lib/components/gallery/CandidateCard.svelte';
+import CandidateProgressCard from '$lib/components/gallery/CandidateProgressCard.svelte';
+import AlgorithmTutorialContent from '$lib/components/gallery/AlgorithmTutorialContent.svelte';
+import { algorithmTutorialsById } from '$lib/content/algorithmTutorials';
 
-	const {
-		candidates = [],
-		studentsById,
-		selectedId,
-		disabled = false,
-		onSelect
-	} = $props<{
-		candidates?: CandidateGrouping[];
-		studentsById: Record<string, Student>;
-		selectedId?: string | null;
-		disabled?: boolean;
-		onSelect?: (candidate: CandidateGrouping) => void;
-	}>();
+type CandidateEntry =
+	| { status: 'ready'; candidate: CandidateGrouping }
+	| { status: 'pending'; id: string; algorithmId: string; algorithmLabel: string };
+
+const {
+	entries = [],
+	studentsById,
+	selectedId,
+	disabled = false,
+	onSelect
+} = $props<{
+	entries?: CandidateEntry[];
+	studentsById: Record<string, Student>;
+	selectedId?: string | null;
+	disabled?: boolean;
+	onSelect?: (candidate: CandidateGrouping) => void;
+}>();
 
 	let infoOpen = $state(false);
-	let activeTutorialId = $state<string | null>(null);
+let activeTutorialId = $state<string | null>(null);
 
-	function openInfo(candidate: CandidateGrouping) {
-		activeTutorialId = candidate.algorithmId;
-		infoOpen = true;
-	}
+function openInfo(algorithmId: string) {
+	activeTutorialId = algorithmId;
+	infoOpen = true;
+}
 
 	function closeInfo() {
 		infoOpen = false;
@@ -34,16 +39,24 @@
 </script>
 
 <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-	{#each candidates as candidate, index}
-		<CandidateCard
-			{candidate}
-			{studentsById}
-			label={`Option ${index + 1}`}
-			isSelected={candidate.id === selectedId}
-			{disabled}
-			onSelect={disabled ? undefined : onSelect}
-			onInfo={openInfo}
-		/>
+	{#each entries as entry, index}
+		{#if entry.status === 'pending'}
+			<CandidateProgressCard
+				label={`Option ${index + 1}`}
+				algorithmLabel={entry.algorithmLabel}
+				onInfo={() => openInfo(entry.algorithmId, entry.algorithmLabel)}
+			/>
+		{:else}
+			<CandidateCard
+				candidate={entry.candidate}
+				{studentsById}
+				label={`Option ${index + 1}`}
+				isSelected={entry.candidate.id === selectedId}
+				{disabled}
+				onSelect={disabled ? undefined : onSelect}
+				onInfo={openInfo}
+			/>
+		{/if}
 	{/each}
 </div>
 

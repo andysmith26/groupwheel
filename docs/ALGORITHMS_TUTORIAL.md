@@ -7,7 +7,7 @@ Each option uses a different "style" of grouping so you can compare trade-offs.
 
 No single grouping strategy is perfect for every class. The gallery gives you a mix so you can quickly scan and choose the option that fits your goals for the day.
 
-## The four styles you will see
+## The six styles you will see
 
 ### Balanced
 
@@ -32,6 +32,18 @@ No single grouping strategy is perfect for every class. The gallery gives you a 
 - Tries to place each student into their top requested group.
 - Maximizes first-choice satisfaction.
 - May sacrifice balance or overall fairness to honor preferences.
+
+### Simulated Annealing
+
+- Starts with a grouping and makes lots of small swaps.
+- Keeps changes that improve the overall fit, sometimes accepts small setbacks to explore.
+- Think of it like rearranging seats bit by bit until the room feels better overall.
+
+### Genetic Algorithm
+
+- Creates several groupings, keeps the best, and combines them over a few rounds.
+- Searches for stronger combinations by mixing \"good parts\" of different options.
+- Think of it like trying a few lineups and remixing the strongest into better teams.
 
 ## How to use the gallery
 

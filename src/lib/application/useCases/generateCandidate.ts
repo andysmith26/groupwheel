@@ -10,15 +10,16 @@ import type {
 import type { Result } from '$lib/types/result';
 import { err, ok } from '$lib/types/result';
 import { computeGroupsAnalytics } from '$lib/application/useCases/computeGroupsAnalytics';
-import { candidateAlgorithmCatalog } from '$lib/application/algorithmCatalog';
+import { getAlgorithmLabel } from '$lib/application/algorithmCatalog';
 
 /**
- * Input for generating multiple candidate groupings for a Program.
+ * Input for generating a single candidate grouping for a Program.
  */
-export interface GenerateMultipleCandidatesInput {
+export interface GenerateCandidateInput {
 	programId: string;
+	algorithmId: string;
 	algorithmConfig?: unknown;
-	count?: number;
+	seed?: number;
 }
 
 /**
@@ -37,7 +38,7 @@ export interface CandidateGrouping {
 /**
  * Specific failure modes for candidate generation.
  */
-export type GenerateMultipleCandidatesError =
+export type GenerateCandidateError =
 	| { type: 'PROGRAM_NOT_FOUND'; programId: string }
 	| { type: 'POOL_NOT_FOUND'; poolId: string }
 	| { type: 'POOL_HAS_NO_MEMBERS'; poolId: string }
@@ -57,9 +58,9 @@ function applySeedToConfig(config: unknown, seed: number, algorithmId: string): 
 }
 
 /**
- * Generate multiple grouping candidates for a Program without persisting them.
+ * Generate a single grouping candidate for a Program without persisting it.
  */
-export async function generateMultipleCandidates(
+export async function generateCandidate(
 	deps: {
 		programRepo: ProgramRepository;
 		poolRepo: PoolRepository;
@@ -68,8 +69,8 @@ export async function generateMultipleCandidates(
 		clock: Clock;
 		groupingAlgorithm: GroupingAlgorithm;
 	},
-	input: GenerateMultipleCandidatesInput
-): Promise<Result<CandidateGrouping[], GenerateMultipleCandidatesError>> {
+	input: GenerateCandidateInput
+): Promise<Result<CandidateGrouping, GenerateCandidateError>> {
 	const program = await deps.programRepo.getById(input.programId);
 	if (!program) {
 		return err({
@@ -102,52 +103,42 @@ export async function generateMultipleCandidates(
 
 	const preferences = await deps.preferenceRepo.listByProgramId(program.id);
 	const sanitizedConfig = sanitizeAlgorithmConfig(input.algorithmConfig);
-	const desiredCount = Math.max(1, Math.floor(input.count ?? 5));
-	const seedBase = Date.now();
-	const algorithms = candidateAlgorithmCatalog;
+	const seed = input.seed ?? Date.now();
+	const candidateConfig = applySeedToConfig(sanitizedConfig, seed, input.algorithmId);
 
-	const candidates: CandidateGrouping[] = [];
+	const groupingResult = await deps.groupingAlgorithm.generateGroups({
+		programId: program.id,
+		studentIds: pool.memberIds,
+		algorithmConfig: candidateConfig
+	});
 
-	for (let i = 0; i < desiredCount; i++) {
-		const seed = seedBase + i * 9973;
-		const algorithm = algorithms[i % algorithms.length];
-		const candidateConfig = applySeedToConfig(sanitizedConfig, seed, algorithm.id);
-		const groupingResult = await deps.groupingAlgorithm.generateGroups({
-			programId: program.id,
-			studentIds: pool.memberIds,
-			algorithmConfig: candidateConfig
-		});
-
-		if (!groupingResult.success) {
-			return err({
-				type: 'GROUPING_ALGORITHM_FAILED',
-				message: groupingResult.message
-			});
-		}
-
-		const groups: Group[] = groupingResult.groups.map((group) => ({
-			id: group.id,
-			name: group.name,
-			capacity: group.capacity,
-			memberIds: group.memberIds
-		}));
-
-		const analytics = computeGroupsAnalytics({
-			groups,
-			preferences,
-			participantSnapshot: pool.memberIds
-		});
-
-		candidates.push({
-			id: deps.idGenerator.generateId(),
-			groups,
-			analytics,
-			generatedAt: deps.clock.now(),
-			algorithmId: algorithm.id,
-			algorithmLabel: algorithm.label,
-			algorithmConfig: candidateConfig
+	if (!groupingResult.success) {
+		return err({
+			type: 'GROUPING_ALGORITHM_FAILED',
+			message: groupingResult.message
 		});
 	}
 
-	return ok(candidates);
+	const groups: Group[] = groupingResult.groups.map((group) => ({
+		id: group.id,
+		name: group.name,
+		capacity: group.capacity,
+		memberIds: group.memberIds
+	}));
+
+	const analytics = computeGroupsAnalytics({
+		groups,
+		preferences,
+		participantSnapshot: pool.memberIds
+	});
+
+	return ok({
+		id: deps.idGenerator.generateId(),
+		groups,
+		analytics,
+		generatedAt: deps.clock.now(),
+		algorithmId: input.algorithmId,
+		algorithmLabel: getAlgorithmLabel(input.algorithmId),
+		algorithmConfig: candidateConfig
+	});
 }

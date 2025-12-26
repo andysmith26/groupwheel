@@ -6,12 +6,17 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-import type { Program, Pool, Student, Scenario } from '$lib/domain';
-	import type { CandidateGrouping } from '$lib/application/useCases/generateMultipleCandidates';
-	import { generateCandidates, getActivityData, createScenarioFromCandidate } from '$lib/services/appEnvUseCases';
+	import type { Program, Pool, Student, Scenario } from '$lib/domain';
+	import type { CandidateGrouping } from '$lib/application/useCases/generateCandidate';
+	import {
+		generateCandidate,
+		getActivityData,
+		createScenarioFromCandidate
+	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 	import CandidateGallery from '$lib/components/gallery/CandidateGallery.svelte';
 	import ConfirmDialog from '$lib/components/editing/ConfirmDialog.svelte';
+	import { candidateAlgorithmCatalog } from '$lib/application/algorithmCatalog';
 	import {
 		getCandidateConfig,
 		setCandidateConfig,
@@ -19,11 +24,15 @@ import type { Program, Pool, Student, Scenario } from '$lib/domain';
 	} from '$lib/stores/candidateConfigStore';
 
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
-let program = $state<Program | null>(null);
-let pool = $state<Pool | null>(null);
-let students = $state<Student[]>([]);
-let scenario = $state<Scenario | null>(null);
-let candidates = $state<CandidateGrouping[]>([]);
+	let program = $state<Program | null>(null);
+	let pool = $state<Pool | null>(null);
+	let students = $state<Student[]>([]);
+	let scenario = $state<Scenario | null>(null);
+	type CandidateEntry =
+		| { status: 'ready'; candidate: CandidateGrouping }
+		| { status: 'pending'; id: string; algorithmId: string; algorithmLabel: string };
+
+	let candidateEntries = $state<CandidateEntry[]>([]);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
 	let isGenerating = $state(false);
@@ -34,10 +43,13 @@ let candidates = $state<CandidateGrouping[]>([]);
 	let candidateCount = $state(5);
 	let algorithmConfig = $state<unknown | undefined>(undefined);
 
-let studentsById = $derived<Record<string, Student>>(
-	Object.fromEntries(students.map((student) => [student.id, student]))
-);
-let hasScenario = $derived(!!scenario);
+	let studentsById = $derived<Record<string, Student>>(
+		Object.fromEntries(students.map((student) => [student.id, student]))
+	);
+	let hasScenario = $derived(!!scenario);
+	let hasReadyCandidate = $derived(
+		candidateEntries.some((entry) => entry.status === 'ready')
+	);
 
 	const minCandidates = 3;
 	const maxCandidates = 8;
@@ -66,19 +78,20 @@ let hasScenario = $derived(!!scenario);
 			return;
 		}
 
-	const data = result.value;
-	scenario = data.scenario;
-	program = data.program;
-	pool = data.pool;
-	students = data.students;
+		const data = result.value;
+		scenario = data.scenario;
+		program = data.program;
+		pool = data.pool;
+		students = data.students;
 
 		const storedConfig = getCandidateConfig(programId);
 		if (storedConfig?.candidateCount) {
 			candidateCount = clampCandidateCount(storedConfig.candidateCount);
 		}
-	algorithmConfig = scenario?.algorithmConfig ?? storedConfig?.algorithmConfig;
+		algorithmConfig = scenario?.algorithmConfig ?? storedConfig?.algorithmConfig;
 
-		await generateOptions();
+		candidateEntries = [];
+		await generateOptions({ append: false });
 		loading = false;
 	}
 
@@ -97,86 +110,156 @@ let hasScenario = $derived(!!scenario);
 		}
 	}
 
-	async function generateOptions() {
+	function buildAlgorithmPlan(count: number) {
+		const algorithms = candidateAlgorithmCatalog;
+		const plan: typeof algorithms = [];
+		let lastId: string | null = null;
+		let pool = [...algorithms];
+
+		function shufflePool() {
+			pool = [...algorithms].sort(() => Math.random() - 0.5);
+		}
+
+		shufflePool();
+
+		for (let i = 0; i < count; i++) {
+			if (pool.length === 0) {
+				shufflePool();
+			}
+			let next = pool.shift() ?? algorithms[0];
+			if (next.id === lastId && pool.length > 0) {
+				const alternate = pool.shift();
+				if (alternate) {
+					pool.push(next);
+					next = alternate;
+				}
+			}
+			plan.push(next);
+			lastId = next.id;
+		}
+
+		return plan;
+	}
+
+	async function generateOptions({ append }: { append: boolean }) {
 		if (!env || !program) return;
 
 		isGenerating = true;
 		loadError = null;
-		selectedCandidateId = null;
 
-		const result = await generateCandidates(env, {
-			programId: program.id,
-			algorithmConfig,
-			count: candidateCount
-		});
-
-		if (isErr(result)) {
-			loadError = result.error.type === 'GROUPING_ALGORITHM_FAILED'
-				? result.error.message
-				: 'Unable to generate candidate groupings.';
-			isGenerating = false;
-			return;
+		if (!append) {
+			candidateEntries = [];
 		}
 
-		candidates = result.value;
+		const plan = buildAlgorithmPlan(candidateCount).map((algorithm) => ({
+			...algorithm,
+			pendingId: algorithm.isSlow ? env.idGenerator.generateId() : null
+		}));
+
+		const pendingEntries = plan
+			.filter((algorithm) => algorithm.isSlow && algorithm.pendingId)
+			.map((algorithm) => ({
+				status: 'pending' as const,
+				id: algorithm.pendingId!,
+				algorithmId: algorithm.id,
+				algorithmLabel: algorithm.label
+			}));
+
+		if (pendingEntries.length > 0) {
+			candidateEntries = append ? [...candidateEntries, ...pendingEntries] : pendingEntries;
+		}
+
+		for (const algorithm of plan) {
+			const seed = Date.now() + Math.floor(Math.random() * 10000);
+			const result = await generateCandidate(env, {
+				programId: program.id,
+				algorithmId: algorithm.id,
+				algorithmConfig,
+				seed
+			});
+
+			if (isErr(result)) {
+				loadError = result.error.type === 'GROUPING_ALGORITHM_FAILED'
+					? result.error.message
+					: 'Unable to generate candidate groupings.';
+				if (algorithm.pendingId) {
+					candidateEntries = candidateEntries.filter(
+						(entry) => !(entry.status === 'pending' && entry.id === algorithm.pendingId)
+					);
+				}
+				continue;
+			}
+
+			const candidate = result.value;
+			if (algorithm.isSlow && algorithm.pendingId) {
+				candidateEntries = candidateEntries.map((entry) =>
+					entry.status === 'pending' && entry.id === algorithm.pendingId
+						? { status: 'ready', candidate }
+						: entry
+				);
+			} else {
+				candidateEntries = [...candidateEntries, { status: 'ready', candidate }];
+			}
+		}
 		isGenerating = false;
 	}
 
-async function handleSelect(candidate: CandidateGrouping) {
-	if (!env || !program || isSaving) return;
+	async function handleSelect(candidate: CandidateGrouping) {
+		if (!env || !program || isSaving) return;
 
-	if (scenario) {
-		pendingCandidate = candidate;
-		showReplaceConfirm = true;
-		return;
+		if (scenario) {
+			pendingCandidate = candidate;
+			showReplaceConfirm = true;
+			return;
+		}
+
+		await saveCandidate(candidate, false);
 	}
 
-	await saveCandidate(candidate, false);
-}
+	async function saveCandidate(candidate: CandidateGrouping, replaceExisting: boolean) {
+		if (!env || !program || isSaving) return;
+		selectedCandidateId = candidate.id;
+		isSaving = true;
 
-async function saveCandidate(candidate: CandidateGrouping, replaceExisting: boolean) {
-	if (!env || !program || isSaving) return;
-	selectedCandidateId = candidate.id;
-	isSaving = true;
+		const result = await createScenarioFromCandidate(env, {
+			programId: program.id,
+			groups: candidate.groups,
+			algorithmConfig: candidate.algorithmConfig,
+			replaceExisting
+		});
 
-	const result = await createScenarioFromCandidate(env, {
-		programId: program.id,
-		groups: candidate.groups,
-		algorithmConfig: candidate.algorithmConfig,
-		replaceExisting
-	});
+		if (isErr(result)) {
+			loadError = 'Unable to save this option. Please try another.';
+			isSaving = false;
+			return;
+		}
 
-	if (isErr(result)) {
-		loadError = 'Unable to save this option. Please try another.';
-		isSaving = false;
-		return;
+		clearCandidateConfig(program.id);
+		goto(`/groups/${program.id}`);
 	}
 
-	clearCandidateConfig(program.id);
-	goto(`/groups/${program.id}`);
-}
+	function handleReturnToEditing() {
+		if (!program) return;
+		goto(`/groups/${program.id}`);
+	}
 
-function handleReturnToEditing() {
-	if (!program) return;
-	goto(`/groups/${program.id}`);
-}
+	function handleQuickStart() {
+		const firstReady = candidateEntries.find((entry) => entry.status === 'ready');
+		if (!firstReady || firstReady.status !== 'ready') return;
+		handleSelect(firstReady.candidate);
+	}
 
-function handleQuickStart() {
-	if (candidates.length === 0) return;
-	handleSelect(candidates[0]);
-}
+	function cancelReplace() {
+		showReplaceConfirm = false;
+		pendingCandidate = null;
+	}
 
-function cancelReplace() {
-	showReplaceConfirm = false;
-	pendingCandidate = null;
-}
-
-async function confirmReplace() {
-	if (!pendingCandidate) return;
-	showReplaceConfirm = false;
-	await saveCandidate(pendingCandidate, true);
-	pendingCandidate = null;
-}
+	async function confirmReplace() {
+		if (!pendingCandidate) return;
+		showReplaceConfirm = false;
+		await saveCandidate(pendingCandidate, true);
+		pendingCandidate = null;
+	}
 </script>
 
 <svelte:head>
@@ -214,7 +297,7 @@ async function confirmReplace() {
 					<button
 						type="button"
 						class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-						onclick={generateOptions}
+						onclick={() => generateOptions({ append: true })}
 						disabled={isGenerating || loading}
 					>
 						{isGenerating ? 'Generating...' : 'Generate more options'}
@@ -233,7 +316,7 @@ async function confirmReplace() {
 							type="button"
 							class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
 							onclick={handleQuickStart}
-							disabled={candidates.length === 0 || isSaving || loading}
+							disabled={!hasReadyCandidate || isSaving || loading}
 						>
 							Quick start with first option
 						</button>
@@ -272,13 +355,13 @@ async function confirmReplace() {
 			<div class="rounded-xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
 				{loadError}
 			</div>
-		{:else if candidates.length === 0}
+		{:else if candidateEntries.length === 0}
 			<div class="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
 				No candidates yet. Generate options to continue.
 			</div>
 		{:else}
 			<CandidateGallery
-				{candidates}
+				entries={candidateEntries}
 				{studentsById}
 				selectedId={selectedCandidateId}
 				onSelect={handleSelect}

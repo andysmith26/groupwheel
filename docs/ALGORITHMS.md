@@ -16,6 +16,8 @@ The current mix is:
 - Random Shuffle
 - Round Robin
 - Preference-First
+- Simulated Annealing
+- Genetic Algorithm
 
 See `src/lib/infrastructure/inMemoryEnvironment.ts` for registration and
 `src/lib/infrastructure/algorithms/multiAlgorithm.ts` for dispatching.
@@ -89,12 +91,37 @@ If `groups` is not provided, default groups are generated based on size constrai
 - Falls back to round-robin fill for unassigned students.
 - Good for maximizing top-choice rate, may be less globally balanced.
 
+### Simulated Annealing
+
+**Id**: `simulated-annealing`
+
+**Purpose**: Iteratively improve a grouping by swapping students to raise preference satisfaction.
+
+**Implementation**: `src/lib/infrastructure/algorithms/simulatedAnnealingGrouping.ts`
+
+**Notes**:
+- Starts from a randomized grouping and performs many small swaps.
+- Accepts some worse swaps early to escape local optima.
+- Produces more refined results at the cost of extra runtime.
+
+### Genetic Algorithm
+
+**Id**: `genetic`
+
+**Purpose**: Evolve a population of candidate groupings to improve satisfaction.
+
+**Implementation**: `src/lib/infrastructure/algorithms/geneticGrouping.ts`
+
+**Notes**:
+- Generates multiple candidate orderings and recombines the strongest.
+- Uses crossover + mutation over a few generations.
+- More compute-intensive but can surface higher-quality options.
+
 ## Candidate Generation Strategy
 
-The candidate generator rotates through the algorithms in order and applies a unique seed per candidate.
+The candidate generator samples from the algorithm mix and applies a unique seed per candidate.
 This ensures:
 - Algorithmic variety across options
-- Deterministic repeatability within the same seed
 - Mixed trade-offs between preference satisfaction and balance
 
 Implementation: `src/lib/application/useCases/generateMultipleCandidates.ts`

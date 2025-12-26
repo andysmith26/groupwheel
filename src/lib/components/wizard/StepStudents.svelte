@@ -9,6 +9,7 @@
 	import { devTools } from '$lib/stores/devTools.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { ParsedStudent } from '$lib/application/useCases/createGroupingActivity';
+	import { sampleRosters, sampleRosterById } from '$lib/content/sampleRosters';
 
 	interface Props {
 		students: ParsedStudent[];
@@ -21,32 +22,13 @@
 	let parseError = $state('');
 	let showFormatHelp = $state(false);
 
-	// Sample data for dev mode testing
-	// 20 students to demonstrate meaningful group formation
-	const SAMPLE_ROSTER = `name	id	grade
-Alice Chen	alice@school.edu	9
-Brandon Kim	brandon@school.edu	9
-Carmen Lopez	carmen@school.edu	9
-David Patel	david@school.edu	9
-Emma Wilson	emma@school.edu	9
-Felix Nguyen	felix@school.edu	9
-Grace Thompson	grace@school.edu	10
-Henry Martinez	henry@school.edu	10
-Iris Johnson	iris@school.edu	10
-James Lee	james@school.edu	10
-Kai Anderson	kai@school.edu	10
-Luna Garcia	luna@school.edu	10
-Mason Brown	mason@school.edu	11
-Nora Davis	nora@school.edu	11
-Owen Taylor	owen@school.edu	11
-Priya Singh	priya@school.edu	11
-Quinn Murphy	quinn@school.edu	11
-Riley Jackson	riley@school.edu	11
-Sofia Clark	sofia@school.edu	12
-Tyler White	tyler@school.edu	12`;
+	let showSampleMenu = $state(false);
 
-	function loadSampleData() {
-		pastedText = SAMPLE_ROSTER;
+	function loadSampleData(rosterId: string) {
+		const roster = sampleRosterById.get(rosterId);
+		if (!roster) return;
+		pastedText = roster.data;
+		showSampleMenu = false;
 		parseRoster();
 	}
 
@@ -169,13 +151,37 @@ Tyler White	tyler@school.edu	12`;
 				Roster data
 			</label>
 			{#if devTools.enabled}
-				<button
-					type="button"
-					class="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200"
-					onclick={loadSampleData}
-				>
-					Load sample data
-				</button>
+				<div class="relative">
+					<button
+						type="button"
+						class="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200"
+						onclick={() => (showSampleMenu = !showSampleMenu)}
+					>
+						Load sample data
+					</button>
+					{#if showSampleMenu}
+						<div
+							class="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-gray-200 bg-white p-2 shadow-lg"
+						>
+							{#each sampleRosters as roster}
+								<button
+									type="button"
+									class="w-full rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+									onclick={() => loadSampleData(roster.id)}
+								>
+									<div class="font-medium text-gray-900">{roster.label}</div>
+									<div class="text-xs text-gray-500">{roster.description}</div>
+								</button>
+							{/each}
+						</div>
+						<button
+							type="button"
+							class="fixed inset-0 z-10 cursor-default"
+							aria-label="Close sample menu"
+							onclick={() => (showSampleMenu = false)}
+						></button>
+					{/if}
+				</div>
 			{/if}
 		</div>
 

@@ -17,7 +17,7 @@
 		isSelected?: boolean;
 		disabled?: boolean;
 		onSelect?: (candidate: CandidateGrouping) => void;
-		onInfo?: (candidate: CandidateGrouping) => void;
+		onInfo?: (algorithmId: string, algorithmLabel?: string) => void;
 	}>();
 
 	const groupSizeSummary = $derived.by(() => {
@@ -108,7 +108,7 @@
 						aria-label={`About ${candidate.algorithmLabel}`}
 						onclick={(event) => {
 							event.stopPropagation();
-							onInfo?.(candidate);
+							onInfo?.(candidate.algorithmId, candidate.algorithmLabel);
 						}}
 					>
 						?
@@ -131,7 +131,7 @@
 
 	<div class="rounded-lg border border-slate-200 bg-white p-3">
 		<div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Group Preview</div>
-		<div class="mt-2 max-h-56 overflow-auto pr-1">
+		<div class="mt-2">
 			<div class="grid grid-cols-2 gap-3 text-xs leading-snug text-slate-700">
 				{#each candidate.groups as group}
 					<div class="rounded-md border border-slate-100 bg-slate-50/60 p-2">
