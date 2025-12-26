@@ -80,7 +80,7 @@
 
 	// Menu state
 	let menuOpen = $state(false);
-	let menuContainer: HTMLDivElement;
+	let menuContainer = $state<HTMLDivElement | null>(null);
 
 	// Input references
 	let nameInput: HTMLInputElement;

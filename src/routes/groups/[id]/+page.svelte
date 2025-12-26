@@ -547,7 +547,10 @@
 				<button
 					type="button"
 					class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-					onclick={() => goto(`/groups/${program.id}/candidates`)}
+					onclick={() => {
+						if (!program) return;
+						goto(`/groups/${program.id}/candidates`);
+					}}
 				>
 					View candidates
 				</button>

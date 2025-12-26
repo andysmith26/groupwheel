@@ -27,7 +27,7 @@ const {
 	let infoOpen = $state(false);
 let activeTutorialId = $state<string | null>(null);
 
-function openInfo(algorithmId: string) {
+function openInfo(algorithmId: string, _algorithmLabel?: string) {
 	activeTutorialId = algorithmId;
 	infoOpen = true;
 }

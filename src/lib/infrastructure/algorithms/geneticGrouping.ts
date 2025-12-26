@@ -48,7 +48,7 @@ export class GeneticGroupingAlgorithm implements GroupingAlgorithm {
 		const generations = Math.min(8, Math.max(4, Math.ceil(params.studentIds.length / 10)));
 
 		const createGroupsFromOrder = (order: string[]): Group[] => {
-			const groups = baseGroups.map((group) => ({
+			const groups: Group[] = baseGroups.map((group) => ({
 				...group,
 				memberIds: []
 			}));

@@ -34,7 +34,15 @@
 	class={`rounded-lg border bg-white px-3 py-2 text-sm shadow-sm transition duration-150 ease-out ${
 		selected ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'
 	} ${isDragging ? 'opacity-60' : ''} ${flash ? 'flash-move' : ''}`}
+	role="button"
+	tabindex="0"
 	onclick={() => onSelect?.(student.id)}
+	onkeydown={(event) => {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			onSelect?.(student.id);
+		}
+	}}
 >
 	<div class="flex items-center justify-between">
 		<span class="font-medium text-gray-900">{name}</span>

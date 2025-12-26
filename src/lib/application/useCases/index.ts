@@ -26,8 +26,18 @@ export * from './listPrograms';
 
 // Scenario operations
 export * from './generateScenario';
-export * from './generateCandidate';
-export * from './generateMultipleCandidates';
+export {
+	generateCandidate,
+	type GenerateCandidateInput,
+	type GenerateCandidateError,
+	type CandidateGrouping as CandidateGroupingSingle
+} from './generateCandidate';
+export {
+	generateMultipleCandidates,
+	type GenerateMultipleCandidatesInput,
+	type GenerateMultipleCandidatesError,
+	type CandidateGrouping as CandidateGroupingMultiple
+} from './generateMultipleCandidates';
 export * from './createScenarioFromGroups';
 export * from './computeScenarioAnalytics';
 export * from './computeAnalyticsSync';

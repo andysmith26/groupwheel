@@ -7,6 +7,8 @@
 	import { setAppEnvContext } from '$lib/contexts/appEnv';
 	import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
 
+	const { children } = $props();
+
 	if (browser) {
 		const env = createInMemoryEnvironment();
 		setAppEnvContext(env);
@@ -58,6 +60,6 @@
 	</header>
 
 	<main class={$page.route.id?.startsWith('/groups/[id]') ? '' : 'mx-auto max-w-6xl p-4'}>
-		<slot />
+		{@render children()}
 	</main>
 </div>

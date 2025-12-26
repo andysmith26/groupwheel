@@ -74,9 +74,10 @@
 	}
 </script>
 
-<button
-	type="button"
-	disabled={disabled}
+<div
+	role="button"
+	tabindex={disabled ? -1 : 0}
+	aria-disabled={disabled}
 	class={`group flex h-full w-full flex-col gap-4 rounded-xl border bg-white p-4 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
 		disabled
 			? 'cursor-not-allowed border-slate-100 opacity-70'
@@ -86,6 +87,13 @@
 	onclick={() => {
 		if (disabled) return;
 		onSelect?.(candidate);
+	}}
+	onkeydown={(event) => {
+		if (disabled) return;
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			onSelect?.(candidate);
+		}
 	}}
 >
 	<div class="flex items-center justify-between">
@@ -152,4 +160,4 @@
 			</div>
 		</div>
 	</div>
-</button>
+</div>

@@ -15,6 +15,7 @@
 	} from '$lib/services/appEnvUseCases';
 	import type { GroupTemplate } from '$lib/domain';
 	import { isErr } from '$lib/types/result';
+	import { sampleGroupTemplates, sampleGroupTemplateById } from '$lib/content/sampleGroupTemplates';
 
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
 	let templates = $state<GroupTemplate[]>([]);
@@ -30,6 +31,7 @@
 	]);
 	let createError = $state('');
 	let creating = $state(false);
+	let showSampleMenu = $state(false);
 
 	// Delete confirmation
 	let deleteTarget = $state<GroupTemplate | null>(null);
@@ -65,6 +67,18 @@
 
 	function addGroup() {
 		createGroups = [...createGroups, { name: '', capacity: '' }];
+	}
+
+	function loadSampleTemplate(templateId: string) {
+		const template = sampleGroupTemplateById.get(templateId);
+		if (!template) return;
+		createName = template.label;
+		createDescription = template.description;
+		createGroups = template.groups.map((group) => ({
+			name: group.name,
+			capacity: group.capacity === null ? '' : group.capacity.toString()
+		}));
+		showSampleMenu = false;
 	}
 
 	function removeGroup(index: number) {
@@ -288,14 +302,47 @@
 				<!-- Groups -->
 				<div>
 					<div class="flex items-center justify-between">
-						<label class="block text-sm font-medium text-gray-700">Groups</label>
-						<button
-							type="button"
-							class="text-sm text-teal hover:text-teal-dark"
-							onclick={addGroup}
-						>
-							+ Add group
-						</button>
+						<span class="block text-sm font-medium text-gray-700">Groups</span>
+						<div class="flex items-center gap-3">
+							<div class="relative">
+								<button
+									type="button"
+									class="text-sm text-teal hover:text-teal-dark"
+									onclick={() => (showSampleMenu = !showSampleMenu)}
+								>
+									Load sample template
+								</button>
+								{#if showSampleMenu}
+									<div
+										class="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-gray-200 bg-white p-2 shadow-lg"
+									>
+										{#each sampleGroupTemplates as template}
+											<button
+												type="button"
+												class="w-full rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+												onclick={() => loadSampleTemplate(template.id)}
+											>
+												<div class="font-medium text-gray-900">{template.label}</div>
+												<div class="text-xs text-gray-500">{template.description}</div>
+											</button>
+										{/each}
+									</div>
+									<button
+										type="button"
+										class="fixed inset-0 z-10 cursor-default"
+										aria-label="Close sample menu"
+										onclick={() => (showSampleMenu = false)}
+									></button>
+								{/if}
+							</div>
+							<button
+								type="button"
+								class="text-sm text-teal hover:text-teal-dark"
+								onclick={addGroup}
+							>
+								+ Add group
+							</button>
+						</div>
 					</div>
 
 					<div class="mt-2 space-y-2">
@@ -319,6 +366,7 @@
 										type="button"
 										class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
 										onclick={() => removeGroup(i)}
+										aria-label={`Remove group ${i + 1}`}
 									>
 										<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path

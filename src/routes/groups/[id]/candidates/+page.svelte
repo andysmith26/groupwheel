@@ -142,7 +142,9 @@
 	}
 
 	async function generateOptions({ append }: { append: boolean }) {
-		if (!env || !program) return;
+		const currentEnv = env;
+		const currentProgram = program;
+		if (!currentEnv || !currentProgram) return;
 
 		isGenerating = true;
 		loadError = null;
@@ -153,7 +155,7 @@
 
 		const plan = buildAlgorithmPlan(candidateCount).map((algorithm) => ({
 			...algorithm,
-			pendingId: algorithm.isSlow ? env.idGenerator.generateId() : null
+			pendingId: algorithm.isSlow ? currentEnv.idGenerator.generateId() : null
 		}));
 
 		const pendingEntries = plan
@@ -171,8 +173,8 @@
 
 		for (const algorithm of plan) {
 			const seed = Date.now() + Math.floor(Math.random() * 10000);
-			const result = await generateCandidate(env, {
-				programId: program.id,
+			const result = await generateCandidate(currentEnv, {
+				programId: currentProgram.id,
 				algorithmId: algorithm.id,
 				algorithmConfig,
 				seed
