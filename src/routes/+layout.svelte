@@ -6,16 +6,32 @@
 	import { page } from '$app/stores';
 	import { setAppEnvContext } from '$lib/contexts/appEnv';
 	import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
+	import { authStore } from '$lib/stores/authStore.svelte';
+	import { syncManager } from '$lib/infrastructure/sync/syncManager';
+	import LoginButton from '$lib/components/auth/LoginButton.svelte';
+	import SyncStatus from '$lib/components/sync/SyncStatus.svelte';
 
 	const { children } = $props();
 
 	if (browser) {
-		const env = createInMemoryEnvironment();
+		// Enable sync when user is authenticated
+		const syncService = authStore.isAuthenticated ? syncManager : undefined;
+		if (syncService) {
+			syncService.setEnabled(true);
+		}
+
+		const env = createInMemoryEnvironment(undefined, { syncService });
 		setAppEnvContext(env);
+
+		// Subscribe to auth state changes to enable/disable sync
+		authStore.subscribe((user) => {
+			syncManager.setEnabled(user !== null);
+		});
 	}
 
-	// Check if we're on the landing page
+	// Check if we're on the landing page or auth pages
 	let isLandingPage = $derived($page.url.pathname === '/');
+	let isAuthPage = $derived($page.url.pathname.startsWith('/auth'));
 
 	function isActiveLink(pathname: string, href: string) {
 		if (href === '/') return pathname === '/';
@@ -34,14 +50,14 @@
 					>
 						Groupwheel
 					</p>
-					{#if !isLandingPage}
+					{#if !isLandingPage && !isAuthPage}
 						<p class="text-xs text-gray-500">Teacher workspace</p>
 					{/if}
 				</div>
 			</a>
 
-			{#if !isLandingPage}
-				<nav aria-label="Main navigation">
+			{#if !isLandingPage && !isAuthPage}
+				<nav aria-label="Main navigation" class="flex items-center gap-4">
 					<a
 						href="/groups"
 						class="rounded-md px-3 py-2 text-sm font-medium transition-colors {isActiveLink(
@@ -54,7 +70,16 @@
 					>
 						Activities
 					</a>
+
+					<div class="flex items-center gap-3 border-l pl-4">
+						<SyncStatus />
+						<LoginButton />
+					</div>
 				</nav>
+			{:else if !isAuthPage}
+				<div class="flex items-center gap-3">
+					<LoginButton />
+				</div>
 			{/if}
 		</div>
 	</header>

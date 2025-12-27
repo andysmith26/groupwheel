@@ -20,3 +20,7 @@ export * from './GroupTemplateRepository';
 export * from './IdGenerator';
 export * from './Clock';
 export * from './GroupingAlgorithm';
+
+// Auth & Sync ports
+export * from './AuthService';
+export * from './SyncService';

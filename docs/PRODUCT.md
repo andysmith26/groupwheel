@@ -181,7 +181,7 @@ Features for semester-long group management:
 Features for school-wide adoption:
 
 - **Student portal** — Students submit preferences directly (with consent flows)
-- **Authentication** — User accounts, saved activities across devices
+- ~~**Authentication** — User accounts, saved activities across devices~~ **IMPLEMENTED** (Dec 2025)
 - **SIS integration** — Auto-sync rosters from student information systems
 - **Multi-teacher collaboration** — Shared activities, presence indicators
 - **LMS export** — Push groups to Google Classroom, Canvas
@@ -215,7 +215,7 @@ Features for school-wide adoption:
 
 - **Mobile-first design** — Optimize for teacher laptops; mobile is secondary
 - **Real-time collaboration** — Single-teacher ownership for MVP
-- **Student accounts** — Teacher-presented views only until authentication exists
+- **Student accounts** — Teacher-presented views only (authentication is optional for teachers)
 - **Gradebook integration** — Focus on grouping, not grading
 - **Seating charts** — Related but different problem
 

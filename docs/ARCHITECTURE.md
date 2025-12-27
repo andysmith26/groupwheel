@@ -62,6 +62,8 @@ Examples:
   - `IdGenerator`
   - `Clock`
   - `GroupingAlgorithm`
+  - `AuthService` (authentication)
+  - `SyncService` (server synchronization)
 
 Ports are small TypeScript interfaces (or types):
 
@@ -151,6 +153,13 @@ The infrastructure layer provides **adapters** that implement ports plus related
   - `InMemoryPreferenceRepository`
 - `src/lib/infrastructure/repositories/indexedDb/*`:
   - `IndexedDbScenarioRepository`
+  - `IndexedDbStudentRepository`
+  - `IndexedDbPoolRepository`
+  - etc.
+- `src/lib/infrastructure/repositories/synced/*`:
+  - `SyncedStudentRepository` (wraps local + sync)
+  - `SyncedPoolRepository`
+  - etc.
 
 **Services:**
 
@@ -158,11 +167,52 @@ The infrastructure layer provides **adapters** that implement ports plus related
 - `SystemClock` (`Clock` implementation)
 - `BalancedGroupingAlgorithm` (`GroupingAlgorithm` implementation)
 
+**Authentication & Sync:**
+
+- `src/lib/infrastructure/auth/`:
+  - `GoogleOAuthAdapter` (`AuthService` implementation)
+- `src/lib/infrastructure/sync/`:
+  - `SyncManager` (`SyncService` implementation)
+
 **Composition root / environment:**
 
 - `createInMemoryEnvironment` in `src/lib/infrastructure/inMemoryEnvironment.ts` bundles all repositories + services into an `InMemoryEnvironment` object.
 
 Nothing in `infrastructure` should import Svelte components, routes, or Svelte stores.
+
+---
+
+### 3.1. Authentication & Sync (Optional Feature)
+
+Groupwheel supports optional authentication via Google OAuth. When enabled:
+
+- **Anonymous mode (default):** All data stays in browser (IndexedDB). No server communication.
+- **Authenticated mode:** Data syncs to server. Users can access their data from any device.
+
+**Key components:**
+
+- `AuthService` port defines login/logout and user state management.
+- `SyncService` port defines push/pull operations for server sync.
+- `authStore` (Svelte 5 runes) tracks current user state client-side.
+- `syncManager` orchestrates sync operations with offline queue.
+- `SyncedXxxRepository` wrappers add sync capability to local repositories.
+
+**How it works:**
+
+1. User clicks "Sign in" → redirected to Google OAuth
+2. OAuth callback exchanges code for tokens, sets auth cookies
+3. `authStore` is updated with user info
+4. `syncManager.setEnabled(true)` enables sync
+5. Environment is created with synced repository wrappers
+6. All repository writes are queued for server sync
+
+**Configuration:**
+
+Set these environment variables:
+- `PUBLIC_GOOGLE_CLIENT_ID` — Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` — Google OAuth client secret (server-only)
+
+See `.env.example` for template.
 
 ---
 
@@ -180,9 +230,11 @@ export interface InMemoryEnvironment {
 	programRepo: ProgramRepository;
 	scenarioRepo: ScenarioRepository;
 	preferenceRepo: PreferenceRepository;
+	groupTemplateRepo: GroupTemplateRepository;
 	idGenerator: IdGenerator;
 	clock: Clock;
 	groupingAlgorithm: GroupingAlgorithm;
+	syncService?: SyncService; // Optional: enabled when user is authenticated
 }
 ```
 

@@ -8,7 +8,8 @@ import type {
 	GroupTemplateRepository,
 	IdGenerator,
 	Clock,
-	GroupingAlgorithm
+	GroupingAlgorithm,
+	SyncService
 } from '$lib/application/ports';
 import {
 	InMemoryStudentRepository,
@@ -28,6 +29,15 @@ import {
 	IndexedDbStaffRepository,
 	IndexedDbPreferenceRepository
 } from '$lib/infrastructure/repositories/indexedDb';
+import {
+	SyncedStudentRepository,
+	SyncedStaffRepository,
+	SyncedPoolRepository,
+	SyncedProgramRepository,
+	SyncedScenarioRepository,
+	SyncedPreferenceRepository,
+	SyncedGroupTemplateRepository
+} from '$lib/infrastructure/repositories/synced';
 import { UuidIdGenerator, SystemClock } from '$lib/infrastructure/services';
 import { BalancedGroupingAlgorithm } from '$lib/infrastructure/algorithms/balancedGrouping';
 import { RandomGroupingAlgorithm } from '$lib/infrastructure/algorithms/randomGrouping';
@@ -65,6 +75,7 @@ export interface InMemoryEnvironment {
 	idGenerator: IdGenerator;
 	clock: Clock;
 	groupingAlgorithm: GroupingAlgorithm;
+	syncService?: SyncService;
 }
 
 /**
@@ -77,6 +88,12 @@ export interface CreateEnvironmentOptions {
 	 * Defaults to true in browser, false on server.
 	 */
 	useIndexedDb?: boolean;
+
+	/**
+	 * Enable server sync for authenticated users.
+	 * When provided, repositories will queue changes for server sync.
+	 */
+	syncService?: SyncService;
 }
 
 /**
@@ -107,30 +124,53 @@ export function createInMemoryEnvironment(
 	];
 	// Use IndexedDB in browser mode by default for persistence
 	const useIndexedDb = options?.useIndexedDb ?? browser;
+	const syncService = options?.syncService;
 
-	const studentRepo = useIndexedDb
+	// Create base (local) repositories
+	const baseStudentRepo = useIndexedDb
 		? new IndexedDbStudentRepository()
 		: new InMemoryStudentRepository(seed?.students ?? []);
-	const staffRepo = useIndexedDb
+	const baseStaffRepo = useIndexedDb
 		? new IndexedDbStaffRepository()
 		: new InMemoryStaffRepository([...(seed?.staff ?? []), ...defaultStaff]);
-	const poolRepo = useIndexedDb
+	const basePoolRepo = useIndexedDb
 		? new IndexedDbPoolRepository()
 		: new InMemoryPoolRepository(seed?.pools ?? []);
-	const programRepo: ProgramRepository = useIndexedDb
+	const baseProgramRepo: ProgramRepository = useIndexedDb
 		? new IndexedDbProgramRepository()
 		: new InMemoryProgramRepository(seed?.programs ?? []);
-	const preferenceRepo = useIndexedDb
+	const basePreferenceRepo = useIndexedDb
 		? new IndexedDbPreferenceRepository()
 		: new InMemoryPreferenceRepository(seed?.preferences ?? []);
-
-	const scenarioRepo: ScenarioRepository = useIndexedDb
+	const baseScenarioRepo: ScenarioRepository = useIndexedDb
 		? new IndexedDbScenarioRepository()
 		: new InMemoryScenarioRepository(seed?.scenarios ?? []);
-
-	const groupTemplateRepo: GroupTemplateRepository = useIndexedDb
+	const baseGroupTemplateRepo: GroupTemplateRepository = useIndexedDb
 		? new IndexedDbGroupTemplateRepository()
 		: new InMemoryGroupTemplateRepository(seed?.groupTemplates ?? []);
+
+	// Wrap with sync capability if syncService is provided
+	const studentRepo: StudentRepository = syncService
+		? new SyncedStudentRepository(baseStudentRepo, syncService)
+		: baseStudentRepo;
+	const staffRepo: StaffRepository = syncService
+		? new SyncedStaffRepository(baseStaffRepo)
+		: baseStaffRepo;
+	const poolRepo: PoolRepository = syncService
+		? new SyncedPoolRepository(basePoolRepo, syncService)
+		: basePoolRepo;
+	const programRepo: ProgramRepository = syncService
+		? new SyncedProgramRepository(baseProgramRepo, syncService)
+		: baseProgramRepo;
+	const preferenceRepo: PreferenceRepository = syncService
+		? new SyncedPreferenceRepository(basePreferenceRepo, syncService)
+		: basePreferenceRepo;
+	const scenarioRepo: ScenarioRepository = syncService
+		? new SyncedScenarioRepository(baseScenarioRepo, syncService)
+		: baseScenarioRepo;
+	const groupTemplateRepo: GroupTemplateRepository = syncService
+		? new SyncedGroupTemplateRepository(baseGroupTemplateRepo, syncService)
+		: baseGroupTemplateRepo;
 
 	const idGenerator = new UuidIdGenerator();
 	const clock = new SystemClock();
@@ -180,6 +220,7 @@ export function createInMemoryEnvironment(
 		groupTemplateRepo,
 		idGenerator,
 		clock,
-		groupingAlgorithm
+		groupingAlgorithm,
+		syncService
 	};
 }
