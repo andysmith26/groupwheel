@@ -22,7 +22,10 @@
 			syncManager.setEnabled(true);
 		}
 
-		const env = createInMemoryEnvironment(undefined, { syncService: syncManager ?? undefined });
+		const env = createInMemoryEnvironment(undefined, {
+			authService: authAdapter ?? undefined,
+			syncService: syncManager ?? undefined
+		});
 		setAppEnvContext(env);
 
 		// Subscribe to auth state changes to enable/disable sync

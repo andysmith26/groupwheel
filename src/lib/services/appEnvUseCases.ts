@@ -65,6 +65,7 @@ import {
 } from '$lib/application/useCases/createGroupingActivity';
 import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
+import { ok, err } from '$lib/types/result';
 import { listPools as listPoolsUseCase } from '$lib/application/useCases/listPools';
 import {
 	listActivities as listActivitiesUseCase,
@@ -112,6 +113,14 @@ import {
 	deleteGroupTemplate as deleteGroupTemplateUseCase,
 	type DeleteGroupTemplateInput
 } from '$lib/application/useCases/deleteGroupTemplate';
+import { login as loginUseCase, type LoginError } from '$lib/application/useCases/login';
+import { logout as logoutUseCase, type LogoutError } from '$lib/application/useCases/logout';
+import {
+	getCurrentUser as getCurrentUserUseCase,
+	isAuthenticated as isAuthenticatedUseCase,
+	onAuthStateChange as onAuthStateChangeUseCase
+} from '$lib/application/useCases/getCurrentUser';
+import type { AuthUser } from '$lib/application/ports';
 
 export async function importPool(
 	env: InMemoryEnvironment,
@@ -483,3 +492,74 @@ export async function getPoolWithStudents(
 
 // Re-export types for convenience
 export type { ActivityDisplay, ActivityData, StudentActivityViewData, PoolWithStudents };
+
+// =============================================================================
+// Authentication Operations
+// =============================================================================
+
+/**
+ * Initiate OAuth login flow.
+ *
+ * Returns error if authService is not configured.
+ */
+export async function login(env: InMemoryEnvironment): Promise<Result<void, LoginError>> {
+	if (!env.authService) {
+		return err({ type: 'AUTH_SERVICE_UNAVAILABLE' });
+	}
+	return loginUseCase({ authService: env.authService });
+}
+
+/**
+ * Log out the current user.
+ *
+ * Returns error if authService is not configured.
+ */
+export async function logout(env: InMemoryEnvironment): Promise<Result<void, LogoutError>> {
+	if (!env.authService) {
+		return ok(undefined);
+	}
+	return logoutUseCase({ authService: env.authService });
+}
+
+/**
+ * Get the currently authenticated user.
+ *
+ * Returns null if not authenticated or authService is not configured.
+ */
+export async function getCurrentUser(
+	env: InMemoryEnvironment
+): Promise<Result<AuthUser | null, never>> {
+	if (!env.authService) {
+		return ok(null);
+	}
+	return getCurrentUserUseCase({ authService: env.authService });
+}
+
+/**
+ * Check if a user is currently authenticated.
+ */
+export function isAuthenticated(env: InMemoryEnvironment): boolean {
+	if (!env.authService) {
+		return false;
+	}
+	return isAuthenticatedUseCase({ authService: env.authService });
+}
+
+/**
+ * Subscribe to authentication state changes.
+ *
+ * @returns Unsubscribe function (no-op if authService is not configured)
+ */
+export function onAuthStateChange(
+	env: InMemoryEnvironment,
+	callback: (user: AuthUser | null) => void
+): () => void {
+	if (!env.authService) {
+		callback(null);
+		return () => {};
+	}
+	return onAuthStateChangeUseCase({ authService: env.authService }, callback);
+}
+
+// Re-export auth types
+export type { LoginError, LogoutError, AuthUser };

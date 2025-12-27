@@ -9,6 +9,7 @@ import type {
 	IdGenerator,
 	Clock,
 	GroupingAlgorithm,
+	AuthService,
 	SyncService
 } from '$lib/application/ports';
 import {
@@ -75,6 +76,7 @@ export interface InMemoryEnvironment {
 	idGenerator: IdGenerator;
 	clock: Clock;
 	groupingAlgorithm: GroupingAlgorithm;
+	authService?: AuthService;
 	syncService?: SyncService;
 }
 
@@ -88,6 +90,12 @@ export interface CreateEnvironmentOptions {
 	 * Defaults to true in browser, false on server.
 	 */
 	useIndexedDb?: boolean;
+
+	/**
+	 * Authentication service for user login/logout.
+	 * When provided, enables authenticated features.
+	 */
+	authService?: AuthService;
 
 	/**
 	 * Enable server sync for authenticated users.
@@ -124,6 +132,7 @@ export function createInMemoryEnvironment(
 	];
 	// Use IndexedDB in browser mode by default for persistence
 	const useIndexedDb = options?.useIndexedDb ?? browser;
+	const authService = options?.authService;
 	const syncService = options?.syncService;
 
 	// Create base (local) repositories
@@ -221,6 +230,7 @@ export function createInMemoryEnvironment(
 		idGenerator,
 		clock,
 		groupingAlgorithm,
+		authService,
 		syncService
 	};
 }
