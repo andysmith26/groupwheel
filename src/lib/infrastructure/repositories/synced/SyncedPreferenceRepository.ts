@@ -23,7 +23,7 @@ export class SyncedPreferenceRepository implements PreferenceRepository {
 		if (this.sync.isEnabled()) {
 			// Use a composite ID for preferences since they don't have their own ID
 			const prefId = `${preference.programId}:${preference.studentId}`;
-			this.sync.queueForSync('preferences', 'save', prefId);
+			await this.sync.queueForSync('preferences', 'save', prefId);
 		}
 	}
 
@@ -40,7 +40,7 @@ export class SyncedPreferenceRepository implements PreferenceRepository {
 		if (this.sync.isEnabled()) {
 			for (const pref of preferences) {
 				const prefId = `${pref.programId}:${pref.studentId}`;
-				this.sync.queueForSync('preferences', 'save', prefId);
+				await this.sync.queueForSync('preferences', 'save', prefId);
 			}
 		}
 	}

@@ -6,27 +6,31 @@
 	import { page } from '$app/stores';
 	import { setAppEnvContext } from '$lib/contexts/appEnv';
 	import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
-	import { authStore } from '$lib/stores/authStore.svelte';
-	import { syncManager } from '$lib/infrastructure/sync/syncManager';
+	import { getBrowserAuthAdapter } from '$lib/infrastructure/auth/browserAuth';
+	import { getBrowserSyncManager } from '$lib/infrastructure/sync/browserSyncManager';
 	import LoginButton from '$lib/components/auth/LoginButton.svelte';
 	import SyncStatus from '$lib/components/sync/SyncStatus.svelte';
 
 	const { children } = $props();
 
 	if (browser) {
+		const authAdapter = getBrowserAuthAdapter();
+		const syncManager = getBrowserSyncManager();
+
 		// Enable sync when user is authenticated
-		const syncService = authStore.isAuthenticated ? syncManager : undefined;
-		if (syncService) {
-			syncService.setEnabled(true);
+		if (syncManager && authAdapter?.isAuthenticated()) {
+			syncManager.setEnabled(true);
 		}
 
-		const env = createInMemoryEnvironment(undefined, { syncService });
+		const env = createInMemoryEnvironment(undefined, { syncService: syncManager ?? undefined });
 		setAppEnvContext(env);
 
 		// Subscribe to auth state changes to enable/disable sync
-		authStore.subscribe((user) => {
-			syncManager.setEnabled(user !== null);
-		});
+		if (syncManager && authAdapter) {
+			authAdapter.onAuthStateChange((user) => {
+				syncManager.setEnabled(user !== null);
+			});
+		}
 	}
 
 	// Check if we're on the landing page or auth pages

@@ -28,7 +28,7 @@ export class SyncedStudentRepository implements StudentRepository {
 
 		if (this.sync.isEnabled()) {
 			for (const student of students) {
-				this.sync.queueForSync('students', 'save', student.id);
+				await this.sync.queueForSync('students', 'save', student.id);
 			}
 		}
 	}

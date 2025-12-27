@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/stores/authStore.svelte';
+	import { getBrowserAuthAdapter } from '$lib/infrastructure/auth/browserAuth';
 	import { env } from '$env/dynamic/public';
 
 	let error = $state<string | null>(null);
 
 	onMount(() => {
+		const authAdapter = getBrowserAuthAdapter();
+
 		// If already authenticated, redirect to home
-		if (authStore.isAuthenticated) {
+		if (authAdapter?.isAuthenticated()) {
 			goto('/');
 			return;
 		}

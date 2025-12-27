@@ -29,7 +29,7 @@ export class SyncedGroupTemplateRepository implements GroupTemplateRepository {
 		await this.local.save(template);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('groupTemplates', 'save', template.id);
+			await this.sync.queueForSync('groupTemplates', 'save', template.id);
 		}
 	}
 
@@ -37,7 +37,7 @@ export class SyncedGroupTemplateRepository implements GroupTemplateRepository {
 		await this.local.update(template);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('groupTemplates', 'save', template.id);
+			await this.sync.queueForSync('groupTemplates', 'save', template.id);
 		}
 	}
 
@@ -45,7 +45,7 @@ export class SyncedGroupTemplateRepository implements GroupTemplateRepository {
 		await this.local.delete(id);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('groupTemplates', 'delete', id);
+			await this.sync.queueForSync('groupTemplates', 'delete', id);
 		}
 	}
 }

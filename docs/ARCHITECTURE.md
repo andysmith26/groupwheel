@@ -189,22 +189,66 @@ Groupwheel supports optional authentication via Google OAuth. When enabled:
 - **Anonymous mode (default):** All data stays in browser (IndexedDB). No server communication.
 - **Authenticated mode:** Data syncs to server. Users can access their data from any device.
 
-**Key components:**
+**Architecture:**
 
-- `AuthService` port defines login/logout and user state management.
-- `SyncService` port defines push/pull operations for server sync.
-- `authStore` (Svelte 5 runes) tracks current user state client-side.
-- `syncManager` orchestrates sync operations with offline queue.
-- `SyncedXxxRepository` wrappers add sync capability to local repositories.
+Authentication and sync follow the hexagonal architecture pattern strictly:
 
-**How it works:**
+```
+application/ports/           infrastructure/
+├── AuthService.ts           ├── auth/
+├── SyncService.ts           │   ├── GoogleOAuthAdapter.ts
+├── StoragePort.ts           │   ├── InMemoryAuthAdapter.ts
+└── NetworkStatusPort.ts     │   └── browserAuth.ts (browser singleton)
+                             ├── sync/
+                             │   ├── SyncManager.ts
+                             │   └── browserSyncManager.ts
+                             ├── storage/
+                             │   ├── LocalStorageAdapter.ts
+                             │   └── InMemoryStorageAdapter.ts
+                             └── network/
+                                 ├── BrowserNetworkStatusAdapter.ts
+                                 └── InMemoryNetworkStatusAdapter.ts
+```
 
-1. User clicks "Sign in" → redirected to Google OAuth
-2. OAuth callback exchanges code for tokens, sets auth cookies
-3. `authStore` is updated with user info
-4. `syncManager.setEnabled(true)` enables sync
-5. Environment is created with synced repository wrappers
-6. All repository writes are queued for server sync
+**Key patterns:**
+
+- `AuthService` and `SyncService` are ports defined in `application/ports/`.
+- `GoogleOAuthAdapter` and `SyncManager` are infrastructure adapters.
+- Adapters receive dependencies via constructor (StoragePort, NetworkStatusPort, etc.).
+- Adapters do NOT import Svelte stores, `$app/navigation`, or other framework code.
+- `browserAuth.ts` and `browserSyncManager.ts` provide browser-configured singletons.
+- `InMemory*` adapters exist for testing.
+
+**Dependencies flow inward:**
+
+```
+UI (routes/components)
+  ↓ uses
+browserAuth/browserSyncManager (singletons)
+  ↓ creates
+GoogleOAuthAdapter/SyncManager (adapters)
+  ↓ implements
+AuthService/SyncService (ports)
+```
+
+**How authentication works:**
+
+1. User clicks "Sign in" → `authAdapter.login()` navigates to `/auth/login`
+2. Login page redirects to Google OAuth
+3. OAuth callback exchanges code for tokens via server endpoint
+4. Client reads auth data from cookie, calls `authAdapter.setUser()`
+5. Auth state is persisted to localStorage via `StoragePort`
+6. `SyncManager` is notified via auth state change callback
+
+**Testing:**
+
+Use `InMemoryAuthAdapter` and `InMemoryStorageAdapter` for testing:
+
+```ts
+const storage = new InMemoryStorageAdapter();
+const auth = new InMemoryAuthAdapter();
+auth.setUser(InMemoryAuthAdapter.createTestUser(), 'test-token');
+```
 
 **Configuration:**
 

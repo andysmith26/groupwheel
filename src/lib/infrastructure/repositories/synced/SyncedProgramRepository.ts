@@ -21,7 +21,7 @@ export class SyncedProgramRepository implements ProgramRepository {
 		await this.local.save(program);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('programs', 'save', program.id);
+			await this.sync.queueForSync('programs', 'save', program.id);
 		}
 	}
 
@@ -29,7 +29,7 @@ export class SyncedProgramRepository implements ProgramRepository {
 		await this.local.update(program);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('programs', 'save', program.id);
+			await this.sync.queueForSync('programs', 'save', program.id);
 		}
 	}
 

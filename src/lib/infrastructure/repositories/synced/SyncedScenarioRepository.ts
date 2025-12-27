@@ -25,7 +25,7 @@ export class SyncedScenarioRepository implements ScenarioRepository {
 		await this.local.save(scenario);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('scenarios', 'save', scenario.id);
+			await this.sync.queueForSync('scenarios', 'save', scenario.id);
 		}
 	}
 
@@ -33,7 +33,7 @@ export class SyncedScenarioRepository implements ScenarioRepository {
 		await this.local.update(scenario);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('scenarios', 'save', scenario.id);
+			await this.sync.queueForSync('scenarios', 'save', scenario.id);
 		}
 	}
 
@@ -41,7 +41,7 @@ export class SyncedScenarioRepository implements ScenarioRepository {
 		await this.local.delete(id);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('scenarios', 'delete', id);
+			await this.sync.queueForSync('scenarios', 'delete', id);
 		}
 	}
 }

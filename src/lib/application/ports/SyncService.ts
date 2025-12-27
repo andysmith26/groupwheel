@@ -126,5 +126,9 @@ export interface SyncService {
 	 * Queue an entity for sync (used by synced repositories).
 	 * Queued items are synced on next sync() call or when online.
 	 */
-	queueForSync(entityType: SyncEntityType, operation: 'save' | 'delete', entityId: string): void;
+	queueForSync(
+		entityType: SyncEntityType,
+		operation: 'save' | 'delete',
+		entityId: string
+	): Promise<void>;
 }

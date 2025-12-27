@@ -24,3 +24,7 @@ export * from './GroupingAlgorithm';
 // Auth & Sync ports
 export * from './AuthService';
 export * from './SyncService';
+
+// Infrastructure ports
+export * from './StoragePort';
+export * from './NetworkStatusPort';

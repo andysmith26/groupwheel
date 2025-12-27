@@ -1,46 +1,67 @@
 <script lang="ts">
-	import { authStore } from '$lib/stores/authStore.svelte';
-	import { googleOAuth } from '$lib/infrastructure/auth/googleOAuth';
+	import { onMount, onDestroy } from 'svelte';
+	import { getBrowserAuthAdapter } from '$lib/infrastructure/auth/browserAuth';
+	import type { AuthUser } from '$lib/application/ports';
 
+	const authAdapter = getBrowserAuthAdapter();
+
+	let user = $state<AuthUser | null>(null);
+	let loading = $state(true);
 	let isLoggingOut = $state(false);
+	let unsubscribe: (() => void) | null = null;
+
+	onMount(() => {
+		if (authAdapter) {
+			unsubscribe = authAdapter.onAuthStateChange((newUser) => {
+				user = newUser;
+				loading = false;
+			});
+		} else {
+			loading = false;
+		}
+	});
+
+	onDestroy(() => {
+		unsubscribe?.();
+	});
 
 	async function handleLogin() {
-		await googleOAuth.login();
+		await authAdapter?.login();
 	}
 
 	async function handleLogout() {
 		isLoggingOut = true;
 		try {
-			await googleOAuth.logout();
+			await authAdapter?.logout();
 		} finally {
 			isLoggingOut = false;
 		}
 	}
 </script>
 
-{#if authStore.loading}
+{#if loading}
 	<!-- Loading state -->
 	<div class="flex items-center gap-2 text-sm text-gray-400">
 		<div class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-transparent"></div>
 	</div>
-{:else if authStore.user}
+{:else if user}
 	<!-- Authenticated state -->
 	<div class="flex items-center gap-2">
-		{#if authStore.user.avatarUrl}
+		{#if user.avatarUrl}
 			<img
-				src={authStore.user.avatarUrl}
+				src={user.avatarUrl}
 				alt=""
 				class="h-7 w-7 rounded-full"
 				referrerpolicy="no-referrer"
 			/>
 		{:else}
 			<div class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-600">
-				{authStore.user.name.charAt(0).toUpperCase()}
+				{user.name.charAt(0).toUpperCase()}
 			</div>
 		{/if}
 
 		<span class="hidden text-sm text-gray-700 sm:inline">
-			{authStore.user.name}
+			{user.name}
 		</span>
 
 		<button

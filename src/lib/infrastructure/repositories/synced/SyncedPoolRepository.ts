@@ -21,7 +21,7 @@ export class SyncedPoolRepository implements PoolRepository {
 		await this.local.save(pool);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('pools', 'save', pool.id);
+			await this.sync.queueForSync('pools', 'save', pool.id);
 		}
 	}
 
@@ -29,7 +29,7 @@ export class SyncedPoolRepository implements PoolRepository {
 		await this.local.update(pool);
 
 		if (this.sync.isEnabled()) {
-			this.sync.queueForSync('pools', 'save', pool.id);
+			await this.sync.queueForSync('pools', 'save', pool.id);
 		}
 	}
 

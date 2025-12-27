@@ -7,18 +7,14 @@
  * @module infrastructure/auth/googleOAuth
  */
 
-import type { AuthService, AuthUser } from '$lib/application/ports';
-import { authStore } from '$lib/stores/authStore.svelte';
-import { browser } from '$app/environment';
-import { goto } from '$app/navigation';
+import type { AuthService, AuthUser, StoragePort } from '$lib/application/ports';
 
-/**
- * Google OAuth configuration.
- * These should be set via environment variables.
- */
-export interface GoogleOAuthConfig {
-	clientId: string;
-	redirectUri: string;
+const AUTH_USER_KEY = 'groupwheel_auth_user';
+const AUTH_TOKEN_KEY = 'groupwheel_auth_token';
+
+export interface GoogleOAuthAdapterDeps {
+	storage: StoragePort;
+	navigate: (url: string) => Promise<void>;
 }
 
 /**
@@ -26,16 +22,68 @@ export interface GoogleOAuthConfig {
  */
 export class GoogleOAuthAdapter implements AuthService {
 	private listeners: Set<(user: AuthUser | null) => void> = new Set();
-	private unsubscribeFromStore: (() => void) | null = null;
+	private currentUser: AuthUser | null = null;
+	private currentToken: string | null = null;
+	private initialized = false;
 
-	constructor() {
-		// Subscribe to auth store changes and forward to listeners
-		if (browser) {
-			this.unsubscribeFromStore = authStore.subscribe((user) => {
-				for (const listener of this.listeners) {
-					listener(user);
-				}
-			});
+	private readonly storage: StoragePort;
+	private readonly navigate: (url: string) => Promise<void>;
+
+	constructor(deps: GoogleOAuthAdapterDeps) {
+		this.storage = deps.storage;
+		this.navigate = deps.navigate;
+	}
+
+	/**
+	 * Initialize the adapter by loading persisted auth state.
+	 */
+	async initialize(): Promise<void> {
+		if (this.initialized) return;
+
+		try {
+			const userJson = await this.storage.get(AUTH_USER_KEY);
+			const token = await this.storage.get(AUTH_TOKEN_KEY);
+
+			if (userJson && token) {
+				this.currentUser = JSON.parse(userJson);
+				this.currentToken = token;
+			}
+		} catch {
+			// Ignore parse errors, start with null user
+		}
+
+		this.initialized = true;
+	}
+
+	/**
+	 * Set the authenticated user (called after OAuth callback).
+	 */
+	async setUser(user: AuthUser, accessToken: string): Promise<void> {
+		this.currentUser = user;
+		this.currentToken = accessToken;
+
+		await this.storage.set(AUTH_USER_KEY, JSON.stringify(user));
+		await this.storage.set(AUTH_TOKEN_KEY, accessToken);
+
+		this.notifyListeners();
+	}
+
+	/**
+	 * Clear the authenticated user.
+	 */
+	async clearUser(): Promise<void> {
+		this.currentUser = null;
+		this.currentToken = null;
+
+		await this.storage.remove(AUTH_USER_KEY);
+		await this.storage.remove(AUTH_TOKEN_KEY);
+
+		this.notifyListeners();
+	}
+
+	private notifyListeners(): void {
+		for (const listener of this.listeners) {
+			listener(this.currentUser);
 		}
 	}
 
@@ -44,17 +92,13 @@ export class GoogleOAuthAdapter implements AuthService {
 	 * Redirects to the login page which handles the OAuth redirect.
 	 */
 	async login(): Promise<void> {
-		if (!browser) return;
-		// Navigate to the login page which will redirect to Google
-		await goto('/auth/login');
+		await this.navigate('/auth/login');
 	}
 
 	/**
 	 * Log out the current user.
 	 */
 	async logout(): Promise<void> {
-		if (!browser) return;
-
 		// Call the logout endpoint to clear server-side session
 		try {
 			await fetch('/auth/logout', { method: 'POST' });
@@ -62,22 +106,37 @@ export class GoogleOAuthAdapter implements AuthService {
 			// Ignore network errors, still clear client state
 		}
 
-		// Clear client-side auth state
-		authStore.clearUser();
+		await this.clearUser();
 	}
 
 	/**
 	 * Get the currently authenticated user.
 	 */
 	async getUser(): Promise<AuthUser | null> {
-		return authStore.user;
+		return this.currentUser;
 	}
 
 	/**
 	 * Get the current access token for API calls.
 	 */
 	async getAccessToken(): Promise<string | null> {
-		return authStore.accessToken;
+		return this.currentToken;
+	}
+
+	/**
+	 * Get the current access token synchronously.
+	 * Used by SyncManager for auth header.
+	 */
+	getAccessTokenSync(): string | null {
+		return this.currentToken;
+	}
+
+	/**
+	 * Get the current user synchronously.
+	 * Used for reactive UI updates.
+	 */
+	getUserSync(): AuthUser | null {
+		return this.currentUser;
 	}
 
 	/**
@@ -86,7 +145,7 @@ export class GoogleOAuthAdapter implements AuthService {
 	onAuthStateChange(callback: (user: AuthUser | null) => void): () => void {
 		this.listeners.add(callback);
 		// Immediately call with current state
-		callback(authStore.user);
+		callback(this.currentUser);
 		return () => {
 			this.listeners.delete(callback);
 		};
@@ -96,21 +155,13 @@ export class GoogleOAuthAdapter implements AuthService {
 	 * Check if the user is currently authenticated.
 	 */
 	isAuthenticated(): boolean {
-		return authStore.isAuthenticated;
+		return this.currentUser !== null;
 	}
 
 	/**
-	 * Clean up subscriptions.
+	 * Clean up resources.
 	 */
-	destroy() {
-		if (this.unsubscribeFromStore) {
-			this.unsubscribeFromStore();
-		}
+	dispose(): void {
 		this.listeners.clear();
 	}
 }
-
-/**
- * Singleton instance of the Google OAuth adapter.
- */
-export const googleOAuth = new GoogleOAuthAdapter();

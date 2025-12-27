@@ -12,10 +12,10 @@ import type {
 	SyncStatus,
 	SyncEntityType,
 	SyncPushResult,
-	SyncPullResult
+	SyncPullResult,
+	StoragePort,
+	NetworkStatusPort
 } from '$lib/application/ports';
-import { authStore } from '$lib/stores/authStore.svelte';
-import { browser } from '$app/environment';
 
 interface QueuedOperation {
 	entityType: SyncEntityType;
@@ -25,6 +25,12 @@ interface QueuedOperation {
 }
 
 const SYNC_QUEUE_KEY = 'groupwheel_sync_queue';
+
+export interface SyncManagerDeps {
+	storage: StoragePort;
+	networkStatus: NetworkStatusPort;
+	getAccessToken: () => string | null;
+}
 
 /**
  * Sync manager implementing SyncService.
@@ -36,20 +42,44 @@ export class SyncManager implements SyncService {
 	private lastSyncedAt: Date | null = null;
 	private lastError: string | null = null;
 	private listeners: Set<(status: SyncStatus) => void> = new Set();
+	private unsubscribeNetworkStatus: (() => void) | null = null;
 
-	constructor() {
-		if (browser) {
-			this.loadQueue();
-			this.setupOnlineListener();
-		}
+	private readonly storage: StoragePort;
+	private readonly networkStatus: NetworkStatusPort;
+	private readonly getAccessToken: () => string | null;
+
+	constructor(deps: SyncManagerDeps) {
+		this.storage = deps.storage;
+		this.networkStatus = deps.networkStatus;
+		this.getAccessToken = deps.getAccessToken;
 	}
 
 	/**
-	 * Load pending operations from localStorage.
+	 * Initialize the sync manager.
+	 * Call this after construction to load queue and setup listeners.
 	 */
-	private loadQueue() {
+	async initialize(): Promise<void> {
+		await this.loadQueue();
+		this.setupOnlineListener();
+	}
+
+	/**
+	 * Cleanup resources.
+	 */
+	dispose(): void {
+		if (this.unsubscribeNetworkStatus) {
+			this.unsubscribeNetworkStatus();
+			this.unsubscribeNetworkStatus = null;
+		}
+		this.listeners.clear();
+	}
+
+	/**
+	 * Load pending operations from storage.
+	 */
+	private async loadQueue(): Promise<void> {
 		try {
-			const stored = localStorage.getItem(SYNC_QUEUE_KEY);
+			const stored = await this.storage.get(SYNC_QUEUE_KEY);
 			if (stored) {
 				this.queue = JSON.parse(stored);
 			}
@@ -59,27 +89,20 @@ export class SyncManager implements SyncService {
 	}
 
 	/**
-	 * Save queue to localStorage.
+	 * Save queue to storage.
 	 */
-	private saveQueue() {
-		if (!browser) return;
-		localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(this.queue));
+	private async saveQueue(): Promise<void> {
+		await this.storage.set(SYNC_QUEUE_KEY, JSON.stringify(this.queue));
 	}
 
 	/**
 	 * Setup listener for online/offline events.
 	 */
-	private setupOnlineListener() {
-		if (!browser) return;
-
-		window.addEventListener('online', () => {
-			if (this.enabled && this.queue.length > 0) {
+	private setupOnlineListener(): void {
+		this.unsubscribeNetworkStatus = this.networkStatus.onStatusChange((online) => {
+			if (online && this.enabled && this.queue.length > 0) {
 				this.sync();
 			}
-			this.notifyListeners();
-		});
-
-		window.addEventListener('offline', () => {
 			this.notifyListeners();
 		});
 	}
@@ -87,7 +110,7 @@ export class SyncManager implements SyncService {
 	/**
 	 * Notify all status listeners.
 	 */
-	private notifyListeners() {
+	private notifyListeners(): void {
 		const status = this.getStatus();
 		for (const listener of this.listeners) {
 			listener(status);
@@ -98,7 +121,8 @@ export class SyncManager implements SyncService {
 	 * Push entities to the server.
 	 */
 	async push<T>(entityType: SyncEntityType, entities: T[]): Promise<SyncPushResult> {
-		if (!this.enabled || !authStore.accessToken) {
+		const accessToken = this.getAccessToken();
+		if (!this.enabled || !accessToken) {
 			return {
 				success: false,
 				syncedCount: 0,
@@ -112,7 +136,7 @@ export class SyncManager implements SyncService {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authStore.accessToken}`
+					Authorization: `Bearer ${accessToken}`
 				},
 				body: JSON.stringify({
 					operation: 'push',
@@ -153,7 +177,8 @@ export class SyncManager implements SyncService {
 	 * Pull entities from the server.
 	 */
 	async pull<T>(entityType: SyncEntityType, since?: Date): Promise<SyncPullResult<T>> {
-		if (!this.enabled || !authStore.accessToken) {
+		const accessToken = this.getAccessToken();
+		if (!this.enabled || !accessToken) {
 			return {
 				success: false,
 				entities: [],
@@ -170,7 +195,7 @@ export class SyncManager implements SyncService {
 
 			const response = await fetch(`/api/sync?${params}`, {
 				headers: {
-					Authorization: `Bearer ${authStore.accessToken}`
+					Authorization: `Bearer ${accessToken}`
 				}
 			});
 
@@ -226,7 +251,7 @@ export class SyncManager implements SyncService {
 				}
 			}
 
-			this.saveQueue();
+			await this.saveQueue();
 			this.lastSyncedAt = new Date();
 			this.lastError = null;
 		} catch (err) {
@@ -245,7 +270,7 @@ export class SyncManager implements SyncService {
 			enabled: this.enabled,
 			syncing: this.syncing,
 			pendingChanges: this.queue.length,
-			online: browser ? navigator.onLine : true,
+			online: this.networkStatus.isOnline(),
 			lastSyncedAt: this.lastSyncedAt,
 			lastError: this.lastError
 		};
@@ -267,7 +292,7 @@ export class SyncManager implements SyncService {
 	 */
 	setEnabled(enabled: boolean): void {
 		this.enabled = enabled;
-		if (enabled && this.queue.length > 0 && browser && navigator.onLine) {
+		if (enabled && this.queue.length > 0 && this.networkStatus.isOnline()) {
 			this.sync();
 		}
 		this.notifyListeners();
@@ -283,7 +308,11 @@ export class SyncManager implements SyncService {
 	/**
 	 * Queue an entity for sync.
 	 */
-	queueForSync(entityType: SyncEntityType, operation: 'save' | 'delete', entityId: string): void {
+	async queueForSync(
+		entityType: SyncEntityType,
+		operation: 'save' | 'delete',
+		entityId: string
+	): Promise<void> {
 		// Remove any existing operation for this entity
 		this.queue = this.queue.filter(
 			(q) => !(q.entityType === entityType && q.entityId === entityId)
@@ -297,18 +326,13 @@ export class SyncManager implements SyncService {
 			timestamp: Date.now()
 		});
 
-		this.saveQueue();
+		await this.saveQueue();
 		this.notifyListeners();
 
 		// Trigger sync if online
-		if (this.enabled && browser && navigator.onLine) {
+		if (this.enabled && this.networkStatus.isOnline()) {
 			// Debounce sync
 			setTimeout(() => this.sync(), 1000);
 		}
 	}
 }
-
-/**
- * Singleton sync manager instance.
- */
-export const syncManager = new SyncManager();
