@@ -8,7 +8,6 @@
 
 import type { Program, ProgramTimeSpan } from '$lib/domain';
 import type { ProgramRepository } from '$lib/application/ports/ProgramRepository';
-import { browser } from '$app/environment';
 import { openDb } from './db';
 
 const STORE_NAME = 'programs';
@@ -53,7 +52,7 @@ function deserialize(data: any): Program {
 
 export class IndexedDbProgramRepository implements ProgramRepository {
 	async getById(id: string): Promise<Program | null> {
-		if (!browser) return null;
+		if (typeof indexedDB === 'undefined') return null;
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -70,7 +69,7 @@ export class IndexedDbProgramRepository implements ProgramRepository {
 	}
 
 	async save(program: Program): Promise<void> {
-		if (!browser) return;
+		if (typeof indexedDB === 'undefined') return;
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -88,7 +87,7 @@ export class IndexedDbProgramRepository implements ProgramRepository {
 	}
 
 	async listAll(): Promise<Program[]> {
-		if (!browser) return [];
+		if (typeof indexedDB === 'undefined') return [];
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {

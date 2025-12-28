@@ -7,7 +7,6 @@
  * @module infrastructure/sync/browserSyncManager
  */
 
-import { browser } from '$app/environment';
 import { SyncManager } from './syncManager';
 import { LocalStorageAdapter } from '$lib/infrastructure/storage';
 import { BrowserNetworkStatusAdapter } from '$lib/infrastructure/network';
@@ -20,7 +19,7 @@ let instance: SyncManager | null = null;
  * Returns null during SSR.
  */
 export function getBrowserSyncManager(): SyncManager | null {
-	if (!browser) {
+	if (typeof window === 'undefined') {
 		return null;
 	}
 

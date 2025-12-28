@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { getBrowserAuthAdapter } from '$lib/infrastructure/auth/browserAuth';
+	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { AuthUser } from '$lib/application/ports';
 
-	const authAdapter = getBrowserAuthAdapter();
+	const env = getAppEnvContext();
+	const authService = env.authService;
 
 	let user = $state<AuthUser | null>(null);
 	let loading = $state(true);
@@ -11,8 +12,8 @@
 	let unsubscribe: (() => void) | null = null;
 
 	onMount(() => {
-		if (authAdapter) {
-			unsubscribe = authAdapter.onAuthStateChange((newUser) => {
+		if (authService) {
+			unsubscribe = authService.onAuthStateChange((newUser) => {
 				user = newUser;
 				loading = false;
 			});
@@ -26,13 +27,13 @@
 	});
 
 	async function handleLogin() {
-		await authAdapter?.login();
+		await authService?.login();
 	}
 
 	async function handleLogout() {
 		isLoggingOut = true;
 		try {
-			await authAdapter?.logout();
+			await authService?.logout();
 		} finally {
 			isLoggingOut = false;
 		}

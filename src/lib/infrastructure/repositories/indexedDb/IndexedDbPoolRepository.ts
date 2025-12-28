@@ -6,14 +6,13 @@
 
 import type { Pool } from '$lib/domain';
 import type { PoolRepository } from '$lib/application/ports/PoolRepository';
-import { browser } from '$app/environment';
 import { openDb } from './db';
 
 const STORE_NAME = 'pools';
 
 export class IndexedDbPoolRepository implements PoolRepository {
 	async getById(id: string): Promise<Pool | null> {
-		if (!browser) return null;
+		if (typeof indexedDB === 'undefined') return null;
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readonly');
@@ -25,7 +24,7 @@ export class IndexedDbPoolRepository implements PoolRepository {
 	}
 
 	async save(pool: Pool): Promise<void> {
-		if (!browser) return;
+		if (typeof indexedDB === 'undefined') return;
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -41,7 +40,7 @@ export class IndexedDbPoolRepository implements PoolRepository {
 	}
 
 	async listAll(): Promise<Pool[]> {
-		if (!browser) return [];
+		if (typeof indexedDB === 'undefined') return [];
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readonly');

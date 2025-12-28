@@ -7,7 +7,7 @@
  * @module infrastructure/auth/googleOAuth
  */
 
-import type { AuthService, AuthUser, StoragePort } from '$lib/application/ports';
+import type { AuthService, AuthUser, StoragePort, HttpClientPort } from '$lib/application/ports';
 
 const AUTH_USER_KEY = 'groupwheel_auth_user';
 const AUTH_TOKEN_KEY = 'groupwheel_auth_token';
@@ -15,6 +15,7 @@ const AUTH_TOKEN_KEY = 'groupwheel_auth_token';
 export interface GoogleOAuthAdapterDeps {
 	storage: StoragePort;
 	navigate: (url: string) => Promise<void>;
+	httpClient?: HttpClientPort;
 }
 
 /**
@@ -28,10 +29,12 @@ export class GoogleOAuthAdapter implements AuthService {
 
 	private readonly storage: StoragePort;
 	private readonly navigate: (url: string) => Promise<void>;
+	private readonly httpClient?: HttpClientPort;
 
 	constructor(deps: GoogleOAuthAdapterDeps) {
 		this.storage = deps.storage;
 		this.navigate = deps.navigate;
+		this.httpClient = deps.httpClient;
 	}
 
 	/**
@@ -53,6 +56,8 @@ export class GoogleOAuthAdapter implements AuthService {
 		}
 
 		this.initialized = true;
+		// Notify listeners of the loaded auth state
+		this.notifyListeners();
 	}
 
 	/**
@@ -101,7 +106,11 @@ export class GoogleOAuthAdapter implements AuthService {
 	async logout(): Promise<void> {
 		// Call the logout endpoint to clear server-side session
 		try {
-			await fetch('/auth/logout', { method: 'POST' });
+			if (this.httpClient) {
+				await this.httpClient.request({ url: '/auth/logout', method: 'POST' });
+			} else {
+				await fetch('/auth/logout', { method: 'POST' });
+			}
 		} catch {
 			// Ignore network errors, still clear client state
 		}

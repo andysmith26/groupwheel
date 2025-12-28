@@ -82,16 +82,17 @@ export class InMemoryAuthAdapter implements AuthService {
 		}
 	}
 
-	// Test helpers
-
 	/**
-	 * Simulate a successful login.
+	 * Set the authenticated user (from AuthService interface).
+	 * Also serves as test helper to simulate a successful login.
 	 */
-	setUser(user: AuthUser, accessToken: string): void {
+	async setUser(user: AuthUser, accessToken: string): Promise<void> {
 		this.currentUser = user;
 		this.currentToken = accessToken;
 		this.notifyListeners();
 	}
+
+	// Test helpers
 
 	/**
 	 * Clear auth state (simulate logout without calling the server).

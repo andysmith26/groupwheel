@@ -6,14 +6,13 @@
 
 import type { Preference } from '$lib/domain';
 import type { PreferenceRepository } from '$lib/application/ports/PreferenceRepository';
-import { browser } from '$app/environment';
 import { openDb } from './db';
 
 const STORE_NAME = 'preferences';
 
 export class IndexedDbPreferenceRepository implements PreferenceRepository {
 	async listByProgramId(programId: string): Promise<Preference[]> {
-		if (!browser) return [];
+		if (typeof indexedDB === 'undefined') return [];
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readonly');
@@ -26,7 +25,7 @@ export class IndexedDbPreferenceRepository implements PreferenceRepository {
 	}
 
 	async save(preference: Preference): Promise<void> {
-		if (!browser) return;
+		if (typeof indexedDB === 'undefined') return;
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -38,7 +37,7 @@ export class IndexedDbPreferenceRepository implements PreferenceRepository {
 	}
 
 	async setForProgram(programId: string, preferences: Preference[]): Promise<void> {
-		if (!browser) return;
+		if (typeof indexedDB === 'undefined') return;
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readwrite');

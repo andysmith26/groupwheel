@@ -28,3 +28,5 @@ export * from './SyncService';
 // Infrastructure ports
 export * from './StoragePort';
 export * from './NetworkStatusPort';
+export * from './HttpClientPort';
+export * from './ClipboardPort';

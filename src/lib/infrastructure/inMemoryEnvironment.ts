@@ -56,8 +56,6 @@ import type {
 	Preference,
 	GroupTemplate
 } from '$lib/domain';
-import { browser } from '$app/environment';
-
 /**
  * The full set of dependencies needed by MVP use cases, backed by in-memory implementations.
  *
@@ -131,7 +129,8 @@ export function createInMemoryEnvironment(
 		}
 	];
 	// Use IndexedDB in browser mode by default for persistence
-	const useIndexedDb = options?.useIndexedDb ?? browser;
+	// Caller should explicitly pass useIndexedDb: true in browser
+	const useIndexedDb = options?.useIndexedDb ?? false;
 	const authService = options?.authService;
 	const syncService = options?.syncService;
 

@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { getBrowserAuthAdapter } from '$lib/infrastructure/auth/browserAuth';
+	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { AuthUser } from '$lib/application/ports';
 
-	const authAdapter = getBrowserAuthAdapter();
+	const env = getAppEnvContext();
+	const authService = env.authService;
 
 	let error = $state<string | null>(null);
 	let showMigrationPrompt = $state(false);
@@ -105,7 +106,7 @@
 	}
 
 	async function completeLogin(authData: AuthCallbackData) {
-		await authAdapter?.setUser(authData.user, authData.accessToken);
+		await authService?.setUser(authData.user, authData.accessToken);
 		await goto('/');
 	}
 

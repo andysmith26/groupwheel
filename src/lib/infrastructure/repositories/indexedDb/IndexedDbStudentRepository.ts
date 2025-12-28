@@ -6,14 +6,13 @@
 
 import type { Student } from '$lib/domain';
 import type { StudentRepository } from '$lib/application/ports/StudentRepository';
-import { browser } from '$app/environment';
 import { openDb } from './db';
 
 const STORE_NAME = 'students';
 
 export class IndexedDbStudentRepository implements StudentRepository {
 	async getById(id: string): Promise<Student | null> {
-		if (!browser) return null;
+		if (typeof indexedDB === 'undefined') return null;
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readonly');
@@ -25,7 +24,7 @@ export class IndexedDbStudentRepository implements StudentRepository {
 	}
 
 	async getByIds(ids: string[]): Promise<Student[]> {
-		if (!browser) return [];
+		if (typeof indexedDB === 'undefined') return [];
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readonly');
@@ -60,7 +59,7 @@ export class IndexedDbStudentRepository implements StudentRepository {
 	}
 
 	async saveMany(students: Student[]): Promise<void> {
-		if (!browser) return;
+		if (typeof indexedDB === 'undefined') return;
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readwrite');

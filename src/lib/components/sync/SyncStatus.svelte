@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { getBrowserSyncManager } from '$lib/infrastructure/sync/browserSyncManager';
+	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { SyncStatus } from '$lib/application/ports';
 
-	const syncManager = getBrowserSyncManager();
+	const env = getAppEnvContext();
+	const syncService = env.syncService;
 
 	let status = $state<SyncStatus>(
-		syncManager?.getStatus() ?? {
+		syncService?.getStatus() ?? {
 			enabled: false,
 			syncing: false,
 			pendingChanges: 0,
@@ -18,8 +19,8 @@
 	let unsubscribe: (() => void) | null = null;
 
 	onMount(() => {
-		if (syncManager) {
-			unsubscribe = syncManager.onStatusChange((newStatus: SyncStatus) => {
+		if (syncService) {
+			unsubscribe = syncService.onStatusChange((newStatus: SyncStatus) => {
 				status = newStatus;
 			});
 		}
@@ -32,7 +33,7 @@
 	});
 
 	function handleRetry() {
-		syncManager?.sync();
+		syncService?.sync();
 	}
 
 	const statusIcon = $derived.by(() => {

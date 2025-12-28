@@ -14,7 +14,8 @@ import type {
 	SyncPushResult,
 	SyncPullResult,
 	StoragePort,
-	NetworkStatusPort
+	NetworkStatusPort,
+	HttpClientPort
 } from '$lib/application/ports';
 
 interface QueuedOperation {
@@ -30,6 +31,7 @@ export interface SyncManagerDeps {
 	storage: StoragePort;
 	networkStatus: NetworkStatusPort;
 	getAccessToken: () => string | null;
+	httpClient?: HttpClientPort;
 }
 
 /**
@@ -47,11 +49,13 @@ export class SyncManager implements SyncService {
 	private readonly storage: StoragePort;
 	private readonly networkStatus: NetworkStatusPort;
 	private readonly getAccessToken: () => string | null;
+	private readonly httpClient?: HttpClientPort;
 
 	constructor(deps: SyncManagerDeps) {
 		this.storage = deps.storage;
 		this.networkStatus = deps.networkStatus;
 		this.getAccessToken = deps.getAccessToken;
+		this.httpClient = deps.httpClient;
 	}
 
 	/**
@@ -132,24 +136,37 @@ export class SyncManager implements SyncService {
 		}
 
 		try {
-			const response = await fetch('/api/sync', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${accessToken}`
-				},
-				body: JSON.stringify({
-					operation: 'push',
-					entityType,
-					entities
-				})
-			});
+			let result: { syncedCount?: number };
 
-			if (!response.ok) {
-				throw new Error(`Sync failed: ${response.statusText}`);
+			if (this.httpClient) {
+				const response = await this.httpClient.request<{ syncedCount?: number }>({
+					url: '/api/sync',
+					method: 'POST',
+					headers: { Authorization: `Bearer ${accessToken}` },
+					body: { operation: 'push', entityType, entities }
+				});
+				if (!response.ok) {
+					throw new Error(`Sync failed: status ${response.status}`);
+				}
+				result = response.data;
+			} else {
+				const response = await fetch('/api/sync', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${accessToken}`
+					},
+					body: JSON.stringify({
+						operation: 'push',
+						entityType,
+						entities
+					})
+				});
+				if (!response.ok) {
+					throw new Error(`Sync failed: ${response.statusText}`);
+				}
+				result = await response.json();
 			}
-
-			const result = await response.json();
 			this.lastSyncedAt = new Date();
 			this.lastError = null;
 			this.notifyListeners();
@@ -193,17 +210,29 @@ export class SyncManager implements SyncService {
 				...(since && { since: since.toISOString() })
 			});
 
-			const response = await fetch(`/api/sync?${params}`, {
-				headers: {
-					Authorization: `Bearer ${accessToken}`
+			let result: { entities?: T[]; lastSyncedAt?: string };
+
+			if (this.httpClient) {
+				const response = await this.httpClient.request<typeof result>({
+					url: `/api/sync?${params}`,
+					method: 'GET',
+					headers: { Authorization: `Bearer ${accessToken}` }
+				});
+				if (!response.ok) {
+					throw new Error(`Sync failed: status ${response.status}`);
 				}
-			});
-
-			if (!response.ok) {
-				throw new Error(`Sync failed: ${response.statusText}`);
+				result = response.data;
+			} else {
+				const response = await fetch(`/api/sync?${params}`, {
+					headers: {
+						Authorization: `Bearer ${accessToken}`
+					}
+				});
+				if (!response.ok) {
+					throw new Error(`Sync failed: ${response.statusText}`);
+				}
+				result = await response.json();
 			}
-
-			const result = await response.json();
 			this.lastSyncedAt = new Date();
 			this.lastError = null;
 			this.notifyListeners();

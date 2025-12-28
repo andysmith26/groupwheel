@@ -6,14 +6,13 @@
 
 import type { Staff } from '$lib/domain';
 import type { StaffRepository } from '$lib/application/ports/StaffRepository';
-import { browser } from '$app/environment';
 import { openDb } from './db';
 
 const STORE_NAME = 'staff';
 
 export class IndexedDbStaffRepository implements StaffRepository {
 	async getById(id: string): Promise<Staff | null> {
-		if (!browser) return null;
+		if (typeof indexedDB === 'undefined') return null;
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readonly');
@@ -25,7 +24,7 @@ export class IndexedDbStaffRepository implements StaffRepository {
 	}
 
 	async getByIds(ids: string[]): Promise<Staff[]> {
-		if (!browser) return [];
+		if (typeof indexedDB === 'undefined') return [];
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
 			const tx = db.transaction(STORE_NAME, 'readonly');

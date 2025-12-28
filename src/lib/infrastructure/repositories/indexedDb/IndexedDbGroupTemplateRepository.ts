@@ -9,7 +9,6 @@
 
 import type { GroupTemplate } from '$lib/domain';
 import type { GroupTemplateRepository } from '$lib/application/ports/GroupTemplateRepository';
-import { browser } from '$app/environment';
 import { openDb } from './db';
 
 const STORE_NAME = 'groupTemplates';
@@ -40,7 +39,7 @@ function deserialize(data: Record<string, unknown>): GroupTemplate {
 
 export class IndexedDbGroupTemplateRepository implements GroupTemplateRepository {
 	async getById(id: string): Promise<GroupTemplate | null> {
-		if (!browser) return null;
+		if (typeof indexedDB === 'undefined') return null;
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -57,7 +56,7 @@ export class IndexedDbGroupTemplateRepository implements GroupTemplateRepository
 	}
 
 	async listByOwnerId(staffId: string): Promise<GroupTemplate[]> {
-		if (!browser) return [];
+		if (typeof indexedDB === 'undefined') return [];
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -77,7 +76,7 @@ export class IndexedDbGroupTemplateRepository implements GroupTemplateRepository
 	}
 
 	async listAll(): Promise<GroupTemplate[]> {
-		if (!browser) return [];
+		if (typeof indexedDB === 'undefined') return [];
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -96,7 +95,7 @@ export class IndexedDbGroupTemplateRepository implements GroupTemplateRepository
 	}
 
 	async save(template: GroupTemplate): Promise<void> {
-		if (!browser) return;
+		if (typeof indexedDB === 'undefined') return;
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -115,7 +114,7 @@ export class IndexedDbGroupTemplateRepository implements GroupTemplateRepository
 	}
 
 	async delete(id: string): Promise<void> {
-		if (!browser) return;
+		if (typeof indexedDB === 'undefined') return;
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {

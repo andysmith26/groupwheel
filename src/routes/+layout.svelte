@@ -3,6 +3,7 @@
 	import logo from '$lib/assets/logo.svg';
 
 	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { setAppEnvContext } from '$lib/contexts/appEnv';
 	import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
@@ -14,21 +15,18 @@
 	const { children } = $props();
 
 	if (browser) {
-		const authAdapter = getBrowserAuthAdapter();
+		const authAdapter = getBrowserAuthAdapter(goto);
 		const syncManager = getBrowserSyncManager();
 
-		// Enable sync when user is authenticated
-		if (syncManager && authAdapter?.isAuthenticated()) {
-			syncManager.setEnabled(true);
-		}
-
 		const env = createInMemoryEnvironment(undefined, {
+			useIndexedDb: true,
 			authService: authAdapter ?? undefined,
 			syncService: syncManager ?? undefined
 		});
 		setAppEnvContext(env);
 
-		// Subscribe to auth state changes to enable/disable sync
+		// Subscribe to auth state changes to enable/disable sync.
+		// This handles both initial load (after async init) and subsequent changes.
 		if (syncManager && authAdapter) {
 			authAdapter.onAuthStateChange((user) => {
 				syncManager.setEnabled(user !== null);

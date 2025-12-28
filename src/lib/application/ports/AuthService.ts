@@ -57,6 +57,12 @@ export interface AuthService {
 	logout(): Promise<void>;
 
 	/**
+	 * Set the authenticated user (called after OAuth callback).
+	 * Used by the OAuth callback handler to complete authentication.
+	 */
+	setUser(user: AuthUser, accessToken: string): Promise<void>;
+
+	/**
 	 * Get the currently authenticated user, or null if anonymous.
 	 */
 	getUser(): Promise<AuthUser | null>;

@@ -1,6 +1,5 @@
 import type { Scenario } from '$lib/domain';
 import type { ScenarioRepository } from '$lib/application/ports/ScenarioRepository';
-import { browser } from '$app/environment';
 import { openDb } from './db';
 
 const STORE_NAME = 'scenarios';
@@ -84,7 +83,7 @@ function sanitizeConfig(config: unknown): unknown {
  */
 export class IndexedDbScenarioRepository implements ScenarioRepository {
 	async getById(id: string): Promise<Scenario | null> {
-		if (!browser) return null;
+		if (typeof indexedDB === 'undefined') return null;
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -101,7 +100,7 @@ export class IndexedDbScenarioRepository implements ScenarioRepository {
 	}
 
 	async getByProgramId(programId: string): Promise<Scenario | null> {
-		if (!browser) return null;
+		if (typeof indexedDB === 'undefined') return null;
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -119,7 +118,7 @@ export class IndexedDbScenarioRepository implements ScenarioRepository {
 	}
 
 	async save(scenario: Scenario): Promise<void> {
-		if (!browser) return;
+		if (typeof indexedDB === 'undefined') return;
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -138,7 +137,7 @@ export class IndexedDbScenarioRepository implements ScenarioRepository {
 	}
 
 	async delete(id: string): Promise<void> {
-		if (!browser) return;
+		if (typeof indexedDB === 'undefined') return;
 
 		const db = await openDb();
 		return new Promise((resolve, reject) => {

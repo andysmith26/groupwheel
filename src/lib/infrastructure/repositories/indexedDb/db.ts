@@ -7,8 +7,6 @@
  * @module infrastructure/repositories/indexedDb/db
  */
 
-import { browser } from '$app/environment';
-
 export const DB_NAME = 'groupwheel';
 export const DB_VERSION = 4; // Bumped to 4 to ensure all stores are created if v3 was partial
 
@@ -18,8 +16,8 @@ export const DB_VERSION = 4; // Bumped to 4 to ensure all stores are created if 
  */
 export function openDb(): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
-		if (!browser) {
-			reject(new Error('IndexedDB not available on server'));
+		if (typeof indexedDB === 'undefined') {
+			reject(new Error('IndexedDB not available in this environment'));
 			return;
 		}
 

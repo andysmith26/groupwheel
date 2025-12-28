@@ -7,8 +7,6 @@
  * @module infrastructure/auth/browserAuth
  */
 
-import { browser } from '$app/environment';
-import { goto } from '$app/navigation';
 import { GoogleOAuthAdapter } from './googleOAuth';
 import { LocalStorageAdapter } from '$lib/infrastructure/storage';
 
@@ -18,16 +16,21 @@ let initPromise: Promise<void> | null = null;
 /**
  * Get the browser-configured GoogleOAuthAdapter singleton.
  * Returns null during SSR.
+ *
+ * @param navigate - Navigation function to use for redirects (e.g., SvelteKit's goto)
  */
-export function getBrowserAuthAdapter(): GoogleOAuthAdapter | null {
-	if (!browser) {
+export function getBrowserAuthAdapter(navigate?: (url: string) => Promise<void>): GoogleOAuthAdapter | null {
+	if (typeof window === 'undefined') {
 		return null;
 	}
 
 	if (!instance) {
 		instance = new GoogleOAuthAdapter({
 			storage: new LocalStorageAdapter(),
-			navigate: goto
+			navigate: navigate ?? ((url: string) => {
+				window.location.href = url;
+				return Promise.resolve();
+			})
 		});
 		// Initialize asynchronously
 		initPromise = instance.initialize();
