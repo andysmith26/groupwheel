@@ -29,10 +29,17 @@ export class InMemoryPoolRepository implements PoolRepository {
 		this.pools.set(pool.id, { ...pool, memberIds: [...pool.memberIds] });
 	}
 
-	async listAll(): Promise<Pool[]> {
-		return Array.from(this.pools.values()).map((p) => ({
+	async listAll(userId?: string): Promise<Pool[]> {
+		let pools = Array.from(this.pools.values()).map((p) => ({
 			...p,
 			memberIds: [...p.memberIds]
 		}));
+
+		// Filter by userId when provided
+		if (userId !== undefined) {
+			pools = pools.filter((p) => p.userId === userId);
+		}
+
+		return pools;
 	}
 }

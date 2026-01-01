@@ -11,10 +11,20 @@ import type { AuthService, AuthUser, StoragePort, HttpClientPort } from '$lib/ap
 
 const AUTH_USER_KEY = 'groupwheel_auth_user';
 const AUTH_TOKEN_KEY = 'groupwheel_auth_token';
+const OAUTH_STATE_KEY = 'oauth_state';
 
 export interface GoogleOAuthAdapterDeps {
+	/** Storage for persisting auth state (localStorage) */
 	storage: StoragePort;
+	/** Session storage for OAuth state (sessionStorage) */
+	sessionStorage: StoragePort;
+	/** Navigation function for redirects */
 	navigate: (url: string) => Promise<void>;
+	/** Function to get current origin for redirect URI */
+	getOrigin: () => string;
+	/** Google OAuth client ID */
+	clientId?: string;
+	/** HTTP client for API calls (optional) */
 	httpClient?: HttpClientPort;
 }
 
@@ -28,12 +38,18 @@ export class GoogleOAuthAdapter implements AuthService {
 	private initialized = false;
 
 	private readonly storage: StoragePort;
+	private readonly sessionStorage: StoragePort;
 	private readonly navigate: (url: string) => Promise<void>;
+	private readonly getOrigin: () => string;
+	private readonly clientId?: string;
 	private readonly httpClient?: HttpClientPort;
 
 	constructor(deps: GoogleOAuthAdapterDeps) {
 		this.storage = deps.storage;
+		this.sessionStorage = deps.sessionStorage;
 		this.navigate = deps.navigate;
+		this.getOrigin = deps.getOrigin;
+		this.clientId = deps.clientId;
 		this.httpClient = deps.httpClient;
 	}
 
@@ -94,10 +110,60 @@ export class GoogleOAuthAdapter implements AuthService {
 
 	/**
 	 * Initiate Google OAuth login flow.
-	 * Redirects to the login page which handles the OAuth redirect.
+	 * Builds the OAuth URL and redirects to Google.
 	 */
 	async login(): Promise<void> {
-		await this.navigate('/auth/login');
+		// If already authenticated, nothing to do
+		if (this.isAuthenticated()) {
+			await this.navigate('/');
+			return;
+		}
+
+		// Check if OAuth is configured
+		if (!this.clientId) {
+			// Redirect to login page to show error
+			await this.navigate('/auth/login?error=not_configured');
+			return;
+		}
+
+		// Build Google OAuth URL
+		const origin = this.getOrigin();
+		const redirectUri = `${origin}/auth/callback`;
+		const scope = 'openid email profile';
+		const responseType = 'code';
+		const state = crypto.randomUUID(); // CSRF protection
+
+		// Store state for validation in callback
+		await this.sessionStorage.set(OAUTH_STATE_KEY, state);
+
+		const params = new URLSearchParams({
+			client_id: this.clientId,
+			redirect_uri: redirectUri,
+			response_type: responseType,
+			scope: scope,
+			state: state,
+			access_type: 'offline',
+			prompt: 'consent'
+		});
+
+		const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+		// Redirect to Google
+		await this.navigate(googleAuthUrl);
+	}
+
+	/**
+	 * Get the stored OAuth state for callback validation.
+	 */
+	async getOAuthState(): Promise<string | null> {
+		return this.sessionStorage.get(OAUTH_STATE_KEY);
+	}
+
+	/**
+	 * Clear the stored OAuth state after validation.
+	 */
+	async clearOAuthState(): Promise<void> {
+		await this.sessionStorage.remove(OAUTH_STATE_KEY);
 	}
 
 	/**

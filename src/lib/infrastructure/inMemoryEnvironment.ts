@@ -10,7 +10,8 @@ import type {
 	Clock,
 	GroupingAlgorithm,
 	AuthService,
-	SyncService
+	SyncService,
+	ClipboardPort
 } from '$lib/application/ports';
 import {
 	InMemoryStudentRepository,
@@ -76,6 +77,7 @@ export interface InMemoryEnvironment {
 	groupingAlgorithm: GroupingAlgorithm;
 	authService?: AuthService;
 	syncService?: SyncService;
+	clipboard?: ClipboardPort;
 }
 
 /**
@@ -100,6 +102,11 @@ export interface CreateEnvironmentOptions {
 	 * When provided, repositories will queue changes for server sync.
 	 */
 	syncService?: SyncService;
+
+	/**
+	 * Clipboard service for copy operations.
+	 */
+	clipboard?: ClipboardPort;
 }
 
 /**
@@ -230,6 +237,7 @@ export function createInMemoryEnvironment(
 		clock,
 		groupingAlgorithm,
 		authService,
-		syncService
+		syncService,
+		clipboard: options?.clipboard
 	};
 }

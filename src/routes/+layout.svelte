@@ -5,25 +5,31 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { env as publicEnv } from '$env/dynamic/public';
 	import { setAppEnvContext } from '$lib/contexts/appEnv';
 	import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
 	import { getBrowserAuthAdapter } from '$lib/infrastructure/auth/browserAuth';
 	import { getBrowserSyncManager } from '$lib/infrastructure/sync/browserSyncManager';
+	import { BrowserClipboardAdapter } from '$lib/infrastructure/clipboard';
 	import LoginButton from '$lib/components/auth/LoginButton.svelte';
 	import SyncStatus from '$lib/components/sync/SyncStatus.svelte';
 
 	const { children } = $props();
 
 	if (browser) {
-		const authAdapter = getBrowserAuthAdapter(goto);
+		const authAdapter = getBrowserAuthAdapter({
+			navigate: goto,
+			clientId: publicEnv.PUBLIC_GOOGLE_CLIENT_ID
+		});
 		const syncManager = getBrowserSyncManager();
 
-		const env = createInMemoryEnvironment(undefined, {
+		const appEnv = createInMemoryEnvironment(undefined, {
 			useIndexedDb: true,
 			authService: authAdapter ?? undefined,
-			syncService: syncManager ?? undefined
+			syncService: syncManager ?? undefined,
+			clipboard: new BrowserClipboardAdapter()
 		});
-		setAppEnvContext(env);
+		setAppEnvContext(appEnv);
 
 		// Subscribe to auth state changes to enable/disable sync.
 		// This handles both initial load (after async init) and subsequent changes.

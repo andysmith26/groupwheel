@@ -11,6 +11,8 @@ export interface CreateProgramInput {
 	primaryPoolId: string;
 	ownerStaffIds?: string[];
 	schoolId?: string;
+	/** ID of the authenticated user (for multi-tenant data isolation) */
+	userId?: string;
 }
 
 /**
@@ -61,7 +63,8 @@ export async function createProgram(
 			poolIds: [input.primaryPoolId],
 			primaryPoolId: input.primaryPoolId,
 			schoolId: input.schoolId,
-			ownerStaffIds: input.ownerStaffIds
+			ownerStaffIds: input.ownerStaffIds,
+			userId: input.userId
 		});
 	} catch (e) {
 		const message = e instanceof Error ? e.message : 'Unknown domain validation error';

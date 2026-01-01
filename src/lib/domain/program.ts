@@ -21,6 +21,12 @@ export interface Program {
 	poolIds: string[];
 	primaryPoolId?: string;
 	ownerStaffIds?: string[];
+	/**
+	 * ID of the authenticated user who owns this program.
+	 * Used for multi-tenant data isolation.
+	 * Undefined for anonymous/local-only data.
+	 */
+	userId?: string;
 }
 
 /**
@@ -36,6 +42,7 @@ export function createProgram(params: {
 	schoolId?: string;
 	primaryPoolId?: string;
 	ownerStaffIds?: string[];
+	userId?: string;
 }): Program {
 	const name = params.name.trim();
 	if (!name) {
@@ -58,6 +65,7 @@ export function createProgram(params: {
 		poolIds: [...params.poolIds],
 		primaryPoolId: params.primaryPoolId,
 		schoolId: params.schoolId,
-		ownerStaffIds: params.ownerStaffIds
+		ownerStaffIds: params.ownerStaffIds,
+		userId: params.userId
 	};
 }

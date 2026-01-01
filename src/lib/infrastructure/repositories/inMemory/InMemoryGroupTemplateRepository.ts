@@ -34,8 +34,14 @@ export class InMemoryGroupTemplateRepository implements GroupTemplateRepository 
 		return results.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 	}
 
-	async listAll(): Promise<GroupTemplate[]> {
-		const results = Array.from(this.templates.values()).map((t) => this.clone(t));
+	async listAll(userId?: string): Promise<GroupTemplate[]> {
+		let results = Array.from(this.templates.values()).map((t) => this.clone(t));
+
+		// Filter by userId when provided
+		if (userId !== undefined) {
+			results = results.filter((t) => t.userId === userId);
+		}
+
 		// Sort by most recently updated
 		return results.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 	}

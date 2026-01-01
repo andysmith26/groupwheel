@@ -16,6 +16,8 @@ export interface CreateGroupTemplateInput {
 	description?: string;
 	groups: Array<{ name: string; capacity?: number | null }>;
 	ownerStaffId?: string;
+	/** ID of the authenticated user (for multi-tenant data isolation) */
+	userId?: string;
 }
 
 export type CreateGroupTemplateError = { type: 'VALIDATION_ERROR'; message: string };
@@ -37,7 +39,8 @@ export async function createGroupTemplate(
 				id: deps.idGenerator.generateId(),
 				name: g.name,
 				capacity: g.capacity ?? null
-			}))
+			})),
+			userId: input.userId
 		});
 
 		await deps.groupTemplateRepo.save(template);

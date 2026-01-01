@@ -1,50 +1,33 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import { env } from '$env/dynamic/public';
 
 	let error = $state<string | null>(null);
 
-	onMount(() => {
+	// Check for error from auth service redirect
+	const urlError = $derived($page.url.searchParams.get('error'));
+	$effect(() => {
+		if (urlError === 'not_configured') {
+			error = 'Google OAuth is not configured. Please set PUBLIC_GOOGLE_CLIENT_ID.';
+		}
+	});
+
+	onMount(async () => {
+		// If there's already an error from URL, don't proceed
+		if (urlError) return;
+
 		const appEnv = getAppEnvContext();
 		const authService = appEnv.authService;
 
-		// If already authenticated, redirect to home
-		if (authService?.isAuthenticated()) {
-			goto('/');
+		if (!authService) {
+			error = 'Authentication is not available.';
 			return;
 		}
 
-		// Build Google OAuth URL
-		const clientId = env.PUBLIC_GOOGLE_CLIENT_ID;
-		if (!clientId) {
-			error = 'Google OAuth is not configured. Please set PUBLIC_GOOGLE_CLIENT_ID.';
-			return;
-		}
-
-		const redirectUri = `${window.location.origin}/auth/callback`;
-		const scope = 'openid email profile';
-		const responseType = 'code';
-		const state = crypto.randomUUID(); // CSRF protection
-
-		// Store state for validation in callback
-		sessionStorage.setItem('oauth_state', state);
-
-		const params = new URLSearchParams({
-			client_id: clientId,
-			redirect_uri: redirectUri,
-			response_type: responseType,
-			scope: scope,
-			state: state,
-			access_type: 'offline',
-			prompt: 'consent'
-		});
-
-		const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-
-		// Redirect to Google
-		window.location.href = googleAuthUrl;
+		// The auth service handles everything: checking if authenticated,
+		// building OAuth URL, and redirecting
+		await authService.login();
 	});
 </script>
 

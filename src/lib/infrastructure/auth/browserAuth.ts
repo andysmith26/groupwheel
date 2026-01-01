@@ -8,18 +8,23 @@
  */
 
 import { GoogleOAuthAdapter } from './googleOAuth';
-import { LocalStorageAdapter } from '$lib/infrastructure/storage';
+import { LocalStorageAdapter, SessionStorageAdapter } from '$lib/infrastructure/storage';
 
 let instance: GoogleOAuthAdapter | null = null;
 let initPromise: Promise<void> | null = null;
 
+export interface BrowserAuthAdapterOptions {
+	/** Navigation function (e.g., SvelteKit's goto) */
+	navigate?: (url: string) => Promise<void>;
+	/** Google OAuth client ID */
+	clientId?: string;
+}
+
 /**
  * Get the browser-configured GoogleOAuthAdapter singleton.
  * Returns null during SSR.
- *
- * @param navigate - Navigation function to use for redirects (e.g., SvelteKit's goto)
  */
-export function getBrowserAuthAdapter(navigate?: (url: string) => Promise<void>): GoogleOAuthAdapter | null {
+export function getBrowserAuthAdapter(options?: BrowserAuthAdapterOptions): GoogleOAuthAdapter | null {
 	if (typeof window === 'undefined') {
 		return null;
 	}
@@ -27,10 +32,13 @@ export function getBrowserAuthAdapter(navigate?: (url: string) => Promise<void>)
 	if (!instance) {
 		instance = new GoogleOAuthAdapter({
 			storage: new LocalStorageAdapter(),
-			navigate: navigate ?? ((url: string) => {
+			sessionStorage: new SessionStorageAdapter(),
+			navigate: options?.navigate ?? ((url: string) => {
 				window.location.href = url;
 				return Promise.resolve();
-			})
+			}),
+			getOrigin: () => window.location.origin,
+			clientId: options?.clientId
 		});
 		// Initialize asynchronously
 		initPromise = instance.initialize();

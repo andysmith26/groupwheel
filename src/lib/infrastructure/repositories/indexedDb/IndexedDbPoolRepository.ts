@@ -39,7 +39,7 @@ export class IndexedDbPoolRepository implements PoolRepository {
 		return this.save(pool);
 	}
 
-	async listAll(): Promise<Pool[]> {
+	async listAll(userId?: string): Promise<Pool[]> {
 		if (typeof indexedDB === 'undefined') return [];
 		const db = await openDb();
 		return new Promise((resolve, reject) => {
@@ -47,7 +47,16 @@ export class IndexedDbPoolRepository implements PoolRepository {
 			const store = tx.objectStore(STORE_NAME);
 			const request = store.getAll();
 			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result as Pool[]);
+			request.onsuccess = () => {
+				let pools = request.result as Pool[];
+
+				// Filter by userId when provided
+				if (userId !== undefined) {
+					pools = pools.filter((p) => p.userId === userId);
+				}
+
+				resolve(pools);
+			};
 		});
 	}
 }

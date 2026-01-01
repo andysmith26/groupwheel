@@ -16,13 +16,21 @@ function getPrimaryPoolId(program: Program): string | null {
 	return program.primaryPoolId ?? program.poolIds[0] ?? null;
 }
 
-export async function listPrograms(deps: {
-	programRepo: ProgramRepository;
-	poolRepo: PoolRepository;
-}): Promise<Result<ProgramWithPrimaryPool[], ListProgramsError>> {
+export interface ListProgramsInput {
+	/** Filter by user ID (for multi-tenant isolation) */
+	userId?: string;
+}
+
+export async function listPrograms(
+	deps: {
+		programRepo: ProgramRepository;
+		poolRepo: PoolRepository;
+	},
+	input?: ListProgramsInput
+): Promise<Result<ProgramWithPrimaryPool[], ListProgramsError>> {
 	let programs: Program[];
 	try {
-		programs = await deps.programRepo.listAll();
+		programs = await deps.programRepo.listAll(input?.userId);
 	} catch (e) {
 		const message = e instanceof Error ? e.message : 'Unknown program listing error';
 		return err({ type: 'PROGRAM_LIST_FAILED', message });

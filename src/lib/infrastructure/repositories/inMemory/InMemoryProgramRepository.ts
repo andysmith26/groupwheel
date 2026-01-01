@@ -47,11 +47,18 @@ export class InMemoryProgramRepository implements ProgramRepository {
 		});
 	}
 
-	async listAll(): Promise<Program[]> {
-		return Array.from(this.programs.values()).map((p) => ({
+	async listAll(userId?: string): Promise<Program[]> {
+		let programs = Array.from(this.programs.values()).map((p) => ({
 			...p,
 			poolIds: [...p.poolIds],
 			ownerStaffIds: p.ownerStaffIds ? [...p.ownerStaffIds] : undefined
 		}));
+
+		// Filter by userId when provided
+		if (userId !== undefined) {
+			programs = programs.filter((p) => p.userId === userId);
+		}
+
+		return programs;
 	}
 }

@@ -24,6 +24,12 @@ export interface Pool {
 	status: PoolStatus;
 	source?: PoolSource;
 	parentPoolId?: string;
+	/**
+	 * ID of the authenticated user who owns this pool.
+	 * Used for multi-tenant data isolation.
+	 * Undefined for anonymous/local-only data.
+	 */
+	userId?: string;
 }
 
 /**
@@ -43,6 +49,7 @@ export function createPool(params: {
 	status?: PoolStatus;
 	source?: PoolSource;
 	parentPoolId?: string;
+	userId?: string;
 }): Pool {
 	const name = params.name.trim();
 	if (!name) {
@@ -62,6 +69,7 @@ export function createPool(params: {
 		timeSpan: params.timeSpan,
 		status: params.status ?? 'ACTIVE',
 		source: params.source,
-		parentPoolId: params.parentPoolId
+		parentPoolId: params.parentPoolId,
+		userId: params.userId
 	};
 }

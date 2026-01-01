@@ -6,7 +6,9 @@ export interface ProgramRepository {
 	update(program: Program): Promise<void>;
 
 	/**
-	 * Simple listing for MVP. Later we can add filters by owner, school, etc.
+	 * List all programs.
+	 * When userId is provided, filters to only programs owned by that user.
+	 * When userId is undefined, returns all local programs (anonymous mode).
 	 */
-	listAll(): Promise<Program[]>;
+	listAll(userId?: string): Promise<Program[]>;
 }

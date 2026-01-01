@@ -33,7 +33,7 @@ export class SyncedProgramRepository implements ProgramRepository {
 		}
 	}
 
-	async listAll(): Promise<Program[]> {
-		return this.local.listAll();
+	async listAll(userId?: string): Promise<Program[]> {
+		return this.local.listAll(userId);
 	}
 }

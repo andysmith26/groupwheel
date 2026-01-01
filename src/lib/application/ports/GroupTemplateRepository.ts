@@ -20,9 +20,11 @@ export interface GroupTemplateRepository {
 	listByOwnerId(staffId: string): Promise<GroupTemplate[]>;
 
 	/**
-	 * List all templates (for admin or when owner filtering isn't needed).
+	 * List all templates.
+	 * When userId is provided, filters to only templates owned by that user.
+	 * When userId is undefined, returns all local templates (anonymous mode).
 	 */
-	listAll(): Promise<GroupTemplate[]>;
+	listAll(userId?: string): Promise<GroupTemplate[]>;
 
 	/**
 	 * Save a new template.

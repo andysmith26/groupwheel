@@ -7,19 +7,23 @@
  * - In development: always enabled
  * - In production: add ?devtools=true, ?debugMode=true, or ?debug=true to URL to enable (persists in localStorage)
  * - To disable: add ?devtools=false, ?debugMode=false, or ?debug=false or clear localStorage
+ *
+ * Note: This is development tooling that uses browser APIs directly.
+ * This is acceptable for dev tools which are not part of the core application.
  */
-
-import { dev, browser } from '$app/environment';
 
 const STORAGE_KEY = 'groupwheel-devtools';
 
 // Support multiple URL parameter names for convenience
 const DEBUG_PARAM_NAMES = ['devtools', 'debugMode', 'debug'];
 
-function createDevToolsStore() {
-	let enabled = $state(dev);
+// Check if we're in development mode (Vite sets import.meta.env.DEV)
+const isDev = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true;
 
-	if (browser) {
+function createDevToolsStore() {
+	let enabled = $state(isDev);
+
+	if (typeof window !== 'undefined') {
 		// Check localStorage first
 		const stored = localStorage.getItem(STORAGE_KEY);
 		if (stored === 'true') {
@@ -53,7 +57,7 @@ function createDevToolsStore() {
 				: window.location.pathname;
 			window.history.replaceState({}, '', newUrl);
 		} else if (debugParam === 'false') {
-			enabled = dev; // Fall back to actual dev mode
+			enabled = isDev; // Fall back to actual dev mode
 			localStorage.removeItem(STORAGE_KEY);
 			// Clean up URL without reload
 			if (paramNameUsed) {

@@ -21,15 +21,23 @@ export interface ActivityDisplay {
 
 export type ListActivitiesError = { type: 'LOAD_FAILED'; message: string };
 
-export async function listActivities(deps: {
-	programRepo: ProgramRepository;
-	poolRepo: PoolRepository;
-	scenarioRepo: ScenarioRepository;
-}): Promise<Result<ActivityDisplay[], ListActivitiesError>> {
+export interface ListActivitiesInput {
+	/** Filter by user ID (for multi-tenant isolation) */
+	userId?: string;
+}
+
+export async function listActivities(
+	deps: {
+		programRepo: ProgramRepository;
+		poolRepo: PoolRepository;
+		scenarioRepo: ScenarioRepository;
+	},
+	input?: ListActivitiesInput
+): Promise<Result<ActivityDisplay[], ListActivitiesError>> {
 	try {
-		// Load all programs and pools
-		const programs = await deps.programRepo.listAll();
-		const pools = await deps.poolRepo.listAll();
+		// Load all programs and pools, filtered by userId if provided
+		const programs = await deps.programRepo.listAll(input?.userId);
+		const pools = await deps.poolRepo.listAll(input?.userId);
 
 		const poolMap = new Map(pools.map((p) => [p.id, p]));
 

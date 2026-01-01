@@ -122,6 +122,18 @@ import {
 } from '$lib/application/useCases/getCurrentUser';
 import type { AuthUser } from '$lib/application/ports';
 
+/**
+ * Get the current authenticated user's ID, if any.
+ * Returns undefined for anonymous users.
+ */
+function getCurrentUserId(env: InMemoryEnvironment): string | undefined {
+	if (!env.authService) return undefined;
+	const user = env.authService.isAuthenticated()
+		? (env.authService as unknown as { getUserSync(): AuthUser | null }).getUserSync?.()
+		: null;
+	return user?.id;
+}
+
 export async function importPool(
 	env: InMemoryEnvironment,
 	input: ImportPoolFromCsvInput
@@ -295,10 +307,14 @@ export type {
 export async function listPrograms(
 	env: InMemoryEnvironment
 ): Promise<Result<ProgramWithPrimaryPool[], ListProgramsError>> {
-	return listProgramsUseCase({
-		programRepo: env.programRepo,
-		poolRepo: env.poolRepo
-	});
+	const userId = getCurrentUserId(env);
+	return listProgramsUseCase(
+		{
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo
+		},
+		{ userId }
+	);
 }
 
 export async function getProgramWithPools(
@@ -424,17 +440,22 @@ export type {
 
 /**
  * List all grouping activities with display metadata.
+ * Automatically filters by current user when authenticated.
  */
 export async function listActivities(
 	env: InMemoryEnvironment
 ): Promise<
 	Result<ActivityDisplay[], import('$lib/application/useCases/listActivities').ListActivitiesError>
 > {
-	return listActivitiesUseCase({
-		programRepo: env.programRepo,
-		poolRepo: env.poolRepo,
-		scenarioRepo: env.scenarioRepo
-	});
+	const userId = getCurrentUserId(env);
+	return listActivitiesUseCase(
+		{
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo,
+			scenarioRepo: env.scenarioRepo
+		},
+		{ userId }
+	);
 }
 
 /**

@@ -86,7 +86,7 @@ export class IndexedDbProgramRepository implements ProgramRepository {
 		return this.save(program);
 	}
 
-	async listAll(): Promise<Program[]> {
+	async listAll(userId?: string): Promise<Program[]> {
 		if (typeof indexedDB === 'undefined') return [];
 
 		const db = await openDb();
@@ -99,7 +99,14 @@ export class IndexedDbProgramRepository implements ProgramRepository {
 			request.onsuccess = () => {
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const data = request.result as any[];
-				resolve(data.map(deserialize));
+				let programs = data.map(deserialize);
+
+				// Filter by userId when provided
+				if (userId !== undefined) {
+					programs = programs.filter((p) => p.userId === userId);
+				}
+
+				resolve(programs);
 			};
 		});
 	}

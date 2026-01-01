@@ -42,6 +42,12 @@ export interface GroupTemplate {
 	createdAt: Date;
 	/** When the template was last modified */
 	updatedAt: Date;
+	/**
+	 * ID of the authenticated user who owns this template.
+	 * Used for multi-tenant data isolation.
+	 * Undefined for anonymous/local-only data.
+	 */
+	userId?: string;
 }
 
 /**
@@ -57,6 +63,7 @@ export interface CreateGroupTemplateInput {
 		name: string;
 		capacity?: number | null;
 	}>;
+	userId?: string;
 }
 
 /**
@@ -107,7 +114,8 @@ export function createGroupTemplate(input: CreateGroupTemplateInput): GroupTempl
 			capacity: g.capacity ?? null
 		})),
 		createdAt: now,
-		updatedAt: now
+		updatedAt: now,
+		userId: input.userId
 	};
 }
 

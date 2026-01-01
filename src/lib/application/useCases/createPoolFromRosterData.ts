@@ -20,6 +20,8 @@ export interface CreatePoolFromRosterDataInput {
 	ownerStaffId: string;
 	schoolId?: string;
 	source?: 'IMPORT' | 'MANUAL';
+	/** ID of the authenticated user (for multi-tenant data isolation) */
+	userId?: string;
 }
 
 /**
@@ -92,7 +94,8 @@ export async function createPoolFromRosterData(
 			schoolId,
 			primaryStaffOwnerId: ownerStaffId,
 			status: 'ACTIVE',
-			source: source ?? 'IMPORT'
+			source: source ?? 'IMPORT',
+			userId: input.userId
 		});
 
 		await deps.poolRepo.save(pool);

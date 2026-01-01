@@ -33,7 +33,7 @@ export class SyncedPoolRepository implements PoolRepository {
 		}
 	}
 
-	async listAll(): Promise<Pool[]> {
-		return this.local.listAll();
+	async listAll(userId?: string): Promise<Pool[]> {
+		return this.local.listAll(userId);
 	}
 }

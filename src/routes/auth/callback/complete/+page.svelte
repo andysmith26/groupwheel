@@ -4,12 +4,13 @@
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { AuthUser } from '$lib/application/ports';
 
-	const env = getAppEnvContext();
-	const authService = env.authService;
+	const appEnv = getAppEnvContext();
+	const authService = appEnv.authService;
 
 	let error = $state<string | null>(null);
 	let showMigrationPrompt = $state(false);
 	let hasLocalData = $state(false);
+	let pendingAuthData = $state<AuthCallbackData | null>(null);
 
 	interface AuthCallbackData {
 		user: AuthUser;
@@ -18,18 +19,33 @@
 		expiresAt: number;
 	}
 
-	onMount(async () => {
-		// Read auth data from cookie
-		const cookies = document.cookie.split(';').reduce(
+	/**
+	 * Parse cookies from document.cookie string.
+	 * Note: Cookie reading is inherently browser-specific and acceptable here
+	 * since this is the OAuth callback flow between server and client.
+	 */
+	function parseCookies(): Record<string, string> {
+		return document.cookie.split(';').reduce(
 			(acc, cookie) => {
 				const [key, value] = cookie.trim().split('=');
-				acc[key] = value;
+				if (key) acc[key] = value;
 				return acc;
 			},
 			{} as Record<string, string>
 		);
+	}
 
+	/**
+	 * Clear a cookie by setting max-age to 0.
+	 */
+	function clearCookie(name: string): void {
+		document.cookie = `${name}=; path=/; max-age=0`;
+	}
+
+	onMount(async () => {
+		const cookies = parseCookies();
 		const authDataStr = cookies['auth_callback_data'];
+
 		if (!authDataStr) {
 			error = 'Authentication data not found. Please try logging in again.';
 			return;
@@ -37,18 +53,15 @@
 
 		try {
 			const authData: AuthCallbackData = JSON.parse(decodeURIComponent(authDataStr));
+			pendingAuthData = authData;
 
-			// Clear the callback cookie
-			document.cookie = 'auth_callback_data=; path=/; max-age=0';
-
-			// Check if there's existing local data
-			hasLocalData = await checkForLocalData();
+			// Check if there's existing local data using repositories
+			hasLocalData = await checkForLocalDataViaRepos();
 
 			if (hasLocalData) {
-				// Show migration prompt
 				showMigrationPrompt = true;
 			} else {
-				// No local data, just complete login
+				clearCookie('auth_callback_data');
 				await completeLogin(authData);
 			}
 		} catch (err) {
@@ -57,52 +70,49 @@
 		}
 	});
 
-	async function checkForLocalData(): Promise<boolean> {
-		// Check if IndexedDB has any data
-		return new Promise((resolve) => {
-			if (!window.indexedDB) {
-				resolve(false);
-				return;
-			}
+	/**
+	 * Check if there's existing local data by querying repositories.
+	 * Uses the environment's repositories instead of direct IndexedDB access.
+	 */
+	async function checkForLocalDataViaRepos(): Promise<boolean> {
+		try {
+			// Check if any repository has data
+			const [programs, pools, templates] = await Promise.all([
+				appEnv.programRepo.listAll(),
+				appEnv.poolRepo.listAll(),
+				appEnv.groupTemplateRepo.listAll()
+			]);
 
-			const request = indexedDB.open('groupwheel');
-			request.onsuccess = () => {
-				const db = request.result;
-				const storeNames = Array.from(db.objectStoreNames);
+			return programs.length > 0 || pools.length > 0 || templates.length > 0;
+		} catch {
+			return false;
+		}
+	}
 
-				if (storeNames.length === 0) {
-					db.close();
-					resolve(false);
-					return;
-				}
+	/**
+	 * Clear all local data by deleting the IndexedDB database.
+	 *
+	 * Note: This uses direct IndexedDB access because it's a complete database reset
+	 * operation (not a domain operation). The repository interfaces don't have bulk
+	 * delete semantics, and this only runs during the one-time migration flow.
+	 */
+	async function clearLocalData(): Promise<void> {
+		if (typeof indexedDB === 'undefined') return;
 
-				// Check if any store has data
-				const tx = db.transaction(storeNames, 'readonly');
-				let hasData = false;
-
-				storeNames.forEach((storeName) => {
-					const store = tx.objectStore(storeName);
-					const countReq = store.count();
-					countReq.onsuccess = () => {
-						if (countReq.result > 0) {
-							hasData = true;
-						}
-					};
-				});
-
-				tx.oncomplete = () => {
-					db.close();
-					resolve(hasData);
+		try {
+			await new Promise<void>((resolve, reject) => {
+				const request = indexedDB.deleteDatabase('groupwheel');
+				request.onsuccess = () => resolve();
+				request.onerror = () => reject(request.error);
+				request.onblocked = () => {
+					// Database is in use by another tab
+					console.warn('Database delete blocked - other tabs may have it open');
+					resolve();
 				};
-
-				tx.onerror = () => {
-					db.close();
-					resolve(false);
-				};
-			};
-
-			request.onerror = () => resolve(false);
-		});
+			});
+		} catch (err) {
+			console.error('Failed to clear local data:', err);
+		}
 	}
 
 	async function completeLogin(authData: AuthCallbackData) {
@@ -111,24 +121,10 @@
 	}
 
 	async function handleMigrationChoice(choice: 'upload' | 'separate' | 'discard') {
-		const cookies = document.cookie.split(';').reduce(
-			(acc, cookie) => {
-				const [key, value] = cookie.trim().split('=');
-				acc[key] = value;
-				return acc;
-			},
-			{} as Record<string, string>
-		);
-
-		// Re-parse auth data (we need to keep it around for this)
-		const authDataStr = cookies['auth_callback_data'];
-		if (!authDataStr) {
-			// Fall back to trying to read from sessionStorage if cookie was cleared
+		if (!pendingAuthData) {
 			error = 'Session expired. Please try logging in again.';
 			return;
 		}
-
-		const authData: AuthCallbackData = JSON.parse(decodeURIComponent(authDataStr));
 
 		switch (choice) {
 			case 'upload':
@@ -142,18 +138,12 @@
 				break;
 
 			case 'discard':
-				// Clear local data
-				if (window.indexedDB) {
-					await new Promise<void>((resolve) => {
-						const req = indexedDB.deleteDatabase('groupwheel');
-						req.onsuccess = () => resolve();
-						req.onerror = () => resolve();
-					});
-				}
+				await clearLocalData();
 				break;
 		}
 
-		await completeLogin(authData);
+		clearCookie('auth_callback_data');
+		await completeLogin(pendingAuthData);
 	}
 </script>
 

@@ -14,7 +14,7 @@
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { Program, Scenario, Student } from '$lib/domain';
 	import { getStudentDisplayName } from '$lib/domain/student';
-	import { buildAssignmentList, exportToTSV, copyToClipboard } from '$lib/utils/csvExport';
+	import { buildAssignmentList, exportToTSV } from '$lib/utils/csvExport';
 	import { getStudentActivityView } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 
@@ -110,7 +110,7 @@
 
 	async function handleCopyAll() {
 		const tsv = exportToTSV(assignments);
-		const success = await copyToClipboard(tsv);
+		const success = await env?.clipboard?.writeText(tsv);
 		// Simple feedback - could add toast
 		if (success) {
 			alert('Copied to clipboard!');

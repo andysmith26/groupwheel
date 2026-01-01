@@ -39,8 +39,7 @@
 		buildAssignmentList,
 		exportToCSV,
 		exportToTSV,
-		exportGroupsToCSV,
-		copyToClipboard
+		exportGroupsToCSV
 	} from '$lib/utils/csvExport';
 
 	// --- Environment ---
@@ -493,7 +492,7 @@
 		const studentsMap = new Map(Object.entries(studentsById));
 		const assignments = buildAssignmentList(view.groups, studentsMap);
 		const csv = exportToCSV(assignments);
-		const success = await copyToClipboard(csv);
+		const success = await env?.clipboard?.writeText(csv);
 		showToast(success ? 'CSV copied to clipboard!' : 'Failed to copy');
 		showExportMenu = false;
 	}
@@ -503,7 +502,7 @@
 		const studentsMap = new Map(Object.entries(studentsById));
 		const assignments = buildAssignmentList(view.groups, studentsMap);
 		const tsv = exportToTSV(assignments);
-		const success = await copyToClipboard(tsv);
+		const success = await env?.clipboard?.writeText(tsv);
 		showToast(success ? 'Copied! Paste directly into Google Sheets' : 'Failed to copy');
 		showExportMenu = false;
 	}
@@ -512,7 +511,7 @@
 		if (!view) return;
 		const studentsMap = new Map(Object.entries(studentsById));
 		const csv = exportGroupsToCSV(view.groups, studentsMap);
-		const success = await copyToClipboard(csv);
+		const success = await env?.clipboard?.writeText(csv);
 		showToast(success ? 'Groups summary copied!' : 'Failed to copy');
 		showExportMenu = false;
 	}

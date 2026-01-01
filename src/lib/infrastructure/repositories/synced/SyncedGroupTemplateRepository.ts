@@ -21,8 +21,8 @@ export class SyncedGroupTemplateRepository implements GroupTemplateRepository {
 		return this.local.listByOwnerId(staffId);
 	}
 
-	async listAll(): Promise<GroupTemplate[]> {
-		return this.local.listAll();
+	async listAll(userId?: string): Promise<GroupTemplate[]> {
+		return this.local.listAll(userId);
 	}
 
 	async save(template: GroupTemplate): Promise<void> {

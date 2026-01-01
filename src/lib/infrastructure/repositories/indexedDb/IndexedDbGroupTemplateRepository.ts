@@ -75,7 +75,7 @@ export class IndexedDbGroupTemplateRepository implements GroupTemplateRepository
 		});
 	}
 
-	async listAll(): Promise<GroupTemplate[]> {
+	async listAll(userId?: string): Promise<GroupTemplate[]> {
 		if (typeof indexedDB === 'undefined') return [];
 
 		const db = await openDb();
@@ -86,7 +86,13 @@ export class IndexedDbGroupTemplateRepository implements GroupTemplateRepository
 
 			request.onerror = () => reject(request.error);
 			request.onsuccess = () => {
-				const results = (request.result || []).map(deserialize);
+				let results = (request.result || []).map(deserialize);
+
+				// Filter by userId when provided
+				if (userId !== undefined) {
+					results = results.filter((t) => t.userId === userId);
+				}
+
 				// Sort by most recently updated
 				results.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 				resolve(results);

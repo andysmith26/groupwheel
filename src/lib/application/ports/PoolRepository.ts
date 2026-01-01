@@ -6,7 +6,9 @@ export interface PoolRepository {
 	update(pool: Pool): Promise<void>;
 
 	/**
-	 * MVP-friendly listing. We can refine later to support access control.
+	 * List all pools.
+	 * When userId is provided, filters to only pools owned by that user.
+	 * When userId is undefined, returns all local pools (anonymous mode).
 	 */
-	listAll(): Promise<Pool[]>;
+	listAll(userId?: string): Promise<Pool[]>;
 }
