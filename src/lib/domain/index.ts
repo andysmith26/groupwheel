@@ -18,6 +18,7 @@ export * from './groupTemplate';
 export * from './scenario';
 export * from './preference';
 export * from './analytics';
+export * from './import';
 
 // Re-export commonly used types at top level for convenience
 export type { Student } from './student';

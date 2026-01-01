@@ -17,6 +17,7 @@
 export * from './importPoolFromCsv';
 export * from './importRoster';
 export * from './createPoolFromRosterData';
+export * from './importRosterWithMapping';
 export * from './listPools';
 
 // Program operations

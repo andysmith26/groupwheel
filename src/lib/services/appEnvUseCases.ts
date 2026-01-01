@@ -53,6 +53,12 @@ import { createPoolFromRosterData } from '$lib/application/useCases/createPoolFr
 import type { ImportRosterInput, ImportRosterError } from '$lib/application/useCases/importRoster';
 import { importRoster as importRosterUseCase } from '$lib/application/useCases/importRoster';
 import type {
+	ImportRosterWithMappingInput,
+	ImportRosterWithMappingResult,
+	ImportRosterWithMappingError
+} from '$lib/application/useCases/importRosterWithMapping';
+import { importRosterWithMapping as importRosterWithMappingUseCase } from '$lib/application/useCases/importRosterWithMapping';
+import type {
 	ListProgramsError,
 	ProgramWithPrimaryPool
 } from '$lib/application/useCases/listPrograms';
@@ -343,6 +349,28 @@ export async function importRoster(
 		input
 	);
 }
+
+/**
+ * Import a roster from raw sheet data with column mappings.
+ * Used for Google Sheets import where columns need user-defined mapping.
+ */
+export async function importRosterWithMapping(
+	env: InMemoryEnvironment,
+	input: ImportRosterWithMappingInput
+): Promise<Result<ImportRosterWithMappingResult, ImportRosterWithMappingError>> {
+	return importRosterWithMappingUseCase(
+		{
+			poolRepo: env.poolRepo,
+			studentRepo: env.studentRepo,
+			preferenceRepo: env.preferenceRepo,
+			idGenerator: env.idGenerator
+		},
+		input
+	);
+}
+
+// Re-export types for Google Sheets import
+export type { ImportRosterWithMappingInput, ImportRosterWithMappingResult, ImportRosterWithMappingError };
 
 // =============================================================================
 // Group Template Operations
