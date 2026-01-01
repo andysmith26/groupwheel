@@ -83,13 +83,17 @@
 					</a>
 
 					<div class="flex items-center gap-3 border-l pl-4">
-						<SyncStatus />
-						<LoginButton />
+						{#if browser}
+							<SyncStatus />
+							<LoginButton />
+						{/if}
 					</div>
 				</nav>
 			{:else if !isAuthPage}
 				<div class="flex items-center gap-3">
-					<LoginButton />
+					{#if browser}
+						<LoginButton />
+					{/if}
 				</div>
 			{/if}
 		</div>
