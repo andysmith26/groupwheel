@@ -148,8 +148,8 @@ export class GoogleOAuthAdapter implements AuthService {
 
 		const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 
-		// Redirect to Google
-		await this.navigate(googleAuthUrl);
+		// Redirect to Google (use window.location for external URLs)
+		window.location.href = googleAuthUrl;
 	}
 
 	/**
