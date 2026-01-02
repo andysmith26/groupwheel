@@ -11,7 +11,8 @@ import type {
 	GroupingAlgorithm,
 	AuthService,
 	SyncService,
-	ClipboardPort
+	ClipboardPort,
+	GoogleSheetsService
 } from '$lib/application/ports';
 import {
 	InMemoryStudentRepository,
@@ -78,6 +79,7 @@ export interface InMemoryEnvironment {
 	authService?: AuthService;
 	syncService?: SyncService;
 	clipboard?: ClipboardPort;
+	sheetsService?: GoogleSheetsService;
 }
 
 /**
@@ -107,6 +109,11 @@ export interface CreateEnvironmentOptions {
 	 * Clipboard service for copy operations.
 	 */
 	clipboard?: ClipboardPort;
+
+	/**
+	 * Google Sheets service for importing data from sheets.
+	 */
+	sheetsService?: GoogleSheetsService;
 }
 
 /**
@@ -238,6 +245,7 @@ export function createInMemoryEnvironment(
 		groupingAlgorithm,
 		authService,
 		syncService,
-		clipboard: options?.clipboard
+		clipboard: options?.clipboard,
+		sheetsService: options?.sheetsService
 	};
 }

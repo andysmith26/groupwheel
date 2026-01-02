@@ -612,3 +612,100 @@ export function onAuthStateChange(
 
 // Re-export auth types
 export type { LoginError, LogoutError, AuthUser };
+
+// =============================================================================
+// Google Sheets Operations
+// =============================================================================
+
+import {
+	connectGoogleSheet as connectGoogleSheetUseCase,
+	type ConnectGoogleSheetInput,
+	type ConnectGoogleSheetError
+} from '$lib/application/useCases/connectGoogleSheet';
+import {
+	importFromSheetTab as importFromSheetTabUseCase,
+	type ImportFromSheetTabInput,
+	type ImportFromSheetTabError
+} from '$lib/application/useCases/importFromSheetTab';
+import type { SheetConnection } from '$lib/domain/sheetConnection';
+import type { RawSheetData } from '$lib/domain/import';
+
+/**
+ * Connect to a Google Sheet and fetch its metadata (title, tabs).
+ *
+ * Requires sheetsService to be configured in the environment.
+ */
+export async function connectGoogleSheet(
+	env: InMemoryEnvironment,
+	input: ConnectGoogleSheetInput
+): Promise<Result<SheetConnection, ConnectGoogleSheetError>> {
+	if (!env.sheetsService) {
+		return err({
+			type: 'NOT_AUTHENTICATED',
+			message: 'Google Sheets is not configured. Please sign in first.'
+		});
+	}
+
+	return connectGoogleSheetUseCase(
+		{
+			sheetsService: env.sheetsService,
+			clock: env.clock
+		},
+		input
+	);
+}
+
+/**
+ * Fetch data from a specific tab of a connected Google Sheet.
+ *
+ * Returns raw sheet data ready for column mapping.
+ */
+export async function importFromSheetTab(
+	env: InMemoryEnvironment,
+	input: ImportFromSheetTabInput
+): Promise<Result<RawSheetData, ImportFromSheetTabError>> {
+	if (!env.sheetsService) {
+		return err({
+			type: 'NOT_AUTHENTICATED',
+			message: 'Google Sheets is not configured. Please sign in first.'
+		});
+	}
+
+	return importFromSheetTabUseCase(
+		{
+			sheetsService: env.sheetsService
+		},
+		input
+	);
+}
+
+// Re-export Google Sheets types
+export type { ConnectGoogleSheetInput, ConnectGoogleSheetError, ImportFromSheetTabInput, ImportFromSheetTabError, SheetConnection };
+
+import {
+	extractGroupsFromPreferences as extractGroupsFromPreferencesUseCase,
+	type ExtractGroupsFromPreferencesInput,
+	type ExtractGroupsFromPreferencesResult,
+	type ExtractGroupsFromPreferencesError
+} from '$lib/application/useCases/extractGroupsFromPreferences';
+
+/**
+ * Extract unique group names from preference data.
+ *
+ * Works with either raw sheet data (with choice column mappings)
+ * or with already-imported preferences in a program.
+ */
+export async function extractGroupsFromPreferences(
+	env: InMemoryEnvironment,
+	input: ExtractGroupsFromPreferencesInput
+): Promise<Result<ExtractGroupsFromPreferencesResult, ExtractGroupsFromPreferencesError>> {
+	return extractGroupsFromPreferencesUseCase(
+		{
+			preferenceRepo: env.preferenceRepo
+		},
+		input
+	);
+}
+
+// Re-export extract groups types
+export type { ExtractGroupsFromPreferencesInput, ExtractGroupsFromPreferencesResult, ExtractGroupsFromPreferencesError };

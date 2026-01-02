@@ -11,6 +11,7 @@
 	import { getBrowserAuthAdapter } from '$lib/infrastructure/auth/browserAuth';
 	import { getBrowserSyncManager } from '$lib/infrastructure/sync/browserSyncManager';
 	import { BrowserClipboardAdapter } from '$lib/infrastructure/clipboard';
+	import { GoogleSheetsAdapter } from '$lib/infrastructure/sheets';
 	import LoginButton from '$lib/components/auth/LoginButton.svelte';
 	import SyncStatus from '$lib/components/sync/SyncStatus.svelte';
 
@@ -23,11 +24,17 @@
 		});
 		const syncManager = getBrowserSyncManager();
 
+		// Create GoogleSheetsAdapter if auth is available
+		const sheetsAdapter = authAdapter
+			? new GoogleSheetsAdapter({ authService: authAdapter })
+			: undefined;
+
 		const appEnv = createInMemoryEnvironment(undefined, {
 			useIndexedDb: true,
 			authService: authAdapter ?? undefined,
 			syncService: syncManager ?? undefined,
-			clipboard: new BrowserClipboardAdapter()
+			clipboard: new BrowserClipboardAdapter(),
+			sheetsService: sheetsAdapter
 		});
 		setAppEnvContext(appEnv);
 

@@ -14,13 +14,14 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import type { Pool, GroupTemplate } from '$lib/domain';
+	import type { Pool, GroupTemplate, SheetConnection } from '$lib/domain';
 	import {
 		createGroupingActivity,
 		listGroupTemplates,
 		listPools,
 		listPrograms,
-		getPoolWithStudents
+		getPoolWithStudents,
+		isAuthenticated
 	} from '$lib/services/appEnvUseCases';
 	import type { ParsedStudent, ParsedPreference } from '$lib/services/appEnvUseCases';
 	import { setCandidateConfig } from '$lib/stores/candidateConfigStore';
@@ -32,6 +33,7 @@
 	import StepGroupsUnified from '$lib/components/wizard/StepGroupsUnified.svelte';
 	import StepPreferences from '$lib/components/wizard/StepPreferences.svelte';
 	import StepName from '$lib/components/wizard/StepName.svelte';
+	import SheetConnector from '$lib/components/import/SheetConnector.svelte';
 	import type { GroupShellConfig } from '$lib/components/wizard/StepGroups.svelte';
 
 	// --- Environment ---
@@ -82,6 +84,22 @@
 
 	let existingRosters = $state<RosterOption[]>([]);
 	let loadingRosters = $state(true);
+
+	// --- Google Sheets connection (optional) ---
+	let sheetConnection = $state<SheetConnection | null>(null);
+	let showSheetConnector = $state(false);
+
+	function handleSheetConnect(connection: SheetConnection) {
+		sheetConnection = connection;
+		showSheetConnector = false;
+	}
+
+	function handleSheetDisconnect() {
+		sheetConnection = null;
+	}
+
+	// Check if user is logged in (needed for Google Sheets)
+	let userLoggedIn = $derived(env ? isAuthenticated(env) : false);
 
 	async function loadExistingRosters() {
 		if (!env) return;
@@ -477,6 +495,59 @@
 			Cancel
 		</button>
 	</header>
+
+	<!-- Google Sheets connector (optional) -->
+	{#if userLoggedIn && !loadingRosters}
+		<div class="mb-6">
+			{#if sheetConnection}
+				<div class="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-3">
+					<div class="flex items-center gap-2">
+						<svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<span class="text-sm font-medium text-green-800">
+							Connected: {sheetConnection.title}
+						</span>
+						<span class="text-xs text-green-600">
+							({sheetConnection.tabs.length} tabs)
+						</span>
+					</div>
+					<button
+						type="button"
+						onclick={handleSheetDisconnect}
+						class="text-sm text-green-700 hover:text-green-900"
+					>
+						Disconnect
+					</button>
+				</div>
+			{:else if showSheetConnector}
+				<SheetConnector
+					onConnect={handleSheetConnect}
+					existingConnection={sheetConnection}
+					allowDisconnect={true}
+					onDisconnect={handleSheetDisconnect}
+				/>
+				<button
+					type="button"
+					onclick={() => showSheetConnector = false}
+					class="mt-2 text-sm text-gray-500 hover:text-gray-700"
+				>
+					Cancel
+				</button>
+			{:else}
+				<button
+					type="button"
+					onclick={() => showSheetConnector = true}
+					class="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+				>
+					<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+					</svg>
+					Connect a Google Sheet (optional)
+				</button>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Progress indicator -->
 	{#if !loadingRosters}

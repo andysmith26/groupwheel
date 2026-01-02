@@ -19,6 +19,7 @@ export * from './scenario';
 export * from './preference';
 export * from './analytics';
 export * from './import';
+export * from './sheetConnection';
 
 // Re-export commonly used types at top level for convenience
 export type { Student } from './student';

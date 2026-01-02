@@ -1,3 +1,5 @@
+import type { SheetReference } from './sheetConnection';
+
 export type ProgramType = 'CLUBS' | 'ADVISORY' | 'CABINS' | 'CLASS_ACTIVITY' | 'OTHER';
 
 export type ProgramTimeSpan =
@@ -27,6 +29,11 @@ export interface Program {
 	 * Undefined for anonymous/local-only data.
 	 */
 	userId?: string;
+	/**
+	 * Reference to the Google Sheet used as the data source for this program.
+	 * Stores spreadsheet ID and URL for re-connection.
+	 */
+	sourceSheet?: SheetReference;
 }
 
 /**
@@ -43,6 +50,7 @@ export function createProgram(params: {
 	primaryPoolId?: string;
 	ownerStaffIds?: string[];
 	userId?: string;
+	sourceSheet?: SheetReference;
 }): Program {
 	const name = params.name.trim();
 	if (!name) {
@@ -66,6 +74,7 @@ export function createProgram(params: {
 		primaryPoolId: params.primaryPoolId,
 		schoolId: params.schoolId,
 		ownerStaffIds: params.ownerStaffIds,
-		userId: params.userId
+		userId: params.userId,
+		sourceSheet: params.sourceSheet
 	};
 }

@@ -30,3 +30,4 @@ export * from './StoragePort';
 export * from './NetworkStatusPort';
 export * from './HttpClientPort';
 export * from './ClipboardPort';
+export * from './GoogleSheetsService';
