@@ -5,12 +5,14 @@
 		students = [],
 		preferenceMap = {},
 		selectedStudentId = null,
+		programId = '',
 		onSelect,
 		onClose
 	} = $props<{
 		students?: Student[];
 		preferenceMap?: Record<string, StudentPreference>;
 		selectedStudentId?: string | null;
+		programId?: string;
 		onSelect?: (id: string) => void;
 		onClose?: () => void;
 	}>();
@@ -58,25 +60,47 @@
 				{@const choices = getGroupChoices(student.id)}
 				{@const isSelected = selectedStudentId === student.id}
 				<li>
-					<button
-						type="button"
-						class="w-full px-4 py-3 text-left transition-colors hover:bg-white {isSelected
+					<div
+						class="flex items-center justify-between px-4 py-3 transition-colors hover:bg-white {isSelected
 							? 'bg-blue-50 ring-1 ring-blue-200 ring-inset'
 							: ''}"
-						onclick={() => onSelect?.(student.id)}
 					>
-						<p class="font-medium text-gray-900">
-							{student.firstName}
-							{student.lastName}
-						</p>
-						{#if choices.length > 0}
-							<p class="mt-1 text-xs text-gray-500">
-								Choices: {choices.join(' → ')}
+						<button
+							type="button"
+							class="min-w-0 flex-1 text-left"
+							onclick={() => onSelect?.(student.id)}
+						>
+							<p class="font-medium text-gray-900">
+								{student.firstName}
+								{student.lastName}
 							</p>
-						{:else}
-							<p class="mt-1 text-xs text-gray-400">No requests</p>
+							{#if choices.length > 0}
+								<p class="mt-1 text-xs text-gray-500">
+									Choices: {choices.join(' → ')}
+								</p>
+							{:else}
+								<p class="mt-1 text-xs text-gray-400">No requests</p>
+							{/if}
+						</button>
+						{#if programId}
+							<a
+								href="/groups/{programId}/students/{student.id}"
+								class="ml-2 flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+								title="View placement history"
+								aria-label="View placement history for {student.firstName} {student.lastName}"
+								onclick={(e) => e.stopPropagation()}
+							>
+								<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
+								</svg>
+							</a>
 						{/if}
-					</button>
+					</div>
 				</li>
 			{/each}
 		</ul>

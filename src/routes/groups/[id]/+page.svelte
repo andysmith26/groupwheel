@@ -634,6 +634,12 @@
 				>
 					View candidates
 				</button>
+				<a
+					href="/groups/{program.id}/sessions"
+					class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+				>
+					Sessions
+				</a>
 				<button
 					type="button"
 					class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -852,6 +858,7 @@
 					{students}
 					{preferenceMap}
 					{selectedStudentId}
+					programId={program?.id}
 					onSelect={selectStudent}
 					onClose={() => (sidebarOpen = false)}
 				/>
