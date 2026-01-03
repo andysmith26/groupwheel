@@ -16,6 +16,8 @@ export * from './program';
 export * from './group';
 export * from './groupTemplate';
 export * from './scenario';
+export * from './session';
+export * from './placement';
 export * from './preference';
 export * from './analytics';
 export * from './import';
@@ -33,3 +35,7 @@ export type { Scenario, ScenarioStatus } from './scenario';
 export type { ScenarioSatisfaction } from './analytics';
 
 export type { GroupTemplate, TemplateGroup } from './groupTemplate';
+
+export type { Session, SessionStatus } from './session';
+
+export type { Placement, PlacementType } from './placement';

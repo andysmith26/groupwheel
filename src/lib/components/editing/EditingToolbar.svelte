@@ -16,7 +16,11 @@
 		metricSummary = '',
 		onRetrySave,
 		isRegenerating = false,
-		isTryingAnother = false
+		isTryingAnother = false,
+		canPublish = false,
+		isPublished = false,
+		publishedSessionName = '',
+		onPublish
 	} = $props<{
 		canUndo?: boolean;
 		canRedo?: boolean;
@@ -32,6 +36,10 @@
 		onRetrySave?: () => void;
 		isRegenerating?: boolean;
 		isTryingAnother?: boolean;
+		canPublish?: boolean;
+		isPublished?: boolean;
+		publishedSessionName?: string;
+		onPublish?: () => void;
 	}>();
 </script>
 
@@ -100,5 +108,27 @@
 		>
 			{isRegenerating ? 'Regenerating...' : 'Start Over'}
 		</button>
+
+		{#if isPublished}
+			<span
+				class="inline-flex items-center gap-1.5 rounded-lg bg-green-100 px-3 py-2 text-sm font-medium text-green-800"
+				title={publishedSessionName ? `Published as: ${publishedSessionName}` : 'Published'}
+			>
+				<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+				</svg>
+				Published
+			</span>
+		{:else}
+			<button
+				type="button"
+				class="rounded-lg bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark disabled:opacity-50"
+				disabled={!canPublish || isRegenerating || isTryingAnother}
+				onclick={onPublish}
+				title={canPublish ? 'Publish these group assignments' : 'Save changes before publishing'}
+			>
+				Publish
+			</button>
+		{/if}
 	</div>
 </div>

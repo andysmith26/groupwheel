@@ -2,7 +2,7 @@
 	/**
 	 * StepStudents.svelte
 	 *
-	 * Step 1 of the Create Groups wizard: paste roster data.
+	 * Step 1 of the Create Groups wizard: paste roster data or import from sheet.
 	 * Handles paste detection, parsing, preview, and validation.
 	 */
 
@@ -10,19 +10,215 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { ParsedStudent } from '$lib/application/useCases/createGroupingActivity';
 	import { sampleRosters, sampleRosterById } from '$lib/content/sampleRosters';
+	import type { SheetConnection, SheetTab } from '$lib/domain/sheetConnection';
+	import type { RawSheetData, ColumnMapping, MappedField } from '$lib/domain/import';
+	import TabSelector from '$lib/components/import/TabSelector.svelte';
+
+	type ImportSource = 'paste' | 'sheet';
+	type StudentField = 'name' | 'id' | 'firstName' | 'lastName' | 'grade' | 'ignore' | null;
 
 	interface Props {
 		students: ParsedStudent[];
 		onStudentsParsed: (students: ParsedStudent[]) => void;
+		/** Optional: connected Google Sheet for import */
+		sheetConnection?: SheetConnection | null;
 	}
 
-	let { students, onStudentsParsed }: Props = $props();
+	let { students, onStudentsParsed, sheetConnection = null }: Props = $props();
 
 	let pastedText = $state('');
 	let parseError = $state('');
 	let showFormatHelp = $state(false);
-
 	let showSampleMenu = $state(false);
+
+	// Import source selection
+	let importSource = $state<ImportSource>(sheetConnection ? 'sheet' : 'paste');
+	let hasSheetConnection = $derived(sheetConnection !== null);
+
+	// Sheet import state
+	let selectedTab = $state<SheetTab | null>(null);
+	let tabData = $state<RawSheetData | null>(null);
+	let columnMappings = $state<Map<number, StudentField>>(new Map());
+	let showMappingUI = $state(false);
+
+	// Field options for column mapping dropdown
+	const fieldOptions: { value: StudentField; label: string }[] = [
+		{ value: null, label: 'Select field...' },
+		{ value: 'name', label: 'Full Name' },
+		{ value: 'firstName', label: 'First Name' },
+		{ value: 'lastName', label: 'Last Name' },
+		{ value: 'id', label: 'ID / Email' },
+		{ value: 'grade', label: 'Grade' },
+		{ value: 'ignore', label: 'Ignore' }
+	];
+
+	/**
+	 * Smart guess for what a column contains based on header text.
+	 */
+	function guessColumnField(header: string): StudentField {
+		const h = header.toLowerCase().trim();
+
+		// ID / Email patterns
+		if (h === 'email' || h === 'email address' || h.includes('email')) return 'id';
+		if (h === 'id' || h === 'student id' || h === 'student_id' || h === 'studentid') return 'id';
+
+		// Full name patterns
+		if (h === 'name' || h === 'full name' || h === 'student name' || h === 'display name') return 'name';
+		if (h.includes('first') && h.includes('last')) return 'name'; // "First & Last Name"
+		if (h.includes('your') && h.includes('name')) return 'name'; // "Your Name" or "Your First & Last Name"
+
+		// First name patterns
+		if (h === 'first name' || h === 'firstname' || h === 'first') return 'firstName';
+		if (h === 'given name' || h === 'givenname') return 'firstName';
+
+		// Last name patterns
+		if (h === 'last name' || h === 'lastname' || h === 'last') return 'lastName';
+		if (h === 'surname' || h === 'family name') return 'lastName';
+
+		// Grade patterns
+		if (h === 'grade' || h === 'grade level' || h === 'year' || h === 'class') return 'grade';
+
+		// Ignore common non-student columns
+		if (h === 'timestamp' || h.includes('timestamp')) return 'ignore';
+		if (h === 'score' || h.includes('score')) return 'ignore';
+
+		return null;
+	}
+
+	function handleSourceChange(source: ImportSource) {
+		importSource = source;
+		// Reset state when switching
+		if (source === 'paste') {
+			selectedTab = null;
+			tabData = null;
+			columnMappings = new Map();
+			showMappingUI = false;
+		} else {
+			pastedText = '';
+			parseError = '';
+		}
+	}
+
+	function handleTabSelect(tab: SheetTab, data: RawSheetData) {
+		selectedTab = tab;
+		tabData = data;
+		parseError = '';
+
+		// Auto-guess column mappings
+		const mappings = new Map<number, StudentField>();
+		for (let i = 0; i < data.headers.length; i++) {
+			const guessed = guessColumnField(data.headers[i]);
+			mappings.set(i, guessed);
+		}
+		columnMappings = mappings;
+		showMappingUI = true;
+	}
+
+	function handleMappingChange(columnIndex: number, field: StudentField) {
+		const newMappings = new Map(columnMappings);
+		newMappings.set(columnIndex, field);
+		columnMappings = newMappings;
+	}
+
+	function getMappedColumnIndex(field: StudentField): number {
+		for (const [idx, f] of columnMappings) {
+			if (f === field) return idx;
+		}
+		return -1;
+	}
+
+	// Check if we have minimum required mappings
+	let hasRequiredMappings = $derived(() => {
+		const hasName = getMappedColumnIndex('name') >= 0;
+		const hasFirstName = getMappedColumnIndex('firstName') >= 0;
+		const hasId = getMappedColumnIndex('id') >= 0;
+		// Need either name or firstName, and ideally id (but can generate from name)
+		return hasName || hasFirstName || hasId;
+	});
+
+	function importFromSheet() {
+		if (!tabData) return;
+		parseSheetData(tabData);
+	}
+
+	function parseSheetData(data: RawSheetData) {
+		parseError = '';
+
+		try {
+			// Use column mappings to find indices
+			const nameIdx = getMappedColumnIndex('name');
+			const firstNameIdx = getMappedColumnIndex('firstName');
+			const lastNameIdx = getMappedColumnIndex('lastName');
+			const idIdx = getMappedColumnIndex('id');
+			const gradeIdx = getMappedColumnIndex('grade');
+
+			// Need at least one identifying field
+			if (nameIdx < 0 && firstNameIdx < 0 && idIdx < 0) {
+				parseError = 'Please map at least one column to "Full Name", "First Name", or "ID / Email".';
+				onStudentsParsed([]);
+				return;
+			}
+
+			// Parse data rows
+			const parsed: ParsedStudent[] = [];
+			const seenIds = new SvelteSet<string>();
+
+			for (const row of data.rows) {
+				const cells = row.cells;
+
+				// Skip empty rows
+				if (cells.every((c) => c === '')) continue;
+
+				// Extract values based on mappings
+				const rawName = nameIdx >= 0 ? (cells[nameIdx] ?? '').trim() : '';
+				const rawFirstName = firstNameIdx >= 0 ? (cells[firstNameIdx] ?? '').trim() : '';
+				const rawLastName = lastNameIdx >= 0 ? (cells[lastNameIdx] ?? '').trim() : '';
+				const rawId = idIdx >= 0 ? (cells[idIdx] ?? '').trim() : '';
+				const rawGrade = gradeIdx >= 0 ? (cells[gradeIdx] ?? '').trim() : undefined;
+
+				// Determine first/last name
+				let firstName = rawFirstName;
+				let lastName = rawLastName;
+
+				if (!firstName && rawName) {
+					// Parse full name into first/last
+					const nameParts = rawName.split(/\s+/);
+					firstName = nameParts[0] ?? '';
+					lastName = nameParts.slice(1).join(' ') ?? '';
+				}
+
+				// Determine ID
+				const displayName = rawName || `${firstName} ${lastName}`.trim();
+				const id = rawId || displayName.toLowerCase().replace(/\s+/g, '.');
+
+				if (!id) continue; // Skip rows with no identifiable ID
+
+				// Skip duplicates
+				if (seenIds.has(id.toLowerCase())) continue;
+				seenIds.add(id.toLowerCase());
+
+				parsed.push({
+					id: id.toLowerCase(),
+					firstName,
+					lastName,
+					displayName: displayName || id,
+					grade: rawGrade || undefined,
+					meta: {}
+				});
+			}
+
+			if (parsed.length === 0) {
+				parseError = 'No valid student rows found. Check your column mappings.';
+				onStudentsParsed([]);
+				return;
+			}
+
+			onStudentsParsed(parsed);
+		} catch (e) {
+			parseError = `Parse error: ${e instanceof Error ? e.message : 'Unknown error'}`;
+			onStudentsParsed([]);
+		}
+	}
 
 	function loadSampleData(rosterId: string) {
 		const roster = sampleRosterById.get(rosterId);
@@ -140,11 +336,146 @@
 	<div>
 		<h2 class="text-lg font-medium text-gray-900">Who are your students?</h2>
 		<p class="mt-1 text-sm text-gray-600">
-			Paste your class roster from Google Sheets. We'll detect names and emails automatically.
+			{#if hasSheetConnection}
+				Import from your connected sheet or paste roster data.
+			{:else}
+				Paste your class roster from Google Sheets. We'll detect names and emails automatically.
+			{/if}
 		</p>
 	</div>
 
-	<!-- Paste area -->
+	<!-- Source toggle (only show if sheet is connected) -->
+	{#if hasSheetConnection}
+		<div class="flex gap-2">
+			<button
+				type="button"
+				class="flex-1 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors {importSource === 'sheet'
+					? 'border-teal bg-teal/5 text-teal'
+					: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+				onclick={() => handleSourceChange('sheet')}
+			>
+				<div class="flex items-center justify-center gap-2">
+					<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+					</svg>
+					Import from Sheet
+				</div>
+			</button>
+			<button
+				type="button"
+				class="flex-1 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors {importSource === 'paste'
+					? 'border-teal bg-teal/5 text-teal'
+					: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+				onclick={() => handleSourceChange('paste')}
+			>
+				<div class="flex items-center justify-center gap-2">
+					<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+					</svg>
+					Paste Data
+				</div>
+			</button>
+		</div>
+	{/if}
+
+	<!-- Sheet import UI -->
+	{#if importSource === 'sheet' && sheetConnection}
+		<div class="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-4">
+			<TabSelector
+				connection={sheetConnection}
+				onTabSelect={handleTabSelect}
+				label="Select tab with student roster"
+				{selectedTab}
+			/>
+
+			<!-- Column mapping UI -->
+			{#if showMappingUI && tabData}
+				<div class="space-y-3">
+					<div class="flex items-center justify-between">
+						<p class="text-sm font-medium text-gray-700">Map columns to student fields:</p>
+						<p class="text-xs text-gray-500">
+							{#if hasRequiredMappings()}
+								<span class="text-green-600">Ready to import</span>
+							{:else}
+								<span class="text-amber-600">Map at least name or email</span>
+							{/if}
+						</p>
+					</div>
+
+					<!-- Column mapping table -->
+					<div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+						<table class="w-full text-sm">
+							<thead>
+								<!-- Mapping dropdowns row -->
+								<tr class="border-b border-gray-200 bg-white">
+									{#each tabData.headers as _, colIndex}
+										<th class="min-w-[130px] px-2 py-2">
+											<select
+												class="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-teal focus:ring-1 focus:ring-teal {columnMappings.get(colIndex) === null
+													? 'text-gray-400'
+													: 'text-gray-900'}"
+												value={columnMappings.get(colIndex) ?? ''}
+												onchange={(e) => {
+													const val = (e.target as HTMLSelectElement).value;
+													handleMappingChange(colIndex, val === '' ? null : val as StudentField);
+												}}
+											>
+												{#each fieldOptions as option}
+													<option value={option.value ?? ''}>{option.label}</option>
+												{/each}
+											</select>
+										</th>
+									{/each}
+								</tr>
+
+								<!-- Original header row -->
+								<tr class="border-b border-gray-300 bg-gray-50">
+									{#each tabData.headers as header, colIndex}
+										{@const mapping = columnMappings.get(colIndex)}
+										<th class="px-2 py-1.5 text-left text-xs font-medium {mapping && mapping !== 'ignore' ? 'text-teal-700' : mapping === 'ignore' ? 'text-gray-400' : 'text-gray-600'}">
+											<span class="truncate block max-w-[120px]" title={header}>{header}</span>
+										</th>
+									{/each}
+								</tr>
+							</thead>
+
+							<tbody>
+								{#each tabData.rows.slice(0, 3) as row, rowIdx}
+									<tr class="border-b border-gray-100 {rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}">
+										{#each row.cells as cell, colIndex}
+											{@const mapping = columnMappings.get(colIndex)}
+											<td class="max-w-[120px] truncate px-2 py-1.5 text-xs {mapping === 'ignore' ? 'text-gray-300' : 'text-gray-600'}" title={cell}>
+												{cell || '—'}
+											</td>
+										{/each}
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+
+						{#if tabData.rows.length > 3}
+							<div class="border-t border-gray-200 bg-gray-50 px-3 py-1.5 text-center text-xs text-gray-500">
+								+{tabData.rows.length - 3} more rows
+							</div>
+						{/if}
+					</div>
+
+					<!-- Import button -->
+					<button
+						type="button"
+						onclick={importFromSheet}
+						disabled={!hasRequiredMappings()}
+						class="rounded-md bg-teal px-4 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						Import {tabData.rows.length} Students
+					</button>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- Paste area (shown when paste mode or no sheet connection) -->
+	{#if importSource === 'paste' || !hasSheetConnection}
 	<div class="space-y-2">
 		<div class="flex items-center justify-between">
 			<label class="block text-sm font-medium text-gray-700" for="roster-paste">
@@ -222,6 +553,7 @@ Bob Jones	bob@school.edu	9"
 			</div>
 		{/if}
 	</div>
+	{/if}
 
 	<!-- Parse error -->
 	{#if parseError}

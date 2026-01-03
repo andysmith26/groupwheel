@@ -7,10 +7,14 @@
 	 * Teachers can paste CSV/TSV data from a Google Form or spreadsheet
 	 * containing student group preferences (ranked choices).
 	 *
-	 * Expected format:
-	 *   Student ID, Choice 1, Choice 2, Choice 3
-	 *   alice@test.com, Art Club, Music Club, Drama Club
-	 *   bob@test.com, Chess Club, Art Club,
+	 * Supports two formats:
+	 * 1. Standard format (Shape B):
+	 *    Student ID, Choice 1, Choice 2, Choice 3
+	 *    alice@test.com, Art Club, Music Club, Drama Club
+	 *
+	 * 2. Matrix format (Google Forms grid):
+	 *    Student ID, Question: [Art Club], Question: [Music Club], ...
+	 *    alice@test.com, 1st Choice, 2nd Choice, ...
 	 */
 
 	import { devTools } from '$lib/stores/devTools.svelte';
@@ -19,6 +23,20 @@
 		ParsedPreference
 	} from '$lib/application/useCases/createGroupingActivity';
 	import { parseGroupRequests, generateExampleCsv } from '$lib/services/groupRequestImport';
+	import type { SheetConnection, SheetTab } from '$lib/domain/sheetConnection';
+	import type { RawSheetData } from '$lib/domain/import';
+	import TabSelector from '$lib/components/import/TabSelector.svelte';
+	import {
+		detectPreferenceFormat,
+		type PreferenceFormatDetection,
+		type MatrixPreferenceColumn
+	} from '$lib/application/useCases/extractGroupsFromPreferences';
+	import {
+		parseAllMatrixPreferences,
+		extractChoiceRank
+	} from '$lib/utils/matrixPreferenceParser';
+
+	type ImportSource = 'paste' | 'sheet';
 
 	interface Props {
 		/** Students from Step 1 (used to validate preferences) */
@@ -32,12 +50,194 @@
 
 		/** Callback when preferences are parsed */
 		onPreferencesParsed: (preferences: ParsedPreference[], warnings: string[]) => void;
+
+		/** Optional: connected Google Sheet for import */
+		sheetConnection?: SheetConnection | null;
 	}
 
-	let { students, groupNames, preferences, onPreferencesParsed }: Props = $props();
+	let { students, groupNames, preferences, onPreferencesParsed, sheetConnection = null }: Props = $props();
 
 	// Local state
 	let pastedText = $state('');
+
+	// Import source selection
+	let importSource = $state<ImportSource>(sheetConnection ? 'sheet' : 'paste');
+	let hasSheetConnection = $derived(sheetConnection !== null);
+
+	// Sheet import state
+	let selectedTab = $state<SheetTab | null>(null);
+	let tabData = $state<RawSheetData | null>(null);
+	let formatDetection = $state<PreferenceFormatDetection | null>(null);
+	let sheetParseError = $state('');
+	let isParsingSheet = $state(false);
+	let studentIdColumnIndex = $state<number>(-1);
+
+	type PreferenceField = 'studentId' | 'ignore' | null;
+
+	/**
+	 * Guess if a column contains student IDs/emails
+	 */
+	function guessStudentIdColumn(header: string): boolean {
+		const h = header.toLowerCase().trim();
+		if (h === 'email' || h === 'email address' || h.includes('email')) return true;
+		if (h === 'id' || h === 'student id' || h === 'student_id' || h === 'studentid') return true;
+		if (h === 'username' || h === 'user') return true;
+		return false;
+	}
+
+	function handleSourceChange(source: ImportSource) {
+		importSource = source;
+		// Reset state when switching
+		if (source === 'paste') {
+			selectedTab = null;
+			tabData = null;
+			formatDetection = null;
+			sheetParseError = '';
+			studentIdColumnIndex = -1;
+		} else {
+			pastedText = '';
+		}
+	}
+
+	function handleTabSelect(tab: SheetTab, data: RawSheetData) {
+		selectedTab = tab;
+		tabData = data;
+		sheetParseError = '';
+
+		// Auto-detect format
+		formatDetection = detectPreferenceFormat(data);
+
+		// Auto-guess student ID column
+		studentIdColumnIndex = -1;
+		for (let i = 0; i < data.headers.length; i++) {
+			if (guessStudentIdColumn(data.headers[i])) {
+				studentIdColumnIndex = i;
+				break;
+			}
+		}
+	}
+
+	// Preview state
+	type PreviewItem = { studentId: string; studentName: string; choices: string[] };
+	let previewPreferences = $state<PreviewItem[]>([]);
+
+	function handleStudentIdColumnChange(index: number) {
+		studentIdColumnIndex = index;
+		// Generate preview when student ID column changes
+		updatePreview();
+	}
+
+	function updatePreview() {
+		if (!tabData || !formatDetection || studentIdColumnIndex < 0) {
+			previewPreferences = [];
+			return;
+		}
+
+		const preview: PreviewItem[] = [];
+		const studentMap = new Map(students.map((s) => [s.id.toLowerCase(), s]));
+
+		if (formatDetection.format === 'matrix' && formatDetection.matrixColumns) {
+			const matrixPrefs = parseAllMatrixPreferences(tabData, formatDetection.matrixColumns);
+
+			for (let i = 0; i < Math.min(tabData.rows.length, 5); i++) {
+				const row = tabData.rows[i];
+				const studentId = row.cells[studentIdColumnIndex]?.toLowerCase().trim();
+				if (!studentId) continue;
+
+				const student = studentMap.get(studentId);
+				const matrixPref = matrixPrefs[i];
+
+				if (matrixPref.rankedChoices.length > 0) {
+					preview.push({
+						studentId,
+						studentName: student ? `${student.firstName} ${student.lastName}`.trim() : studentId,
+						choices: matrixPref.rankedChoices
+					});
+				}
+			}
+		}
+
+		previewPreferences = preview;
+	}
+
+	function parseSheetPreferences() {
+		if (!tabData || !formatDetection) return;
+
+		isParsingSheet = true;
+		sheetParseError = '';
+
+		try {
+			const warnings: string[] = [];
+
+			if (formatDetection.format === 'matrix' && formatDetection.matrixColumns) {
+				// Matrix format parsing
+				const matrixPrefs = parseAllMatrixPreferences(tabData, formatDetection.matrixColumns);
+
+				// Use the selected student ID column
+				if (studentIdColumnIndex < 0) {
+					sheetParseError = 'Please select which column contains the student ID or email.';
+					isParsingSheet = false;
+					return;
+				}
+
+				const idColIdx = studentIdColumnIndex;
+
+				// Convert matrix preferences to ParsedPreference format
+				const parsed: ParsedPreference[] = [];
+				const studentIdSet = new Set(students.map((s) => s.id.toLowerCase()));
+
+				for (let i = 0; i < tabData.rows.length; i++) {
+					const row = tabData.rows[i];
+					const studentId = row.cells[idColIdx]?.toLowerCase().trim();
+
+					if (!studentId) continue;
+
+					// Check if student exists in roster
+					if (!studentIdSet.has(studentId)) {
+						warnings.push(`Row ${row.rowIndex}: Unknown student "${studentId}"`);
+						continue;
+					}
+
+					const matrixPref = matrixPrefs[i];
+					if (matrixPref.rankedChoices.length > 0) {
+						parsed.push({
+							studentId,
+							likeGroupIds: matrixPref.rankedChoices
+						});
+					}
+				}
+
+				if (parsed.length === 0) {
+					sheetParseError = 'No valid preferences found. Check that student IDs match your roster.';
+				} else {
+					onPreferencesParsed(parsed, warnings);
+				}
+			} else {
+				// Standard format - use existing parser
+				// Convert sheet data to CSV-like text
+				const csvLines = [tabData.headers.join(',')];
+				for (const row of tabData.rows) {
+					csvLines.push(row.cells.join(','));
+				}
+				const csvText = csvLines.join('\n');
+
+				const result = parseGroupRequests(csvText, {
+					groupNames,
+					studentIds: students.map((s) => s.id)
+				});
+
+				if (result.preferences.length === 0) {
+					sheetParseError = 'No valid preferences found. Check the data format.';
+				} else {
+					onPreferencesParsed(result.preferences, result.warnings);
+				}
+			}
+		} catch (e) {
+			sheetParseError = `Parse error: ${e instanceof Error ? e.message : 'Unknown error'}`;
+		} finally {
+			isParsingSheet = false;
+		}
+	}
 
 	/**
 	 * Generate sample preference data for dev mode testing.
@@ -129,7 +329,11 @@
 	<div>
 		<h2 class="text-lg font-medium text-gray-900">Group Requests (Optional)</h2>
 		<p class="mt-1 text-sm text-gray-600">
-			If you collected group preferences from students, paste them here.
+			{#if hasSheetConnection}
+				Import preferences from your connected sheet or paste data.
+			{:else}
+				If you collected group preferences from students, paste them here.
+			{/if}
 		</p>
 	</div>
 
@@ -154,6 +358,162 @@
 			</div>
 		</div>
 	{:else}
+		<!-- Source toggle (only show if sheet is connected) -->
+		{#if hasSheetConnection}
+			<div class="flex gap-2">
+				<button
+					type="button"
+					class="flex-1 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors {importSource === 'sheet'
+						? 'border-teal bg-teal/5 text-teal'
+						: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+					onclick={() => handleSourceChange('sheet')}
+				>
+					<div class="flex items-center justify-center gap-2">
+						<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+						</svg>
+						Import from Sheet
+					</div>
+				</button>
+				<button
+					type="button"
+					class="flex-1 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors {importSource === 'paste'
+						? 'border-teal bg-teal/5 text-teal'
+						: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+					onclick={() => handleSourceChange('paste')}
+				>
+					<div class="flex items-center justify-center gap-2">
+						<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+						</svg>
+						Paste Data
+					</div>
+				</button>
+			</div>
+		{/if}
+
+		<!-- Sheet import UI -->
+		{#if importSource === 'sheet' && sheetConnection}
+			<div class="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-4">
+				<TabSelector
+					connection={sheetConnection}
+					onTabSelect={handleTabSelect}
+					label="Select tab with preference data"
+					{selectedTab}
+				/>
+
+				<!-- Format detection result -->
+				{#if formatDetection && tabData}
+					<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-4">
+						<div class="flex items-start gap-3">
+							<svg class="h-5 w-5 text-blue-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							<div class="flex-1">
+								<p class="text-sm font-medium text-blue-900">
+									{#if formatDetection.format === 'matrix'}
+										Matrix format detected
+									{:else if formatDetection.format === 'standard'}
+										Standard format detected
+									{:else}
+										Unknown format
+									{/if}
+								</p>
+								<p class="mt-1 text-sm text-blue-700">{formatDetection.description}</p>
+
+								{#if formatDetection.previewGroups.length > 0}
+									<div class="mt-2">
+										<p class="text-xs text-blue-600 mb-1">Groups found:</p>
+										<div class="flex flex-wrap gap-1">
+											{#each formatDetection.previewGroups as group}
+												<span class="inline-flex items-center rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-800">
+													{group}
+												</span>
+											{/each}
+										</div>
+									</div>
+								{/if}
+							</div>
+						</div>
+
+						<!-- Student ID column selector -->
+						<div class="border-t border-blue-200 pt-3">
+							<label for="student-id-column" class="block text-sm font-medium text-blue-900 mb-2">
+								Which column contains the student ID or email?
+							</label>
+							<select
+								id="student-id-column"
+								class="w-full rounded-md border border-blue-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+								value={studentIdColumnIndex}
+								onchange={(e) => handleStudentIdColumnChange(parseInt((e.target as HTMLSelectElement).value))}
+							>
+								<option value={-1}>Select column...</option>
+								{#each tabData.headers as header, idx}
+									<option value={idx}>
+										{header}
+										{#if guessStudentIdColumn(header)}(likely){/if}
+									</option>
+								{/each}
+							</select>
+
+							{#if studentIdColumnIndex >= 0}
+								<p class="mt-1 text-xs text-blue-600">
+									Preview: {tabData.rows.slice(0, 2).map(r => r.cells[studentIdColumnIndex]).join(', ')}...
+								</p>
+							{/if}
+						</div>
+
+						<!-- Preferences preview -->
+						{#if previewPreferences.length > 0}
+							<div class="border-t border-blue-200 pt-3">
+								<p class="text-sm font-medium text-blue-900 mb-2">Preview of parsed preferences:</p>
+								<div class="rounded-lg border border-blue-100 bg-white divide-y divide-blue-100">
+									{#each previewPreferences as item}
+										<div class="px-3 py-2">
+											<p class="font-medium text-gray-900 text-sm">{item.studentName}</p>
+											<p class="text-xs text-gray-500 mt-0.5">
+												Choices: <span class="text-blue-700">{item.choices.join(' → ')}</span>
+											</p>
+										</div>
+									{/each}
+								</div>
+								{#if tabData && tabData.rows.length > 5}
+									<p class="mt-1 text-xs text-blue-600">
+										+{tabData.rows.length - 5} more students...
+									</p>
+								{/if}
+							</div>
+						{/if}
+
+						<!-- Import button -->
+						<button
+							type="button"
+							onclick={parseSheetPreferences}
+							disabled={isParsingSheet || formatDetection.format === 'unknown' || studentIdColumnIndex < 0}
+							class="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{#if isParsingSheet}
+								Importing...
+							{:else if studentIdColumnIndex < 0}
+								Select student ID column to import
+							{:else}
+								Import Preferences
+							{/if}
+						</button>
+					</div>
+				{/if}
+
+				<!-- Sheet parse error -->
+				{#if sheetParseError}
+					<div class="rounded-lg border border-red-200 bg-red-50 p-3">
+						<p class="text-sm text-red-700">{sheetParseError}</p>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Paste area (shown when paste mode or no sheet connection) -->
+		{#if importSource === 'paste' || !hasSheetConnection}
 		<!-- Main content when groups exist -->
 		<div class="space-y-4">
 			<!-- Paste area -->
@@ -271,6 +631,7 @@
 				</div>
 			{/if}
 		</div>
+		{/if}
 	{/if}
 
 	<!-- Help text -->

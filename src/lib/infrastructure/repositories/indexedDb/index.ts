@@ -6,6 +6,8 @@
  */
 
 export { IndexedDbScenarioRepository } from './IndexedDbScenarioRepository';
+export { IndexedDbSessionRepository } from './IndexedDbSessionRepository';
+export { IndexedDbPlacementRepository } from './IndexedDbPlacementRepository';
 export { IndexedDbGroupTemplateRepository } from './IndexedDbGroupTemplateRepository';
 export { IndexedDbProgramRepository } from './IndexedDbProgramRepository';
 export { IndexedDbPoolRepository } from './IndexedDbPoolRepository';

@@ -16,6 +16,8 @@ export type SyncEntityType =
 	| 'pools'
 	| 'programs'
 	| 'scenarios'
+	| 'sessions'
+	| 'placements'
 	| 'preferences'
 	| 'groupTemplates';
 

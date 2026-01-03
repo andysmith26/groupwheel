@@ -4,6 +4,8 @@ import type {
 	PoolRepository,
 	ProgramRepository,
 	ScenarioRepository,
+	SessionRepository,
+	PlacementRepository,
 	PreferenceRepository,
 	GroupTemplateRepository,
 	IdGenerator,
@@ -20,11 +22,15 @@ import {
 	InMemoryPoolRepository,
 	InMemoryProgramRepository,
 	InMemoryScenarioRepository,
+	InMemorySessionRepository,
+	InMemoryPlacementRepository,
 	InMemoryPreferenceRepository
 } from '$lib/infrastructure/repositories/inMemory';
 import { InMemoryGroupTemplateRepository } from '$lib/infrastructure/repositories/inMemory/InMemoryGroupTemplateRepository';
 import {
 	IndexedDbScenarioRepository,
+	IndexedDbSessionRepository,
+	IndexedDbPlacementRepository,
 	IndexedDbGroupTemplateRepository,
 	IndexedDbProgramRepository,
 	IndexedDbPoolRepository,
@@ -38,6 +44,8 @@ import {
 	SyncedPoolRepository,
 	SyncedProgramRepository,
 	SyncedScenarioRepository,
+	SyncedSessionRepository,
+	SyncedPlacementRepository,
 	SyncedPreferenceRepository,
 	SyncedGroupTemplateRepository
 } from '$lib/infrastructure/repositories/synced';
@@ -53,6 +61,8 @@ import type {
 	Pool,
 	Program,
 	Scenario,
+	Session,
+	Placement,
 	Student,
 	Staff,
 	Preference,
@@ -71,6 +81,8 @@ export interface InMemoryEnvironment {
 	poolRepo: PoolRepository;
 	programRepo: ProgramRepository;
 	scenarioRepo: ScenarioRepository;
+	sessionRepo: SessionRepository;
+	placementRepo: PlacementRepository;
 	preferenceRepo: PreferenceRepository;
 	groupTemplateRepo: GroupTemplateRepository;
 	idGenerator: IdGenerator;
@@ -129,6 +141,8 @@ export function createInMemoryEnvironment(
 		pools?: Pool[];
 		programs?: Program[];
 		scenarios?: Scenario[];
+		sessions?: Session[];
+		placements?: Placement[];
 		preferences?: Preference[];
 		groupTemplates?: GroupTemplate[];
 	},
@@ -170,6 +184,12 @@ export function createInMemoryEnvironment(
 	const baseGroupTemplateRepo: GroupTemplateRepository = useIndexedDb
 		? new IndexedDbGroupTemplateRepository()
 		: new InMemoryGroupTemplateRepository(seed?.groupTemplates ?? []);
+	const baseSessionRepo: SessionRepository = useIndexedDb
+		? new IndexedDbSessionRepository()
+		: new InMemorySessionRepository(seed?.sessions ?? []);
+	const basePlacementRepo: PlacementRepository = useIndexedDb
+		? new IndexedDbPlacementRepository()
+		: new InMemoryPlacementRepository(seed?.placements ?? []);
 
 	// Wrap with sync capability if syncService is provided
 	const studentRepo: StudentRepository = syncService
@@ -193,6 +213,12 @@ export function createInMemoryEnvironment(
 	const groupTemplateRepo: GroupTemplateRepository = syncService
 		? new SyncedGroupTemplateRepository(baseGroupTemplateRepo, syncService)
 		: baseGroupTemplateRepo;
+	const sessionRepo: SessionRepository = syncService
+		? new SyncedSessionRepository(baseSessionRepo, syncService)
+		: baseSessionRepo;
+	const placementRepo: PlacementRepository = syncService
+		? new SyncedPlacementRepository(basePlacementRepo, syncService)
+		: basePlacementRepo;
 
 	const idGenerator = new UuidIdGenerator();
 	const clock = new SystemClock();
@@ -238,6 +264,8 @@ export function createInMemoryEnvironment(
 		poolRepo,
 		programRepo,
 		scenarioRepo,
+		sessionRepo,
+		placementRepo,
 		preferenceRepo,
 		groupTemplateRepo,
 		idGenerator,

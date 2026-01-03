@@ -12,5 +12,7 @@ export { SyncedStaffRepository } from './SyncedStaffRepository';
 export { SyncedPoolRepository } from './SyncedPoolRepository';
 export { SyncedProgramRepository } from './SyncedProgramRepository';
 export { SyncedScenarioRepository } from './SyncedScenarioRepository';
+export { SyncedSessionRepository } from './SyncedSessionRepository';
+export { SyncedPlacementRepository } from './SyncedPlacementRepository';
 export { SyncedPreferenceRepository } from './SyncedPreferenceRepository';
 export { SyncedGroupTemplateRepository } from './SyncedGroupTemplateRepository';

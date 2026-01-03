@@ -33,8 +33,15 @@
 	import HistorySelector from '$lib/components/editing/HistorySelector.svelte';
 	import type { ScenarioSatisfaction } from '$lib/domain';
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
-	import { generateScenario, getActivityData } from '$lib/services/appEnvUseCases';
+	import {
+		generateScenario,
+		getActivityData,
+		createSession,
+		publishSession
+	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
+	import type { Session } from '$lib/domain';
+	import PublishSessionModal from '$lib/components/editing/PublishSessionModal.svelte';
 	import {
 		buildAssignmentList,
 		exportToCSV,
@@ -51,6 +58,13 @@
 	let students = $state<Student[]>([]);
 	let preferences = $state<Preference[]>([]);
 	let scenario = $state<Scenario | null>(null);
+	let sessions = $state<Session[]>([]);
+	let latestPublishedSession = $state<Session | null>(null);
+
+	// --- Publish modal state ---
+	let showPublishModal = $state(false);
+	let isPublishing = $state(false);
+	let publishError = $state<string | null>(null);
 
 	// --- Loading states ---
 	let loading = $state(true);
@@ -176,6 +190,8 @@
 		students = data.students;
 		preferences = data.preferences;
 		scenario = data.scenario;
+		sessions = data.sessions;
+		latestPublishedSession = data.latestPublishedSession;
 
 		if (!scenario) {
 			goto(`/groups/${programId}/candidates`);
@@ -515,6 +531,71 @@
 		showToast(success ? 'Groups summary copied!' : 'Failed to copy');
 		showExportMenu = false;
 	}
+
+	// --- Publish Handler ---
+	async function handlePublish(data: {
+		sessionName: string;
+		academicYear: string;
+		startDate: Date;
+		endDate: Date;
+	}) {
+		if (!env || !program || !scenario || !view) return;
+
+		isPublishing = true;
+		publishError = null;
+
+		// Create session
+		const sessionResult = await createSession(env, {
+			programId: program.id,
+			name: data.sessionName,
+			academicYear: data.academicYear,
+			startDate: data.startDate,
+			endDate: data.endDate
+		});
+
+		if (isErr(sessionResult)) {
+			const err = sessionResult.error;
+			publishError =
+				err.type === 'PROGRAM_NOT_FOUND'
+					? 'Program not found'
+					: 'message' in err
+						? err.message
+						: 'Failed to create session';
+			isPublishing = false;
+			return;
+		}
+
+		const session = sessionResult.value;
+
+		// Publish session (creates placements)
+		const publishResult = await publishSession(env, {
+			sessionId: session.id,
+			scenarioId: scenario.id
+		});
+
+		if (isErr(publishResult)) {
+			const err = publishResult.error;
+			publishError =
+				err.type === 'SESSION_NOT_FOUND'
+					? 'Session not found'
+					: err.type === 'SCENARIO_NOT_FOUND'
+						? 'Scenario not found'
+						: err.type === 'SESSION_ALREADY_PUBLISHED'
+							? 'Session already published'
+							: 'message' in err
+								? err.message
+								: 'Failed to publish session';
+			isPublishing = false;
+			return;
+		}
+
+		// Success - update local state
+		latestPublishedSession = publishResult.value;
+		sessions = [...sessions, publishResult.value];
+		showPublishModal = false;
+		isPublishing = false;
+		showToast('Groups published successfully!');
+	}
 </script>
 
 <svelte:head>
@@ -658,6 +739,10 @@
 							onTryAnother={handleTryAnother}
 							onToggleAnalytics={() => (analyticsOpen = !analyticsOpen)}
 							onRetrySave={() => editingStore?.retrySave()}
+							canPublish={view.saveStatus === 'saved' || view.saveStatus === 'idle'}
+							isPublished={latestPublishedSession !== null}
+							publishedSessionName={latestPublishedSession?.name ?? ''}
+							onPublish={() => (showPublishModal = true)}
 						/>
 
 						<HistorySelector
@@ -795,6 +880,19 @@
 			confirmLabel="Delete"
 			onConfirm={confirmDeleteGroup}
 			onCancel={cancelDeleteGroup}
+		/>
+
+		<!-- Publish Session Modal -->
+		<PublishSessionModal
+			isOpen={showPublishModal}
+			programName={program?.name ?? ''}
+			onPublish={handlePublish}
+			onCancel={() => {
+				showPublishModal = false;
+				publishError = null;
+			}}
+			{isPublishing}
+			error={publishError}
 		/>
 
 		<!-- Toast -->

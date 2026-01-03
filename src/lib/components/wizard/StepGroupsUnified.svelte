@@ -5,7 +5,7 @@
 	 * Unified Groups step that combines:
 	 * - Fork question ("specific groups" vs "auto split")
 	 * - Conditional content based on selection:
-	 *   - ShellBuilder for specific mode (with template selection)
+	 *   - ShellBuilder for specific mode (with template selection + sheet import)
 	 *   - Size controls for auto mode
 	 *
 	 * This keeps the step count fixed regardless of which mode is selected.
@@ -14,7 +14,15 @@
 
 	import ShellBuilder from './ShellBuilder.svelte';
 	import { validateGroupShells, type GroupShell } from '$lib/utils/groupShellValidation';
-	import type { GroupTemplate } from '$lib/domain';
+	import type { GroupTemplate, SheetConnection, SheetTab } from '$lib/domain';
+	import type { RawSheetData } from '$lib/domain/import';
+	import TabSelector from '$lib/components/import/TabSelector.svelte';
+	import {
+		detectMatrixFormat,
+		extractGroupNameFromHeader
+	} from '$lib/utils/matrixPreferenceParser';
+
+	type GroupSource = 'manual' | 'template' | 'sheet';
 
 	interface SizeConfig {
 		min: number | null;
@@ -29,6 +37,8 @@
 		templates?: GroupTemplate[];
 		/** Currently selected template ID (if any) */
 		selectedTemplateId?: string | null;
+		/** Optional: connected Google Sheet for import */
+		sheetConnection?: SheetConnection | null;
 		onModeChange: (mode: 'specific' | 'auto') => void;
 		onShellGroupsChange: (groups: GroupShell[]) => void;
 		onSizeConfigChange: (config: SizeConfig) => void;
@@ -43,12 +53,85 @@
 		sizeConfig,
 		templates = [],
 		selectedTemplateId = null,
+		sheetConnection = null,
 		onModeChange,
 		onShellGroupsChange,
 		onSizeConfigChange,
 		onValidityChange,
 		onTemplateSelect
 	}: Props = $props();
+
+	// Sheet import state
+	let groupSource = $state<GroupSource>('manual');
+	let selectedTab = $state<SheetTab | null>(null);
+	let tabData = $state<RawSheetData | null>(null);
+	let detectedGroups = $state<string[]>([]);
+	let sheetError = $state('');
+
+	let hasSheetConnection = $derived(sheetConnection !== null);
+	let hasTemplates = $derived(templates.length > 0);
+
+	function handleTabSelect(tab: SheetTab, data: RawSheetData) {
+		selectedTab = tab;
+		tabData = data;
+		sheetError = '';
+		detectedGroups = [];
+
+		// Try to detect matrix format and extract groups
+		const detection = detectMatrixFormat(data);
+
+		if (detection.isMatrixFormat && detection.columns.length > 0) {
+			detectedGroups = detection.columns.map((c) => c.groupName);
+		} else {
+			// Try extracting from headers directly
+			const extracted: string[] = [];
+			for (const header of data.headers) {
+				const groupName = extractGroupNameFromHeader(header);
+				if (groupName) {
+					extracted.push(groupName);
+				}
+			}
+
+			if (extracted.length > 0) {
+				detectedGroups = extracted;
+			} else {
+				sheetError = 'Could not detect group names in this tab. Try a tab with headers like "[Group Name]" or select groups manually.';
+			}
+		}
+	}
+
+	function importGroupsFromSheet() {
+		if (detectedGroups.length === 0) return;
+
+		// Convert to GroupShell format
+		const groups: GroupShell[] = detectedGroups.map((name) => ({
+			name,
+			capacity: null
+		}));
+
+		onShellGroupsChange(groups);
+		onTemplateSelect?.(null); // Clear template selection
+
+		// Switch to manual editing mode so user can adjust
+		groupSource = 'manual';
+	}
+
+	function handleGroupSourceChange(source: GroupSource) {
+		groupSource = source;
+
+		if (source === 'manual') {
+			// Keep current groups for editing
+			onTemplateSelect?.(null);
+		} else if (source === 'template') {
+			// Clear sheet state
+			selectedTab = null;
+			tabData = null;
+			detectedGroups = [];
+		} else if (source === 'sheet') {
+			// Clear template selection
+			onTemplateSelect?.(null);
+		}
+	}
 
 	// Track ShellBuilder validity separately
 	let shellBuilderValid = $state(false);
@@ -246,38 +329,69 @@
 	<!-- Conditional content based on mode -->
 	{#if mode === 'specific'}
 		<div class="space-y-6 border-t border-gray-200 pt-6">
-			<!-- Template selector (if templates available) -->
-			{#if templates.length > 0}
+			<!-- Source selector (when sheet connected or templates available) -->
+			{#if hasSheetConnection || hasTemplates}
+				<div class="space-y-3">
+					<p class="text-sm font-medium text-gray-700">How would you like to add groups?</p>
+					<div class="flex flex-wrap gap-2">
+						<button
+							type="button"
+							class="rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors {groupSource === 'manual'
+								? 'border-teal bg-teal/5 text-teal'
+								: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+							onclick={() => handleGroupSourceChange('manual')}
+						>
+							Enter manually
+						</button>
+						{#if hasTemplates}
+							<button
+								type="button"
+								class="rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors {groupSource === 'template'
+									? 'border-teal bg-teal/5 text-teal'
+									: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+								onclick={() => handleGroupSourceChange('template')}
+							>
+								Use template
+							</button>
+						{/if}
+						{#if hasSheetConnection}
+							<button
+								type="button"
+								class="rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors {groupSource === 'sheet'
+									? 'border-teal bg-teal/5 text-teal'
+									: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+								onclick={() => handleGroupSourceChange('sheet')}
+							>
+								Import from sheet
+							</button>
+						{/if}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Template selector -->
+			{#if groupSource === 'template' && hasTemplates}
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
 					<label for="template-select" class="block text-sm font-medium text-gray-700">
-						Use a saved template (optional)
+						Select a template
 					</label>
 					<div class="mt-2 flex items-center gap-3">
 						<select
 							id="template-select"
-							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+							class="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal focus:ring-teal sm:text-sm"
 							value={selectedTemplateId ?? ''}
 							onchange={(e) => {
 								const value = (e.target as HTMLSelectElement).value;
 								onTemplateSelect?.(value || null);
 							}}
 						>
-							<option value="">Create new groups...</option>
+							<option value="">Choose a template...</option>
 							{#each templates as template (template.id)}
 								<option value={template.id}>
 									{template.name} ({template.groups.length} groups)
 								</option>
 							{/each}
 						</select>
-						{#if selectedTemplateId}
-							<button
-								type="button"
-								class="text-sm text-gray-500 hover:text-gray-700"
-								onclick={() => onTemplateSelect?.(null)}
-							>
-								Clear
-							</button>
-						{/if}
 					</div>
 					{#if selectedTemplateId}
 						{@const selected = templates.find((t) => t.id === selectedTemplateId)}
@@ -291,11 +405,57 @@
 				</div>
 			{/if}
 
-			<ShellBuilder
-				groups={shellGroups}
-				onGroupsChange={onShellGroupsChange}
-				onValidityChange={handleShellBuilderValidityChange}
-			/>
+			<!-- Sheet import -->
+			{#if groupSource === 'sheet' && sheetConnection}
+				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-4">
+					<TabSelector
+						connection={sheetConnection}
+						onTabSelect={handleTabSelect}
+						label="Select tab with preference data (group names in headers)"
+						{selectedTab}
+					/>
+
+					{#if detectedGroups.length > 0}
+						<div class="rounded-lg border border-green-200 bg-green-50 p-4">
+							<p class="text-sm font-medium text-green-900 mb-2">
+								Found {detectedGroups.length} groups:
+							</p>
+							<div class="flex flex-wrap gap-2 mb-3">
+								{#each detectedGroups as group}
+									<span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
+										{group}
+									</span>
+								{/each}
+							</div>
+							<button
+								type="button"
+								onclick={importGroupsFromSheet}
+								class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+							>
+								Use these groups
+							</button>
+							<p class="mt-2 text-xs text-green-700">
+								You can edit names and set capacities after importing.
+							</p>
+						</div>
+					{/if}
+
+					{#if sheetError}
+						<div class="rounded-lg border border-amber-200 bg-amber-50 p-3">
+							<p class="text-sm text-amber-700">{sheetError}</p>
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			<!-- Shell builder (always shown for manual editing) -->
+			{#if groupSource === 'manual' || shellGroups.length > 0}
+				<ShellBuilder
+					groups={shellGroups}
+					onGroupsChange={onShellGroupsChange}
+					onValidityChange={handleShellBuilderValidityChange}
+				/>
+			{/if}
 		</div>
 	{:else if mode === 'auto'}
 		<div class="border-t border-gray-200 pt-6">

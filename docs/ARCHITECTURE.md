@@ -187,7 +187,7 @@ Nothing in `infrastructure` should import Svelte components, routes, or Svelte s
 Groupwheel supports optional authentication via Google OAuth. When enabled:
 
 - **Anonymous mode (default):** All data stays in browser (IndexedDB). No server communication.
-- **Authenticated mode:** Data syncs to server. Users can access their data from any device.
+- **Authenticated mode:** Data can sync to the server when the user enables sync; users can also stay local-only while signed in.
 
 **Architecture:**
 

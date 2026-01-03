@@ -565,7 +565,7 @@
 		{:else if activeStepType === 'select-roster'}
 			<StepSelectRoster {existingRosters} {selectedRosterId} onSelect={handleRosterSelect} />
 		{:else if activeStepType === 'students'}
-			<StepStudents {students} onStudentsParsed={handleStudentsParsed} />
+			<StepStudents {students} onStudentsParsed={handleStudentsParsed} {sheetConnection} />
 		{:else if activeStepType === 'groups-unified'}
 			<StepGroupsUnified
 				mode={groupCreationMode}
@@ -573,6 +573,7 @@
 				sizeConfig={{ min: groupConfig.minSize, max: groupConfig.maxSize }}
 				templates={groupTemplates}
 				{selectedTemplateId}
+				{sheetConnection}
 				onModeChange={handleUnifiedModeChange}
 				onShellGroupsChange={handleUnifiedShellGroupsChange}
 				onSizeConfigChange={handleUnifiedSizeConfigChange}
@@ -585,6 +586,7 @@
 				{preferences}
 				groupNames={shellGroupNames}
 				onPreferencesParsed={handlePreferencesParsed}
+				{sheetConnection}
 			/>
 		{:else if activeStepType === 'name'}
 			<StepName

@@ -499,7 +499,8 @@ export async function getActivityData(
 			poolRepo: env.poolRepo,
 			studentRepo: env.studentRepo,
 			preferenceRepo: env.preferenceRepo,
-			scenarioRepo: env.scenarioRepo
+			scenarioRepo: env.scenarioRepo,
+			sessionRepo: env.sessionRepo
 		},
 		input
 	);
@@ -709,3 +710,109 @@ export async function extractGroupsFromPreferences(
 
 // Re-export extract groups types
 export type { ExtractGroupsFromPreferencesInput, ExtractGroupsFromPreferencesResult, ExtractGroupsFromPreferencesError };
+
+// =============================================================================
+// Session Operations
+// =============================================================================
+
+import {
+	createSession as createSessionUseCase,
+	type CreateSessionInput,
+	type CreateSessionError
+} from '$lib/application/useCases/createSession';
+import {
+	listSessions as listSessionsUseCase,
+	type ListSessionsInput
+} from '$lib/application/useCases/listSessions';
+import {
+	publishSession as publishSessionUseCase,
+	type PublishSessionInput,
+	type PublishSessionError
+} from '$lib/application/useCases/publishSession';
+import {
+	getStudentPlacementHistory as getStudentPlacementHistoryUseCase,
+	type GetStudentPlacementHistoryInput,
+	type StudentPlacementHistoryResult
+} from '$lib/application/useCases/getStudentPlacementHistory';
+import type { Session } from '$lib/domain';
+
+/**
+ * Create a new session for a program.
+ */
+export async function createSession(
+	env: InMemoryEnvironment,
+	input: CreateSessionInput
+): Promise<Result<Session, CreateSessionError>> {
+	return createSessionUseCase(
+		{
+			programRepo: env.programRepo,
+			sessionRepo: env.sessionRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock
+		},
+		input
+	);
+}
+
+/**
+ * List sessions with optional filters.
+ * Automatically filters by current user when authenticated.
+ */
+export async function listSessions(
+	env: InMemoryEnvironment,
+	input?: Omit<ListSessionsInput, 'userId'>
+): Promise<Result<Session[], never>> {
+	const userId = getCurrentUserId(env);
+	return listSessionsUseCase(
+		{
+			sessionRepo: env.sessionRepo
+		},
+		{ ...input, userId }
+	);
+}
+
+/**
+ * Publish a session, creating immutable placement records.
+ */
+export async function publishSession(
+	env: InMemoryEnvironment,
+	input: PublishSessionInput
+): Promise<Result<Session, PublishSessionError>> {
+	return publishSessionUseCase(
+		{
+			sessionRepo: env.sessionRepo,
+			scenarioRepo: env.scenarioRepo,
+			preferenceRepo: env.preferenceRepo,
+			placementRepo: env.placementRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock
+		},
+		input
+	);
+}
+
+/**
+ * Get the complete placement history for a student.
+ */
+export async function getStudentPlacementHistory(
+	env: InMemoryEnvironment,
+	input: GetStudentPlacementHistoryInput
+): Promise<Result<StudentPlacementHistoryResult, never>> {
+	return getStudentPlacementHistoryUseCase(
+		{
+			placementRepo: env.placementRepo,
+			sessionRepo: env.sessionRepo
+		},
+		input
+	);
+}
+
+// Re-export session types
+export type {
+	CreateSessionInput,
+	CreateSessionError,
+	ListSessionsInput,
+	PublishSessionInput,
+	PublishSessionError,
+	StudentPlacementHistoryResult
+};

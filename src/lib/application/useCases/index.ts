@@ -46,3 +46,9 @@ export * from './getStudentView';
 
 // Composite operations
 export * from './createGroupingActivity';
+
+// Session operations
+export * from './createSession';
+export * from './listSessions';
+export * from './publishSession';
+export * from './getStudentPlacementHistory';

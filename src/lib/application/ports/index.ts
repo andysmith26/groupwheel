@@ -13,6 +13,8 @@ export * from './StaffRepository';
 export * from './PoolRepository';
 export * from './ProgramRepository';
 export * from './ScenarioRepository';
+export * from './SessionRepository';
+export * from './PlacementRepository';
 export * from './PreferenceRepository';
 export * from './GroupTemplateRepository';
 

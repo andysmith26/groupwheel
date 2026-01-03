@@ -8,12 +8,13 @@
  * - Current scenario (if exists)
  */
 
-import type { Program, Pool, Student, Preference, Scenario } from '$lib/domain';
+import type { Program, Pool, Student, Preference, Scenario, Session } from '$lib/domain';
 import type { ProgramRepository } from '$lib/application/ports/ProgramRepository';
 import type { PoolRepository } from '$lib/application/ports/PoolRepository';
 import type { StudentRepository } from '$lib/application/ports/StudentRepository';
 import type { PreferenceRepository } from '$lib/application/ports/PreferenceRepository';
 import type { ScenarioRepository } from '$lib/application/ports/ScenarioRepository';
+import type { SessionRepository } from '$lib/application/ports/SessionRepository';
 import { ok, err, type Result } from '$lib/types/result';
 
 export interface GetActivityDataInput {
@@ -26,6 +27,10 @@ export interface ActivityData {
 	students: Student[];
 	preferences: Preference[];
 	scenario: Scenario | null;
+	/** All sessions for this program */
+	sessions: Session[];
+	/** Most recently published session, if any */
+	latestPublishedSession: Session | null;
 }
 
 export type GetActivityDataError =
@@ -39,6 +44,7 @@ export async function getActivityData(
 		studentRepo: StudentRepository;
 		preferenceRepo: PreferenceRepository;
 		scenarioRepo: ScenarioRepository;
+		sessionRepo: SessionRepository;
 	},
 	input: GetActivityDataInput
 ): Promise<Result<ActivityData, GetActivityDataError>> {
@@ -67,12 +73,26 @@ export async function getActivityData(
 		// Load scenario (may not exist)
 		const scenario = await deps.scenarioRepo.getByProgramId(input.programId);
 
+		// Load sessions
+		const sessions = await deps.sessionRepo.listByProgramId(input.programId);
+
+		// Find the latest published session
+		const publishedSessions = sessions.filter((s) => s.status === 'PUBLISHED');
+		const latestPublishedSession =
+			publishedSessions.length > 0
+				? publishedSessions.sort(
+						(a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0)
+					)[0]
+				: null;
+
 		return ok({
 			program,
 			pool,
 			students,
 			preferences,
-			scenario
+			scenario,
+			sessions,
+			latestPublishedSession
 		});
 	} catch (e) {
 		const message = e instanceof Error ? e.message : 'Unknown error loading activity data';

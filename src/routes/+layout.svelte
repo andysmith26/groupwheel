@@ -2,6 +2,7 @@
 	import '../app.css';
 	import logo from '$lib/assets/logo.svg';
 
+	import { onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -12,17 +13,23 @@
 	import { getBrowserSyncManager } from '$lib/infrastructure/sync/browserSyncManager';
 	import { BrowserClipboardAdapter } from '$lib/infrastructure/clipboard';
 	import { GoogleSheetsAdapter } from '$lib/infrastructure/sheets';
+	import { syncSettings } from '$lib/stores/syncSettings.svelte';
 	import LoginButton from '$lib/components/auth/LoginButton.svelte';
 	import SyncStatus from '$lib/components/sync/SyncStatus.svelte';
 
 	const { children } = $props();
 
+	let authAdapter: ReturnType<typeof getBrowserAuthAdapter> | null = null;
+	let syncManager: ReturnType<typeof getBrowserSyncManager> | null = null;
+	let authUnsubscribe: (() => void) | null = null;
+	let isAuthenticated = $state(false);
+
 	if (browser) {
-		const authAdapter = getBrowserAuthAdapter({
+		authAdapter = getBrowserAuthAdapter({
 			navigate: goto,
 			clientId: publicEnv.PUBLIC_GOOGLE_CLIENT_ID
 		});
-		const syncManager = getBrowserSyncManager();
+		syncManager = getBrowserSyncManager();
 
 		// Create GoogleSheetsAdapter if auth is available
 		const sheetsAdapter = authAdapter
@@ -38,14 +45,22 @@
 		});
 		setAppEnvContext(appEnv);
 
-		// Subscribe to auth state changes to enable/disable sync.
-		// This handles both initial load (after async init) and subsequent changes.
-		if (syncManager && authAdapter) {
-			authAdapter.onAuthStateChange((user) => {
-				syncManager.setEnabled(user !== null);
+		// Subscribe to auth state changes; sync enablement is gated by user preference.
+		if (authAdapter) {
+			authUnsubscribe = authAdapter.onAuthStateChange((user) => {
+				isAuthenticated = user !== null;
 			});
 		}
 	}
+
+	$effect(() => {
+		if (!syncManager) return;
+		syncManager.setEnabled(isAuthenticated && syncSettings.syncEnabled);
+	});
+
+	onDestroy(() => {
+		authUnsubscribe?.();
+	});
 
 	// Check if we're on the landing page or auth pages
 	let isLandingPage = $derived($page.url.pathname === '/');

@@ -8,7 +8,7 @@
  */
 
 export const DB_NAME = 'groupwheel';
-export const DB_VERSION = 4; // Bumped to 4 to ensure all stores are created if v3 was partial
+export const DB_VERSION = 5; // Bumped to 5 to add sessions and placements stores
 
 /**
  * Open the IndexedDB database, creating object stores if needed.
@@ -65,6 +65,21 @@ export function openDb(): Promise<IDBDatabase> {
 			if (!db.objectStoreNames.contains('preferences')) {
 				const prefStore = db.createObjectStore('preferences', { keyPath: 'id' });
 				prefStore.createIndex('programId', 'programId', { unique: false });
+			}
+
+			// 8. Sessions (v5)
+			if (!db.objectStoreNames.contains('sessions')) {
+				const sessionStore = db.createObjectStore('sessions', { keyPath: 'id' });
+				sessionStore.createIndex('programId', 'programId', { unique: false });
+				sessionStore.createIndex('academicYear', 'academicYear', { unique: false });
+				sessionStore.createIndex('status', 'status', { unique: false });
+			}
+
+			// 9. Placements (v5)
+			if (!db.objectStoreNames.contains('placements')) {
+				const placementStore = db.createObjectStore('placements', { keyPath: 'id' });
+				placementStore.createIndex('sessionId', 'sessionId', { unique: false });
+				placementStore.createIndex('studentId', 'studentId', { unique: false });
 			}
 		};
 	});
