@@ -47,6 +47,10 @@ export class InMemoryProgramRepository implements ProgramRepository {
 		});
 	}
 
+	async delete(id: string): Promise<void> {
+		this.programs.delete(id);
+	}
+
 	async listAll(userId?: string): Promise<Program[]> {
 		let programs = Array.from(this.programs.values()).map((p) => ({
 			...p,

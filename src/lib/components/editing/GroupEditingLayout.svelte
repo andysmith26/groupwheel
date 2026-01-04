@@ -40,7 +40,10 @@
 		onAddGroup,
 		newGroupId = null,
 		selectedStudentPreferences = null,
-		layout = 'masonry'
+		layout = 'masonry',
+		studentPreferenceRanks = new Map<string, number | null>(),
+		onStudentHoverStart,
+		onStudentHoverEnd
 	} = $props<{
 		groups?: Group[];
 		studentsById?: Record<string, Student>;
@@ -57,6 +60,9 @@
 		newGroupId?: string | null;
 		selectedStudentPreferences?: string[] | null;
 		layout?: LayoutMode;
+		studentPreferenceRanks?: Map<string, number | null>;
+		onStudentHoverStart?: (studentId: string, x: number, y: number) => void;
+		onStudentHoverEnd?: () => void;
 	}>();
 
 	// Helper to get preference rank for a group
@@ -95,6 +101,9 @@
 					{onDeleteGroup}
 					focusNameOnMount={group.id === newGroupId}
 					preferenceRank={getPreferenceRank(group.id)}
+					{studentPreferenceRanks}
+					{onStudentHoverStart}
+					{onStudentHoverEnd}
 				/>
 			{/each}
 
@@ -121,6 +130,9 @@
 				{onDeleteGroup}
 				focusNameOnMount={group.id === newGroupId}
 				preferenceRank={getPreferenceRank(group.id)}
+				{studentPreferenceRanks}
+				{onStudentHoverStart}
+				{onStudentHoverEnd}
 			/>
 		{/each}
 

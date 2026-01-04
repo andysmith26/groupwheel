@@ -214,10 +214,10 @@
 	<div class="space-y-4">
 		<div>
 			<h2 id="mode-selection-label" class="text-lg font-medium text-gray-900">
-				How do you want to create groups?
+				Step 2 of 3: Set Up Your Groups
 			</h2>
 			<p class="mt-1 text-sm text-gray-600">
-				Choose how you'd like to set up your groups. You can always edit them later.
+				Choose how you'd like to organize your groups. You can edit them after creating.
 			</p>
 		</div>
 

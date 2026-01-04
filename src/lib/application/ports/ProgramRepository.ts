@@ -4,6 +4,7 @@ export interface ProgramRepository {
 	getById(id: string): Promise<Program | null>;
 	save(program: Program): Promise<void>;
 	update(program: Program): Promise<void>;
+	delete(id: string): Promise<void>;
 
 	/**
 	 * List all programs.

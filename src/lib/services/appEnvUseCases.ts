@@ -544,6 +544,84 @@ export async function getPoolWithStudents(
 export type { ActivityDisplay, ActivityData, StudentActivityViewData, PoolWithStudents };
 
 // =============================================================================
+// Activity Management Operations
+// =============================================================================
+
+export type RenameActivityError =
+	| { type: 'PROGRAM_NOT_FOUND'; message: string }
+	| { type: 'INVALID_NAME'; message: string }
+	| { type: 'UPDATE_FAILED'; message: string };
+
+/**
+ * Rename an activity (program).
+ */
+export async function renameActivity(
+	env: InMemoryEnvironment,
+	input: { programId: string; newName: string }
+): Promise<Result<void, RenameActivityError>> {
+	const { programId, newName } = input;
+	const trimmedName = newName.trim();
+
+	if (!trimmedName) {
+		return err({ type: 'INVALID_NAME', message: 'Activity name cannot be empty' });
+	}
+
+	try {
+		const program = await env.programRepo.getById(programId);
+		if (!program) {
+			return err({ type: 'PROGRAM_NOT_FOUND', message: `Activity ${programId} not found` });
+		}
+
+		const updatedProgram = { ...program, name: trimmedName };
+		await env.programRepo.update(updatedProgram);
+		return ok(undefined);
+	} catch (e) {
+		return err({
+			type: 'UPDATE_FAILED',
+			message: e instanceof Error ? e.message : 'Failed to rename activity'
+		});
+	}
+}
+
+export type DeleteActivityError =
+	| { type: 'PROGRAM_NOT_FOUND'; message: string }
+	| { type: 'DELETE_FAILED'; message: string };
+
+/**
+ * Delete an activity and its associated scenario.
+ * Note: Pool and students are preserved for potential reuse.
+ */
+export async function deleteActivity(
+	env: InMemoryEnvironment,
+	input: { programId: string }
+): Promise<Result<void, DeleteActivityError>> {
+	const { programId } = input;
+
+	try {
+		const program = await env.programRepo.getById(programId);
+		if (!program) {
+			return err({ type: 'PROGRAM_NOT_FOUND', message: `Activity ${programId} not found` });
+		}
+
+		// Delete associated scenario if exists
+		const scenario = await env.scenarioRepo.getByProgramId(programId);
+		if (scenario) {
+			await env.scenarioRepo.delete(scenario.id);
+		}
+
+		// Delete the program
+		await env.programRepo.delete(programId);
+
+		return ok(undefined);
+	} catch (e) {
+		return err({
+			type: 'DELETE_FAILED',
+			message: e instanceof Error ? e.message : 'Failed to delete activity'
+		});
+	}
+}
+
+// =============================================================================
 // Authentication Operations
 // =============================================================================
 

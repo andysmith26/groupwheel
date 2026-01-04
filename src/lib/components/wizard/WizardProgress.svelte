@@ -3,7 +3,7 @@
 	 * WizardProgress.svelte
 	 *
 	 * Horizontal step indicator for the Create Groups wizard.
-	 * Shows current progress through the 3-step flow.
+	 * Shows current progress through the 3-step flow with visual progress bar.
 	 */
 
 	interface Props {
@@ -15,10 +15,28 @@
 	let {
 		currentStep,
 		totalSteps = 3,
-		labels = ['Students', 'Preferences', 'Name']
+		labels = ['Students', 'Groups', 'Review']
 	}: Props = $props();
+
+	// Calculate progress percentage (0 to 100)
+	let progressPercent = $derived(Math.round((currentStep / totalSteps) * 100));
 </script>
 
+<!-- Progress bar -->
+<div class="mb-4">
+	<div class="flex items-center justify-between mb-1">
+		<span class="text-sm font-medium text-gray-700">Step {currentStep} of {totalSteps}</span>
+		<span class="text-sm text-gray-500">{progressPercent}% complete</span>
+	</div>
+	<div class="h-2 w-full rounded-full bg-gray-200">
+		<div
+			class="h-2 rounded-full bg-teal transition-all duration-300"
+			style="width: {progressPercent}%"
+		></div>
+	</div>
+</div>
+
+<!-- Step indicators -->
 <div class="flex items-center gap-2">
 	{#each Array.from({ length: totalSteps }, (_, index) => index) as index (index)}
 		{@const stepNum = index + 1}

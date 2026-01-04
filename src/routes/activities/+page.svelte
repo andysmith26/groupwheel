@@ -1,0 +1,426 @@
+<script lang="ts">
+	/**
+	 * /activities/+page.svelte
+	 *
+	 * Activity Dashboard - Shows all grouping activities with status and actions.
+	 * Part of the UX Overhaul (Approach C).
+	 */
+
+	import { onMount } from 'svelte';
+	import { getAppEnvContext } from '$lib/contexts/appEnv';
+	import {
+		listActivities,
+		renameActivity,
+		deleteActivity,
+		type ActivityDisplay
+	} from '$lib/services/appEnvUseCases';
+	import { isErr } from '$lib/types/result';
+	import type { Program } from '$lib/domain';
+
+	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
+
+	let activities = $state<ActivityDisplay[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+
+	// Menu and modal state
+	let openMenuId = $state<string | null>(null);
+	let renameModalOpen = $state(false);
+	let renameTarget = $state<ActivityDisplay | null>(null);
+	let renameValue = $state('');
+	let renameError = $state<string | null>(null);
+	let deleteModalOpen = $state(false);
+	let deleteTarget = $state<ActivityDisplay | null>(null);
+	let isDeleting = $state(false);
+
+	onMount(async () => {
+		env = getAppEnvContext();
+		await loadActivities();
+
+		// Close menu on outside click
+		const handleClick = (e: MouseEvent) => {
+			if (openMenuId && !(e.target as Element).closest('.overflow-menu')) {
+				openMenuId = null;
+			}
+		};
+		document.addEventListener('click', handleClick);
+		return () => document.removeEventListener('click', handleClick);
+	});
+
+	async function loadActivities() {
+		if (!env) return;
+
+		loading = true;
+		error = null;
+
+		const result = await listActivities(env);
+
+		if (isErr(result)) {
+			error = result.error.message;
+		} else {
+			activities = result.value;
+		}
+
+		loading = false;
+	}
+
+	function getProgramTimeLabel(program: Program): string {
+		if ('termLabel' in program.timeSpan) {
+			return program.timeSpan.termLabel;
+		}
+		if ('start' in program.timeSpan && program.timeSpan.start) {
+			return program.timeSpan.start.toLocaleDateString();
+		}
+		return '';
+	}
+
+	function getStatusInfo(activity: ActivityDisplay): {
+		label: string;
+		style: string;
+		icon: string;
+	} {
+		if (activity.hasScenario) {
+			return {
+				label: 'Editing',
+				style: 'bg-yellow-100 text-yellow-700',
+				icon: '○'
+			};
+		}
+		return {
+			label: 'Draft',
+			style: 'bg-gray-100 text-gray-600',
+			icon: '○'
+		};
+	}
+
+	function getPrimaryAction(activity: ActivityDisplay): { label: string; href: string } {
+		if (activity.hasScenario) {
+			return {
+				label: 'Edit Groups',
+				href: `/activities/${activity.program.id}/workspace`
+			};
+		}
+		return {
+			label: 'Continue Setup',
+			href: `/activities/${activity.program.id}/setup`
+		};
+	}
+
+	function getStudentCountLabel(count: number): string {
+		if (count === 0) return 'No students yet';
+		if (count === 1) return '1 student';
+		return `${count} students`;
+	}
+
+	// Menu handlers
+	function toggleMenu(id: string, e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		openMenuId = openMenuId === id ? null : id;
+	}
+
+	function handleMenuAction(action: string, activity: ActivityDisplay) {
+		openMenuId = null;
+
+		switch (action) {
+			case 'rename':
+				renameTarget = activity;
+				renameValue = activity.program.name;
+				renameError = null;
+				renameModalOpen = true;
+				break;
+			case 'setup':
+				window.location.href = `/activities/${activity.program.id}/setup`;
+				break;
+			case 'delete':
+				deleteTarget = activity;
+				deleteModalOpen = true;
+				break;
+		}
+	}
+
+	async function handleRenameSubmit() {
+		if (!env || !renameTarget) return;
+
+		const trimmed = renameValue.trim();
+		if (!trimmed) {
+			renameError = 'Activity name cannot be empty';
+			return;
+		}
+
+		const result = await renameActivity(env, {
+			programId: renameTarget.program.id,
+			newName: trimmed
+		});
+
+		if (isErr(result)) {
+			renameError = result.error.message;
+			return;
+		}
+
+		// Update local state
+		activities = activities.map((a) =>
+			a.program.id === renameTarget!.program.id
+				? { ...a, program: { ...a.program, name: trimmed } }
+				: a
+		);
+
+		renameModalOpen = false;
+		renameTarget = null;
+	}
+
+	async function handleDeleteConfirm() {
+		if (!env || !deleteTarget) return;
+
+		isDeleting = true;
+		const result = await deleteActivity(env, { programId: deleteTarget.program.id });
+
+		if (isErr(result)) {
+			// Show error in the modal
+			isDeleting = false;
+			return;
+		}
+
+		// Remove from local state
+		activities = activities.filter((a) => a.program.id !== deleteTarget!.program.id);
+		isDeleting = false;
+		deleteModalOpen = false;
+		deleteTarget = null;
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			if (renameModalOpen) {
+				renameModalOpen = false;
+				renameTarget = null;
+			}
+			if (deleteModalOpen) {
+				deleteModalOpen = false;
+				deleteTarget = null;
+			}
+			if (openMenuId) {
+				openMenuId = null;
+			}
+		}
+	}
+</script>
+
+<svelte:head>
+	<title>Activities | Groupwheel</title>
+</svelte:head>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<div class="mx-auto max-w-4xl space-y-6 p-4">
+	<header class="flex items-center justify-between gap-4">
+		<div>
+			<h1 class="text-2xl font-semibold">Your Activities</h1>
+			<p class="text-sm text-gray-600">
+				Create and manage student groupings for projects, labs, and activities.
+			</p>
+		</div>
+		<div class="flex items-center gap-3">
+			<a
+				href="/activities/new"
+				class="rounded-md bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark"
+			>
+				+ New Activity
+			</a>
+		</div>
+	</header>
+
+	{#if loading}
+		<div class="flex items-center justify-center py-12">
+			<p class="text-gray-500">Loading activities...</p>
+		</div>
+	{:else if error}
+		<div class="rounded-md border border-red-200 bg-red-50 p-4">
+			<p class="text-sm text-red-700">{error}</p>
+		</div>
+	{:else if activities.length === 0}
+		<!-- Empty state -->
+		<div class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+			<div
+				class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-teal-light"
+			>
+				<svg class="h-6 w-6 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+					></path>
+				</svg>
+			</div>
+			<h3 class="text-lg font-medium text-gray-900">No activities yet</h3>
+			<p class="mt-1 text-sm text-gray-500">Create your first grouping activity to get started.</p>
+			<a
+				href="/activities/new"
+				class="mt-4 inline-block rounded-md bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark"
+			>
+				+ New Activity
+			</a>
+		</div>
+	{:else}
+		<!-- Activity cards -->
+		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			{#each activities as activity (activity.program.id)}
+				{@const status = getStatusInfo(activity)}
+				{@const action = getPrimaryAction(activity)}
+				<div
+					class="group rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+				>
+					<a href="/activities/{activity.program.id}" class="block">
+						<div class="flex items-start justify-between">
+							<div class="min-w-0 flex-1">
+								<h3 class="truncate font-medium text-gray-900 group-hover:text-teal">
+									{activity.program.name}
+								</h3>
+								<p class="mt-1 text-sm text-gray-500">
+									{getStudentCountLabel(activity.studentCount)}
+								</p>
+							</div>
+
+							<!-- Status badge -->
+							<span
+								class="ml-2 flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium {status.style}"
+							>
+								{status.icon} {status.label}
+							</span>
+						</div>
+
+						<div class="mt-3 flex items-center justify-between text-xs text-gray-400">
+							<span>{getProgramTimeLabel(activity.program)}</span>
+						</div>
+					</a>
+
+					<div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+						<a
+							href={action.href}
+							class="rounded-md bg-teal px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-dark"
+						>
+							{action.label}
+						</a>
+
+						<!-- Overflow menu -->
+						<div class="overflow-menu relative">
+							<button
+								type="button"
+								class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+								aria-label="More options"
+								onclick={(e) => toggleMenu(activity.program.id, e)}
+							>
+								<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+									<path
+										d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"
+									/>
+								</svg>
+							</button>
+
+							{#if openMenuId === activity.program.id}
+								<div
+									class="absolute right-0 z-10 mt-1 w-40 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+								>
+									<button
+										type="button"
+										class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+										onclick={() => handleMenuAction('rename', activity)}
+									>
+										Rename
+									</button>
+									<button
+										type="button"
+										class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+										onclick={() => handleMenuAction('setup', activity)}
+									>
+										Go to Setup
+									</button>
+									<hr class="my-1 border-gray-100" />
+									<button
+										type="button"
+										class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+										onclick={() => handleMenuAction('delete', activity)}
+									>
+										Delete
+									</button>
+								</div>
+							{/if}
+						</div>
+					</div>
+				</div>
+			{/each}
+		</div>
+	{/if}
+</div>
+
+<!-- Rename Modal -->
+{#if renameModalOpen && renameTarget}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+		<div class="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+			<h3 class="text-lg font-medium text-gray-900">Rename Activity</h3>
+			<div class="mt-4">
+				<input
+					type="text"
+					class="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+					bind:value={renameValue}
+					onkeydown={(e) => e.key === 'Enter' && handleRenameSubmit()}
+				/>
+				{#if renameError}
+					<p class="mt-2 text-sm text-red-600">{renameError}</p>
+				{/if}
+			</div>
+			<div class="mt-4 flex justify-end gap-3">
+				<button
+					type="button"
+					class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+					onclick={() => {
+						renameModalOpen = false;
+						renameTarget = null;
+					}}
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="rounded-md bg-teal px-4 py-2 text-sm font-medium text-white hover:bg-teal-dark"
+					onclick={handleRenameSubmit}
+				>
+					Save
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Delete Confirmation Modal -->
+{#if deleteModalOpen && deleteTarget}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+		<div class="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+			<h3 class="text-lg font-medium text-gray-900">Delete Activity</h3>
+			<p class="mt-2 text-sm text-gray-600">
+				Delete "{deleteTarget.program.name}"? This cannot be undone.
+			</p>
+			<div class="mt-4 flex justify-end gap-3">
+				<button
+					type="button"
+					class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+					onclick={() => {
+						deleteModalOpen = false;
+						deleteTarget = null;
+					}}
+					disabled={isDeleting}
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+					onclick={handleDeleteConfirm}
+					disabled={isDeleting}
+				>
+					{isDeleting ? 'Deleting...' : 'Delete'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

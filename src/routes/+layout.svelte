@@ -92,14 +92,14 @@
 			{#if !isLandingPage && !isAuthPage}
 				<nav aria-label="Main navigation" class="flex items-center gap-4">
 					<a
-						href="/groups"
+						href="/activities"
 						class="rounded-md px-3 py-2 text-sm font-medium transition-colors {isActiveLink(
 							$page.url.pathname,
-							'/groups'
-						)
+							'/activities'
+						) || isActiveLink($page.url.pathname, '/groups')
 							? 'bg-teal/10 text-teal'
 							: 'text-gray-700 hover:bg-gray-100 hover:text-coral'}"
-						aria-current={isActiveLink($page.url.pathname, '/groups') ? 'page' : undefined}
+						aria-current={isActiveLink($page.url.pathname, '/activities') ? 'page' : undefined}
 					>
 						Activities
 					</a>
@@ -121,7 +121,7 @@
 		</div>
 	</header>
 
-	<main class={$page.route.id?.startsWith('/groups/[id]') ? '' : 'mx-auto max-w-6xl p-4'}>
+	<main class={$page.route.id?.startsWith('/groups/[id]') || $page.route.id?.startsWith('/activities/[id]') ? '' : 'mx-auto max-w-6xl p-4'}>
 		{@render children()}
 	</main>
 </div>

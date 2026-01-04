@@ -3,7 +3,7 @@
 	 * Landing page for Groupwheel.
 	 *
 	 * - First-time visitors: See value proposition + CTA to create groups
-	 * - Returning users (have activities in IndexedDB): Auto-redirect to /groups
+	 * - Returning users (have activities in IndexedDB): Auto-redirect to /activities
 	 */
 
 	import { goto } from '$app/navigation';
@@ -21,7 +21,7 @@
 
 		if (isOk(result) && result.value.length > 0) {
 			// Returning user — redirect to dashboard
-			goto('/groups', { replaceState: true });
+			goto('/activities', { replaceState: true });
 			return;
 		}
 
@@ -53,7 +53,7 @@
 			</p>
 			<div class="mt-8">
 				<a
-					href="/groups/new"
+					href="/activities/new"
 					class="inline-block rounded-lg bg-coral px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-coral-dark focus:ring-2 focus:ring-coral focus:ring-offset-2 focus:outline-none"
 				>
 					Get Started — it's free
@@ -139,7 +139,7 @@
 		<section class="mt-12 text-center">
 			<p class="text-sm text-gray-500">
 				Already have activities?
-				<a href="/groups" class="font-medium text-teal hover:text-teal-dark hover:underline">
+				<a href="/activities" class="font-medium text-teal hover:text-teal-dark hover:underline">
 					Go to your dashboard →
 				</a>
 			</p>

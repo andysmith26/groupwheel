@@ -86,6 +86,20 @@ export class IndexedDbProgramRepository implements ProgramRepository {
 		return this.save(program);
 	}
 
+	async delete(id: string): Promise<void> {
+		if (typeof indexedDB === 'undefined') return;
+
+		const db = await openDb();
+		return new Promise((resolve, reject) => {
+			const tx = db.transaction(STORE_NAME, 'readwrite');
+			const store = tx.objectStore(STORE_NAME);
+			const request = store.delete(id);
+
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve();
+		});
+	}
+
 	async listAll(userId?: string): Promise<Program[]> {
 		if (typeof indexedDB === 'undefined') return [];
 

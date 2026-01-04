@@ -33,6 +33,14 @@ export class SyncedProgramRepository implements ProgramRepository {
 		}
 	}
 
+	async delete(id: string): Promise<void> {
+		await this.local.delete(id);
+
+		if (this.sync.isEnabled()) {
+			await this.sync.queueForSync('programs', 'delete', id);
+		}
+	}
+
 	async listAll(userId?: string): Promise<Program[]> {
 		return this.local.listAll(userId);
 	}

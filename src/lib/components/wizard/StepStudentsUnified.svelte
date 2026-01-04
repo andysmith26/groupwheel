@@ -1,0 +1,883 @@
+<script lang="ts">
+	/**
+	 * StepStudentsUnified.svelte
+	 *
+	 * Step 1 of the 3-step wizard: Add your students.
+	 * Combines paste, roster reuse, and Google Sheets import into one view
+	 * with collapsible sections.
+	 */
+
+	import { devTools } from '$lib/stores/devTools.svelte';
+	import { SvelteSet } from 'svelte/reactivity';
+	import type { ParsedStudent } from '$lib/application/useCases/createGroupingActivity';
+	import { sampleRosters, sampleRosterById } from '$lib/content/sampleRosters';
+	import type { SheetConnection, SheetTab } from '$lib/domain/sheetConnection';
+	import type { RawSheetData } from '$lib/domain/import';
+	import type { Pool } from '$lib/domain';
+	import TabSelector from '$lib/components/import/TabSelector.svelte';
+
+	type ImportSource = 'paste' | 'roster' | 'sheet';
+	type StudentField = 'name' | 'id' | 'firstName' | 'lastName' | 'grade' | 'ignore' | null;
+
+	interface RosterOption {
+		pool: Pool;
+		activityName: string;
+		lastUsed: Date;
+		studentCount: number;
+	}
+
+	interface Props {
+		students: ParsedStudent[];
+		selectedRosterId: string | null;
+		existingRosters: RosterOption[];
+		sheetConnection: SheetConnection | null;
+		userLoggedIn: boolean;
+		onStudentsParsed: (students: ParsedStudent[]) => void;
+		onRosterSelect: (poolId: string | null) => void;
+	}
+
+	let {
+		students,
+		selectedRosterId,
+		existingRosters,
+		sheetConnection = null,
+		userLoggedIn = false,
+		onStudentsParsed,
+		onRosterSelect
+	}: Props = $props();
+
+	// Section expansion state
+	let expandedSection = $state<ImportSource>('paste');
+
+	let pastedText = $state('');
+	let parseError = $state('');
+	let showFormatHelp = $state(false);
+	let showSampleMenu = $state(false);
+
+	// Sheet import state
+	let selectedTab = $state<SheetTab | null>(null);
+	let tabData = $state<RawSheetData | null>(null);
+	let columnMappings = $state<Map<number, StudentField>>(new Map());
+	let showMappingUI = $state(false);
+
+	// Derived
+	let hasSheetConnection = $derived(sheetConnection !== null);
+	let hasExistingRosters = $derived(existingRosters.length > 0);
+
+	// Field options for column mapping dropdown
+	const fieldOptions: { value: StudentField; label: string }[] = [
+		{ value: null, label: 'Select field...' },
+		{ value: 'name', label: 'Full Name' },
+		{ value: 'firstName', label: 'First Name' },
+		{ value: 'lastName', label: 'Last Name' },
+		{ value: 'id', label: 'ID / Email' },
+		{ value: 'grade', label: 'Grade' },
+		{ value: 'ignore', label: 'Ignore' }
+	];
+
+	// Format relative time
+	function formatRelativeTime(date: Date): string {
+		const now = new Date();
+		const diffMs = now.getTime() - date.getTime();
+		const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+		if (diffDays === 0) return 'today';
+		if (diffDays === 1) return 'yesterday';
+		if (diffDays < 7) return `${diffDays} days ago`;
+		if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${diffDays >= 14 ? 's' : ''} ago`;
+		return `${Math.floor(diffDays / 30)} month${diffDays >= 60 ? 's' : ''} ago`;
+	}
+
+	/**
+	 * Smart guess for what a column contains based on header text.
+	 */
+	function guessColumnField(header: string): StudentField {
+		const h = header.toLowerCase().trim();
+
+		// ID / Email patterns
+		if (h === 'email' || h === 'email address' || h.includes('email')) return 'id';
+		if (h === 'id' || h === 'student id' || h === 'student_id' || h === 'studentid') return 'id';
+
+		// Full name patterns
+		if (h === 'name' || h === 'full name' || h === 'student name' || h === 'display name')
+			return 'name';
+		if (h.includes('first') && h.includes('last')) return 'name';
+		if (h.includes('your') && h.includes('name')) return 'name';
+
+		// First name patterns
+		if (h === 'first name' || h === 'firstname' || h === 'first') return 'firstName';
+		if (h === 'given name' || h === 'givenname') return 'firstName';
+
+		// Last name patterns
+		if (h === 'last name' || h === 'lastname' || h === 'last') return 'lastName';
+		if (h === 'surname' || h === 'family name') return 'lastName';
+
+		// Grade patterns
+		if (h === 'grade' || h === 'grade level' || h === 'year' || h === 'class') return 'grade';
+
+		// Ignore common non-student columns
+		if (h === 'timestamp' || h.includes('timestamp')) return 'ignore';
+		if (h === 'score' || h.includes('score')) return 'ignore';
+
+		return null;
+	}
+
+	function handleSectionToggle(section: ImportSource) {
+		expandedSection = section;
+		// Reset state when switching sections
+		if (section === 'paste') {
+			onRosterSelect(null);
+			selectedTab = null;
+			tabData = null;
+			columnMappings = new Map();
+			showMappingUI = false;
+		} else if (section === 'roster') {
+			pastedText = '';
+			parseError = '';
+			selectedTab = null;
+			tabData = null;
+			columnMappings = new Map();
+			showMappingUI = false;
+			onStudentsParsed([]);
+		} else if (section === 'sheet') {
+			onRosterSelect(null);
+			pastedText = '';
+			parseError = '';
+			onStudentsParsed([]);
+		}
+	}
+
+	function handleRosterSelect(poolId: string) {
+		onRosterSelect(poolId);
+	}
+
+	function handleTabSelect(tab: SheetTab, data: RawSheetData) {
+		selectedTab = tab;
+		tabData = data;
+		parseError = '';
+
+		// Auto-guess column mappings
+		const mappings = new Map<number, StudentField>();
+		for (let i = 0; i < data.headers.length; i++) {
+			const guessed = guessColumnField(data.headers[i]);
+			mappings.set(i, guessed);
+		}
+		columnMappings = mappings;
+		showMappingUI = true;
+	}
+
+	function handleMappingChange(columnIndex: number, field: StudentField) {
+		const newMappings = new Map(columnMappings);
+		newMappings.set(columnIndex, field);
+		columnMappings = newMappings;
+	}
+
+	function getMappedColumnIndex(field: StudentField): number {
+		for (const [idx, f] of columnMappings) {
+			if (f === field) return idx;
+		}
+		return -1;
+	}
+
+	// Check if we have minimum required mappings
+	let hasRequiredMappings = $derived(() => {
+		const hasName = getMappedColumnIndex('name') >= 0;
+		const hasFirstName = getMappedColumnIndex('firstName') >= 0;
+		const hasId = getMappedColumnIndex('id') >= 0;
+		return hasName || hasFirstName || hasId;
+	});
+
+	function importFromSheet() {
+		if (!tabData) return;
+		parseSheetData(tabData);
+	}
+
+	function parseSheetData(data: RawSheetData) {
+		parseError = '';
+
+		try {
+			const nameIdx = getMappedColumnIndex('name');
+			const firstNameIdx = getMappedColumnIndex('firstName');
+			const lastNameIdx = getMappedColumnIndex('lastName');
+			const idIdx = getMappedColumnIndex('id');
+			const gradeIdx = getMappedColumnIndex('grade');
+
+			if (nameIdx < 0 && firstNameIdx < 0 && idIdx < 0) {
+				parseError = 'Please map at least one column to "Full Name", "First Name", or "ID / Email".';
+				onStudentsParsed([]);
+				return;
+			}
+
+			const parsed: ParsedStudent[] = [];
+			const seenIds = new SvelteSet<string>();
+
+			for (const row of data.rows) {
+				const cells = row.cells;
+				if (cells.every((c) => c === '')) continue;
+
+				const rawName = nameIdx >= 0 ? (cells[nameIdx] ?? '').trim() : '';
+				const rawFirstName = firstNameIdx >= 0 ? (cells[firstNameIdx] ?? '').trim() : '';
+				const rawLastName = lastNameIdx >= 0 ? (cells[lastNameIdx] ?? '').trim() : '';
+				const rawId = idIdx >= 0 ? (cells[idIdx] ?? '').trim() : '';
+				const rawGrade = gradeIdx >= 0 ? (cells[gradeIdx] ?? '').trim() : undefined;
+
+				let firstName = rawFirstName;
+				let lastName = rawLastName;
+
+				if (!firstName && rawName) {
+					const nameParts = rawName.split(/\s+/);
+					firstName = nameParts[0] ?? '';
+					lastName = nameParts.slice(1).join(' ') ?? '';
+				}
+
+				const displayName = rawName || `${firstName} ${lastName}`.trim();
+				const id = rawId || displayName.toLowerCase().replace(/\s+/g, '.');
+
+				if (!id) continue;
+				if (seenIds.has(id.toLowerCase())) continue;
+				seenIds.add(id.toLowerCase());
+
+				parsed.push({
+					id: id.toLowerCase(),
+					firstName,
+					lastName,
+					displayName: displayName || id,
+					grade: rawGrade || undefined,
+					meta: {}
+				});
+			}
+
+			if (parsed.length === 0) {
+				parseError = 'No valid student rows found. Check your column mappings.';
+				onStudentsParsed([]);
+				return;
+			}
+
+			onStudentsParsed(parsed);
+		} catch (e) {
+			parseError = `Parse error: ${e instanceof Error ? e.message : 'Unknown error'}`;
+			onStudentsParsed([]);
+		}
+	}
+
+	function loadSampleData(rosterId: string) {
+		const roster = sampleRosterById.get(rosterId);
+		if (!roster) return;
+		pastedText = roster.data;
+		showSampleMenu = false;
+		parseRoster();
+	}
+
+	function parseRoster() {
+		parseError = '';
+
+		if (!pastedText.trim()) {
+			onStudentsParsed([]);
+			return;
+		}
+
+		try {
+			const lines = pastedText.trim().split('\n');
+			if (lines.length < 2) {
+				parseError = 'Need at least a header row and one student row.';
+				onStudentsParsed([]);
+				return;
+			}
+
+			const delimiter = lines[0].includes('\t') ? '\t' : ',';
+			const headers = lines[0].split(delimiter).map((h) => h.trim().toLowerCase());
+
+			const nameIdx = headers.findIndex(
+				(h) => h === 'name' || h === 'display name' || h === 'student name' || h === 'full name'
+			);
+			const idIdx = headers.findIndex(
+				(h) => h === 'id' || h === 'email' || h === 'student id' || h === 'student_id'
+			);
+
+			if (nameIdx === -1 && idIdx === -1) {
+				parseError =
+					'Could not find "name" or "id" columns. Make sure your header row includes these.';
+				onStudentsParsed([]);
+				return;
+			}
+
+			const gradeIdx = headers.findIndex((h) => h === 'grade' || h === 'grade level');
+
+			const parsed: ParsedStudent[] = [];
+			const seenIds = new SvelteSet<string>();
+
+			for (let i = 1; i < lines.length; i++) {
+				const cells = lines[i].split(delimiter).map((c) => c.trim());
+				if (cells.every((c) => c === '')) continue;
+
+				const rawName = nameIdx >= 0 ? (cells[nameIdx] ?? '') : '';
+				const rawId = idIdx >= 0 ? (cells[idIdx] ?? '') : '';
+				const rawGrade = gradeIdx >= 0 ? (cells[gradeIdx] ?? '') : undefined;
+
+				const id = rawId || rawName.toLowerCase().replace(/\s+/g, '.');
+				if (!id) continue;
+				if (seenIds.has(id.toLowerCase())) continue;
+				seenIds.add(id.toLowerCase());
+
+				const nameParts = rawName.split(/\s+/);
+				const firstName = nameParts[0] ?? '';
+				const lastName = nameParts.slice(1).join(' ') ?? '';
+
+				parsed.push({
+					id: id.toLowerCase(),
+					firstName,
+					lastName,
+					displayName: rawName || id,
+					grade: rawGrade,
+					meta: {}
+				});
+			}
+
+			if (parsed.length === 0) {
+				parseError = 'No valid student rows found. Check your data format.';
+				onStudentsParsed([]);
+				return;
+			}
+
+			onStudentsParsed(parsed);
+		} catch (e) {
+			parseError = `Parse error: ${e instanceof Error ? e.message : 'Unknown error'}`;
+			onStudentsParsed([]);
+		}
+	}
+
+	// Derived state for detected columns display
+	let detectedColumns = $derived.by(() => {
+		if (students.length === 0) return '';
+		const cols: string[] = ['Name', 'ID'];
+		if (students.some((s) => s.grade)) cols.push('Grade');
+		return cols.join(', ');
+	});
+
+	function handlePaste() {
+		setTimeout(parseRoster, 10);
+	}
+
+	// Check if current section has valid data
+	let hasValidStudents = $derived(students.length > 0 || selectedRosterId !== null);
+</script>
+
+<div class="space-y-4">
+	<div>
+		<h2 class="text-lg font-medium text-gray-900">Step 1 of 3: Add Your Students</h2>
+		<p class="mt-1 text-sm text-gray-600">
+			Choose how you'd like to add your students.
+		</p>
+	</div>
+
+	<!-- Collapsible sections -->
+	<div class="space-y-3">
+		<!-- Paste from spreadsheet -->
+		<div class="rounded-lg border border-gray-200 overflow-hidden">
+			<button
+				type="button"
+				class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors {expandedSection ===
+				'paste'
+					? 'bg-teal-50 border-b border-teal-200'
+					: 'hover:bg-gray-50'}"
+				onclick={() => handleSectionToggle('paste')}
+			>
+				<div class="flex items-center gap-3">
+					<div
+						class="flex h-5 w-5 items-center justify-center rounded-full {expandedSection ===
+						'paste'
+							? 'bg-teal text-white'
+							: 'border-2 border-gray-300'}"
+					>
+						{#if expandedSection === 'paste'}
+							<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="3"
+									d="M5 13l4 4L19 7"
+								/>
+							</svg>
+						{/if}
+					</div>
+					<span class="font-medium text-gray-900">Paste from spreadsheet</span>
+				</div>
+				<svg
+					class="h-5 w-5 text-gray-400 transition-transform {expandedSection === 'paste'
+						? 'rotate-180'
+						: ''}"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+				</svg>
+			</button>
+
+			{#if expandedSection === 'paste'}
+				<div class="p-4 space-y-4">
+					<div class="space-y-2">
+						<div class="flex items-center justify-between">
+							<label class="block text-sm font-medium text-gray-700" for="roster-paste">
+								Copy rows from Google Sheets
+							</label>
+							{#if devTools.enabled}
+								<div class="relative">
+									<button
+										type="button"
+										class="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200"
+										onclick={() => (showSampleMenu = !showSampleMenu)}
+									>
+										Load sample data
+									</button>
+									{#if showSampleMenu}
+										<div
+											class="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-gray-200 bg-white p-2 shadow-lg"
+										>
+											{#each sampleRosters as roster}
+												<button
+													type="button"
+													class="w-full rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+													onclick={() => loadSampleData(roster.id)}
+												>
+													<div class="font-medium text-gray-900">{roster.label}</div>
+													<div class="text-xs text-gray-500">{roster.description}</div>
+												</button>
+											{/each}
+										</div>
+										<button
+											type="button"
+											class="fixed inset-0 z-10 cursor-default"
+											aria-label="Close sample menu"
+											onclick={() => (showSampleMenu = false)}
+										></button>
+									{/if}
+								</div>
+							{/if}
+						</div>
+
+						<textarea
+							id="roster-paste"
+							class="h-32 w-full rounded-lg border border-gray-300 p-3 font-mono text-sm placeholder:text-gray-400 focus:border-teal focus:ring-1 focus:ring-teal"
+							bind:value={pastedText}
+							onpaste={handlePaste}
+							oninput={parseRoster}
+							placeholder="name	id	grade
+Alice Smith	alice@school.edu	9
+Bob Jones	bob@school.edu	9"
+						></textarea>
+					</div>
+
+					<!-- Format help toggle -->
+					<div>
+						<button
+							type="button"
+							class="flex items-center gap-1 text-sm text-teal hover:text-teal-dark"
+							onclick={() => (showFormatHelp = !showFormatHelp)}
+						>
+							<span class="text-xs">{showFormatHelp ? '▼' : '▸'}</span>
+							What format works?
+						</button>
+
+						{#if showFormatHelp}
+							<div
+								class="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700"
+							>
+								<p class="mb-2">Copy rows from Google Sheets with columns for:</p>
+								<ul class="ml-4 list-disc space-y-1">
+									<li><strong>name</strong> (or "display name", "student name")</li>
+									<li><strong>id</strong> (or "email", "student id") — unique identifier</li>
+									<li><strong>grade</strong> (optional)</li>
+								</ul>
+								<p class="mt-2 text-xs text-gray-500">
+									Tab-separated format from Google Sheets works best.
+								</p>
+							</div>
+						{/if}
+					</div>
+				</div>
+			{/if}
+		</div>
+
+		<!-- Use existing roster -->
+		{#if hasExistingRosters}
+			<div class="rounded-lg border border-gray-200 overflow-hidden">
+				<button
+					type="button"
+					class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors {expandedSection ===
+					'roster'
+						? 'bg-teal-50 border-b border-teal-200'
+						: 'hover:bg-gray-50'}"
+					onclick={() => handleSectionToggle('roster')}
+				>
+					<div class="flex items-center gap-3">
+						<div
+							class="flex h-5 w-5 items-center justify-center rounded-full {expandedSection ===
+							'roster'
+								? 'bg-teal text-white'
+								: 'border-2 border-gray-300'}"
+						>
+							{#if expandedSection === 'roster'}
+								<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="3"
+										d="M5 13l4 4L19 7"
+									/>
+								</svg>
+							{/if}
+						</div>
+						<div>
+							<span class="font-medium text-gray-900">Use existing roster</span>
+							<span class="ml-2 text-sm text-gray-500">({existingRosters.length} saved)</span>
+						</div>
+					</div>
+					<svg
+						class="h-5 w-5 text-gray-400 transition-transform {expandedSection === 'roster'
+							? 'rotate-180'
+							: ''}"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M19 9l-7 7-7-7"
+						/>
+					</svg>
+				</button>
+
+				{#if expandedSection === 'roster'}
+					<div class="p-4 space-y-2">
+						<p class="text-sm text-gray-600 mb-3">
+							Reuse students from a previous activity without re-entering names.
+						</p>
+						{#each existingRosters as roster (roster.pool.id)}
+							<label
+								class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors
+									{selectedRosterId === roster.pool.id
+									? 'border-teal bg-teal-light ring-1 ring-teal'
+									: 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}"
+							>
+								<input
+									type="radio"
+									name="roster-choice"
+									checked={selectedRosterId === roster.pool.id}
+									onchange={() => handleRosterSelect(roster.pool.id)}
+									class="mt-0.5 h-4 w-4 text-teal accent-teal"
+								/>
+								<div class="flex-1">
+									<div class="flex items-center justify-between">
+										<span class="font-medium text-gray-900">
+											{roster.activityName}
+										</span>
+										<span class="text-xs text-gray-500">
+											{formatRelativeTime(roster.lastUsed)}
+										</span>
+									</div>
+									<p class="mt-0.5 text-sm text-gray-600">
+										{roster.studentCount} students
+									</p>
+								</div>
+							</label>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Import from Google Sheets -->
+		{#if userLoggedIn}
+			<div class="rounded-lg border border-gray-200 overflow-hidden">
+				<button
+					type="button"
+					class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors {expandedSection ===
+					'sheet'
+						? 'bg-teal-50 border-b border-teal-200'
+						: 'hover:bg-gray-50'}"
+					onclick={() => handleSectionToggle('sheet')}
+				>
+					<div class="flex items-center gap-3">
+						<div
+							class="flex h-5 w-5 items-center justify-center rounded-full {expandedSection ===
+							'sheet'
+								? 'bg-teal text-white'
+								: 'border-2 border-gray-300'}"
+						>
+							{#if expandedSection === 'sheet'}
+								<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="3"
+										d="M5 13l4 4L19 7"
+									/>
+								</svg>
+							{/if}
+						</div>
+						<span class="font-medium text-gray-900">Import from Google Sheets</span>
+					</div>
+					<svg
+						class="h-5 w-5 text-gray-400 transition-transform {expandedSection === 'sheet'
+							? 'rotate-180'
+							: ''}"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M19 9l-7 7-7-7"
+						/>
+					</svg>
+				</button>
+
+				{#if expandedSection === 'sheet'}
+					<div class="p-4 space-y-4">
+						{#if hasSheetConnection && sheetConnection}
+							<div
+								class="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3"
+							>
+								<svg
+									class="h-5 w-5 text-green-500"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
+								</svg>
+								<span class="text-sm font-medium text-green-800">
+									Connected: {sheetConnection.title}
+								</span>
+							</div>
+
+							<TabSelector
+								connection={sheetConnection}
+								onTabSelect={handleTabSelect}
+								label="Select tab with student roster"
+								{selectedTab}
+							/>
+
+							<!-- Column mapping UI -->
+							{#if showMappingUI && tabData}
+								<div class="space-y-3">
+									<div class="flex items-center justify-between">
+										<p class="text-sm font-medium text-gray-700">Map columns to student fields:</p>
+										<p class="text-xs text-gray-500">
+											{#if hasRequiredMappings()}
+												<span class="text-green-600">Ready to import</span>
+											{:else}
+												<span class="text-amber-600">Map at least name or email</span>
+											{/if}
+										</p>
+									</div>
+
+									<!-- Column mapping table -->
+									<div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+										<table class="w-full text-sm">
+											<thead>
+												<tr class="border-b border-gray-200 bg-white">
+													{#each tabData.headers as _, colIndex}
+														<th class="min-w-[130px] px-2 py-2">
+															<select
+																class="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-teal focus:ring-1 focus:ring-teal {columnMappings.get(
+																	colIndex
+																) === null
+																	? 'text-gray-400'
+																	: 'text-gray-900'}"
+																value={columnMappings.get(colIndex) ?? ''}
+																onchange={(e) => {
+																	const val = (e.target as HTMLSelectElement).value;
+																	handleMappingChange(
+																		colIndex,
+																		val === '' ? null : (val as StudentField)
+																	);
+																}}
+															>
+																{#each fieldOptions as option}
+																	<option value={option.value ?? ''}>{option.label}</option>
+																{/each}
+															</select>
+														</th>
+													{/each}
+												</tr>
+
+												<tr class="border-b border-gray-300 bg-gray-50">
+													{#each tabData.headers as header, colIndex}
+														{@const mapping = columnMappings.get(colIndex)}
+														<th
+															class="px-2 py-1.5 text-left text-xs font-medium {mapping &&
+															mapping !== 'ignore'
+																? 'text-teal-700'
+																: mapping === 'ignore'
+																	? 'text-gray-400'
+																	: 'text-gray-600'}"
+														>
+															<span class="truncate block max-w-[120px]" title={header}
+																>{header}</span
+															>
+														</th>
+													{/each}
+												</tr>
+											</thead>
+
+											<tbody>
+												{#each tabData.rows.slice(0, 3) as row, rowIdx}
+													<tr
+														class="border-b border-gray-100 {rowIdx % 2 === 0
+															? 'bg-white'
+															: 'bg-gray-50/50'}"
+													>
+														{#each row.cells as cell, colIndex}
+															{@const mapping = columnMappings.get(colIndex)}
+															<td
+																class="max-w-[120px] truncate px-2 py-1.5 text-xs {mapping ===
+																'ignore'
+																	? 'text-gray-300'
+																	: 'text-gray-600'}"
+																title={cell}
+															>
+																{cell || '—'}
+															</td>
+														{/each}
+													</tr>
+												{/each}
+											</tbody>
+										</table>
+
+										{#if tabData.rows.length > 3}
+											<div
+												class="border-t border-gray-200 bg-gray-50 px-3 py-1.5 text-center text-xs text-gray-500"
+											>
+												+{tabData.rows.length - 3} more rows
+											</div>
+										{/if}
+									</div>
+
+									<button
+										type="button"
+										onclick={importFromSheet}
+										disabled={!hasRequiredMappings()}
+										class="rounded-md bg-teal px-4 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50 disabled:cursor-not-allowed"
+									>
+										Import {tabData.rows.length} Students
+									</button>
+								</div>
+							{/if}
+						{:else}
+							<p class="text-sm text-gray-600">
+								Connect a Google Sheet at the top of the wizard to import students directly.
+							</p>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		{/if}
+	</div>
+
+	<!-- Parse error -->
+	{#if parseError}
+		<div class="rounded-lg border border-red-200 bg-red-50 p-3">
+			<p class="text-sm text-red-700">{parseError}</p>
+		</div>
+	{/if}
+
+	<!-- Student preview (shown when students parsed or roster selected) -->
+	{#if students.length > 0}
+		<div class="rounded-lg border border-gray-200 bg-white">
+			<div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+				<div class="flex items-center gap-2">
+					<span class="flex h-5 w-5 items-center justify-center rounded-full bg-green-100">
+						<svg
+							class="h-3 w-3 text-green-600"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M5 13l4 4L19 7"
+							></path>
+						</svg>
+					</span>
+					<span class="font-medium text-gray-900">{students.length} students detected</span>
+				</div>
+				{#if detectedColumns}
+					<span class="text-xs text-gray-500">Detected: {detectedColumns}</span>
+				{/if}
+			</div>
+
+			<div class="max-h-48 overflow-y-auto">
+				<table class="w-full text-sm">
+					<thead class="sticky top-0 bg-gray-50">
+						<tr class="border-b border-gray-200">
+							<th class="px-4 py-2 text-left font-medium text-gray-700">Name</th>
+							<th class="px-4 py-2 text-left font-medium text-gray-700">ID</th>
+							{#if students.some((s) => s.grade)}
+								<th class="px-4 py-2 text-left font-medium text-gray-700">Grade</th>
+							{/if}
+						</tr>
+					</thead>
+					<tbody>
+						{#each students.slice(0, 8) as student, i (student.id)}
+							<tr class="border-b border-gray-100 {i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}">
+								<td class="px-4 py-2 text-gray-900">{student.displayName}</td>
+								<td class="px-4 py-2 font-mono text-xs text-gray-600">{student.id}</td>
+								{#if students.some((s) => s.grade)}
+									<td class="px-4 py-2 text-gray-600">{student.grade ?? '—'}</td>
+								{/if}
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+
+				{#if students.length > 8}
+					<div
+						class="border-t border-gray-200 bg-gray-50 px-4 py-2 text-center text-xs text-gray-500"
+					>
+						...and {students.length - 8} more students
+					</div>
+				{/if}
+			</div>
+		</div>
+	{:else if selectedRosterId !== null}
+		<!-- Show selected roster info -->
+		{@const selectedRoster = existingRosters.find((r) => r.pool.id === selectedRosterId)}
+		{#if selectedRoster}
+			<div class="rounded-lg border border-green-200 bg-green-50 p-4">
+				<div class="flex items-center gap-2">
+					<span class="flex h-5 w-5 items-center justify-center rounded-full bg-green-100">
+						<svg
+							class="h-3 w-3 text-green-600"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M5 13l4 4L19 7"
+							></path>
+						</svg>
+					</span>
+					<span class="font-medium text-green-800">
+						Using {selectedRoster.studentCount} students from "{selectedRoster.activityName}"
+					</span>
+				</div>
+			</div>
+		{/if}
+	{/if}
+</div>

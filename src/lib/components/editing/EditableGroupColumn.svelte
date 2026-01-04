@@ -18,7 +18,10 @@
 		onDeleteGroup,
 		focusNameOnMount = false,
 		rowSpan = 1,
-		preferenceRank = null
+		preferenceRank = null,
+		studentPreferenceRanks = new Map<string, number | null>(),
+		onStudentHoverStart,
+		onStudentHoverEnd
 	} = $props<{
 		group: Group;
 		studentsById: Record<string, Student>;
@@ -34,6 +37,9 @@
 		focusNameOnMount?: boolean;
 		rowSpan?: number;
 		preferenceRank?: number | null;
+		studentPreferenceRanks?: Map<string, number | null>;
+		onStudentHoverStart?: (studentId: string, x: number, y: number) => void;
+		onStudentHoverEnd?: () => void;
 	}>();
 
 	import { onMount, tick } from 'svelte';
@@ -315,6 +321,9 @@
 						onDragStart={() => onDragStart?.(memberId)}
 						{onDragEnd}
 						flash={flashingIds.has(memberId)}
+						preferenceRank={studentPreferenceRanks.get(memberId) ?? null}
+						onHoverStart={onStudentHoverStart}
+						onHoverEnd={onStudentHoverEnd}
 					/>
 				{/if}
 			{/each}
