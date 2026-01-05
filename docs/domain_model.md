@@ -195,7 +195,7 @@ Minimal analytics we compute for a Scenario based on group request satisfaction:
 - ✅ **Migration complete**: The codebase now implements the full hexagonal architecture with all domain entities in `src/lib/domain/`.
 - ✅ **Pools implemented**: CSV/TSV import creates Pools with `memberIds` via `createPoolFromRosterData` use case.
 - ✅ **Scenario snapshots**: All Scenarios include `participantSnapshot` for reproducibility (implemented in `generateScenario` use case).
-- ✅ **Unified wizard**: The "Create Groups" wizard at `/groups/new` provides seamless Pool + Program + Preference creation.
+- ✅ **Unified wizard**: The "Create Groups" wizard at `/activities/new` provides seamless Pool + Program + Preference creation.
 
 **Status:** MVP implemented
 

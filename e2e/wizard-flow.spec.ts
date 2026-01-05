@@ -15,7 +15,7 @@ dave@example.com\tcarol@example.com\talice@example.com`;
 
 	const activityName = `Playwright Flow ${Date.now()}`;
 
-	await page.goto('/groups/new');
+	await page.goto('/activities/new');
 
 	// Handle roster-selection step if it appears
 	const startHeading = page.getByRole('heading', { name: 'Start from' });
@@ -38,7 +38,7 @@ dave@example.com\tcarol@example.com\talice@example.com`;
 	// Step 3: Name the activity and submit
 	await page.getByLabel('Activity name').fill(activityName);
 	await Promise.all([
-		page.waitForURL(/\/groups\/[^/]+$/),
+		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 
@@ -61,7 +61,7 @@ dave@example.com\tcarol@example.com\talice@example.com`;
 
 	// Open student view and verify
 	const [studentPage] = await Promise.all([page.waitForEvent('popup'), studentViewLink.click()]);
-	await expect(studentPage).toHaveURL(/\/scenarios\/[^/]+\/student-view/);
+	await expect(studentPage).toHaveURL(/\/activities\/[^/]+\/present/);
 	await expect(studentPage.getByRole('heading', { name: 'Student Groups' })).toBeVisible();
 });
 
@@ -75,7 +75,7 @@ Bob\tbob@test.com\t5`;
 
 	const activityName = `DnD Test ${Date.now()}`;
 
-	await page.goto('/groups/new');
+	await page.goto('/activities/new');
 
 	// Quick wizard completion
 	const startHeading = page.getByRole('heading', { name: 'Start from' });
@@ -92,7 +92,7 @@ Bob\tbob@test.com\t5`;
 	await page.getByRole('button', { name: /Skip/ }).click(); // skip preferences
 	await page.getByLabel('Activity name').fill(activityName);
 	await Promise.all([
-		page.waitForURL(/\/groups\/[^/]+$/),
+		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 
@@ -121,7 +121,7 @@ Henry\thenry@test.com\t5`;
 
 	const activityName = `Try Another Test ${Date.now()}`;
 
-	await page.goto('/groups/new');
+	await page.goto('/activities/new');
 
 	// Quick wizard completion
 	const startHeading = page.getByRole('heading', { name: 'Start from' });
@@ -138,7 +138,7 @@ Henry\thenry@test.com\t5`;
 	await page.getByRole('button', { name: /Skip/ }).click(); // skip preferences
 	await page.getByLabel('Activity name').fill(activityName);
 	await Promise.all([
-		page.waitForURL(/\/groups\/[^/]+$/),
+		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 
@@ -181,7 +181,7 @@ Dave\tdave@test.com\t5`;
 
 	const activityName = `Start Over Test ${Date.now()}`;
 
-	await page.goto('/groups/new');
+	await page.goto('/activities/new');
 
 	// Quick wizard completion
 	const startHeading = page.getByRole('heading', { name: 'Start from' });
@@ -198,7 +198,7 @@ Dave\tdave@test.com\t5`;
 	await page.getByRole('button', { name: /Skip/ }).click();
 	await page.getByLabel('Activity name').fill(activityName);
 	await Promise.all([
-		page.waitForURL(/\/groups\/[^/]+$/),
+		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 

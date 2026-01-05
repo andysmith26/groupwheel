@@ -1,6 +1,6 @@
 # Groupwheel — Current Status
 
-**Last verified:** December 2025
+**Last verified:** January 2026
 
 This document tracks what's actually implemented. Update when features ship.
 
@@ -12,7 +12,7 @@ This document tracks what's actually implemented. Update when features ship.
 
 | Feature                     | Status  | Route/Location                 | Notes                                                    |
 | --------------------------- | ------- | ------------------------------ | -------------------------------------------------------- |
-| Create Groups wizard        | ✅ Done | `/groups/new`                  | New users: 4 steps; Returning: 5 steps with roster reuse |
+| Create Groups wizard        | ✅ Done | `/activities/new`              | Streamlined 3-step wizard |
 | CSV roster import           | ✅ Done | Wizard Students step           | TSV also supported                                       |
 | Preference import           | ✅ Done | Wizard Preferences step        | Mismatch warnings shown                                  |
 | Group configuration         | ✅ Done | Wizard Groups step             | "Specific groups" or "Auto split" modes                  |
@@ -20,10 +20,10 @@ This document tracks what's actually implemented. Update when features ship.
 | Basic analytics             | ✅ Done | Activity detail page           | Top %, top 2 %, avg rank                                 |
 | Drag-drop editing           | ✅ Done | Activity detail page           | Via ScenarioEditingStore                                 |
 | Undo/redo                   | ✅ Done | Activity detail page           | Session-scoped command history                           |
-| Read-only student view      | ✅ Done | `/scenarios/[id]/student-view` | Print-friendly                                           |
+| Read-only student view      | ✅ Done | `/activities/[id]/present`     | Print-friendly                                           |
 | Roster reuse                | ✅ Done | Wizard Start step              | Shows existing rosters for returning users               |
 | Auto-save                   | ✅ Done | Activity detail                | 500ms debounce to IndexedDB                              |
-| Activity dashboard          | ✅ Done | `/groups`                      | Lists all activities                                     |
+| Activity dashboard          | ✅ Done | `/activities`                  | Lists all activities                                     |
 | Browser persistence         | ✅ Done | IndexedDB                      | Scenarios persist across sessions                        |
 
 ### NEXT Features

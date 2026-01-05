@@ -9,7 +9,7 @@ Dave Brown\tdave@example.com\t5`;
 
 	const activityName = `Backtrack Test ${Date.now()}`;
 
-	await page.goto('/groups/new');
+	await page.goto('/activities/new');
 
 	// Handle roster-selection step if it appears
 	const startHeading = page.getByRole('heading', { name: 'Start from' });
@@ -71,7 +71,7 @@ Dave Brown\tdave@example.com\t5`;
 	await page.getByRole('button', { name: /Continue/ }).click(); // Skip preferences
 	await page.getByLabel('Activity name').fill(activityName);
 	await Promise.all([
-		page.waitForURL(/\/groups\/[^/]+$/),
+		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 
@@ -92,7 +92,7 @@ Dave Brown\tdave@example.com\t5`;
 
 	const activityName = `Auto Split Test ${Date.now()}`;
 
-	await page.goto('/groups/new');
+	await page.goto('/activities/new');
 
 	// Handle roster-selection step if it appears
 	const startHeading = page.getByRole('heading', { name: 'Start from' });
@@ -138,7 +138,7 @@ Dave Brown\tdave@example.com\t5`;
 	await page.getByRole('button', { name: /Continue/ }).click(); // Skip preferences
 	await page.getByLabel('Activity name').fill(activityName);
 	await Promise.all([
-		page.waitForURL(/\/groups\/[^/]+$/),
+		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 

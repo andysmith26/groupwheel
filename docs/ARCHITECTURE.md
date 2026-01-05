@@ -334,8 +334,9 @@ The UI layer is composed of SvelteKit routes, layouts, and components.
   - Wraps children inside a layout container.
 
 - Routes like:
-  - `src/routes/groups/+page.svelte`
-  - `src/routes/groups/new/+page.svelte`
+  - `src/routes/activities/+page.svelte`
+  - `src/routes/activities/new/+page.svelte`
+  - `src/routes/activities/[id]/workspace/+page.svelte`
 
   use:
   - `getAppEnvContext()` inside `onMount` or event handlers to get `env`.
