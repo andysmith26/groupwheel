@@ -667,3 +667,739 @@ Given the workspace is substantially implemented, the work is about **filling ga
 ## Implementation Status
 
 **Approved.** Proceeding with Approach C implementation.
+
+---
+
+# Phase 4 Implementation Plan: Setup Page
+
+## Overview
+
+Phase 4 focuses on creating a single configuration page with progressive disclosure for advanced features. The goal is a unified place to manage roster, groups, preferences, and history.
+
+---
+
+## Step 1: Research Findings
+
+### What Already Exists
+
+**Route Structure:**
+- `/activities/[id]/setup/+page.svelte` exists as a **stub** with disabled buttons and placeholder sections (lines 141-215)
+- The page loads activity data via `getActivityData()` use case but doesn't use sessions/preferences
+- "Generate Groups" button redirects to old `/groups/[id]/candidates` route (line 77)
+- History section links to old `/groups/[id]/sessions` route (line 209)
+
+**Domain Entities (all fully defined):**
+- `Program` - activity container (`src/lib/domain/program.ts`)
+- `Pool` - roster of students (`src/lib/domain/pool.ts`)
+- `Student` - individual student (`src/lib/domain/student.ts`)
+- `Group` - group with members/capacity (`src/lib/domain/group.ts`)
+- `GroupTemplate` - reusable group definitions (`src/lib/domain/groupTemplate.ts`)
+- `Preference` / `StudentPreference` - group preferences (`src/lib/domain/preference.ts`)
+- `Session` - time-bounded activity instance with DRAFT/PUBLISHED/ARCHIVED status (`src/lib/domain/session.ts`)
+- `Placement` - historical student placement records (`src/lib/domain/placement.ts`)
+
+**Use Cases (all exist):**
+- `getActivityData` - loads program, pool, students, preferences, scenario, sessions
+- `generateScenario` / `generateCandidate` - group generation
+- `listGroupTemplates` / `createGroupTemplate` / `deleteGroupTemplate` - template CRUD
+- `listSessions` / `publishSession` - session management
+- `getStudentPlacementHistory` - placement history lookup
+
+**Existing Components (reusable/adaptable):**
+- `StepPreferences.svelte` - preference import from CSV/Sheets (669 lines, full implementation)
+- `SessionCard.svelte` - session display card (52 lines)
+- Templates page at `/groups/templates/+page.svelte` - full template CRUD UI (443 lines)
+- `TabSelector.svelte`, `SheetConnector.svelte` - Google Sheets integration
+
+**Tests:**
+- Only e2e test exists: `e2e/demo.test.ts`
+- No unit tests for setup page or related use cases
+
+---
+
+## Step 2: Architecture Verification
+
+### Layers Touched
+
+| Layer | Changes Needed |
+|-------|---------------|
+| **Domain** | None - all entities exist |
+| **Application** | New use cases: `addStudentToPool`, `removeStudentFromPool` |
+| **Infrastructure** | None |
+| **UI** | Most changes here - new setup section components |
+
+### Architectural Concerns
+
+Per `docs/ARCHITECTURE.md`:
+
+1. **Required pattern:** Routes must use `getAppEnvContext()` + facade helpers from `appEnvUseCases.ts`
+2. **Anti-patterns to avoid:**
+   - No direct repository access from components (use facade)
+   - No business logic in Svelte components (use use cases)
+   - No infrastructure imports in routes
+
+**Assessment:** Phase 4 primarily modifies UI layer. Existing use cases should suffice for most operations. Need new use cases for student add/remove operations.
+
+---
+
+## Step 3: Gap Analysis
+
+### What's Already Working
+
+| Feature | Requirement | Current Status |
+|---------|-------------|----------------|
+| Load activity data | US-4.1 | ✅ `getActivityData()` loads everything |
+| Template CRUD | US-4.4 | ✅ Use cases exist, UI at `/groups/templates` |
+| Preference import | US-4.5 | ✅ `StepPreferences.svelte` is complete |
+| Session display | US-4.6 | ✅ `SessionCard.svelte` exists |
+| Group generation | US-4.7 | ✅ `generateScenario()` use case exists |
+
+### What Needs Implementation
+
+| Feature | Requirement | Status | Gap |
+|---------|-------------|--------|-----|
+| Collapsible sections | US-4.1 | ❌ Stub only | **Create section UI pattern** |
+| Activity name editing | US-4.1 | ❌ Not editable | **Add inline edit** |
+| Student list/search | US-4.2 | ❌ Shows count only | **Build roster section** |
+| Add student | US-4.2 | ❌ Not implemented | **New use case + UI** |
+| Remove student | US-4.2 | ❌ Not implemented | **New use case + UI** |
+| Group editing | US-4.3 | ❌ Not implemented | **Build groups section** |
+| Template picker modal | US-4.4 | ❌ Not in setup | **Extract from templates page** |
+| Save as template | US-4.4 | ❌ Not in setup | **Create modal** |
+| Preferences in setup | US-4.5 | ❌ Disabled button | **Wrap StepPreferences** |
+| History section | US-4.6 | ❌ Links to old route | **Build inline history** |
+| Generate button | US-4.7 | ❌ Redirects to old route | **Call use case directly** |
+
+---
+
+## Step 4: Approaches
+
+### Approach A: Component Composition (Recommended)
+
+**What it does:** Extract reusable section components from the existing stub page, adapting existing wizard components where possible.
+
+**Files created/modified:**
+```
+Modified:
+  src/routes/activities/[id]/setup/+page.svelte        # Main page orchestration
+
+New components:
+  src/lib/components/setup/SetupStudentsSection.svelte  # US-4.2
+  src/lib/components/setup/SetupGroupsSection.svelte    # US-4.3, US-4.4
+  src/lib/components/setup/SetupPrefsSection.svelte     # US-4.5 (wraps StepPreferences)
+  src/lib/components/setup/SetupHistorySection.svelte   # US-4.6
+  src/lib/components/setup/TemplatePickerModal.svelte   # US-4.4
+  src/lib/components/setup/SaveTemplateModal.svelte     # US-4.4
+  src/lib/components/setup/CollapsibleSection.svelte    # Reusable UI pattern
+
+New use cases:
+  src/lib/application/useCases/addStudentToPool.ts
+  src/lib/application/useCases/removeStudentFromPool.ts
+```
+
+**Trade-offs:**
+- Implementation effort: **Moderate** - reuses existing components
+- Best-practice alignment: **Canonical** - follows hexagonal architecture
+- Maintenance burden: **Simple** - clear separation of concerns
+
+---
+
+### Approach B: Monolithic Page
+
+**What it does:** Implement all sections directly in the setup page without extracting components.
+
+**Files created/modified:**
+```
+Modified:
+  src/routes/activities/[id]/setup/+page.svelte  # Everything in one file (~600-800 lines)
+```
+
+**Trade-offs:**
+- Implementation effort: **Quick win** - fastest to implement
+- Best-practice alignment: **Technical debt** - violates component reuse principles
+- Maintenance burden: **Complex** - large single file, hard to test
+
+---
+
+### Approach C: Full Feature Components
+
+**What it does:** Build feature-complete components with their own state management that could work standalone.
+
+**Files created/modified:**
+```
+New components:
+  src/lib/components/features/RosterManager.svelte      # Full roster CRUD
+  src/lib/components/features/GroupConfigurator.svelte  # Full group config
+  src/lib/components/features/PreferenceImporter.svelte # Full pref import
+  src/lib/components/features/SessionHistory.svelte     # Full history view
+  src/lib/components/features/TemplateManager.svelte    # Full template CRUD
+
+Modified:
+  src/routes/activities/[id]/setup/+page.svelte  # Thin orchestrator
+```
+
+**Trade-offs:**
+- Implementation effort: **Significant** - more abstraction
+- Best-practice alignment: **Canonical** - maximum reuse potential
+- Maintenance burden: **Manageable** - components are testable units
+
+---
+
+## Step 5: Recommendation
+
+**Chosen: Approach A (Component Composition)**
+
+### Reasons:
+
+1. **Balances reuse with pragmatism.** We already have working implementations in `StepPreferences.svelte` and the templates page that can be adapted, not rewritten from scratch.
+
+2. **Follows existing patterns.** The codebase uses section-based components elsewhere (editing components, wizard steps).
+
+**What would flip the choice:**
+- If we planned to reuse these sections elsewhere (e.g., a separate roster management page), Approach C would be better.
+- If Phase 4 were blocked and we needed it urgently, Approach B would unblock faster.
+
+---
+
+## Step 6: Implementation Tasks (Approach A)
+
+### Task 1: Create CollapsibleSection Component
+**New file:** `src/lib/components/setup/CollapsibleSection.svelte`
+**Work:**
+- Reusable expand/collapse pattern
+- Props: title, summary (e.g., "32 students"), helpText, isExpanded, isPrimary
+- Slot for section content
+- Chevron icon animation
+
+### Task 2: Create SetupStudentsSection Component
+**New file:** `src/lib/components/setup/SetupStudentsSection.svelte`
+**Work:**
+- Collapsed: shows count + first few names
+- Expanded: scrollable list of students
+- Search/filter input (if >20 students)
+- Delete (x) button per student with confirmation
+- "Add student" inline form
+- "Import more" button → opens import modal
+- Needs new props: students, onAddStudent, onRemoveStudent, onImportMore
+
+### Task 3: Create Add/Remove Student Use Cases
+**New files:**
+- `src/lib/application/useCases/addStudentToPool.ts`
+- `src/lib/application/useCases/removeStudentFromPool.ts`
+**Work:**
+- `addStudentToPool(deps, { poolId, firstName, lastName, email? })` → creates student, adds to pool
+- `removeStudentFromPool(deps, { poolId, studentId })` → removes from pool, optionally deletes student
+- Add facade helpers in `appEnvUseCases.ts`
+
+### Task 4: Create SetupGroupsSection Component
+**New file:** `src/lib/components/setup/SetupGroupsSection.svelte`
+**Work:**
+- Collapsed: shows group names + count
+- Expanded: editable list with name/capacity inputs
+- Add/remove groups
+- Drag handles for reorder (optional, could defer)
+- "Use template" button → opens TemplatePickerModal
+- "Save as template" button → opens SaveTemplateModal
+- Note: "Changes to groups require regenerating"
+- Props: groups, onGroupsChange, templates
+
+### Task 5: Create TemplatePickerModal Component
+**New file:** `src/lib/components/setup/TemplatePickerModal.svelte`
+**Work:**
+- Modal with list of templates (uses `listGroupTemplates()`)
+- Each template shows: name, group count, group names preview
+- "Use" button → confirmation → applies template groups to current config
+- Props: isOpen, onClose, onSelectTemplate, templates
+
+### Task 6: Create SaveTemplateModal Component
+**New file:** `src/lib/components/setup/SaveTemplateModal.svelte`
+**Work:**
+- Modal with name input (default: "{N} Groups Template")
+- Description input (optional)
+- "Save" calls `createGroupTemplate()` use case
+- Props: isOpen, onClose, groups
+
+### Task 7: Create SetupPrefsSection Component
+**New file:** `src/lib/components/setup/SetupPrefsSection.svelte`
+**Work:**
+- Thin wrapper around `StepPreferences.svelte`
+- Section marked "(Optional)"
+- Shows summary when preferences exist: "24 of 32 students have preferences"
+- "Clear all preferences" button with confirmation
+- Props: students, groupNames, preferences, onPreferencesChange, sheetConnection
+
+### Task 8: Create SetupHistorySection Component
+**New file:** `src/lib/components/setup/SetupHistorySection.svelte`
+**Work:**
+- Load sessions from activity data (already fetched)
+- Display reverse-chronological list using `SessionCard.svelte`
+- Click to expand → show read-only arrangement
+- Expanded view: groups with student lists (not editable)
+- Empty state: "No history yet. Groups appear here after publishing."
+- Props: sessions, groups (for expanded view)
+
+### Task 9: Update Setup Page
+**File:** `src/routes/activities/[id]/setup/+page.svelte`
+**Work:**
+- Add editable activity name in header (click-to-edit pattern)
+- Replace stub sections with new components
+- Wire up all handlers and state
+- Implement "Generate Groups" / "Regenerate Groups" button:
+  - Call `generateScenario()` use case with current config + preferences
+  - Show confirmation if replacing existing groups
+  - Navigate to `/activities/[id]/workspace` on success
+- Loading/error states
+
+### Task 10: Handle Edge Cases
+**Various files**
+**Work:**
+- Remove student assigned to group: Also removes from group, shows warning
+- Add student: Added to "Unassigned" pool or prompted to assign
+- Duplicate student name on add: Allow with visual note
+- Search no results: "No students match 'xyz'"
+- Delete group with students: Show modal "Move X students to:" with group picker
+- Delete all groups: Show "Add at least one group to generate"
+
+### Task 11: Test Gate Verification
+**Work:**
+- Manual testing of all TEST GATE 5 items from IMPLEMENTATION_PLAN_FOR_UX_OVERHAUL.md
+
+---
+
+## Files Summary
+
+### New Files (Use Cases):
+1. `src/lib/application/useCases/addStudentToPool.ts`
+2. `src/lib/application/useCases/removeStudentFromPool.ts`
+
+### New Files (Components):
+1. `src/lib/components/setup/CollapsibleSection.svelte` - reusable UI pattern
+2. `src/lib/components/setup/SetupStudentsSection.svelte` - roster management
+3. `src/lib/components/setup/SetupGroupsSection.svelte` - group configuration
+4. `src/lib/components/setup/SetupPrefsSection.svelte` - preferences wrapper
+5. `src/lib/components/setup/SetupHistorySection.svelte` - history view
+6. `src/lib/components/setup/TemplatePickerModal.svelte` - template selection
+7. `src/lib/components/setup/SaveTemplateModal.svelte` - save template
+
+### Modified Files:
+1. `src/routes/activities/[id]/setup/+page.svelte` - main orchestration
+2. `src/lib/services/appEnvUseCases.ts` - add new use case wrappers
+
+---
+
+## Test Gate Checklist (from IMPLEMENTATION_PLAN_FOR_UX_OVERHAUL.md)
+
+1. [ ] Navigate to Setup from Hub or Workspace menu
+2. [ ] Four sections visible with clear labels
+3. [ ] Expand Students → See full roster, search works
+4. [ ] Add student → Student appears in list
+5. [ ] Remove student → Confirmation → Student removed
+6. [ ] Expand Groups → Edit group names works
+7. [ ] Add/remove group → List updates
+8. [ ] Save as template → Template appears in "Use template"
+9. [ ] Use template → Confirmation → Groups replaced
+10. [ ] Import preferences via CSV paste → Preview shows parsed data
+11. [ ] Preferences validation shows warnings for mismatches
+12. [ ] "Generate Groups" → Confirm → Navigate to Workspace
+13. [ ] Publish groups, return to Setup → History shows session
+14. [ ] Click history entry → See read-only view of that arrangement
+15. [ ] Mobile: Sections expand/collapse properly, forms usable
+
+---
+
+## Dependencies & Prerequisites
+
+- [x] `getActivityData()` already loads sessions, preferences, students
+- [x] `listGroupTemplates()` / `createGroupTemplate()` exist
+- [x] `StepPreferences.svelte` exists and handles CSV/Sheets import
+- [x] `SessionCard.svelte` exists for session display
+- [ ] Need use cases for add/remove student from pool
+- [ ] Need to verify `generateScenario()` handles preferences correctly
+
+---
+
+## Risks & Mitigations
+
+1. **Risk:** `StepPreferences.svelte` tightly coupled to wizard context
+   - **Mitigation:** Create thin wrapper that provides required props/callbacks
+
+2. **Risk:** Student add/remove affects scenario consistency
+   - **Mitigation:** Mark scenario as needing regeneration when roster changes
+
+3. **Risk:** Template data model may need extension (e.g., user ownership)
+   - **Mitigation:** `GroupTemplate` already has `ownerStaffId` and `userId` fields
+
+---
+
+## Implementation Status
+
+**Awaiting approval.** Please review this plan and confirm:
+1. Approach A (Component Composition) is acceptable
+2. We should create add/remove student use cases
+3. Any changes to the proposed component structure
+
+---
+
+# Phase 5 Implementation Plan: Present Mode (US-5.2 & US-5.3)
+
+## Overview
+
+Phase 5 enhances the presentation view with an improved student search experience (US-5.2) and a polished all-groups display (US-5.3). The existing implementation provides a solid foundation that needs targeted improvements.
+
+---
+
+## Step 1: Research Findings
+
+### What Already Exists
+
+**File:** `src/routes/activities/[id]/present/+page.svelte` (247 lines)
+
+| Feature | Requirement | Current Status | Gap? |
+|---------|-------------|----------------|------|
+| **US-5.2: Search Input** | Large, auto-focused | ✅ Large (text-2xl, py-5) | **Missing: auto-focus** |
+| **US-5.2: As-you-type** | No submit button | ✅ Implemented via `bind:value` | No |
+| **US-5.2: Matching** | Case-insensitive, partial from start | ⚠️ Uses `.includes()` not `.startsWith()` | **Change to startsWith** |
+| **US-5.2: Single match** | Large card "Alice → Art Club" | ✅ Shows name and group badge | No |
+| **US-5.2: Multiple matches** | List with group names | ✅ Shows list | No |
+| **US-5.2: No match** | "No student found. Check your spelling?" | ⚠️ Shows generic message | **Update text** |
+| **US-5.2: Result emphasis** | Group name prominent | ✅ Styled with bg-teal badge | No |
+| **US-5.2: Show other members** | Optional | ❌ Not implemented | **Add (optional)** |
+| **US-5.2: Debounce** | 150ms for fast typing | ❌ No debounce | **Add debounce** |
+| **US-5.3: Grid** | Grid of group cards | ✅ 3-column responsive | No |
+| **US-5.3: Card content** | Group name large, student list | ✅ Implemented | No |
+| **US-5.3: Projection sizing** | Large enough for back of room | ✅ text-2xl for group names, text-lg for students | No |
+| **US-5.3: Responsive** | 4 → 2 → 1 columns | ⚠️ Currently lg:3 md:2 | **Verify/adjust** |
+| **US-5.3: Visual distinction** | Colors/icons for groups | ❌ All groups same teal color | **Add color variety** |
+
+### Key Code Patterns
+
+**Current search filtering (lines 49-59):**
+```typescript
+let filteredAssignments = $derived.by(() => {
+  if (!searchQuery.trim()) return [];
+  const query = searchQuery.toLowerCase().trim();
+  return assignments.filter(
+    (a) =>
+      a.studentName.toLowerCase().includes(query) ||
+      a.studentId.toLowerCase().includes(query) ||
+      a.firstName.toLowerCase().includes(query) ||
+      a.lastName.toLowerCase().includes(query)
+  );
+});
+```
+
+**Current group display (lines 61-70):**
+```typescript
+let groupedAssignments = $derived.by(() => {
+  const groups = new Map<string, typeof assignments>();
+  for (const assignment of assignments) {
+    if (!groups.has(assignment.groupName)) {
+      groups.set(assignment.groupName, []);
+    }
+    groups.get(assignment.groupName)!.push(assignment);
+  }
+  return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+});
+```
+
+### Domain Types Used
+
+- `ExportableAssignment` from `csvExport.ts` (lines 14-22):
+  ```typescript
+  interface ExportableAssignment {
+    studentId: string;
+    studentName: string;
+    firstName: string;
+    lastName: string;
+    grade?: string;
+    groupName: string;
+    groupId: string;
+  }
+  ```
+
+### Existing Debounce Pattern
+
+Found in `scenarioEditingStore.ts`:
+```typescript
+private readonly debounceMs: number = 500;
+// Used with setTimeout/clearTimeout pattern
+```
+
+The codebase uses manual setTimeout debouncing, not a utility function. For a simple 150ms search debounce, a local implementation is appropriate.
+
+---
+
+## Step 2: Architecture Verification
+
+### Layers Touched
+
+| Layer | Changes Needed |
+|-------|---------------|
+| **Domain** | None - existing types sufficient |
+| **Application** | None - no new use cases needed |
+| **Infrastructure** | None |
+| **UI** | Present page modifications only |
+
+### Architectural Assessment
+
+This is a **pure UI enhancement**. All changes are confined to `src/routes/activities/[id]/present/+page.svelte`. The data loading (via `getStudentActivityView` use case) remains unchanged.
+
+**Anti-patterns avoided:**
+- ✅ No business logic added to component (filtering is pure display logic)
+- ✅ No repository access (uses facade helper)
+- ✅ No infrastructure imports
+
+---
+
+## Step 3: Approaches
+
+### Approach A: In-Place Enhancement (Recommended)
+
+**What it does:** Modify the existing present page file directly to add all improvements.
+
+**Files modified:**
+```
+src/routes/activities/[id]/present/+page.svelte
+```
+
+**Changes:**
+1. Add auto-focus to search input when "Find My Group" tab selected
+2. Change matching from `.includes()` to `.startsWith()` on firstName
+3. Add 150ms debounce to search
+4. Update "no match" message
+5. Add optional "Other members" section in search results
+6. Add group color assignment (cycle through preset palette)
+7. Verify/adjust responsive breakpoints
+
+**Trade-offs:**
+- Implementation effort: **Quick win** - all changes in one file
+- Best-practice alignment: **Canonical** - keeps presentation logic together
+- Maintenance burden: **Simple** - no new files/abstractions
+
+---
+
+### Approach B: Component Extraction
+
+**What it does:** Extract search and results display into separate components.
+
+**Files created:**
+```
+src/lib/components/present/StudentSearch.svelte
+src/lib/components/present/SearchResults.svelte
+src/lib/components/present/GroupCard.svelte
+```
+
+**Trade-offs:**
+- Implementation effort: **Moderate** - more files to create
+- Best-practice alignment: **Canonical** - good separation
+- Maintenance burden: **Manageable** - components reusable
+
+---
+
+### Approach C: Utility-First
+
+**What it does:** Create reusable utilities for search and colors, then use in present page.
+
+**Files created:**
+```
+src/lib/utils/searchUtils.ts - debounced search helper
+src/lib/utils/groupColors.ts - color assignment utility
+```
+
+**Trade-offs:**
+- Implementation effort: **Moderate** - creates abstractions
+- Best-practice alignment: **Acceptable** - utilities are reusable but may be YAGNI
+- Maintenance burden: **Simple** - isolated utilities
+
+---
+
+## Step 4: Recommendation
+
+**Chosen: Approach A (In-Place Enhancement)**
+
+### Reasons:
+
+1. **Minimal surface area.** The present page is 247 lines and self-contained. Extracting components would add complexity without clear reuse benefit.
+
+2. **Focused scope.** US-5.2 and US-5.3 are enhancements to an already-working feature. In-place changes are easier to review and less risky.
+
+**What would flip the choice:**
+- If we planned to reuse StudentSearch elsewhere, Approach B would be better.
+- If group colors were needed in other views (workspace, export), Approach C would provide value.
+
+---
+
+## Step 5: Implementation Tasks
+
+### Task 1: Add Auto-Focus to Search Input
+
+**Change:** When the "Find My Group" tab is selected, auto-focus the search input.
+
+**Implementation:**
+- Add `use:autofocus` action or `$effect` to focus when `viewMode === 'search'`
+- Store ref to input element
+
+**Code location:** Lines 176-182
+
+---
+
+### Task 2: Change Search Matching to Start-of-Name
+
+**Change:** Match from start of name, not anywhere in name.
+
+**Current:** `a.firstName.toLowerCase().includes(query)`
+
+**New:** `a.firstName.toLowerCase().startsWith(query) || a.lastName.toLowerCase().startsWith(query)`
+
+**Rationale:** Per spec: "partial match from start of name". A student searching "Al" should find "Alice" but not "Salma".
+
+**Code location:** Lines 49-59
+
+---
+
+### Task 3: Add 150ms Debounce
+
+**Change:** Debounce the search to handle fast typing.
+
+**Implementation:**
+```typescript
+let searchQuery = $state('');
+let debouncedQuery = $state('');
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+$effect(() => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    debouncedQuery = searchQuery;
+  }, 150);
+  return () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+  };
+});
+
+// Use debouncedQuery in filteredAssignments
+```
+
+**Code location:** Lines 35-36, 49-59
+
+---
+
+### Task 4: Update No-Match Message
+
+**Change:** Update message to match spec wording.
+
+**Current:** "No students found matching "{query}"\nTry checking the spelling or use your full name"
+
+**New:** "No student found. Check your spelling?"
+
+**Code location:** Lines 186-194
+
+---
+
+### Task 5: Add "Other Members" Display (Optional Feature)
+
+**Change:** When search shows a result, optionally show other members of the same group.
+
+**Implementation:**
+- Add derived state: `groupMembers` that finds other students in the matched group
+- Show below the main result: "Also in Art Club: Bob, Carol, David"
+- Only show for single match (when user has found their group)
+
+**Code location:** After line 209 (inside the search result card)
+
+---
+
+### Task 6: Add Group Color Variety
+
+**Change:** Assign different background colors to group cards for visual distinction.
+
+**Implementation:**
+- Define color palette: `['bg-teal', 'bg-blue-600', 'bg-purple-600', 'bg-rose-600', 'bg-amber-500', 'bg-emerald-600']`
+- Assign colors by index: `colors[index % colors.length]`
+- Apply to group card headers in both search results and all-groups view
+
+**Code location:** Lines 206, 227
+
+---
+
+### Task 7: Verify Responsive Breakpoints
+
+**Change:** Ensure grid adapts: 4 cols (xl) → 3 (lg) → 2 (md) → 1 (sm)
+
+**Current:** `grid gap-6 md:grid-cols-2 lg:grid-cols-3`
+
+**New:** `grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+
+**Code location:** Line 224
+
+---
+
+### Task 8: Handle Edge Cases
+
+Per spec edge cases:
+
+| Edge Case | Handling |
+|-----------|----------|
+| Common partial ("Al") | Show all matches - already works |
+| Special characters | Test with apostrophes, hyphens - no code change needed |
+| Fast typing | Handled by 150ms debounce (Task 3) |
+| Clear search | Returns to empty state - already works |
+
+---
+
+## Step 6: Implementation Checklist
+
+### US-5.2: Student Search (Find My Group)
+
+- [ ] Large search input, auto-focused when tab selected (Task 1)
+- [ ] As-you-type filtering (no submit button) - already works
+- [ ] Case-insensitive, partial match from start of name (Task 2)
+- [ ] Single match: Large card showing "Alice → Art Club" - already works
+- [ ] Multiple matches: List of matches with group names - already works
+- [ ] No match: "No student found. Check your spelling?" (Task 4)
+- [ ] Result shows group name prominently - already works
+- [ ] Optional: Show other group members (Task 5)
+- [ ] Debounce 150ms (Task 3)
+
+### US-5.3: All Groups View
+
+- [ ] Grid of group cards - already works
+- [ ] Each card: Group name (large), student list - already works
+- [ ] Cards sized appropriately for projection - already works
+- [ ] Responsive: Adjusts columns based on width (Task 7)
+- [ ] Group colors for visual distinction (Task 6)
+- [ ] Student names large enough - already works (text-lg)
+
+---
+
+## Files Summary
+
+### Modified Files:
+1. `src/routes/activities/[id]/present/+page.svelte` - all enhancements
+
+### No New Files
+
+This is a pure enhancement with no new abstractions needed.
+
+---
+
+## Test Scenarios
+
+1. **Auto-focus:** Select "Find My Group" tab → cursor in search input
+2. **Start-of-name match:** Type "Al" → shows "Alice", does NOT show "Salma"
+3. **Debounce:** Type rapidly "alice" → only one filter operation after 150ms
+4. **No match:** Type "xyz" → shows "No student found. Check your spelling?"
+5. **Other members:** Search "Alice" (unique) → shows "Also in Art Club: Bob, Carol"
+6. **Group colors:** "All Groups" view → each group has distinct header color
+7. **Responsive:** Resize window → columns adjust (4→3→2→1)
+
+---
+
+## Ready for Approval
+
+This plan enhances the present mode with targeted improvements that address all US-5.2 and US-5.3 requirements. The changes are confined to a single file with no architectural impact.
+
+**Questions for clarification:**
+
+1. **"Other members" feature**: Should this show ALL other members, or limit to first 3-4 with "and X more"?
+2. **Color palette**: Should colors be consistent per group (e.g., "Art" is always teal) or vary per session?

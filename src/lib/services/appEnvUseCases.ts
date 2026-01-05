@@ -894,3 +894,64 @@ export type {
 	PublishSessionError,
 	StudentPlacementHistoryResult
 };
+
+// =============================================================================
+// Student Pool Management Operations
+// =============================================================================
+
+import {
+	addStudentToPool as addStudentToPoolUseCase,
+	type AddStudentToPoolInput,
+	type AddStudentToPoolError,
+	type AddStudentToPoolResult
+} from '$lib/application/useCases/addStudentToPool';
+
+import {
+	removeStudentFromPool as removeStudentFromPoolUseCase,
+	type RemoveStudentFromPoolInput,
+	type RemoveStudentFromPoolError,
+	type RemoveStudentFromPoolResult
+} from '$lib/application/useCases/removeStudentFromPool';
+
+/**
+ * Add a new student to a pool (roster).
+ */
+export async function addStudentToPool(
+	env: InMemoryEnvironment,
+	input: AddStudentToPoolInput
+): Promise<Result<AddStudentToPoolResult, AddStudentToPoolError>> {
+	return addStudentToPoolUseCase(
+		{
+			studentRepo: env.studentRepo,
+			poolRepo: env.poolRepo,
+			idGenerator: env.idGenerator
+		},
+		input
+	);
+}
+
+/**
+ * Remove a student from a pool (roster).
+ */
+export async function removeStudentFromPool(
+	env: InMemoryEnvironment,
+	input: RemoveStudentFromPoolInput
+): Promise<Result<RemoveStudentFromPoolResult, RemoveStudentFromPoolError>> {
+	return removeStudentFromPoolUseCase(
+		{
+			poolRepo: env.poolRepo,
+			scenarioRepo: env.scenarioRepo
+		},
+		input
+	);
+}
+
+// Re-export student pool types
+export type {
+	AddStudentToPoolInput,
+	AddStudentToPoolError,
+	AddStudentToPoolResult,
+	RemoveStudentFromPoolInput,
+	RemoveStudentFromPoolError,
+	RemoveStudentFromPoolResult
+};
