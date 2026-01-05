@@ -1403,3 +1403,317 @@ This plan enhances the present mode with targeted improvements that address all 
 
 1. **"Other members" feature**: Should this show ALL other members, or limit to first 3-4 with "and X more"?
 2. **Color palette**: Should colors be consistent per group (e.g., "Art" is always teal) or vary per session?
+
+---
+
+# Phase 5 Implementation Plan: US-5.4 & US-5.5 - Publish Workflow & Done Presenting
+
+## Overview
+
+US-5.4 introduces an explicit publish workflow where teachers see a prompt when clicking "Show to Class" (if groups have been edited since last publish), with options to "Publish & Present" or "Just Preview". US-5.5 adds keyboard navigation (Escape) and smarter "Done" button behavior in Present mode.
+
+---
+
+## Step 1: Research Findings
+
+### What Already Exists
+
+**Domain Layer:**
+- `Session` (`src/lib/domain/session.ts:10-36`): Has `status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'` and `publishedAt?: Date`
+- `Scenario` (`src/lib/domain/scenario.ts:8-18`): Has `createdAt: Date` but **no `lastModifiedAt`**
+
+**Use Cases:**
+- `createSession` and `publishSession` exist and work correctly
+- `publishSession` updates `session.publishedAt` when publishing
+
+**UI Components:**
+- `ShowToClassPrompt.svelte` exists with "Publish & Present" / "Just Preview" buttons
+- `EditingToolbar.svelte` shows "Published ✓" badge when `isPublished=true`
+- Present page has "Done" button
+
+**Stores:**
+- `ScenarioEditingStore` (`src/lib/stores/scenarioEditingStore.ts`) handles all scenario mutations and auto-save
+
+### Gap Analysis
+
+| Requirement | Current State | Gap |
+|-------------|---------------|-----|
+| If EDITING → show prompt | Checks `latestPublishedSession` | No `lastModifiedAt` to compare |
+| If PUBLISHED → go directly | Works | No gap |
+| Edit after publish → status reverts | ❌ No tracking | **Need `lastModifiedAt` on Scenario** |
+| "Published ✓" badge shows correctly | Uses `latestPublishedSession` | Need to compare timestamps |
+| Escape key in present | ❌ Not implemented | **Need keyboard handler** |
+| Direct URL → go to Hub | ❌ Always goes to workspace | **Optional: referrer tracking** |
+
+---
+
+## Step 2: Architecture Verification
+
+### Layers Touched
+
+| Layer | Changes Needed |
+|-------|---------------|
+| **Domain** | Add `lastModifiedAt: Date` to `Scenario` |
+| **Application** | None (stores handle timestamp updates) |
+| **Infrastructure** | Repository implementations persist new field |
+| **UI** | Workspace + Present pages use comparison logic |
+
+### Key Constraints (from ARCHITECTURE.md)
+
+- Domain changes require updating the factory function
+- Infrastructure adapters (InMemory, IndexedDb, Synced) must handle the new field
+- The `ScenarioEditingStore` persists Scenario via repository, so it will automatically save the new field
+
+---
+
+## Step 3: Chosen Approach - B: Scenario Version Tracking
+
+**What it does:** Add a `lastModifiedAt: Date` field to Scenario. Compare against Session's `publishedAt` to detect edits since last publish.
+
+**Logic:**
+- `hasEditsSincePublish = scenario.lastModifiedAt > (latestPublishedSession?.publishedAt ?? 0)`
+- If `hasEditsSincePublish` → show prompt
+- If not → go directly to Present
+
+**Advantages:**
+1. **Persists across page reloads** - state is stored in IndexedDB
+2. **Canonical domain modeling** - scenarios have a modification timestamp
+3. **Future-proof** - useful for other features (conflict detection, sync)
+
+---
+
+## Step 4: Implementation Tasks
+
+### Task 1: Add `lastModifiedAt` to Scenario Domain Type
+
+**File:** `src/lib/domain/scenario.ts`
+
+```typescript
+export interface Scenario {
+  id: string;
+  programId: string;
+  status: ScenarioStatus;
+  groups: Group[];
+  participantSnapshot: string[];
+  createdAt: Date;
+  lastModifiedAt: Date;  // NEW FIELD
+  createdByStaffId?: string;
+  algorithmConfig?: unknown;
+}
+```
+
+Update `createScenario` factory to initialize `lastModifiedAt`:
+```typescript
+return {
+  // ... existing fields
+  createdAt: params.createdAt,
+  lastModifiedAt: params.createdAt,  // Initialize to createdAt
+  // ...
+};
+```
+
+### Task 2: Update ScenarioEditingStore to Track Modifications
+
+**File:** `src/lib/stores/scenarioEditingStore.ts`
+
+Add `lastModifiedAt` to `ScenarioMetadata`:
+```typescript
+type ScenarioMetadata = {
+  // ... existing fields
+  lastModifiedAt: Date;
+};
+```
+
+Update `initialize()` to capture the field:
+```typescript
+this.metadata = {
+  // ... existing
+  lastModifiedAt: scenario.lastModifiedAt,
+};
+```
+
+Update `buildScenario()` to use current time when there are pending changes:
+```typescript
+private buildScenario(state: InternalState): Scenario {
+  return {
+    // ... existing fields
+    lastModifiedAt: state.pendingSave ? new Date() : this.metadata!.lastModifiedAt,
+  };
+}
+```
+
+This ensures `lastModifiedAt` is updated whenever the scenario is saved with changes.
+
+### Task 3: Update Repository Implementations
+
+**Files:**
+- `src/lib/infrastructure/repositories/inMemory/InMemoryScenarioRepository.ts`
+- `src/lib/infrastructure/repositories/indexedDb/IndexedDbScenarioRepository.ts`
+- `src/lib/infrastructure/repositories/synced/SyncedScenarioRepository.ts`
+
+These repositories already persist the full Scenario object, so they should automatically handle the new field. However, need to verify IndexedDB serialization handles Date objects correctly (may need ISO string conversion).
+
+### Task 4: Update Use Cases That Create Scenarios
+
+**File:** `src/lib/application/useCases/generateScenario.ts` (or similar)
+
+Ensure any use case that creates a Scenario includes `lastModifiedAt`:
+```typescript
+const scenario = createScenario({
+  // ... existing params
+  createdAt: clock.now(),
+  // lastModifiedAt is set by createScenario factory
+});
+```
+
+### Task 5: Update Workspace to Compare Timestamps
+
+**File:** `src/routes/activities/[id]/workspace/+page.svelte`
+
+Add derived state to detect edits since publish:
+```typescript
+let hasEditsSincePublish = $derived.by(() => {
+  if (!scenario || !latestPublishedSession?.publishedAt) {
+    return true; // No publish yet, so "has edits"
+  }
+  return scenario.lastModifiedAt > latestPublishedSession.publishedAt;
+});
+```
+
+Update `handleShowToClassClick()`:
+```typescript
+function handleShowToClassClick() {
+  if (latestPublishedSession && !hasEditsSincePublish) {
+    // Already published and no edits → go directly
+    goto(`/activities/${program?.id}/present`);
+  } else {
+    // Never published OR has edits → show prompt
+    showShowToClassPrompt = true;
+    showToClassError = null;
+  }
+}
+```
+
+Update `EditingToolbar` props:
+```svelte
+<EditingToolbar
+  isPublished={latestPublishedSession !== null && !hasEditsSincePublish}
+  // ... other props
+/>
+```
+
+### Task 6: Refresh Scenario After Publish
+
+**File:** `src/routes/activities/[id]/workspace/+page.svelte`
+
+After `handlePublishAndPresent()` succeeds, the `latestPublishedSession` is updated. However, the scenario's `lastModifiedAt` won't change (since we didn't modify the scenario during publish). This means:
+
+- After publish: `scenario.lastModifiedAt < session.publishedAt` ✓
+- After any edit: `scenario.lastModifiedAt > session.publishedAt` ✓
+
+This logic works correctly. No additional refresh needed.
+
+### Task 7: Add Escape Key Handler to Present Page
+
+**File:** `src/routes/activities/[id]/present/+page.svelte`
+
+Add keyboard handler:
+```typescript
+import { onMount, onDestroy } from 'svelte';
+
+let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
+
+onMount(async () => {
+  env = getAppEnvContext();
+
+  keydownHandler = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      goto(`/activities/${$page.params.id}/workspace`);
+    }
+  };
+  document.addEventListener('keydown', keydownHandler);
+
+  await loadData();
+});
+
+onDestroy(() => {
+  if (keydownHandler) {
+    document.removeEventListener('keydown', keydownHandler);
+  }
+});
+```
+
+### Task 8: (Optional) Referrer-Based Done Navigation
+
+For "direct URL → go to Hub" behavior:
+- Track navigation source via sessionStorage
+- If came from workspace → return to workspace
+- If direct URL → return to Hub (/activities)
+
+**Recommendation:** Defer this. Always returning to workspace is reasonable UX.
+
+---
+
+## Files Summary
+
+### Domain Layer:
+1. `src/lib/domain/scenario.ts` - Add `lastModifiedAt: Date` field
+
+### Infrastructure Layer:
+2. `src/lib/infrastructure/repositories/inMemory/InMemoryScenarioRepository.ts` - Verify handles new field
+3. `src/lib/infrastructure/repositories/indexedDb/IndexedDbScenarioRepository.ts` - Verify Date serialization
+4. `src/lib/infrastructure/repositories/synced/SyncedScenarioRepository.ts` - Verify handles new field
+
+### Stores:
+5. `src/lib/stores/scenarioEditingStore.ts` - Update metadata and buildScenario
+
+### UI Layer:
+6. `src/routes/activities/[id]/workspace/+page.svelte` - Add comparison logic
+7. `src/routes/activities/[id]/present/+page.svelte` - Add Escape key handler
+
+### Tests (if existing):
+8. `src/lib/domain/scenario.spec.ts` - Update tests for new field
+
+---
+
+## Data Migration Consideration
+
+Existing scenarios in IndexedDB won't have `lastModifiedAt`. Options:
+
+**Option A (Recommended):** Default to `createdAt` when missing
+```typescript
+// In repository or when loading
+const lastModifiedAt = scenario.lastModifiedAt ?? scenario.createdAt;
+```
+
+**Option B:** Migration script on app load
+- Check for scenarios missing field
+- Update with `createdAt` value
+
+Option A is simpler and handles the case gracefully without explicit migration.
+
+---
+
+## Verification Checklist
+
+After implementation:
+
+- [ ] Click "Show to Class" when never published → Prompt appears
+- [ ] Click "Publish & Present" → Groups publish, navigate to Present
+- [ ] Click "Done" in Present → Returns to Workspace
+- [ ] Click "Show to Class" again (no edits) → Goes directly to Present (no prompt)
+- [ ] Drag a student → "Published ✓" badge disappears
+- [ ] Click "Show to Class" after edit → Prompt appears again
+- [ ] "Just Preview" → Present mode without publishing
+- [ ] Press Escape in Present → Returns to Workspace
+- [ ] Refresh page after publish → Badge still shows "Published ✓"
+- [ ] Refresh page after edit → Badge shows edit state correctly
+- [ ] Multiple publishes: Each creates new history entry
+
+---
+
+## Ready for Approval
+
+This plan implements US-5.4 and US-5.5 with proper domain modeling. The `lastModifiedAt` field on Scenario provides persistent tracking of edit state across page reloads.
+
+**Estimated effort:** 2-3 hours

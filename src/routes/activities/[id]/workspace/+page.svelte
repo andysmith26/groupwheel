@@ -147,6 +147,14 @@
 		students.filter((s) => preferenceMap[s.id]?.likeGroupIds?.length > 0).length
 	);
 
+	// Detect if scenario has been edited since last publish
+	let hasEditsSincePublish = $derived.by(() => {
+		if (!view?.lastModifiedAt || !latestPublishedSession?.publishedAt) {
+			return true; // No publish yet or no scenario, so treat as "has edits"
+		}
+		return view.lastModifiedAt > latestPublishedSession.publishedAt;
+	});
+
 	let activeStudentId = $derived(draggingId ?? selectedStudentId);
 
 	let activeStudentPreferences = $derived.by(() => {
@@ -681,11 +689,11 @@
 
 	// --- Show to class handlers ---
 	function handleShowToClassClick() {
-		if (latestPublishedSession) {
-			// Already published, go directly to present
+		if (latestPublishedSession && !hasEditsSincePublish) {
+			// Already published and no edits since → go directly to present
 			goto(`/activities/${program?.id}/present`);
 		} else {
-			// Show prompt
+			// Never published OR has edits since last publish → show prompt
 			showShowToClassPrompt = true;
 			showToClassError = null;
 		}
@@ -879,7 +887,7 @@
 							onToggleAnalytics={() => (analyticsOpen = !analyticsOpen)}
 							onRetrySave={() => editingStore?.retrySave()}
 							canPublish={view.saveStatus === 'saved' || view.saveStatus === 'idle'}
-							isPublished={latestPublishedSession !== null}
+							isPublished={latestPublishedSession !== null && !hasEditsSincePublish}
 							publishedSessionName={latestPublishedSession?.name ?? ''}
 							onPublish={() => (showPublishModal = true)}
 						/>

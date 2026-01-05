@@ -6,13 +6,15 @@ export function scoreGroups(params: {
 	preferences: Preference[];
 	participantIds: string[];
 }): { score: number } {
+	const now = new Date();
 	const scenario = {
 		id: 'transient',
 		programId: 'transient',
 		groups: params.groups,
 		participantSnapshot: params.participantIds,
 		status: 'DRAFT' as const,
-		createdAt: new Date()
+		createdAt: now,
+		lastModifiedAt: now
 	};
 
 	const satisfaction = computeScenarioSatisfaction({

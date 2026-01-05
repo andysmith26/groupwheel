@@ -36,6 +36,27 @@ describe('createScenario', () => {
 			expect(scenario.createdAt).toEqual(createdAt);
 		});
 
+		it('should initialize lastModifiedAt to createdAt', () => {
+			const groups: Group[] = [
+				createGroup({
+					id: 'g1',
+					name: 'Group 1',
+					memberIds: ['s1']
+				})
+			];
+
+			const createdAt = new Date('2024-06-15T10:30:00Z');
+			const scenario = createScenario({
+				id: 'scenario-1',
+				programId: 'program-1',
+				groups,
+				participantIds: ['s1'],
+				createdAt
+			});
+
+			expect(scenario.lastModifiedAt).toEqual(createdAt);
+		});
+
 		it('should create a scenario with optional fields', () => {
 			const groups: Group[] = [
 				createGroup({

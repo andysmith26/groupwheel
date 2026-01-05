@@ -13,6 +13,7 @@ class MockIdGenerator implements IdGenerator {
 }
 
 function createScenario(): Scenario {
+	const createdAt = new Date('2024-01-01T00:00:00Z');
 	return {
 		id: 'scn-1',
 		programId: 'prog-1',
@@ -22,7 +23,8 @@ function createScenario(): Scenario {
 			{ id: 'g2', name: 'Group 2', capacity: 2, memberIds: ['s2'] }
 		],
 		participantSnapshot: ['s1', 's2', 's3'],
-		createdAt: new Date('2024-01-01T00:00:00Z')
+		createdAt,
+		lastModifiedAt: createdAt
 	};
 }
 

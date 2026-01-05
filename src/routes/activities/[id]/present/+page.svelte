@@ -13,7 +13,8 @@
 	 */
 
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { onMount, onDestroy } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import type { Program, Scenario, Student } from '$lib/domain';
 	import { buildAssignmentList } from '$lib/utils/csvExport';
@@ -40,6 +41,9 @@
 
 	// --- View mode ---
 	let viewMode = $state<'search' | 'all'>('search');
+
+	// --- Keyboard handler cleanup ---
+	let keyboardCleanup: (() => void) | null = null;
 
 	// --- Group colors (consistent per group name) ---
 	const GROUP_COLORS = [
@@ -124,7 +128,21 @@
 
 	onMount(async () => {
 		env = getAppEnvContext();
+
+		// Set up Escape key handler to return to workspace
+		function handleKeydown(event: KeyboardEvent) {
+			if (event.key === 'Escape') {
+				goto(`/activities/${$page.params.id}/workspace`);
+			}
+		}
+		document.addEventListener('keydown', handleKeydown);
+		keyboardCleanup = () => document.removeEventListener('keydown', handleKeydown);
+
 		await loadData();
+	});
+
+	onDestroy(() => {
+		keyboardCleanup?.();
 	});
 
 	async function loadData() {

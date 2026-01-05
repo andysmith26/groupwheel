@@ -48,6 +48,7 @@ type ScenarioMetadata = {
 	id: string;
 	programId: string;
 	createdAt: Date;
+	lastModifiedAt: Date;
 	createdByStaffId?: string;
 	algorithmConfig?: unknown;
 	participantSnapshot: string[];
@@ -74,6 +75,7 @@ type InternalState = {
 	retryCount: number;
 	status: ScenarioStatus;
 	lastSavedAt: Date | null;
+	lastModifiedAt: Date | null;
 };
 
 export type ScenarioEditingView = {
@@ -92,6 +94,8 @@ export type ScenarioEditingView = {
 	retryCount: number;
 	lastSavedAt: Date | null;
 	saveError: string | null;
+	/** When the scenario was last modified (for publish status tracking) */
+	lastModifiedAt: Date | null;
 };
 
 const DEFAULT_DEBOUNCE_MS = 400;
@@ -156,7 +160,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		pendingSave: false,
 		retryCount: 0,
 		status: 'DRAFT',
-		lastSavedAt: null
+		lastSavedAt: null,
+		lastModifiedAt: null
 	});
 
 	private readonly view = derived(this.state, (state): ScenarioEditingView => {
@@ -181,7 +186,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			status: state.status,
 			retryCount: state.retryCount,
 			lastSavedAt: state.lastSavedAt,
-			saveError: state.saveError
+			saveError: state.saveError,
+			lastModifiedAt: state.lastModifiedAt
 		};
 	});
 
@@ -209,6 +215,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			id: scenario.id,
 			programId: scenario.programId,
 			createdAt: scenario.createdAt,
+			lastModifiedAt: scenario.lastModifiedAt ?? scenario.createdAt, // Handle legacy scenarios
 			createdByStaffId: scenario.createdByStaffId,
 			algorithmConfig: scenario.algorithmConfig,
 			participantSnapshot: [...scenario.participantSnapshot],
@@ -235,7 +242,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			pendingSave: false,
 			retryCount: 0,
 			status: scenario.status,
-			lastSavedAt: null
+			lastSavedAt: null,
+			lastModifiedAt: scenario.lastModifiedAt ?? scenario.createdAt
 		});
 	}
 
@@ -896,7 +904,9 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			saveStatus: 'saved',
 			saveError: null,
 			retryCount: 0,
-			lastSavedAt: new Date()
+			lastSavedAt: new Date(),
+			// Sync lastModifiedAt from metadata (which was set during buildScenario)
+			lastModifiedAt: this.metadata?.lastModifiedAt ?? current.lastModifiedAt
 		}));
 
 		this.savedIdleTimeout = setTimeout(() => {
@@ -913,6 +923,14 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			throw new Error('Scenario metadata missing');
 		}
 
+		// Update lastModifiedAt when there are changes to save
+		const lastModifiedAt = state.pendingSave ? new Date() : this.metadata.lastModifiedAt;
+
+		// Also update metadata so subsequent saves use the new timestamp
+		if (state.pendingSave) {
+			this.metadata.lastModifiedAt = lastModifiedAt;
+		}
+
 		return {
 			id: this.metadata.id,
 			programId: this.metadata.programId,
@@ -920,6 +938,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			groups: cloneGroups(state.groups),
 			participantSnapshot: [...this.metadata.participantSnapshot],
 			createdAt: this.metadata.createdAt,
+			lastModifiedAt,
 			createdByStaffId: this.metadata.createdByStaffId,
 			algorithmConfig: this.metadata.algorithmConfig
 		};

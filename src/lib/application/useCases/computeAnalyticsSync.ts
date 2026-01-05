@@ -22,7 +22,8 @@ export function computeAnalyticsSync(params: {
 			memberIds: [...group.memberIds]
 		})),
 		participantSnapshot: [...params.participantSnapshot],
-		createdAt: new Date(0)
+		createdAt: new Date(0),
+		lastModifiedAt: new Date(0)
 	};
 
 	return computeScenarioSatisfaction({

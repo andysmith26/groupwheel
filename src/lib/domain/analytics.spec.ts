@@ -19,13 +19,15 @@ function createPreference(
 function createTestScenario(
 	groups: Array<{ id: string; name: string; memberIds: string[] }>
 ): Scenario {
+	const now = new Date();
 	return {
 		id: 's1',
 		programId: 'p1',
 		groups: groups.map((g) => ({ ...g, capacity: g.memberIds.length })),
 		participantSnapshot: groups.flatMap((g) => g.memberIds),
 		status: 'DRAFT',
-		createdAt: new Date()
+		createdAt: now,
+		lastModifiedAt: now
 	};
 }
 

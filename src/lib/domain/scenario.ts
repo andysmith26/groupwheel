@@ -12,6 +12,8 @@ export interface Scenario {
 	groups: Group[];
 	participantSnapshot: string[];
 	createdAt: Date;
+	/** When the scenario was last modified (groups changed, etc.) */
+	lastModifiedAt: Date;
 	createdByStaffId?: string;
 	algorithmConfig?: unknown;
 	// parentScenarioId?: string; // Planned (not used in MVP)
@@ -53,6 +55,7 @@ export function createScenario(params: {
 		})),
 		participantSnapshot,
 		createdAt: params.createdAt,
+		lastModifiedAt: params.createdAt, // Initialize to createdAt
 		createdByStaffId: params.createdByStaffId,
 		algorithmConfig: params.algorithmConfig
 	};

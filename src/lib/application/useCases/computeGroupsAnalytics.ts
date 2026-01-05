@@ -20,13 +20,15 @@ export interface ComputeGroupsAnalyticsInput {
  */
 export function computeGroupsAnalytics(input: ComputeGroupsAnalyticsInput): ScenarioSatisfaction {
 	// Build a pseudo-scenario object for the existing analytics function
+	const now = new Date();
 	const pseudoScenario = {
 		id: 'transient',
 		programId: 'transient',
 		groups: input.groups,
 		participantSnapshot: input.participantSnapshot,
 		status: 'DRAFT' as const,
-		createdAt: new Date()
+		createdAt: now,
+		lastModifiedAt: now
 	};
 
 	return computeScenarioSatisfaction({
