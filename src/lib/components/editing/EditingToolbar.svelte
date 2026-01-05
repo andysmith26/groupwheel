@@ -1,5 +1,6 @@
 <script lang="ts">
 	import SaveStatusIndicator from './SaveStatusIndicator.svelte';
+	import { Button } from '$lib/components/ui';
 	import type { SaveStatus } from '$lib/stores/scenarioEditingStore';
 
 	const {
@@ -47,28 +48,18 @@
 	class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between"
 >
 	<div class="flex flex-wrap items-center gap-2">
-		<button
-			type="button"
-			class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-			disabled={!canUndo}
-			onclick={onUndo}
-		>
+		<Button variant="ghost" size="sm" disabled={!canUndo} onclick={onUndo}>
 			← Undo
-		</button>
-		<button
-			type="button"
-			class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-			disabled={!canRedo}
-			onclick={onRedo}
-		>
+		</Button>
+		<Button variant="ghost" size="sm" disabled={!canRedo} onclick={onRedo}>
 			Redo →
-		</button>
+		</Button>
 		{#if metricSummary}
 			<span class="ml-2 text-sm font-semibold text-gray-800">{metricSummary}</span>
 		{/if}
 		<button
 			type="button"
-			class="rounded px-2 py-1 text-xs font-medium text-teal hover:bg-teal-light"
+			class="rounded px-2 py-1 text-xs font-medium text-teal hover:bg-teal-light focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2"
 			onclick={onToggleAnalytics}
 		>
 			{analyticsOpen ? 'Hide analytics' : 'Show analytics'}
@@ -77,37 +68,24 @@
 
 	<div class="flex flex-wrap items-center gap-2">
 		<SaveStatusIndicator status={saveStatus} {lastSavedAt} onRetry={onRetrySave} />
-		<button
-			type="button"
-			class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+		<Button
+			variant="ghost"
+			size="sm"
 			disabled={isTryingAnother || isRegenerating}
+			loading={isTryingAnother}
 			onclick={onTryAnother}
 		>
-			{#if isTryingAnother}
-				<span class="inline-flex items-center gap-1">
-					<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
-						></circle>
-						<path
-							class="opacity-75"
-							fill="currentColor"
-							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-						></path>
-					</svg>
-					Generating...
-				</span>
-			{:else}
-				Try Another
-			{/if}
-		</button>
-		<button
-			type="button"
-			class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+			{isTryingAnother ? 'Generating...' : 'Try Another'}
+		</Button>
+		<Button
+			variant="ghost"
+			size="sm"
 			disabled={isRegenerating || isTryingAnother}
+			loading={isRegenerating}
 			onclick={onStartOver}
 		>
 			{isRegenerating ? 'Regenerating...' : 'Start Over'}
-		</button>
+		</Button>
 
 		{#if isPublished}
 			<span
@@ -120,15 +98,13 @@
 				Published
 			</span>
 		{:else}
-			<button
-				type="button"
-				class="rounded-lg bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark disabled:opacity-50"
+			<Button
+				variant="primary"
 				disabled={!canPublish || isRegenerating || isTryingAnother}
 				onclick={onPublish}
-				title={canPublish ? 'Publish these group assignments' : 'Save changes before publishing'}
 			>
 				Publish
-			</button>
+			</Button>
 		{/if}
 	</div>
 </div>

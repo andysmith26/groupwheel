@@ -16,6 +16,7 @@
 	import { syncSettings } from '$lib/stores/syncSettings.svelte';
 	import LoginButton from '$lib/components/auth/LoginButton.svelte';
 	import SyncStatus from '$lib/components/sync/SyncStatus.svelte';
+	import { OfflineBanner } from '$lib/components/ui';
 
 	const { children } = $props();
 
@@ -73,6 +74,9 @@
 </script>
 
 <div class="min-h-screen bg-gray-50">
+	{#if browser}
+		<OfflineBanner />
+	{/if}
 	<header class="border-b bg-white shadow-sm">
 		<div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
 			<a href="/" class="group flex items-center gap-2">

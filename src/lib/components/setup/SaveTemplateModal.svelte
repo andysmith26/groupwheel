@@ -5,6 +5,8 @@
 	 * Modal for saving current groups as a reusable template.
 	 */
 
+	import { fade, scale } from 'svelte/transition';
+	import { Button, Alert } from '$lib/components/ui';
 	import type { GroupShell } from '$lib/utils/groupShellValidation';
 
 	interface Props {
@@ -91,8 +93,12 @@
 		aria-modal="true"
 		aria-labelledby="save-template-title"
 		tabindex="-1"
+		transition:fade={{ duration: 150 }}
 	>
-		<div class="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+		<div
+			class="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+			transition:scale={{ duration: 150, start: 0.95 }}
+		>
 			<h2 id="save-template-title" class="text-lg font-semibold text-gray-900">
 				Save as Template
 			</h2>
@@ -150,28 +156,23 @@
 			</div>
 
 			{#if error}
-				<div class="mt-4 rounded-md border border-red-200 bg-red-50 p-3">
-					<p class="text-sm text-red-700">{error}</p>
+				<div class="mt-4">
+					<Alert variant="error">{error}</Alert>
 				</div>
 			{/if}
 
 			<div class="mt-6 flex justify-end gap-3">
-				<button
-					type="button"
-					class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-					onclick={handleClose}
-					disabled={saving}
-				>
+				<Button variant="ghost" onclick={handleClose} disabled={saving}>
 					Cancel
-				</button>
-				<button
-					type="button"
-					class="rounded-md bg-teal px-4 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
+				</Button>
+				<Button
+					variant="secondary"
 					onclick={handleSave}
 					disabled={saving || groups.length === 0}
+					loading={saving}
 				>
 					{saving ? 'Saving...' : 'Save Template'}
-				</button>
+				</Button>
 			</div>
 		</div>
 	</div>

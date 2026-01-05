@@ -129,6 +129,7 @@
 					onclick={handleRetry}
 					class="flex items-center gap-1 text-amber-500 hover:text-amber-600"
 					title="Click to retry sync"
+					aria-label="Sync error - click to retry"
 				>
 					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path

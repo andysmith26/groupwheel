@@ -11,6 +11,7 @@
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import { connectGoogleSheet, isAuthenticated } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
+	import { Button } from '$lib/components/ui';
 	import type { SheetConnection } from '$lib/domain/sheetConnection';
 
 	interface Props {
@@ -124,7 +125,7 @@
 					<button
 						type="button"
 						onclick={handleDisconnect}
-						class="text-sm text-gray-500 hover:text-gray-700"
+						class="text-sm text-gray-500 hover:text-gray-700 focus:outline-none focus:underline"
 					>
 						Disconnect
 					</button>
@@ -152,35 +153,14 @@
 					class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
 					disabled={isConnecting}
 				/>
-				<button
-					type="button"
+				<Button
+					variant="secondary"
 					onclick={handleConnect}
 					disabled={isConnecting || !sheetUrl.trim()}
-					class="rounded-md bg-teal px-4 py-2 text-sm font-medium text-white hover:bg-teal/90 disabled:cursor-not-allowed disabled:opacity-50"
+					loading={isConnecting}
 				>
-					{#if isConnecting}
-						<span class="flex items-center gap-2">
-							<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-								<circle
-									class="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									stroke-width="4"
-								></circle>
-								<path
-									class="opacity-75"
-									fill="currentColor"
-									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-								></path>
-							</svg>
-							Connecting...
-						</span>
-					{:else}
-						Connect
-					{/if}
-				</button>
+					{isConnecting ? 'Connecting...' : 'Connect'}
+				</Button>
 			</div>
 
 			{#if error}

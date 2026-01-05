@@ -7,6 +7,7 @@
 	 */
 
 	import { onMount } from 'svelte';
+	import { fade, scale } from 'svelte/transition';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import {
 		listActivities,
@@ -15,6 +16,7 @@
 		type ActivityDisplay
 	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
+	import { Button, Alert, Spinner } from '$lib/components/ui';
 	import type { Program } from '$lib/domain';
 
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -220,23 +222,19 @@
 			</p>
 		</div>
 		<div class="flex items-center gap-3">
-			<a
-				href="/activities/new"
-				class="rounded-md bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark"
-			>
+			<Button href="/activities/new" variant="primary">
 				+ New Activity
-			</a>
+			</Button>
 		</div>
 	</header>
 
 	{#if loading}
-		<div class="flex items-center justify-center py-12">
+		<div class="flex items-center justify-center gap-3 py-12">
+			<Spinner />
 			<p class="text-gray-500">Loading activities...</p>
 		</div>
 	{:else if error}
-		<div class="rounded-md border border-red-200 bg-red-50 p-4">
-			<p class="text-sm text-red-700">{error}</p>
-		</div>
+		<Alert variant="error">{error}</Alert>
 	{:else if activities.length === 0}
 		<!-- Empty state -->
 		<div class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
@@ -254,12 +252,11 @@
 			</div>
 			<h3 class="text-lg font-medium text-gray-900">No activities yet</h3>
 			<p class="mt-1 text-sm text-gray-500">Create your first grouping activity to get started.</p>
-			<a
-				href="/activities/new"
-				class="mt-4 inline-block rounded-md bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-coral-dark"
-			>
-				+ New Activity
-			</a>
+			<div class="mt-4">
+				<Button href="/activities/new" variant="primary">
+					+ New Activity
+				</Button>
+			</div>
 		</div>
 	{:else}
 		<!-- Activity cards -->
@@ -295,12 +292,9 @@
 					</a>
 
 					<div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-						<a
-							href={action.href}
-							class="rounded-md bg-teal px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-dark"
-						>
+						<Button href={action.href} variant="secondary" size="sm">
 							{action.label}
-						</a>
+						</Button>
 
 						<!-- Overflow menu -->
 						<div class="overflow-menu relative">
@@ -355,8 +349,14 @@
 
 <!-- Rename Modal -->
 {#if renameModalOpen && renameTarget}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-		<div class="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+		transition:fade={{ duration: 150 }}
+	>
+		<div
+			class="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl"
+			transition:scale={{ duration: 150, start: 0.95 }}
+		>
 			<h3 class="text-lg font-medium text-gray-900">Rename Activity</h3>
 			<div class="mt-4">
 				<input
@@ -370,23 +370,18 @@
 				{/if}
 			</div>
 			<div class="mt-4 flex justify-end gap-3">
-				<button
-					type="button"
-					class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+				<Button
+					variant="ghost"
 					onclick={() => {
 						renameModalOpen = false;
 						renameTarget = null;
 					}}
 				>
 					Cancel
-				</button>
-				<button
-					type="button"
-					class="rounded-md bg-teal px-4 py-2 text-sm font-medium text-white hover:bg-teal-dark"
-					onclick={handleRenameSubmit}
-				>
+				</Button>
+				<Button variant="secondary" onclick={handleRenameSubmit}>
 					Save
-				</button>
+				</Button>
 			</div>
 		</div>
 	</div>
@@ -394,16 +389,21 @@
 
 <!-- Delete Confirmation Modal -->
 {#if deleteModalOpen && deleteTarget}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-		<div class="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+		transition:fade={{ duration: 150 }}
+	>
+		<div
+			class="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl"
+			transition:scale={{ duration: 150, start: 0.95 }}
+		>
 			<h3 class="text-lg font-medium text-gray-900">Delete Activity</h3>
 			<p class="mt-2 text-sm text-gray-600">
 				Delete "{deleteTarget.program.name}"? This cannot be undone.
 			</p>
 			<div class="mt-4 flex justify-end gap-3">
-				<button
-					type="button"
-					class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+				<Button
+					variant="ghost"
 					onclick={() => {
 						deleteModalOpen = false;
 						deleteTarget = null;
@@ -411,15 +411,15 @@
 					disabled={isDeleting}
 				>
 					Cancel
-				</button>
-				<button
-					type="button"
-					class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+				</Button>
+				<Button
+					variant="danger"
 					onclick={handleDeleteConfirm}
 					disabled={isDeleting}
+					loading={isDeleting}
 				>
 					{isDeleting ? 'Deleting...' : 'Delete'}
-				</button>
+				</Button>
 			</div>
 		</div>
 	</div>

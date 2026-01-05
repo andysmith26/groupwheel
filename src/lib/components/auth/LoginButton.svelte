@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
+	import { Button, Spinner } from '$lib/components/ui';
 	import type { AuthUser } from '$lib/application/ports';
 
 	const env = getAppEnvContext();
@@ -43,7 +44,7 @@
 {#if loading}
 	<!-- Loading state -->
 	<div class="flex items-center gap-2 text-sm text-gray-400">
-		<div class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-transparent"></div>
+		<Spinner size="sm" />
 	</div>
 {:else if user}
 	<!-- Authenticated state -->
@@ -65,14 +66,9 @@
 			{user.name}
 		</span>
 
-		<button
-			type="button"
-			onclick={handleLogout}
-			disabled={isLoggingOut}
-			class="rounded px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
-		>
+		<Button variant="ghost" size="sm" onclick={handleLogout} loading={isLoggingOut}>
 			{isLoggingOut ? 'Signing out...' : 'Sign out'}
-		</button>
+		</Button>
 	</div>
 {:else}
 	<!-- Anonymous state -->
