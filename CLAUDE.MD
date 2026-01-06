@@ -4,11 +4,11 @@ This file helps Claude Code understand and work effectively with the Groupwheel 
 
 ## Project Overview
 
-Groupwheel is a privacy-first toolbox for K-12 teachers to form student groups. All data stays in the browser—no server, no accounts, no data collection.
+Groupwheel is a privacy-first toolbox for K-12 teachers to form student groups. All data stays in the browser—no server required. Optional Google sign-in enables importing from Google Sheets; core features work without accounts.
 
 **Core workflow:**
 
-1. Import student roster (CSV/TSV)
+1. Import student roster (CSV/TSV or Google Sheets)
 2. Define groups with optional capacity limits
 3. Generate groupings (random/balanced algorithms)
 4. Review & refine with drag-drop editing
@@ -21,14 +21,19 @@ This project uses **Hexagonal Architecture** (ports & adapters pattern) with str
 ```
 src/lib/
 ├── domain/           # Core business logic (pure TypeScript, framework-agnostic)
-├── application/      # Use cases and orchestration
-├── infrastructure/   # Adapters (storage, external services)
+├── application/      # Use cases (useCases/) and ports (ports/)
+├── infrastructure/   # Adapters: auth, repositories, sheets, sync, storage, http, clipboard, network
 ├── algorithms/       # Group generation algorithms
 ├── services/         # Cross-cutting concerns
-├── components/       # Svelte UI components
+├── components/       # Svelte UI components (ui/, wizard/, workspace/, auth/, etc.)
 ├── stores/           # Svelte state management
+├── contexts/         # Svelte context providers
 ├── utils/            # Shared utilities
-└── types/            # TypeScript type definitions
+├── types/            # TypeScript type definitions
+├── data/             # Static data files
+├── content/          # Static content
+├── assets/           # Static assets
+└── test-utils/       # Testing utilities
 ```
 
 **Key principles:**
@@ -78,16 +83,29 @@ src/lib/
 **Student**: Individual student with ID, name, optional metadata
 **Group**: Named container for students with optional capacity
 **GroupTemplate**: Reusable group definitions (e.g., "6 tables of 4")
-**Roster**: Collection of students
-**Session**: Current working state (roster + groupings)
+**Pool**: Collection of students available for grouping
+**Program**: Top-level container (class/course) owning pools, scenarios, templates
+**Scenario**: A specific grouping configuration within a program
+**Placement**: Assignment of a student to a group
+**Preference**: Student preferences for grouping (e.g., partner choices)
+**SheetConnection**: Link to a Google Sheet for data import
+**Staff**: Staff members (teachers, aides)
 
 See `docs/domain_model.md` for complete entity definitions.
 
 ## Storage & State
 
-- **LocalStorage**: Primary persistence via `infrastructure/storage/`
+- **IndexedDB**: Primary persistence via `infrastructure/repositories/indexedDb/`
+- **Synced repositories**: Optional cloud sync via `infrastructure/repositories/synced/`
+- **In-memory repositories**: For testing via `infrastructure/repositories/inMemory/`
 - **Svelte stores**: Reactive state management in `stores/`
-- **No backend**: Everything runs client-side
+- **No backend required**: Core features run entirely client-side
+
+## Authentication & External Services
+
+- **Google OAuth**: Optional sign-in via `infrastructure/auth/`
+- **Google Sheets API**: Import rosters from private sheets via `infrastructure/sheets/`
+- Auth is entirely optional—core grouping features work without signing in
 
 ## Testing
 
@@ -117,10 +135,11 @@ pnpm test:e2e          # E2E tests (Playwright)
 - Algorithms live in `lib/algorithms/`
 - Current algorithms: random, balanced (more planned)
 
-### Adding storage
+### Adding storage/repositories
 
-- Implement adapter in `lib/infrastructure/storage/`
-- Follow existing localStorage pattern
+- Implement repository in `lib/infrastructure/repositories/`
+- Create IndexedDB, InMemory, and optionally Synced variants
+- Follow existing repository patterns (e.g., `ProgramRepository`)
 
 ## Documentation
 
@@ -131,6 +150,9 @@ Comprehensive docs are in `/docs/`:
 - `domain_model.md`: Entity relationships
 - `UX_STRATEGY.md`: Design principles
 - `STATUS.md`: Current state and known gaps
+- `ALGORITHMS.md`: Group generation algorithm details
+- `ALGORITHMS_TUTORIAL.md`: Guide to algorithm implementation
+- `RESEARCH.md`: Research notes and references
 - `decisions/`: Architectural decision records
 - `spikes/`: Technical experiments
 
@@ -158,7 +180,7 @@ pnpm format           # Format code
 - `svelte.config.js`: SvelteKit configuration
 - `vite.config.ts`: Build configuration
 - `tsconfig.json`: TypeScript settings
-- `tailwind.config.js`: Styling configuration (Tailwind 4)
+- `src/app.css`: Tailwind 4 configuration (CSS-first)
 - `PROJECT_HISTORY.md`: Major pivots and context
 
 ## Questions?
@@ -173,7 +195,7 @@ When uncertain about:
 
 ## Project Philosophy
 
-1. **Privacy-first**: No data leaves the browser
+1. **Privacy-first**: Data stays in the browser; optional Google sign-in only for Sheets import
 2. **Teacher-centered**: Built for real classroom workflows
 3. **Learning project**: Clean architecture and best practices matter
 4. **Pragmatic**: Ship value, iterate based on feedback
