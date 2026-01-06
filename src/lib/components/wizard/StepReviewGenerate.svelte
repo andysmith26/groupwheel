@@ -7,7 +7,6 @@
 	 * Preferences are NOT shown here - they're added later from Setup page.
 	 */
 
-	import { Button } from '$lib/components/ui';
 	import type { ParsedStudent } from '$lib/application/useCases/createGroupingActivity';
 	import type { GroupShellConfig } from './StepGroups.svelte';
 
@@ -29,12 +28,6 @@
 
 		/** Name of reused roster (if applicable) */
 		reusedRosterName?: string;
-
-		/** Whether submission is in progress */
-		isSubmitting: boolean;
-
-		/** Callback to submit and generate groups */
-		onSubmit: () => void;
 	}
 
 	let {
@@ -43,9 +36,7 @@
 		students,
 		groupConfig,
 		isReusingRoster,
-		reusedRosterName,
-		isSubmitting,
-		onSubmit
+		reusedRosterName
 	}: Props = $props();
 
 	// Auto-generate name suggestion based on groups
@@ -99,8 +90,6 @@
 		}
 		return `${names.slice(0, 3).join(', ')}... +${names.length - 3} more`;
 	});
-
-	let canSubmit = $derived(activityName.trim().length > 0 && !isSubmitting);
 
 	// Editing state for inline name editing
 	let isEditingName = $state(false);
@@ -251,27 +240,4 @@
 		</div>
 	</div>
 
-	<!-- Create Groups Button -->
-	<div class="pt-2">
-		<Button
-			variant="primary"
-			size="lg"
-			class="w-full"
-			disabled={!canSubmit}
-			loading={isSubmitting}
-			onclick={onSubmit}
-		>
-			{#if !isSubmitting}
-				<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M13 10V3L4 14h7v7l9-11h-7z"
-					/>
-				</svg>
-			{/if}
-			{isSubmitting ? 'Creating groups...' : 'Create Groups'}
-		</Button>
-	</div>
 </div>

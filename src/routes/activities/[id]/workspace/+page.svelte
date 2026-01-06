@@ -45,6 +45,8 @@
 	import { isErr } from '$lib/types/result';
 	import type { Session } from '$lib/domain';
 	import PublishSessionModal from '$lib/components/editing/PublishSessionModal.svelte';
+	import PreferencesPromptBanner from '$lib/components/workspace/PreferencesPromptBanner.svelte';
+	import PreferencesImportModal from '$lib/components/workspace/PreferencesImportModal.svelte';
 	import {
 		buildAssignmentList,
 		exportToCSV,
@@ -52,6 +54,7 @@
 		exportGroupsToCSV
 	} from '$lib/utils/csvExport';
 	import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
+	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -69,6 +72,9 @@
 	let showPublishModal = $state(false);
 	let isPublishing = $state(false);
 	let publishError = $state<string | null>(null);
+
+	// --- Preferences modal state ---
+	let showPreferencesModal = $state(false);
 
 	// --- Loading states ---
 	let loading = $state(true);
@@ -208,6 +214,48 @@
 
 		return ranks;
 	});
+
+	// --- Group names for preferences modal ---
+	let groupNames = $derived(view?.groups.map((g) => g.name) ?? []);
+
+	// --- Handle preferences import ---
+	async function handlePreferencesImport(
+		parsedPreferences: ParsedPreference[],
+		_warnings: string[]
+	) {
+		if (!env || !program) return;
+
+		try {
+			// Save preferences to repository for persistence
+			const prefRepo = env.preferenceRepo;
+			const generateId = () => `pref-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+			// Save each preference
+			for (const parsed of parsedPreferences) {
+				const pref: Preference = {
+					id: generateId(),
+					programId: program.id,
+					studentId: parsed.studentId,
+					payload: {
+						studentId: parsed.studentId,
+						likeGroupIds: parsed.likeGroupIds ?? [],
+						avoidGroupIds: [],
+						avoidStudentIds: []
+					}
+				};
+				await prefRepo.save(pref);
+			}
+
+			// Reload preferences from repository to update local state
+			preferences = await prefRepo.listByProgramId(program.id);
+
+			showPreferencesModal = false;
+			showToast(`Imported ${parsedPreferences.length} preferences. Regenerate to apply.`);
+		} catch (e) {
+			console.error('Error saving preferences:', e);
+			showToast('Error saving preferences');
+		}
+	}
 
 	onMount(async () => {
 		env = getAppEnvContext();
@@ -867,6 +915,16 @@
 					</div>
 				{/if}
 
+				<!-- Preferences prompt banner (only shown when no preferences and groups exist) -->
+				{#if scenario && view && preferencesCount === 0 && program}
+					<div class="mx-auto max-w-6xl mb-4">
+						<PreferencesPromptBanner
+							activityId={program.id}
+							onImportClick={() => showPreferencesModal = true}
+						/>
+					</div>
+				{/if}
+
 				{#if generationError && (!scenario || !view)}
 					<div class="mx-auto max-w-2xl py-8">
 						<GenerationErrorBanner
@@ -1035,6 +1093,17 @@
 			}}
 			{isPublishing}
 			error={publishError}
+		/>
+
+		<!-- Preferences Import Modal -->
+		<PreferencesImportModal
+			isOpen={showPreferencesModal}
+			{students}
+			{groupNames}
+			programId={program?.id ?? ''}
+			sheetConnection={null}
+			onSuccess={handlePreferencesImport}
+			onCancel={() => showPreferencesModal = false}
 		/>
 
 		<!-- Show to Class Prompt -->

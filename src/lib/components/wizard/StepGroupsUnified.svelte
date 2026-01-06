@@ -333,36 +333,101 @@
 			{#if hasSheetConnection || hasTemplates}
 				<div class="space-y-3">
 					<p class="text-sm font-medium text-gray-700">How would you like to add groups?</p>
-					<div class="flex flex-wrap gap-2">
+					<div class="grid gap-3 sm:grid-cols-3">
+						<!-- Enter manually -->
 						<button
 							type="button"
-							class="rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors {groupSource === 'manual'
-								? 'border-teal bg-teal/5 text-teal'
-								: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+							role="radio"
+							aria-checked={groupSource === 'manual' ? 'true' : 'false'}
+							class="flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors {groupSource === 'manual'
+								? 'border-teal bg-teal-light/30'
+								: 'border-gray-200 hover:border-gray-300'}"
 							onclick={() => handleGroupSourceChange('manual')}
 						>
-							Enter manually
+							<div class="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 {groupSource === 'manual'
+								? 'bg-teal/20'
+								: 'bg-gray-100'}">
+								<svg class="h-4 w-4 {groupSource === 'manual' ? 'text-teal' : 'text-gray-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+								</svg>
+							</div>
+							<div class="flex-1 min-w-0">
+								<div class="flex items-center gap-1.5">
+									<span class="text-sm font-medium {groupSource === 'manual' ? 'text-teal-dark' : 'text-gray-900'}">
+										Enter manually
+									</span>
+									{#if groupSource === 'manual'}
+										<svg class="h-4 w-4 text-teal" fill="currentColor" viewBox="0 0 20 20">
+											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+										</svg>
+									{/if}
+								</div>
+							</div>
 						</button>
+
 						{#if hasTemplates}
+							<!-- Use template -->
 							<button
 								type="button"
-								class="rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors {groupSource === 'template'
-									? 'border-teal bg-teal/5 text-teal'
-									: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+								role="radio"
+								aria-checked={groupSource === 'template' ? 'true' : 'false'}
+								class="flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors {groupSource === 'template'
+									? 'border-teal bg-teal-light/30'
+									: 'border-gray-200 hover:border-gray-300'}"
 								onclick={() => handleGroupSourceChange('template')}
 							>
-								Use template
+								<div class="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 {groupSource === 'template'
+									? 'bg-teal/20'
+									: 'bg-gray-100'}">
+									<svg class="h-4 w-4 {groupSource === 'template' ? 'text-teal' : 'text-gray-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+									</svg>
+								</div>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-1.5">
+										<span class="text-sm font-medium {groupSource === 'template' ? 'text-teal-dark' : 'text-gray-900'}">
+											Use template
+										</span>
+										{#if groupSource === 'template'}
+											<svg class="h-4 w-4 text-teal" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+											</svg>
+										{/if}
+									</div>
+								</div>
 							</button>
 						{/if}
+
 						{#if hasSheetConnection}
+							<!-- Import from sheet -->
 							<button
 								type="button"
-								class="rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors {groupSource === 'sheet'
-									? 'border-teal bg-teal/5 text-teal'
-									: 'border-gray-200 text-gray-600 hover:border-gray-300'}"
+								role="radio"
+								aria-checked={groupSource === 'sheet' ? 'true' : 'false'}
+								class="flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors {groupSource === 'sheet'
+									? 'border-teal bg-teal-light/30'
+									: 'border-gray-200 hover:border-gray-300'}"
 								onclick={() => handleGroupSourceChange('sheet')}
 							>
-								Import from sheet
+								<div class="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 {groupSource === 'sheet'
+									? 'bg-teal/20'
+									: 'bg-gray-100'}">
+									<svg class="h-4 w-4 {groupSource === 'sheet' ? 'text-teal' : 'text-gray-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+									</svg>
+								</div>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-1.5">
+										<span class="text-sm font-medium {groupSource === 'sheet' ? 'text-teal-dark' : 'text-gray-900'}">
+											Import from sheet
+										</span>
+										{#if groupSource === 'sheet'}
+											<svg class="h-4 w-4 text-teal" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+											</svg>
+										{/if}
+									</div>
+								</div>
 							</button>
 						{/if}
 					</div>

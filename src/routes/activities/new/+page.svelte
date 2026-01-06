@@ -31,7 +31,6 @@
 	import StepStudentsUnified from '$lib/components/wizard/StepStudentsUnified.svelte';
 	import StepGroupsUnified from '$lib/components/wizard/StepGroupsUnified.svelte';
 	import StepReviewGenerate from '$lib/components/wizard/StepReviewGenerate.svelte';
-	import SheetConnector from '$lib/components/import/SheetConnector.svelte';
 	import type { GroupShellConfig } from '$lib/components/wizard/StepGroups.svelte';
 
 	// --- Environment ---
@@ -83,11 +82,9 @@
 
 	// --- Google Sheets connection (optional) ---
 	let sheetConnection = $state<SheetConnection | null>(null);
-	let showSheetConnector = $state(false);
 
 	function handleSheetConnect(connection: SheetConnection) {
 		sheetConnection = connection;
-		showSheetConnector = false;
 	}
 
 	function handleSheetDisconnect() {
@@ -149,7 +146,7 @@
 	}
 
 	// --- Wizard state (simplified 3 steps) ---
-	const stepLabels = ['Students', 'Groups', 'Review'];
+	const stepLabels = ['Add Your Students', 'Set Up Your Groups', 'Review & Create'];
 	const totalSteps = 3;
 	let currentStep = $state(0);
 
@@ -400,86 +397,9 @@
 
 <div class="mx-auto max-w-2xl p-4">
 	<!-- Header -->
-	<header class="mb-6 flex items-center justify-between">
+	<header class="mb-6">
 		<h1 class="text-2xl font-semibold text-gray-900">Create Activity</h1>
-		<button
-			type="button"
-			class="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-			onclick={handleCancel}
-		>
-			Cancel
-		</button>
 	</header>
-
-	<!-- Google Sheets connector (optional) -->
-	{#if userLoggedIn && !loadingRosters}
-		<div class="mb-6">
-			{#if sheetConnection}
-				<div
-					class="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-3"
-				>
-					<div class="flex items-center gap-2">
-						<svg
-							class="h-5 w-5 text-green-500"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
-						<span class="text-sm font-medium text-green-800">
-							Connected: {sheetConnection.title}
-						</span>
-						<span class="text-xs text-green-600">
-							({sheetConnection.tabs.length} tabs)
-						</span>
-					</div>
-					<button
-						type="button"
-						onclick={handleSheetDisconnect}
-						class="text-sm text-green-700 hover:text-green-900"
-					>
-						Disconnect
-					</button>
-				</div>
-			{:else if showSheetConnector}
-				<SheetConnector
-					onConnect={handleSheetConnect}
-					existingConnection={sheetConnection}
-					allowDisconnect={true}
-					onDisconnect={handleSheetDisconnect}
-				/>
-				<button
-					type="button"
-					onclick={() => (showSheetConnector = false)}
-					class="mt-2 text-sm text-gray-500 hover:text-gray-700"
-				>
-					Cancel
-				</button>
-			{:else}
-				<button
-					type="button"
-					onclick={() => (showSheetConnector = true)}
-					class="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-				>
-					<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-						/>
-					</svg>
-					Connect a Google Sheet (optional)
-				</button>
-			{/if}
-		</div>
-	{/if}
 
 	<!-- Progress indicator -->
 	{#if !loadingRosters}
@@ -503,6 +423,8 @@
 				{userLoggedIn}
 				onStudentsParsed={handleStudentsParsed}
 				onRosterSelect={handleRosterSelect}
+				onSheetConnect={handleSheetConnect}
+				onSheetDisconnect={handleSheetDisconnect}
 			/>
 		{:else if activeStepType === 'groups'}
 			<StepGroupsUnified
@@ -526,8 +448,6 @@
 				{groupConfig}
 				{isReusingRoster}
 				{reusedRosterName}
-				{isSubmitting}
-				onSubmit={handleSubmit}
 			/>
 		{/if}
 	</div>
@@ -539,10 +459,18 @@
 		</div>
 	{/if}
 
-	<!-- Navigation buttons (not shown on review step - it has its own submit) -->
-	{#if !loadingRosters && activeStepType !== 'review'}
+	<!-- Unified navigation footer -->
+	{#if !loadingRosters}
 		<div class="flex items-center justify-between border-t border-gray-200 pt-6">
-			<div>
+			<!-- Left side: Cancel + Back -->
+			<div class="flex items-center gap-3">
+				<button
+					type="button"
+					class="rounded-md px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+					onclick={handleCancel}
+				>
+					Cancel
+				</button>
 				{#if !isFirstStep}
 					<button
 						type="button"
@@ -554,29 +482,39 @@
 				{/if}
 			</div>
 
+			<!-- Right side: Continue or Create Groups -->
 			<div class="flex items-center gap-3">
-				<button
-					type="button"
-					class="rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
-					disabled={!canProceed()}
-					onclick={nextStep}
-				>
-					Continue →
-				</button>
+				{#if activeStepType === 'review'}
+					<button
+						type="button"
+						class="flex items-center gap-2 rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
+						disabled={!canProceed() || isSubmitting}
+						onclick={handleSubmit}
+					>
+						{#if isSubmitting}
+							<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							Creating...
+						{:else}
+							<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+							</svg>
+							Create Groups
+						{/if}
+					</button>
+				{:else}
+					<button
+						type="button"
+						class="rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
+						disabled={!canProceed()}
+						onclick={nextStep}
+					>
+						Continue →
+					</button>
+				{/if}
 			</div>
-		</div>
-	{/if}
-
-	<!-- Back button on review step -->
-	{#if !loadingRosters && activeStepType === 'review'}
-		<div class="flex items-center border-t border-gray-200 pt-6">
-			<button
-				type="button"
-				class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-				onclick={prevStep}
-			>
-				← Back
-			</button>
 		</div>
 	{/if}
 </div>

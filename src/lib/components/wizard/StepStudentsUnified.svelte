@@ -15,6 +15,7 @@
 	import type { RawSheetData } from '$lib/domain/import';
 	import type { Pool } from '$lib/domain';
 	import TabSelector from '$lib/components/import/TabSelector.svelte';
+	import SheetConnector from '$lib/components/import/SheetConnector.svelte';
 
 	type ImportSource = 'paste' | 'roster' | 'sheet';
 	type StudentField = 'name' | 'id' | 'firstName' | 'lastName' | 'grade' | 'ignore' | null;
@@ -34,6 +35,8 @@
 		userLoggedIn: boolean;
 		onStudentsParsed: (students: ParsedStudent[]) => void;
 		onRosterSelect: (poolId: string | null) => void;
+		onSheetConnect?: (connection: SheetConnection) => void;
+		onSheetDisconnect?: () => void;
 	}
 
 	let {
@@ -43,7 +46,9 @@
 		sheetConnection = null,
 		userLoggedIn = false,
 		onStudentsParsed,
-		onRosterSelect
+		onRosterSelect,
+		onSheetConnect,
+		onSheetDisconnect
 	}: Props = $props();
 
 	// Section expansion state
@@ -370,52 +375,45 @@
 		</p>
 	</div>
 
-	<!-- Collapsible sections -->
+	<!-- Radio-card selection options -->
 	<div class="space-y-3">
 		<!-- Paste from spreadsheet -->
-		<div class="rounded-lg border border-gray-200 overflow-hidden">
+		<div class="rounded-xl border-2 overflow-hidden transition-colors {expandedSection === 'paste'
+			? 'border-teal bg-teal-light/30'
+			: 'border-gray-200 hover:border-gray-300'}">
 			<button
 				type="button"
-				class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors {expandedSection ===
-				'paste'
-					? 'bg-teal-50 border-b border-teal-200'
-					: 'hover:bg-gray-50'}"
+				role="radio"
+				aria-checked={expandedSection === 'paste' ? 'true' : 'false'}
+				class="flex w-full items-center gap-4 p-4 text-left"
 				onclick={() => handleSectionToggle('paste')}
 			>
-				<div class="flex items-center gap-3">
-					<div
-						class="flex h-5 w-5 items-center justify-center rounded-full {expandedSection ===
-						'paste'
-							? 'bg-teal text-white'
-							: 'border-2 border-gray-300'}"
-					>
+				<div class="flex h-10 w-10 items-center justify-center rounded-lg flex-shrink-0 {expandedSection === 'paste'
+					? 'bg-teal/20'
+					: 'bg-gray-100'}">
+					<svg class="h-5 w-5 {expandedSection === 'paste' ? 'text-teal' : 'text-gray-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+					</svg>
+				</div>
+				<div class="flex-1 min-w-0">
+					<div class="flex items-center gap-2">
+						<span class="font-medium {expandedSection === 'paste' ? 'text-teal-dark' : 'text-gray-900'}">
+							Paste from spreadsheet
+						</span>
 						{#if expandedSection === 'paste'}
-							<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="3"
-									d="M5 13l4 4L19 7"
-								/>
+							<svg class="h-5 w-5 text-teal" fill="currentColor" viewBox="0 0 20 20">
+								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
 							</svg>
 						{/if}
 					</div>
-					<span class="font-medium text-gray-900">Paste from spreadsheet</span>
+					<p class="mt-0.5 text-sm {expandedSection === 'paste' ? 'text-teal-dark/80' : 'text-gray-500'}">
+						Copy rows directly from Google Sheets or Excel
+					</p>
 				</div>
-				<svg
-					class="h-5 w-5 text-gray-400 transition-transform {expandedSection === 'paste'
-						? 'rotate-180'
-						: ''}"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-				</svg>
 			</button>
 
 			{#if expandedSection === 'paste'}
-				<div class="p-4 space-y-4">
+				<div class="p-4 space-y-4 border-t border-teal/20">
 					<div class="space-y-2">
 						<div class="flex items-center justify-between">
 							<label class="block text-sm font-medium text-gray-700" for="roster-paste">
@@ -501,60 +499,45 @@ Bob Jones	bob@school.edu	9"
 
 		<!-- Use existing roster -->
 		{#if hasExistingRosters}
-			<div class="rounded-lg border border-gray-200 overflow-hidden">
+			<div class="rounded-xl border-2 overflow-hidden transition-colors {expandedSection === 'roster'
+				? 'border-teal bg-teal-light/30'
+				: 'border-gray-200 hover:border-gray-300'}">
 				<button
 					type="button"
-					class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors {expandedSection ===
-					'roster'
-						? 'bg-teal-50 border-b border-teal-200'
-						: 'hover:bg-gray-50'}"
+					role="radio"
+					aria-checked={expandedSection === 'roster' ? 'true' : 'false'}
+					class="flex w-full items-center gap-4 p-4 text-left"
 					onclick={() => handleSectionToggle('roster')}
 				>
-					<div class="flex items-center gap-3">
-						<div
-							class="flex h-5 w-5 items-center justify-center rounded-full {expandedSection ===
-							'roster'
-								? 'bg-teal text-white'
-								: 'border-2 border-gray-300'}"
-						>
+					<div class="flex h-10 w-10 items-center justify-center rounded-lg flex-shrink-0 {expandedSection === 'roster'
+						? 'bg-teal/20'
+						: 'bg-gray-100'}">
+						<svg class="h-5 w-5 {expandedSection === 'roster' ? 'text-teal' : 'text-gray-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+						</svg>
+					</div>
+					<div class="flex-1 min-w-0">
+						<div class="flex items-center gap-2">
+							<span class="font-medium {expandedSection === 'roster' ? 'text-teal-dark' : 'text-gray-900'}">
+								Use existing roster
+							</span>
+							<span class="text-sm {expandedSection === 'roster' ? 'text-teal-dark/70' : 'text-gray-500'}">
+								({existingRosters.length} saved)
+							</span>
 							{#if expandedSection === 'roster'}
-								<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="3"
-										d="M5 13l4 4L19 7"
-									/>
+								<svg class="h-5 w-5 text-teal" fill="currentColor" viewBox="0 0 20 20">
+									<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
 								</svg>
 							{/if}
 						</div>
-						<div>
-							<span class="font-medium text-gray-900">Use existing roster</span>
-							<span class="ml-2 text-sm text-gray-500">({existingRosters.length} saved)</span>
-						</div>
+						<p class="mt-0.5 text-sm {expandedSection === 'roster' ? 'text-teal-dark/80' : 'text-gray-500'}">
+							Reuse students from a previous activity
+						</p>
 					</div>
-					<svg
-						class="h-5 w-5 text-gray-400 transition-transform {expandedSection === 'roster'
-							? 'rotate-180'
-							: ''}"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 9l-7 7-7-7"
-						/>
-					</svg>
 				</button>
 
 				{#if expandedSection === 'roster'}
-					<div class="p-4 space-y-2">
-						<p class="text-sm text-gray-600 mb-3">
-							Reuse students from a previous activity without re-entering names.
-						</p>
+					<div class="p-4 space-y-2 border-t border-teal/20">
 						{#each existingRosters as roster (roster.pool.id)}
 							<label
 								class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors
@@ -591,74 +574,76 @@ Bob Jones	bob@school.edu	9"
 
 		<!-- Import from Google Sheets -->
 		{#if userLoggedIn}
-			<div class="rounded-lg border border-gray-200 overflow-hidden">
+			<div class="rounded-xl border-2 overflow-hidden transition-colors {expandedSection === 'sheet'
+				? 'border-teal bg-teal-light/30'
+				: 'border-gray-200 hover:border-gray-300'}">
 				<button
 					type="button"
-					class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors {expandedSection ===
-					'sheet'
-						? 'bg-teal-50 border-b border-teal-200'
-						: 'hover:bg-gray-50'}"
+					role="radio"
+					aria-checked={expandedSection === 'sheet' ? 'true' : 'false'}
+					class="flex w-full items-center gap-4 p-4 text-left"
 					onclick={() => handleSectionToggle('sheet')}
 				>
-					<div class="flex items-center gap-3">
-						<div
-							class="flex h-5 w-5 items-center justify-center rounded-full {expandedSection ===
-							'sheet'
-								? 'bg-teal text-white'
-								: 'border-2 border-gray-300'}"
-						>
+					<div class="flex h-10 w-10 items-center justify-center rounded-lg flex-shrink-0 {expandedSection === 'sheet'
+						? 'bg-teal/20'
+						: 'bg-gray-100'}">
+						<svg class="h-5 w-5 {expandedSection === 'sheet' ? 'text-teal' : 'text-gray-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+						</svg>
+					</div>
+					<div class="flex-1 min-w-0">
+						<div class="flex items-center gap-2">
+							<span class="font-medium {expandedSection === 'sheet' ? 'text-teal-dark' : 'text-gray-900'}">
+								Import from Google Sheets
+							</span>
 							{#if expandedSection === 'sheet'}
-								<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="3"
-										d="M5 13l4 4L19 7"
-									/>
+								<svg class="h-5 w-5 text-teal" fill="currentColor" viewBox="0 0 20 20">
+									<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
 								</svg>
 							{/if}
 						</div>
-						<span class="font-medium text-gray-900">Import from Google Sheets</span>
+						<p class="mt-0.5 text-sm {expandedSection === 'sheet' ? 'text-teal-dark/80' : 'text-gray-500'}">
+							Connect directly to your Google Sheet
+						</p>
 					</div>
-					<svg
-						class="h-5 w-5 text-gray-400 transition-transform {expandedSection === 'sheet'
-							? 'rotate-180'
-							: ''}"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 9l-7 7-7-7"
-						/>
-					</svg>
 				</button>
 
 				{#if expandedSection === 'sheet'}
-					<div class="p-4 space-y-4">
+					<div class="p-4 space-y-4 border-t border-teal/20">
 						{#if hasSheetConnection && sheetConnection}
 							<div
-								class="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3"
+								class="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-3"
 							>
-								<svg
-									class="h-5 w-5 text-green-500"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-									/>
-								</svg>
-								<span class="text-sm font-medium text-green-800">
-									Connected: {sheetConnection.title}
-								</span>
+								<div class="flex items-center gap-2">
+									<svg
+										class="h-5 w-5 text-green-500"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+										/>
+									</svg>
+									<span class="text-sm font-medium text-green-800">
+										Connected: {sheetConnection.title}
+									</span>
+									<span class="text-xs text-green-600">
+										({sheetConnection.tabs.length} tabs)
+									</span>
+								</div>
+								{#if onSheetDisconnect}
+									<button
+										type="button"
+										onclick={onSheetDisconnect}
+										class="text-sm text-green-700 hover:text-green-900"
+									>
+										Disconnect
+									</button>
+								{/if}
 							</div>
 
 							<TabSelector
@@ -775,9 +760,17 @@ Bob Jones	bob@school.edu	9"
 								</div>
 							{/if}
 						{:else}
-							<p class="text-sm text-gray-600">
-								Connect a Google Sheet at the top of the wizard to import students directly.
-							</p>
+							{#if onSheetConnect}
+								<SheetConnector
+									onConnect={onSheetConnect}
+									existingConnection={sheetConnection}
+									allowDisconnect={false}
+								/>
+							{:else}
+								<p class="text-sm text-gray-600">
+									Sheet connection is not available.
+								</p>
+							{/if}
 						{/if}
 					</div>
 				{/if}
