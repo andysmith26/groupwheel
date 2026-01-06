@@ -39,6 +39,8 @@
 		reusedRosterName
 	}: Props = $props();
 
+	let hasEditedName = $state(false);
+
 	// Auto-generate name suggestion based on groups
 	let suggestedName = $derived.by(() => {
 		if (groupConfig.groups.length > 0) {
@@ -58,7 +60,7 @@
 
 	// Set default name if empty on mount
 	$effect(() => {
-		if (!activityName && suggestedName) {
+		if (!activityName && suggestedName && !hasEditedName) {
 			onNameChange(suggestedName);
 		}
 	});
@@ -70,7 +72,10 @@
 			groupConfig.groups.length > 0
 				? groupConfig.groups.length
 				: (groupConfig.targetGroupCount ?? Math.max(1, Math.round(students.length / 5))),
-		hasNamedGroups: groupConfig.groups.length > 0
+		allGroupsNamed:
+			groupConfig.groups.length > 0 &&
+			groupConfig.groups.filter((g) => (g.name ?? '').trim().length > 0).length ===
+				groupConfig.groups.length
 	});
 
 	let sizeSummary = $derived(
@@ -82,20 +87,33 @@
 			.join(' · ')
 	);
 
+	let groupNames = $derived.by(() => {
+		if (groupConfig.groups.length === 0) return [];
+		return groupConfig.groups
+			.map((g) => (g.name ?? '').trim())
+			.filter((name) => name.length > 0);
+	});
+
+	let hasAnyNamedGroups = $derived.by(() => groupNames.length > 0);
+
 	let groupNamesList = $derived.by(() => {
-		if (groupConfig.groups.length === 0) return '';
-		const names = groupConfig.groups.map((g) => g.name).filter((n) => n.trim().length > 0);
-		if (names.length <= 3) {
-			return names.join(', ');
+		if (!hasAnyNamedGroups) return '';
+		if (groupNames.length <= 3) {
+			return groupNames.join(', ');
 		}
-		return `${names.slice(0, 3).join(', ')}... +${names.length - 3} more`;
+		return `${groupNames.slice(0, 3).join(', ')}... +${groupNames.length - 3} more`;
 	});
 
 	// Editing state for inline name editing
 	let isEditingName = $state(false);
+	let draftName = $state('');
+	let previousName = $state('');
 	let nameInputRef = $state<HTMLInputElement | null>(null);
+	let showAllGroupNames = $state(false);
 
 	function startEditingName() {
+		previousName = activityName;
+		draftName = activityName;
 		isEditingName = true;
 		// Focus input after it renders
 		setTimeout(() => {
@@ -104,17 +122,45 @@
 		}, 0);
 	}
 
-	function stopEditingName() {
+	function handleNameInput(e: Event) {
+		hasEditedName = true;
+		draftName = (e.currentTarget as HTMLInputElement).value;
+	}
+
+	function saveName() {
+		onNameChange(draftName.trim());
+		isEditingName = false;
+	}
+
+	function cancelEditingName() {
+		onNameChange(previousName);
+		draftName = previousName;
 		isEditingName = false;
 	}
 
 	function handleNameKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter') {
-			stopEditingName();
+			e.preventDefault();
+			if (draftName.trim()) {
+				saveName();
+			}
 		} else if (e.key === 'Escape') {
-			stopEditingName();
+			e.preventDefault();
+			cancelEditingName();
 		}
 	}
+
+	$effect(() => {
+		if (!isEditingName) {
+			draftName = activityName;
+		}
+	});
+
+	let showNameError = $derived.by(() =>
+		isEditingName ? !draftName.trim() : !activityName.trim()
+	);
+
+	const nameErrorId = 'activity-name-error';
 </script>
 
 <div class="space-y-6">
@@ -127,9 +173,24 @@
 
 	<!-- Prominent Activity Name Section -->
 	<div class="rounded-lg border-2 border-gray-200 bg-white p-4">
-		<label class="block text-sm font-medium text-gray-700 mb-2" for="activity-name" id="activity-name-label">
-			Activity Name
-		</label>
+		<div class="flex items-center justify-between">
+			<label
+				class="block text-sm font-medium text-gray-700 mb-2"
+				for="activity-name"
+				id="activity-name-label"
+			>
+				Activity Name
+			</label>
+			{#if !isEditingName}
+				<button
+					type="button"
+					class="text-sm font-medium text-teal-700 hover:text-teal-900"
+					onclick={startEditingName}
+				>
+					{activityName ? 'Edit' : 'Add name'}
+				</button>
+			{/if}
+		</div>
 
 		{#if isEditingName}
 			<input
@@ -137,40 +198,45 @@
 				id="activity-name"
 				type="text"
 				class="w-full rounded-lg border border-teal px-4 py-3 text-xl font-medium focus:border-teal focus:ring-2 focus:ring-teal/20 focus:outline-none"
-				value={activityName}
-				oninput={(e) => onNameChange(e.currentTarget.value)}
-				onblur={stopEditingName}
+				value={draftName}
+				aria-invalid={showNameError}
+				aria-describedby={showNameError ? nameErrorId : undefined}
+				oninput={handleNameInput}
 				onkeydown={handleNameKeydown}
 				placeholder="Enter activity name..."
 			/>
+			<div class="mt-2 flex items-center gap-2">
+				<button
+					type="button"
+					class="rounded-md bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+					onclick={saveName}
+					disabled={!draftName.trim()}
+				>
+					Save
+				</button>
+				<button
+					type="button"
+					class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+					onclick={cancelEditingName}
+				>
+					Cancel
+				</button>
+			</div>
 		{:else}
-			<button
-				type="button"
+			<div
+				class="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left text-xl font-medium text-gray-900"
 				aria-labelledby="activity-name-label"
-				class="w-full rounded-lg border border-gray-200 px-4 py-3 text-left text-xl font-medium text-gray-900 hover:border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between group"
-				onclick={startEditingName}
 			>
 				<span class={activityName ? '' : 'text-gray-400'}>
-					{activityName || 'Click to add name...'}
+					{activityName || 'No activity name yet'}
 				</span>
-				<svg
-					class="h-5 w-5 text-gray-400 group-hover:text-gray-600"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-					/>
-				</svg>
-			</button>
+			</div>
 		{/if}
 
-		{#if !activityName.trim()}
-			<p class="mt-2 text-sm text-red-600">Activity name is required</p>
+		{#if showNameError}
+			<p class="mt-2 text-sm text-red-600" id={nameErrorId} aria-live="polite">
+				Activity name is required
+			</p>
 		{/if}
 	</div>
 
@@ -219,13 +285,26 @@
 				</span>
 				<div>
 					<div class="font-medium text-gray-900">
-						{stats.groupCount} {stats.hasNamedGroups ? 'named groups' : 'groups'}
+						{stats.groupCount} {stats.allGroupsNamed ? 'named groups' : 'groups'}
 					</div>
 					<div class="text-sm text-gray-500">
-						{#if stats.hasNamedGroups && groupNamesList}
-							{groupNamesList}
+						{#if hasAnyNamedGroups}
+							{#if stats.allGroupsNamed}
+								{showAllGroupNames ? groupNames.join(', ') : groupNamesList}
+							{:else}
+								Named: {showAllGroupNames ? groupNames.join(', ') : groupNamesList}
+							{/if}
+							{#if groupNames.length > 3}
+								<button
+									type="button"
+									class="ml-2 text-xs font-medium text-teal-700 underline hover:text-teal-900"
+									onclick={() => (showAllGroupNames = !showAllGroupNames)}
+								>
+									{showAllGroupNames ? 'Show less' : `View all ${groupNames.length} names`}
+								</button>
+							{/if}
 						{:else}
-							{sizeSummary ? `${sizeSummary}, ` : ''}Auto-balanced distribution
+							{sizeSummary ? `${sizeSummary}, ` : ''}Random distribution
 						{/if}
 					</div>
 				</div>
@@ -235,7 +314,7 @@
 		<!-- Info about preferences -->
 		<div class="mt-4 pt-3 border-t border-gray-200">
 			<p class="text-xs text-gray-500">
-				Groups will be assigned randomly. After creating, you can import student preferences from Setup for smarter placement.
+				Groups will be assigned randomly. After creating, you can import student preferences from Setup to refine placement.
 			</p>
 		</div>
 	</div>

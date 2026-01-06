@@ -75,6 +75,9 @@ export interface CreateGroupingActivityInput {
 
 	/** Owner staff ID */
 	ownerStaffId: string;
+
+	/** ID of the authenticated user (for multi-tenant data isolation) */
+	userId?: string;
 }
 
 // =============================================================================
@@ -148,7 +151,12 @@ export async function createGroupingActivity(
 				message: `Pool not found: ${input.existingPoolId}`
 			});
 		}
-		pool = existingPool;
+		if (input.userId && !existingPool.userId) {
+			pool = { ...existingPool, userId: input.userId };
+			await deps.poolRepo.update(pool);
+		} else {
+			pool = existingPool;
+		}
 		students = await deps.studentRepo.getByIds(pool.memberIds);
 	} else {
 		// Creating new roster from parsed students
@@ -181,7 +189,8 @@ export async function createGroupingActivity(
 			memberIds: students.map((s) => s.id),
 			status: 'ACTIVE' as const,
 			primaryStaffOwnerId: input.ownerStaffId,
-			source: 'IMPORT' as const
+			source: 'IMPORT' as const,
+			userId: input.userId
 		};
 
 		await deps.poolRepo.save(pool);
@@ -199,7 +208,8 @@ export async function createGroupingActivity(
 		timeSpan: { termLabel: new Date().toLocaleDateString() },
 		poolIds: [pool.id],
 		primaryPoolId: pool.id,
-		ownerStaffIds: [input.ownerStaffId]
+		ownerStaffIds: [input.ownerStaffId],
+		userId: input.userId
 	};
 
 	await deps.programRepo.save(program);

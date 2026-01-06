@@ -140,6 +140,23 @@ function getCurrentUserId(env: InMemoryEnvironment): string | undefined {
 	return user?.id;
 }
 
+async function claimAnonymousActivities(env: InMemoryEnvironment, userId: string): Promise<void> {
+	const [programs, pools] = await Promise.all([
+		env.programRepo.listAll(),
+		env.poolRepo.listAll()
+	]);
+	const programsToClaim = programs.filter((program) => program.userId === undefined);
+	const poolsToClaim = pools.filter((pool) => pool.userId === undefined);
+	if (programsToClaim.length === 0 && poolsToClaim.length === 0) return;
+
+	await Promise.all([
+		...programsToClaim.map((program) =>
+			env.programRepo.update({ ...program, userId })
+		),
+		...poolsToClaim.map((pool) => env.poolRepo.update({ ...pool, userId }))
+	]);
+}
+
 export async function importPool(
 	env: InMemoryEnvironment,
 	input: ImportPoolFromCsvInput
@@ -247,6 +264,7 @@ export async function createGroupingActivity(
 	env: InMemoryEnvironment,
 	input: CreateGroupingActivityInput
 ): Promise<Result<CreateGroupingActivityResult, CreateGroupingActivityError>> {
+	const userId = input.userId ?? getCurrentUserId(env);
 	return createGroupingActivityUseCase(
 		{
 			poolRepo: env.poolRepo,
@@ -256,7 +274,7 @@ export async function createGroupingActivity(
 			idGenerator: env.idGenerator,
 			clock: env.clock
 		},
-		input
+		{ ...input, userId }
 	);
 }
 
@@ -476,6 +494,13 @@ export async function listActivities(
 	Result<ActivityDisplay[], import('$lib/application/useCases/listActivities').ListActivitiesError>
 > {
 	const userId = getCurrentUserId(env);
+	if (userId) {
+		try {
+			await claimAnonymousActivities(env, userId);
+		} catch {
+			// Claiming legacy anonymous data is best-effort; listing can still proceed.
+		}
+	}
 	return listActivitiesUseCase(
 		{
 			programRepo: env.programRepo,
