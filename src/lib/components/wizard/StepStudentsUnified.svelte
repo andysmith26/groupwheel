@@ -58,6 +58,7 @@
 	let parseError = $state('');
 	let showFormatHelp = $state(false);
 	let showSampleMenu = $state(false);
+	let rosterQuery = $state('');
 
 	// Sheet import state
 	let selectedTab = $state<SheetTab | null>(null);
@@ -68,6 +69,18 @@
 	// Derived
 	let hasSheetConnection = $derived(sheetConnection !== null);
 	let hasExistingRosters = $derived(existingRosters.length > 0);
+	let hasRosterQuery = $derived.by(() => rosterQuery.trim().length > 0);
+	const RECENT_ROSTER_COUNT = 3;
+	let recentRosters = $derived.by(() => existingRosters.slice(0, RECENT_ROSTER_COUNT));
+	let otherRosters = $derived.by(() => existingRosters.slice(RECENT_ROSTER_COUNT));
+	let filteredRosters = $derived.by(() => {
+		const query = rosterQuery.trim().toLowerCase();
+		if (!query) return existingRosters;
+		return existingRosters.filter((roster) => {
+			const haystack = `${roster.activityName} ${roster.pool.name ?? ''}`.toLowerCase();
+			return haystack.includes(query);
+		});
+	});
 
 	// Field options for column mapping dropdown
 	const fieldOptions: { value: StudentField; label: string }[] = [
@@ -129,6 +142,9 @@
 
 	function handleSectionToggle(section: ImportSource) {
 		expandedSection = section;
+		if (section !== 'roster') {
+			rosterQuery = '';
+		}
 		// Reset state when switching sections
 		if (section === 'paste') {
 			onRosterSelect(null);
@@ -537,36 +553,138 @@ Bob Jones	bob@school.edu	9"
 				</button>
 
 				{#if expandedSection === 'roster'}
-					<div class="p-4 space-y-2 border-t border-teal/20">
-						{#each existingRosters as roster (roster.pool.id)}
-							<label
-								class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors
-									{selectedRosterId === roster.pool.id
-									? 'border-teal bg-teal-light ring-1 ring-teal'
-									: 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}"
-							>
-								<input
-									type="radio"
-									name="roster-choice"
-									checked={selectedRosterId === roster.pool.id}
-									onchange={() => handleRosterSelect(roster.pool.id)}
-									class="mt-0.5 h-4 w-4 text-teal accent-teal"
-								/>
-								<div class="flex-1">
-									<div class="flex items-center justify-between">
-										<span class="font-medium text-gray-900">
-											{roster.activityName}
-										</span>
-										<span class="text-xs text-gray-500">
-											{formatRelativeTime(roster.lastUsed)}
-										</span>
-									</div>
-									<p class="mt-0.5 text-sm text-gray-600">
-										{roster.studentCount} students
-									</p>
-								</div>
+					<div class="p-4 space-y-3 border-t border-teal/20">
+						<div>
+							<label class="block text-sm font-medium text-gray-700" for="roster-search">
+								Search rosters
 							</label>
-						{/each}
+							<input
+								id="roster-search"
+								type="text"
+								class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
+								placeholder="Search by activity or roster name"
+								bind:value={rosterQuery}
+							/>
+						</div>
+
+						<div class="max-h-72 overflow-y-auto space-y-3 pr-1">
+							{#if hasRosterQuery}
+								{#if filteredRosters.length === 0}
+									<p class="text-sm text-gray-500">
+										No rosters match "{rosterQuery}"
+									</p>
+								{:else}
+									<div class="space-y-2">
+										<p class="text-xs font-medium uppercase tracking-wide text-gray-500">
+											Results
+										</p>
+										{#each filteredRosters as roster (roster.pool.id)}
+											<label
+												class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors
+													{selectedRosterId === roster.pool.id
+													? 'border-teal bg-teal-light ring-1 ring-teal'
+													: 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}"
+											>
+												<input
+													type="radio"
+													name="roster-choice"
+													checked={selectedRosterId === roster.pool.id}
+													onchange={() => handleRosterSelect(roster.pool.id)}
+													class="mt-0.5 h-4 w-4 text-teal accent-teal"
+												/>
+												<div class="flex-1">
+													<div class="flex items-center justify-between">
+														<span class="font-medium text-gray-900">
+															{roster.activityName}
+														</span>
+														<span class="text-xs text-gray-500">
+															{formatRelativeTime(roster.lastUsed)}
+														</span>
+													</div>
+													<p class="mt-0.5 text-sm text-gray-600">
+														{roster.studentCount} students
+													</p>
+												</div>
+											</label>
+										{/each}
+									</div>
+								{/if}
+							{:else}
+								{#if recentRosters.length > 0}
+									<div class="space-y-2">
+										<p class="text-xs font-medium uppercase tracking-wide text-gray-500">
+											Recent
+										</p>
+										{#each recentRosters as roster (roster.pool.id)}
+											<label
+												class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors
+													{selectedRosterId === roster.pool.id
+													? 'border-teal bg-teal-light ring-1 ring-teal'
+													: 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}"
+											>
+												<input
+													type="radio"
+													name="roster-choice"
+													checked={selectedRosterId === roster.pool.id}
+													onchange={() => handleRosterSelect(roster.pool.id)}
+													class="mt-0.5 h-4 w-4 text-teal accent-teal"
+												/>
+												<div class="flex-1">
+													<div class="flex items-center justify-between">
+														<span class="font-medium text-gray-900">
+															{roster.activityName}
+														</span>
+														<span class="text-xs text-gray-500">
+															{formatRelativeTime(roster.lastUsed)}
+														</span>
+													</div>
+													<p class="mt-0.5 text-sm text-gray-600">
+														{roster.studentCount} students
+													</p>
+												</div>
+											</label>
+										{/each}
+									</div>
+								{/if}
+
+								{#if otherRosters.length > 0}
+									<div class="space-y-2">
+										<p class="text-xs font-medium uppercase tracking-wide text-gray-500">
+											All rosters
+										</p>
+										{#each otherRosters as roster (roster.pool.id)}
+											<label
+												class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors
+													{selectedRosterId === roster.pool.id
+													? 'border-teal bg-teal-light ring-1 ring-teal'
+													: 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}"
+											>
+												<input
+													type="radio"
+													name="roster-choice"
+													checked={selectedRosterId === roster.pool.id}
+													onchange={() => handleRosterSelect(roster.pool.id)}
+													class="mt-0.5 h-4 w-4 text-teal accent-teal"
+												/>
+												<div class="flex-1">
+													<div class="flex items-center justify-between">
+														<span class="font-medium text-gray-900">
+															{roster.activityName}
+														</span>
+														<span class="text-xs text-gray-500">
+															{formatRelativeTime(roster.lastUsed)}
+														</span>
+													</div>
+													<p class="mt-0.5 text-sm text-gray-600">
+														{roster.studentCount} students
+													</p>
+												</div>
+											</label>
+										{/each}
+									</div>
+								{/if}
+							{/if}
+						</div>
 					</div>
 				{/if}
 			</div>

@@ -389,13 +389,26 @@
 	let reusedRosterName = $derived(
 		existingRosters.find((r) => r.pool.id === selectedRosterId)?.activityName
 	);
+
+	let continueHelper = $derived.by(() => {
+		if (canProceed()) return '';
+		switch (activeStepType) {
+			case 'students':
+				return 'Add at least one student or select a roster to continue.';
+			case 'groups':
+				return 'Complete your group setup to continue.';
+			case 'review':
+				return 'Enter an activity name to create groups.';
+		}
+		return '';
+	});
 </script>
 
 <svelte:head>
 	<title>Create Activity | Groupwheel</title>
 </svelte:head>
 
-<div class="mx-auto max-w-2xl p-4">
+<div class="mx-auto flex min-h-screen max-w-2xl flex-col px-4 pt-4">
 	<!-- Header -->
 	<header class="mb-6">
 		<h1 class="text-2xl font-semibold text-gray-900">Create Activity</h1>
@@ -408,112 +421,123 @@
 		</div>
 	{/if}
 
-	<!-- Step content -->
-	<div class="mb-8">
-		{#if loadingRosters}
-			<div class="flex items-center justify-center py-12">
-				<p class="text-gray-500">Loading...</p>
+	<div class="flex-1 pb-28">
+		<!-- Step content -->
+		<div class="mb-8">
+			{#if loadingRosters}
+				<div class="flex items-center justify-center py-12">
+					<p class="text-gray-500">Loading...</p>
+				</div>
+			{:else if activeStepType === 'students'}
+				<StepStudentsUnified
+					{students}
+					{selectedRosterId}
+					{existingRosters}
+					{sheetConnection}
+					{userLoggedIn}
+					onStudentsParsed={handleStudentsParsed}
+					onRosterSelect={handleRosterSelect}
+					onSheetConnect={handleSheetConnect}
+					onSheetDisconnect={handleSheetDisconnect}
+				/>
+			{:else if activeStepType === 'groups'}
+				<StepGroupsUnified
+					mode={groupCreationMode}
+					shellGroups={groupCreationGroups}
+					sizeConfig={{ min: groupConfig.minSize, max: groupConfig.maxSize }}
+					templates={groupTemplates}
+					{selectedTemplateId}
+					{sheetConnection}
+					onModeChange={handleUnifiedModeChange}
+					onShellGroupsChange={handleUnifiedShellGroupsChange}
+					onSizeConfigChange={handleUnifiedSizeConfigChange}
+					onValidityChange={handleUnifiedValidityChange}
+					onTemplateSelect={handleTemplateSelect}
+				/>
+			{:else if activeStepType === 'review'}
+				<StepReviewGenerate
+					{activityName}
+					onNameChange={handleNameChange}
+					{students}
+					{groupConfig}
+					{isReusingRoster}
+					{reusedRosterName}
+				/>
+			{/if}
+		</div>
+
+		<!-- Error display -->
+		{#if submitError}
+			<div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-3">
+				<p class="text-sm text-red-700">{submitError}</p>
 			</div>
-		{:else if activeStepType === 'students'}
-			<StepStudentsUnified
-				{students}
-				{selectedRosterId}
-				{existingRosters}
-				{sheetConnection}
-				{userLoggedIn}
-				onStudentsParsed={handleStudentsParsed}
-				onRosterSelect={handleRosterSelect}
-				onSheetConnect={handleSheetConnect}
-				onSheetDisconnect={handleSheetDisconnect}
-			/>
-		{:else if activeStepType === 'groups'}
-			<StepGroupsUnified
-				mode={groupCreationMode}
-				shellGroups={groupCreationGroups}
-				sizeConfig={{ min: groupConfig.minSize, max: groupConfig.maxSize }}
-				templates={groupTemplates}
-				{selectedTemplateId}
-				{sheetConnection}
-				onModeChange={handleUnifiedModeChange}
-				onShellGroupsChange={handleUnifiedShellGroupsChange}
-				onSizeConfigChange={handleUnifiedSizeConfigChange}
-				onValidityChange={handleUnifiedValidityChange}
-				onTemplateSelect={handleTemplateSelect}
-			/>
-		{:else if activeStepType === 'review'}
-			<StepReviewGenerate
-				{activityName}
-				onNameChange={handleNameChange}
-				{students}
-				{groupConfig}
-				{isReusingRoster}
-				{reusedRosterName}
-			/>
 		{/if}
 	</div>
 
-	<!-- Error display -->
-	{#if submitError}
-		<div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-3">
-			<p class="text-sm text-red-700">{submitError}</p>
-		</div>
-	{/if}
-
 	<!-- Unified navigation footer -->
 	{#if !loadingRosters}
-		<div class="flex items-center justify-between border-t border-gray-200 pt-6">
-			<!-- Left side: Cancel + Back -->
-			<div class="flex items-center gap-3">
-				<button
-					type="button"
-					class="rounded-md px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-					onclick={handleCancel}
-				>
-					Cancel
-				</button>
-				{#if !isFirstStep}
+		<div
+			class="sticky bottom-0 z-10 -mx-4 border-t border-gray-200/70 bg-white px-4 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]"
+		>
+			<div class="flex items-center justify-between">
+				<!-- Left side: Cancel + Back -->
+				<div class="flex items-center gap-3">
 					<button
 						type="button"
-						class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-						onclick={prevStep}
+						class="rounded-md px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+						onclick={handleCancel}
 					>
-						← Back
+						Cancel
 					</button>
-				{/if}
-			</div>
+					{#if !isFirstStep}
+						<button
+							type="button"
+							class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+							onclick={prevStep}
+						>
+							← Back
+						</button>
+					{/if}
+				</div>
 
-			<!-- Right side: Continue or Create Groups -->
-			<div class="flex items-center gap-3">
-				{#if activeStepType === 'review'}
-					<button
-						type="button"
-						class="flex items-center gap-2 rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
-						disabled={!canProceed() || isSubmitting}
-						onclick={handleSubmit}
-					>
-						{#if isSubmitting}
-							<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-							</svg>
-							Creating...
+				<!-- Right side: Continue or Create Groups -->
+				<div class="flex flex-col items-end gap-1">
+					<div class="flex items-center gap-3">
+						{#if activeStepType === 'review'}
+							<button
+								type="button"
+								class="flex items-center gap-2 rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
+								disabled={!canProceed() || isSubmitting}
+								onclick={handleSubmit}
+							>
+								{#if isSubmitting}
+									<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+									</svg>
+									Creating...
+								{:else}
+									<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+									</svg>
+									Create Groups
+								{/if}
+							</button>
 						{:else}
-							<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-							</svg>
-							Create Groups
+							<button
+								type="button"
+								class="rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
+								disabled={!canProceed()}
+								onclick={nextStep}
+							>
+								Continue →
+							</button>
 						{/if}
-					</button>
-				{:else}
-					<button
-						type="button"
-						class="rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
-						disabled={!canProceed()}
-						onclick={nextStep}
-					>
-						Continue →
-					</button>
-				{/if}
+					</div>
+					{#if continueHelper}
+						<p class="text-[11px] leading-tight text-gray-500">{continueHelper}</p>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/if}
