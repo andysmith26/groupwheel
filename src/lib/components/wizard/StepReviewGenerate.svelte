@@ -138,7 +138,7 @@
 
 	<!-- Prominent Activity Name Section -->
 	<div class="rounded-lg border-2 border-gray-200 bg-white p-4">
-		<label class="block text-sm font-medium text-gray-700 mb-2" for="activity-name">
+		<label class="block text-sm font-medium text-gray-700 mb-2" for="activity-name" id="activity-name-label">
 			Activity Name
 		</label>
 
@@ -157,6 +157,7 @@
 		{:else}
 			<button
 				type="button"
+				aria-labelledby="activity-name-label"
 				class="w-full rounded-lg border border-gray-200 px-4 py-3 text-left text-xl font-medium text-gray-900 hover:border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between group"
 				onclick={startEditingName}
 			>

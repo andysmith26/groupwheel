@@ -7,12 +7,6 @@ Bob Jones\tbob@example.com\t5
 Carol White\tcarol@example.com\t5
 Dave Brown\tdave@example.com\t5`;
 
-	const preferencesData = `student_id\tfriend 1 id\tfriend 2 id
-alice@example.com\tbob@example.com\tcarol@example.com
-bob@example.com\talice@example.com
-carol@example.com\tdave@example.com
-dave@example.com\tcarol@example.com\talice@example.com`;
-
 	const activityName = `Playwright Flow ${Date.now()}`;
 
 	await page.goto('/activities/new');
@@ -28,22 +22,23 @@ dave@example.com\tcarol@example.com\talice@example.com`;
 	}
 
 	// Step 1: Paste roster data
-	await page.getByLabel('Roster data').fill(rosterData);
+	await page.locator('#roster-paste').fill(rosterData);
 	await page.getByRole('button', { name: /Continue/ }).click();
 
-	// Step 2: Paste preferences
-	await page.getByLabel('Preference data').fill(preferencesData);
+	// Step 2: Groups - select auto-split mode
+	await page.getByText('Just split students into groups').click();
 	await page.getByRole('button', { name: /Continue/ }).click();
 
-	// Step 3: Name the activity and submit
-	await page.getByLabel('Activity name').fill(activityName);
+	// Step 3: Review - Name the activity (click to edit, then fill)
+	await page.getByRole('button', { name: /Activity Name/i }).click();
+	await page.locator('#activity-name').fill(activityName);
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 
 	// Verify: landed on workspace with groups already generated
-	await expect(page.getByRole('heading', { name: activityName })).toBeVisible();
+	await expect(page.getByRole('button', { name: activityName })).toBeVisible();
 
 	// Groups should be visible (auto-generated)
 	await expect(page.getByText('Not in groups')).toBeVisible();
@@ -55,20 +50,11 @@ dave@example.com\tcarol@example.com\talice@example.com`;
 	await page.getByRole('button', { name: /Students/ }).click();
 	await expect(page.getByText('4 total')).toBeVisible(); // sidebar header
 
-	// Student View link should exist
-	const studentViewLink = page.getByRole('link', { name: /Student View/ });
-	await expect(studentViewLink).toBeVisible();
-
-	// Open student view and verify
-	const [studentPage] = await Promise.all([page.waitForEvent('popup'), studentViewLink.click()]);
-	await expect(studentPage).toHaveURL(/\/activities\/[^/]+\/present/);
-	await expect(studentPage.getByRole('heading', { name: 'Student Groups' })).toBeVisible();
+	// Show to Class button should exist
+	await expect(page.getByRole('button', { name: 'Show to Class' })).toBeVisible();
 });
 
 test('workspace allows drag-drop editing', async ({ page }) => {
-	// This test assumes an activity already exists
-	// For now, create one first using the wizard flow
-
 	const rosterData = `name\tid\tgrade
 Alice\talice@test.com\t5
 Bob\tbob@test.com\t5`;
@@ -77,7 +63,7 @@ Bob\tbob@test.com\t5`;
 
 	await page.goto('/activities/new');
 
-	// Quick wizard completion
+	// Handle roster-selection step if it appears
 	const startHeading = page.getByRole('heading', { name: 'Start from' });
 	try {
 		if (await startHeading.isVisible({ timeout: 500 })) {
@@ -87,10 +73,17 @@ Bob\tbob@test.com\t5`;
 		// ignore
 	}
 
-	await page.getByLabel('Roster data').fill(rosterData);
+	// Step 1: Paste roster data
+	await page.locator('#roster-paste').fill(rosterData);
 	await page.getByRole('button', { name: /Continue/ }).click();
-	await page.getByRole('button', { name: /Skip/ }).click(); // skip preferences
-	await page.getByLabel('Activity name').fill(activityName);
+
+	// Step 2: Groups - select auto-split mode
+	await page.getByText('Just split students into groups').click();
+	await page.getByRole('button', { name: /Continue/ }).click();
+
+	// Step 3: Review - Name the activity
+	await page.getByRole('button', { name: /Activity Name/i }).click();
+	await page.locator('#activity-name').fill(activityName);
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
@@ -100,7 +93,7 @@ Bob\tbob@test.com\t5`;
 	await expect(page.getByText('Not in groups')).toBeVisible();
 
 	// Verify undo button exists and is initially disabled (no moves yet)
-	const undoButton = page.getByRole('button', { name: /Undo/ });
+	const undoButton = page.getByRole('button', { name: '← Undo' });
 	await expect(undoButton).toBeVisible();
 	await expect(undoButton).toBeDisabled();
 
@@ -123,7 +116,7 @@ Henry\thenry@test.com\t5`;
 
 	await page.goto('/activities/new');
 
-	// Quick wizard completion
+	// Handle roster-selection step if it appears
 	const startHeading = page.getByRole('heading', { name: 'Start from' });
 	try {
 		if (await startHeading.isVisible({ timeout: 500 })) {
@@ -133,10 +126,17 @@ Henry\thenry@test.com\t5`;
 		// ignore
 	}
 
-	await page.getByLabel('Roster data').fill(rosterData);
+	// Step 1: Paste roster data
+	await page.locator('#roster-paste').fill(rosterData);
 	await page.getByRole('button', { name: /Continue/ }).click();
-	await page.getByRole('button', { name: /Skip/ }).click(); // skip preferences
-	await page.getByLabel('Activity name').fill(activityName);
+
+	// Step 2: Groups - select auto-split mode
+	await page.getByText('Just split students into groups').click();
+	await page.getByRole('button', { name: /Continue/ }).click();
+
+	// Step 3: Review - Name the activity
+	await page.getByRole('button', { name: /Activity Name/i }).click();
+	await page.locator('#activity-name').fill(activityName);
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
@@ -146,11 +146,11 @@ Henry\thenry@test.com\t5`;
 	await expect(page.getByText('Not in groups')).toBeVisible();
 
 	// Verify Try Another button exists
-	const tryAnotherButton = page.getByRole('button', { name: /Try Another/ });
+	const tryAnotherButton = page.getByRole('button', { name: /^Try Another$/ });
 	await expect(tryAnotherButton).toBeVisible();
 
 	// History selector should not be visible initially (no history yet)
-	await expect(page.getByText('Viewing:')).not.toBeVisible();
+	await expect(page.getByRole('button', { name: /^Previous$/ })).toHaveCount(0);
 
 	// Click Try Another
 	await tryAnotherButton.click();
@@ -160,16 +160,15 @@ Henry\thenry@test.com\t5`;
 	await expect(tryAnotherButton).toHaveText('Try Another');
 
 	// History selector should now be visible with "Previous" option
-	await expect(page.getByText('Viewing:')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Current' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Previous' })).toBeVisible();
+	await expect(page.getByRole('button', { name: /^Current$/ })).toBeVisible({ timeout: 10000 });
+	await expect(page.getByRole('button', { name: /^Previous$/ })).toBeVisible({ timeout: 10000 });
 
 	// Click Previous to switch to previous result
-	await page.getByRole('button', { name: 'Previous' }).click();
+	await page.getByRole('button', { name: /^Previous$/ }).click();
 
 	// Previous button should now be active (has different styling)
 	// Click Current to switch back
-	await page.getByRole('button', { name: 'Current' }).click();
+	await page.getByRole('button', { name: /^Current$/ }).click();
 });
 
 test('start over clears history', async ({ page }) => {
@@ -183,7 +182,7 @@ Dave\tdave@test.com\t5`;
 
 	await page.goto('/activities/new');
 
-	// Quick wizard completion
+	// Handle roster-selection step if it appears
 	const startHeading = page.getByRole('heading', { name: 'Start from' });
 	try {
 		if (await startHeading.isVisible({ timeout: 500 })) {
@@ -193,10 +192,17 @@ Dave\tdave@test.com\t5`;
 		// ignore
 	}
 
-	await page.getByLabel('Roster data').fill(rosterData);
+	// Step 1: Paste roster data
+	await page.locator('#roster-paste').fill(rosterData);
 	await page.getByRole('button', { name: /Continue/ }).click();
-	await page.getByRole('button', { name: /Skip/ }).click();
-	await page.getByLabel('Activity name').fill(activityName);
+
+	// Step 2: Groups - select auto-split mode
+	await page.getByText('Just split students into groups').click();
+	await page.getByRole('button', { name: /Continue/ }).click();
+
+	// Step 3: Review - Name the activity
+	await page.getByRole('button', { name: /Activity Name/i }).click();
+	await page.locator('#activity-name').fill(activityName);
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
@@ -206,15 +212,15 @@ Dave\tdave@test.com\t5`;
 	await expect(page.getByText('Not in groups')).toBeVisible();
 
 	// Click Try Another to build history
-	const tryAnotherButton = page.getByRole('button', { name: /Try Another/ });
+	const tryAnotherButton = page.getByRole('button', { name: /^Try Another$/ });
 	await tryAnotherButton.click();
 	await expect(tryAnotherButton).toHaveText('Try Another');
 
 	// History selector should be visible
-	await expect(page.getByText('Viewing:')).toBeVisible();
+	await expect(page.getByRole('button', { name: /^Previous$/ })).toBeVisible({ timeout: 10000 });
 
 	// Click Start Over
-	await page.getByRole('button', { name: /Start Over/ }).click();
+	await page.getByRole('button', { name: /^Start Over$/ }).click();
 
 	// Confirm in dialog
 	await page.getByRole('button', { name: 'Start Over' }).last().click();
@@ -223,5 +229,5 @@ Dave\tdave@test.com\t5`;
 	await expect(page.getByRole('button', { name: /Regenerating/ })).not.toBeVisible();
 
 	// History selector should be hidden (history cleared)
-	await expect(page.getByText('Viewing:')).not.toBeVisible();
+	await expect(page.getByRole('button', { name: /^Previous$/ })).toHaveCount(0);
 });

@@ -51,6 +51,7 @@
 		exportToTSV,
 		exportGroupsToCSV
 	} from '$lib/utils/csvExport';
+	import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -434,8 +435,16 @@
 	async function handleTryAnother() {
 		if (!env || !scenario || !editingStore) return;
 
-		const currentGroups = view?.groups ?? [];
-		const currentAnalytics = view?.currentAnalytics;
+		const currentGroups = view?.groups ?? scenario.groups ?? [];
+		let currentAnalytics = view?.currentAnalytics ?? view?.baseline;
+		if (!currentAnalytics && scenario) {
+			currentAnalytics = computeAnalyticsSync({
+				groups: currentGroups,
+				preferences,
+				participantSnapshot: scenario.participantSnapshot,
+				programId: scenario.programId
+			});
+		}
 		if (currentHistoryIndex === -1 && currentGroups.length > 0 && currentAnalytics) {
 			addToHistory(currentGroups, currentAnalytics);
 		}

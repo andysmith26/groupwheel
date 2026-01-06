@@ -26,6 +26,12 @@
 	let isAuthenticated = $state(false);
 
 	if (browser) {
+		// Catch unhandled promise rejections to prevent silent failures
+		window.addEventListener('unhandledrejection', (event) => {
+			console.error('Unhandled promise rejection:', event.reason);
+			event.preventDefault();
+		});
+
 		authAdapter = getBrowserAuthAdapter({
 			navigate: goto,
 			clientId: publicEnv.PUBLIC_GOOGLE_CLIENT_ID
