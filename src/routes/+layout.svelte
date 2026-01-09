@@ -124,6 +124,18 @@
 					>
 						Activities
 					</a>
+					<a
+						href="/track-responses"
+						class="rounded-md px-3 py-2 text-sm font-medium transition-colors {isActiveLink(
+							$page.url.pathname,
+							'/track-responses'
+						)
+							? 'bg-teal/10 text-teal'
+							: 'text-gray-700 hover:bg-gray-100 hover:text-coral'}"
+						aria-current={isActiveLink($page.url.pathname, '/track-responses') ? 'page' : undefined}
+					>
+						Track Responses
+					</a>
 
 					<div class="flex items-center gap-3 border-l pl-4">
 						{#if browser}
