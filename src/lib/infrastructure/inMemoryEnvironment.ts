@@ -90,6 +90,8 @@ export interface InMemoryEnvironment {
 	groupingAlgorithm: GroupingAlgorithm;
 	authService?: AuthService;
 	syncService?: SyncService;
+	/** Google Sheets sync service (alternative to server sync) */
+	sheetsSyncService?: SyncService;
 	clipboard?: ClipboardPort;
 	sheetsService?: GoogleSheetsService;
 }
@@ -116,6 +118,12 @@ export interface CreateEnvironmentOptions {
 	 * When provided, repositories will queue changes for server sync.
 	 */
 	syncService?: SyncService;
+
+	/**
+	 * Google Sheets sync service (alternative to server sync).
+	 * When provided, enables syncing data to a user-selected Google Sheet.
+	 */
+	sheetsSyncService?: SyncService;
 
 	/**
 	 * Clipboard service for copy operations.
@@ -273,6 +281,7 @@ export function createInMemoryEnvironment(
 		groupingAlgorithm,
 		authService,
 		syncService,
+		sheetsSyncService: options?.sheetsSyncService,
 		clipboard: options?.clipboard,
 		sheetsService: options?.sheetsService
 	};

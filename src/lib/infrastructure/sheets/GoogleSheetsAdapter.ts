@@ -2,7 +2,7 @@
  * Google Sheets API Adapter
  *
  * Implements GoogleSheetsService using the Google Sheets API v4.
- * Requires an authenticated user with spreadsheets.readonly scope.
+ * Requires an authenticated user with spreadsheets scope (full access for read/write).
  *
  * @module infrastructure/sheets/GoogleSheetsAdapter
  */
@@ -11,6 +11,7 @@ import type {
 	GoogleSheetsService,
 	SheetMetadata,
 	SheetTab,
+	SheetWriteData,
 	GoogleSheetsError
 } from '$lib/application/ports/GoogleSheetsService';
 import type { AuthService } from '$lib/application/ports/AuthService';
@@ -159,6 +160,124 @@ export class GoogleSheetsAdapter implements GoogleSheetsService {
 			rows
 		};
 	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Write Operations
+	// ─────────────────────────────────────────────────────────────────────────
+
+	/**
+	 * Write data to a tab, replacing all existing content.
+	 */
+	async updateTabData(
+		spreadsheetId: string,
+		tabTitle: string,
+		data: SheetWriteData
+	): Promise<void> {
+		const token = await this.getToken();
+
+		// First clear the tab to remove any stale data
+		await this.clearTab(spreadsheetId, tabTitle);
+
+		// If no data to write, we're done
+		if (data.rows.length === 0) {
+			return;
+		}
+
+		// Write the new data
+		const range = encodeURIComponent(tabTitle);
+		const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
+
+		const response = await fetch(url, {
+			method: 'PUT',
+			headers: {
+				Authorization: `Bearer ${token}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				range: tabTitle,
+				majorDimension: 'ROWS',
+				values: data.rows
+			})
+		});
+
+		if (!response.ok) {
+			throw await this.handleApiError(response);
+		}
+	}
+
+	/**
+	 * Clear all data from a tab.
+	 */
+	async clearTab(spreadsheetId: string, tabTitle: string): Promise<void> {
+		const token = await this.getToken();
+
+		const range = encodeURIComponent(tabTitle);
+		const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}:clear`;
+
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${token}`,
+				'Content-Type': 'application/json'
+			},
+			body: '{}'
+		});
+
+		if (!response.ok) {
+			throw await this.handleApiError(response);
+		}
+	}
+
+	/**
+	 * Create a new tab in the spreadsheet.
+	 */
+	async createTab(spreadsheetId: string, tabTitle: string): Promise<void> {
+		const token = await this.getToken();
+
+		const url = `${SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`;
+
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${token}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				requests: [
+					{
+						addSheet: {
+							properties: {
+								title: tabTitle
+							}
+						}
+					}
+				]
+			})
+		});
+
+		if (!response.ok) {
+			throw await this.handleApiError(response);
+		}
+	}
+
+	/**
+	 * Ensure a tab exists, creating it if necessary.
+	 */
+	async ensureTab(spreadsheetId: string, tabTitle: string): Promise<boolean> {
+		const metadata = await this.getSheetMetadata(spreadsheetId);
+		const tabExists = metadata.tabs.some((tab) => tab.title === tabTitle);
+
+		if (!tabExists) {
+			await this.createTab(spreadsheetId, tabTitle);
+			return true;
+		}
+
+		return false;
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Private helpers
+	// ─────────────────────────────────────────────────────────────────────────
 
 	/**
 	 * Get the auth token, throwing if not authenticated.

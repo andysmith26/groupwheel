@@ -45,9 +45,18 @@ export type GoogleSheetsError =
 	| { type: 'API_ERROR'; message: string; statusCode?: number };
 
 /**
+ * Data to write to a sheet tab.
+ * First row should be headers, subsequent rows are data.
+ */
+export interface SheetWriteData {
+	/** All rows to write (including header row) */
+	rows: string[][];
+}
+
+/**
  * Google Sheets service interface.
  *
- * Provides methods for fetching spreadsheet metadata and tab data.
+ * Provides methods for reading and writing spreadsheet data.
  * Requires the user to be authenticated with Google Sheets scope.
  */
 export interface GoogleSheetsService {
@@ -77,4 +86,46 @@ export interface GoogleSheetsService {
 	 * @returns Spreadsheet ID, or null if URL is invalid
 	 */
 	parseSpreadsheetUrl(url: string): string | null;
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Write Operations (for sync)
+	// ─────────────────────────────────────────────────────────────────────────
+
+	/**
+	 * Write data to a tab, replacing all existing content.
+	 *
+	 * @param spreadsheetId The spreadsheet ID
+	 * @param tabTitle The tab's title (sheet name)
+	 * @param data The data to write (rows including header)
+	 * @throws GoogleSheetsError on failure
+	 */
+	updateTabData(spreadsheetId: string, tabTitle: string, data: SheetWriteData): Promise<void>;
+
+	/**
+	 * Clear all data from a tab.
+	 *
+	 * @param spreadsheetId The spreadsheet ID
+	 * @param tabTitle The tab's title (sheet name)
+	 * @throws GoogleSheetsError on failure
+	 */
+	clearTab(spreadsheetId: string, tabTitle: string): Promise<void>;
+
+	/**
+	 * Create a new tab in the spreadsheet.
+	 *
+	 * @param spreadsheetId The spreadsheet ID
+	 * @param tabTitle The title for the new tab
+	 * @throws GoogleSheetsError on failure (including if tab already exists)
+	 */
+	createTab(spreadsheetId: string, tabTitle: string): Promise<void>;
+
+	/**
+	 * Ensure a tab exists, creating it if necessary.
+	 *
+	 * @param spreadsheetId The spreadsheet ID
+	 * @param tabTitle The tab's title
+	 * @returns true if tab was created, false if it already existed
+	 * @throws GoogleSheetsError on failure
+	 */
+	ensureTab(spreadsheetId: string, tabTitle: string): Promise<boolean>;
 }

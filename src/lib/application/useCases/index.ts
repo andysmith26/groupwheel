@@ -52,3 +52,6 @@ export * from './createSession';
 export * from './listSessions';
 export * from './publishSession';
 export * from './getStudentPlacementHistory';
+
+// Sync/Storage operations
+export * from './configureSheetsSyncStorage';

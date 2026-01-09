@@ -129,7 +129,7 @@ export class GoogleOAuthAdapter implements AuthService {
 		// Build Google OAuth URL
 		const origin = this.getOrigin();
 		const redirectUri = `${origin}/auth/callback`;
-		const scope = 'openid email profile https://www.googleapis.com/auth/spreadsheets.readonly';
+		const scope = 'openid email profile https://www.googleapis.com/auth/spreadsheets';
 		const responseType = 'code';
 		const state = crypto.randomUUID(); // CSRF protection
 
