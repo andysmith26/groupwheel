@@ -8,7 +8,6 @@ import type {
 } from '$lib/domain';
 import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
 import type { ScenarioRepository, IdGenerator } from '$lib/application/ports';
-import { isGroupFull } from '$lib/domain/group';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'failed';
 
@@ -740,9 +739,8 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			if (alreadyInTarget) {
 				return { ok: false, reason: 'already_in_target' };
 			}
-			if (isGroupFull(targetGroup)) {
-				return { ok: false, reason: 'target_full' };
-			}
+			// Note: We no longer block moves to full groups.
+			// Over-enrollment is allowed and shown visually in the UI.
 		}
 
 		return { ok: true };

@@ -5,6 +5,9 @@
 	 * Step 1 of the 3-step wizard: Add your students.
 	 * Combines paste, roster reuse, and Google Sheets import into one view
 	 * with collapsible sections.
+	 *
+	 * URL-first flow: When user is logged in, Google Sheets import is shown first
+	 * with auto-detection of roster and responses tabs.
 	 */
 
 	import { devTools } from '$lib/stores/devTools.svelte';
@@ -16,6 +19,16 @@
 	import type { Pool } from '$lib/domain';
 	import TabSelector from '$lib/components/import/TabSelector.svelte';
 	import SheetConnector from '$lib/components/import/SheetConnector.svelte';
+	import {
+		detectTabs,
+		looksLikeRoster,
+		looksLikeResponses,
+		extractGroupNames,
+		type ExtractedGroupInfo
+	} from '$lib/utils/wizardSheetDetector';
+	import { getAppEnvContext } from '$lib/contexts/appEnv';
+	import { importFromSheetTab } from '$lib/services/appEnvUseCases';
+	import { isErr } from '$lib/types/result';
 
 	type ImportSource = 'paste' | 'roster' | 'sheet';
 	type StudentField = 'name' | 'id' | 'firstName' | 'lastName' | 'grade' | 'ignore' | null;
@@ -25,6 +38,19 @@
 		activityName: string;
 		lastUsed: Date;
 		studentCount: number;
+	}
+
+	/**
+	 * Data detected from form responses tab.
+	 * Passed to parent so Step 2 can pre-fill groups.
+	 */
+	export interface DetectedResponsesData {
+		/** Raw sheet data from responses tab */
+		responsesData: RawSheetData;
+		/** Group names extracted from responses, in order of popularity */
+		groupNames: string[];
+		/** Tab that was detected as responses */
+		responsesTab: SheetTab;
 	}
 
 	interface Props {
@@ -37,6 +63,8 @@
 		onRosterSelect: (poolId: string | null) => void;
 		onSheetConnect?: (connection: SheetConnection) => void;
 		onSheetDisconnect?: () => void;
+		/** Called when responses tab is detected with group choices */
+		onResponsesDetected?: (data: DetectedResponsesData | null) => void;
 	}
 
 	let {
@@ -48,11 +76,15 @@
 		onStudentsParsed,
 		onRosterSelect,
 		onSheetConnect,
-		onSheetDisconnect
+		onSheetDisconnect,
+		onResponsesDetected
 	}: Props = $props();
 
-	// Section expansion state
-	let expandedSection = $state<ImportSource>('paste');
+	// Get app env context for fetching sheet data
+	const env = getAppEnvContext();
+
+	// Section expansion state - default to 'sheet' if user is logged in
+	let expandedSection = $state<ImportSource>(userLoggedIn ? 'sheet' : 'paste');
 
 	let pastedText = $state('');
 	let parseError = $state('');
@@ -65,6 +97,14 @@
 	let tabData = $state<RawSheetData | null>(null);
 	let columnMappings = $state<Map<number, StudentField>>(new Map());
 	let showMappingUI = $state(false);
+
+	// Auto-detection state
+	let isAutoDetecting = $state(false);
+	let autoDetectMessage = $state('');
+	let detectedRosterTab = $state<SheetTab | null>(null);
+	let detectedResponsesTab = $state<SheetTab | null>(null);
+	let detectedGroupNames = $state<string[]>([]);
+	let allTabData = $state<Map<string, RawSheetData>>(new Map());
 
 	// Derived
 	let hasSheetConnection = $derived(sheetConnection !== null);
@@ -185,6 +225,106 @@
 		}
 		columnMappings = mappings;
 		showMappingUI = true;
+	}
+
+	/**
+	 * Auto-detect roster and responses tabs, then import students.
+	 * Called when a sheet is connected.
+	 */
+	async function autoDetectAndImport(connection: SheetConnection) {
+		if (!env) return;
+
+		isAutoDetecting = true;
+		autoDetectMessage = 'Analyzing spreadsheet tabs...';
+		detectedRosterTab = null;
+		detectedResponsesTab = null;
+		detectedGroupNames = [];
+		allTabData = new Map();
+
+		try {
+			// Load all tabs
+			const tabDataMap = new Map<string, RawSheetData>();
+			for (const tab of connection.tabs) {
+				const result = await importFromSheetTab(env, {
+					spreadsheetId: connection.spreadsheetId,
+					tabTitle: tab.title
+				});
+				if (!isErr(result)) {
+					tabDataMap.set(tab.gid, result.value);
+				}
+			}
+			allTabData = tabDataMap;
+
+			// Detect which tabs are roster and responses
+			const detection = detectTabs(connection.tabs, tabDataMap);
+			autoDetectMessage = detection.message;
+
+			if (detection.rosterTab) {
+				detectedRosterTab = detection.rosterTab;
+				const rosterData = tabDataMap.get(detection.rosterTab.gid);
+
+				if (rosterData) {
+					// Auto-select this tab and set up column mappings
+					selectedTab = detection.rosterTab;
+					tabData = rosterData;
+
+					const mappings = new Map<number, StudentField>();
+					for (let i = 0; i < rosterData.headers.length; i++) {
+						const guessed = guessColumnField(rosterData.headers[i]);
+						mappings.set(i, guessed);
+					}
+					columnMappings = mappings;
+					showMappingUI = true;
+
+					// Auto-import if we have good mappings
+					const hasName = Array.from(mappings.values()).includes('name');
+					const hasFirstName = Array.from(mappings.values()).includes('firstName');
+					const hasId = Array.from(mappings.values()).includes('id');
+					if (hasName || hasFirstName || hasId) {
+						parseSheetData(rosterData);
+					}
+				}
+			}
+
+			if (detection.responsesTab) {
+				detectedResponsesTab = detection.responsesTab;
+				const responsesData = tabDataMap.get(detection.responsesTab.gid);
+
+				if (responsesData) {
+					// Extract group names from responses
+					const groupNames = extractGroupNames(responsesData);
+					detectedGroupNames = groupNames;
+
+					// Notify parent about detected responses
+					if (groupNames.length > 0 && onResponsesDetected) {
+						onResponsesDetected({
+							responsesData,
+							groupNames,
+							responsesTab: detection.responsesTab
+						});
+					}
+				}
+			}
+
+			// If no responses detected, clear any previous detection
+			if (!detection.responsesTab && onResponsesDetected) {
+				onResponsesDetected(null);
+			}
+		} catch (e) {
+			autoDetectMessage = `Detection failed: ${e instanceof Error ? e.message : 'Unknown error'}`;
+		} finally {
+			isAutoDetecting = false;
+		}
+	}
+
+	/**
+	 * Wrapper to handle sheet connection and trigger auto-detection.
+	 */
+	function handleSheetConnectWithAutoDetect(connection: SheetConnection) {
+		onSheetConnect?.(connection);
+
+		// Trigger auto-detection
+		autoDetectAndImport(connection);
 	}
 
 	function handleMappingChange(columnIndex: number, field: StudentField) {
@@ -714,6 +854,9 @@ Bob Jones	bob@school.edu	9"
 							<span class="font-medium {expandedSection === 'sheet' ? 'text-teal-dark' : 'text-gray-900'}">
 								Import from Google Sheets
 							</span>
+							<span class="rounded-full bg-coral/10 px-2 py-0.5 text-xs font-medium text-coral">
+								Recommended
+							</span>
 							{#if expandedSection === 'sheet'}
 								<svg class="h-5 w-5 text-teal" fill="currentColor" viewBox="0 0 20 20">
 									<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
@@ -721,7 +864,7 @@ Bob Jones	bob@school.edu	9"
 							{/if}
 						</div>
 						<p class="mt-0.5 text-sm {expandedSection === 'sheet' ? 'text-teal-dark/80' : 'text-gray-500'}">
-							Connect directly to your Google Sheet
+							Paste a Google Sheets URL to auto-detect roster and groups
 						</p>
 					</div>
 				</button>
@@ -763,6 +906,37 @@ Bob Jones	bob@school.edu	9"
 									</button>
 								{/if}
 							</div>
+
+							<!-- Auto-detection status -->
+							{#if isAutoDetecting}
+								<div class="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+									<svg class="h-5 w-5 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+									</svg>
+									<span class="text-sm text-blue-700">{autoDetectMessage}</span>
+								</div>
+							{:else if autoDetectMessage && (detectedRosterTab || detectedResponsesTab)}
+								<div class="rounded-lg border border-blue-200 bg-blue-50 p-3">
+									<p class="text-sm font-medium text-blue-800">{autoDetectMessage}</p>
+									{#if detectedGroupNames.length > 0}
+										<div class="mt-2 flex flex-wrap items-center gap-2">
+											<span class="text-xs text-blue-600">Groups detected:</span>
+											{#each detectedGroupNames.slice(0, 5) as groupName}
+												<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800">
+													{groupName}
+												</span>
+											{/each}
+											{#if detectedGroupNames.length > 5}
+												<span class="text-xs text-blue-600">+{detectedGroupNames.length - 5} more</span>
+											{/if}
+										</div>
+										<p class="mt-2 text-xs text-blue-600">
+											These groups will be available in Step 2.
+										</p>
+									{/if}
+								</div>
+							{/if}
 
 							<TabSelector
 								connection={sheetConnection}
@@ -880,7 +1054,7 @@ Bob Jones	bob@school.edu	9"
 						{:else}
 							{#if onSheetConnect}
 								<SheetConnector
-									onConnect={onSheetConnect}
+									onConnect={handleSheetConnectWithAutoDetect}
 									existingConnection={sheetConnection}
 									allowDisconnect={false}
 								/>

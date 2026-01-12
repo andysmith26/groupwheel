@@ -122,29 +122,65 @@ export function findEmailColumn(headers: string[], rows: RawSheetRow[] = []): nu
 }
 
 /**
+ * Result of finding name columns.
+ */
+export interface NameColumnResult {
+	/** Primary name column index (full name or first name) */
+	primary: number;
+	/** Last name column index if separate, or -1 */
+	lastName: number;
+}
+
+/**
+ * Find the column indices containing student names.
+ * Supports both single "Name" column and separate "First Name"/"Last Name" columns.
+ *
+ * @param headers - Column headers
+ * @returns NameColumnResult with primary and lastName indices
+ */
+export function findNameColumns(headers: string[]): NameColumnResult {
+	const fullNamePatterns = [/^name$/i, /^student\s*name$/i, /^full\s*name$/i, /^student$/i];
+	const firstNamePatterns = [/^first\s*name$/i, /^first$/i, /^given\s*name$/i];
+	const lastNamePatterns = [/^last\s*name$/i, /^last$/i, /^surname$/i, /^family\s*name$/i];
+
+	let fullNameCol = -1;
+	let firstNameCol = -1;
+	let lastNameCol = -1;
+
+	for (let i = 0; i < headers.length; i++) {
+		const header = headers[i].trim();
+		if (fullNamePatterns.some((pattern) => pattern.test(header))) {
+			fullNameCol = i;
+		} else if (firstNamePatterns.some((pattern) => pattern.test(header))) {
+			firstNameCol = i;
+		} else if (lastNamePatterns.some((pattern) => pattern.test(header))) {
+			lastNameCol = i;
+		}
+	}
+
+	// If we have a full name column, use it
+	if (fullNameCol >= 0) {
+		return { primary: fullNameCol, lastName: -1 };
+	}
+
+	// If we have first name (with or without last), use first name as primary
+	if (firstNameCol >= 0) {
+		return { primary: firstNameCol, lastName: lastNameCol };
+	}
+
+	// Default to first column if no match
+	return { primary: 0, lastName: -1 };
+}
+
+/**
+ * Legacy function for backwards compatibility.
  * Find the column index containing student names.
  *
  * @param headers - Column headers
  * @returns 0-based column index, or -1 if not found
  */
 export function findNameColumn(headers: string[]): number {
-	const namePatterns = [
-		/^name$/i,
-		/^student\s*name$/i,
-		/^full\s*name$/i,
-		/^first\s*name$/i,
-		/^student$/i
-	];
-
-	for (let i = 0; i < headers.length; i++) {
-		const header = headers[i].trim();
-		if (namePatterns.some((pattern) => pattern.test(header))) {
-			return i;
-		}
-	}
-
-	// Default to first column if no match
-	return 0;
+	return findNameColumns(headers).primary;
 }
 
 // =============================================================================
@@ -253,24 +289,46 @@ export function deduplicateResponses(rows: RawSheetRow[], emailColumnIndex: numb
 // =============================================================================
 
 /**
+ * Combine first and last name parts into a full name.
+ *
+ * @param firstName - First name value
+ * @param lastName - Last name value (can be empty)
+ * @returns Combined "First Last" name
+ */
+function combineName(firstName: string, lastName: string): string {
+	const first = firstName.trim();
+	const last = lastName.trim();
+	if (first && last) {
+		return `${first} ${last}`;
+	}
+	return first || last;
+}
+
+/**
  * Parse roster data into RosterStudent objects.
  *
  * @param data - Raw roster sheet data
  * @param emailColumnIndex - Column containing email
- * @param nameColumnIndex - Column containing name
+ * @param nameColumnIndex - Column containing name (or first name)
+ * @param lastNameColumnIndex - Column containing last name (or -1 if not separate)
  * @returns Array of roster students
  */
 export function parseRoster(
 	data: RawSheetData,
 	emailColumnIndex: number,
-	nameColumnIndex: number
+	nameColumnIndex: number,
+	lastNameColumnIndex: number = -1
 ): RosterStudent[] {
-	return data.rows.map((row) => ({
-		rowIndex: row.rowIndex,
-		name: (row.cells[nameColumnIndex] ?? '').trim(),
-		email: normalizeEmail(row.cells[emailColumnIndex] ?? ''),
-		row
-	}));
+	return data.rows.map((row) => {
+		const firstName = (row.cells[nameColumnIndex] ?? '').trim();
+		const lastName = lastNameColumnIndex >= 0 ? (row.cells[lastNameColumnIndex] ?? '').trim() : '';
+		return {
+			rowIndex: row.rowIndex,
+			name: combineName(firstName, lastName),
+			email: normalizeEmail(row.cells[emailColumnIndex] ?? ''),
+			row
+		};
+	});
 }
 
 /**
@@ -352,6 +410,7 @@ export function processTracking(
 	options?: {
 		rosterEmailColumn?: number;
 		rosterNameColumn?: number;
+		rosterLastNameColumn?: number;
 		responsesEmailColumn?: number;
 		responsesNameColumn?: number;
 	}
@@ -359,12 +418,14 @@ export function processTracking(
 	// Auto-detect columns if not provided
 	const rosterEmailCol =
 		options?.rosterEmailColumn ?? findEmailColumn(rosterData.headers, rosterData.rows);
-	const rosterNameCol = options?.rosterNameColumn ?? findNameColumn(rosterData.headers);
+	const rosterNameCols = findNameColumns(rosterData.headers);
+	const rosterNameCol = options?.rosterNameColumn ?? rosterNameCols.primary;
+	const rosterLastNameCol = options?.rosterLastNameColumn ?? rosterNameCols.lastName;
 	const responsesEmailCol =
 		options?.responsesEmailColumn ?? findEmailColumn(responsesData.headers, responsesData.rows);
 	const responsesNameCol = options?.responsesNameColumn ?? findNameColumn(responsesData.headers);
 
-	const roster = parseRoster(rosterData, rosterEmailCol, rosterNameCol);
+	const roster = parseRoster(rosterData, rosterEmailCol, rosterNameCol, rosterLastNameCol);
 	const responses = parseResponses(responsesData, responsesEmailCol, responsesNameCol);
 
 	return matchRosterToResponses(roster, responses);

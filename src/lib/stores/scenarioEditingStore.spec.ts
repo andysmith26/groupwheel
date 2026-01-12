@@ -80,7 +80,7 @@ describe('ScenarioEditingStore', () => {
 		expect(view.groups.find((g) => g.id === 'g2')?.memberIds).toContain('s1');
 	});
 
-	it('blocks moves when target group is full', () => {
+	it('allows moves to groups at capacity (over-enrollment is allowed)', () => {
 		const scenario = createScenario();
 		scenario.groups[1].capacity = 1; // g2 already has one member
 		const repo = new InMemoryScenarioRepository([scenario]);
@@ -98,10 +98,11 @@ describe('ScenarioEditingStore', () => {
 			target: 'g2'
 		});
 
-		expect(result.success).toBe(false);
+		// Move should succeed - over-enrollment is allowed (visual warning in UI)
+		expect(result.success).toBe(true);
 		const view = get(store);
-		expect(view.groups.find((g) => g.id === 'g1')?.memberIds).toContain('s1');
-		expect(view.groups.find((g) => g.id === 'g2')?.memberIds).not.toContain('s1');
+		expect(view.groups.find((g) => g.id === 'g1')?.memberIds).not.toContain('s1');
+		expect(view.groups.find((g) => g.id === 'g2')?.memberIds).toContain('s1');
 	});
 
 	it('debounces saves and transitions to saved then idle', async () => {

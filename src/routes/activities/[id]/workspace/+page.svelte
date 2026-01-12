@@ -215,6 +215,18 @@
 		return ranks;
 	});
 
+	// --- Compute first two preferences for all students (for display on cards) ---
+	let studentPreferences = $derived.by(() => {
+		const prefs = new Map<string, string[]>();
+		for (const studentId of students.map((s) => s.id)) {
+			const studentPrefs = preferenceMap[studentId]?.likeGroupIds;
+			if (studentPrefs && studentPrefs.length > 0) {
+				prefs.set(studentId, studentPrefs.slice(0, 2));
+			}
+		}
+		return prefs;
+	});
+
 	// --- Group names for preferences modal ---
 	let groupNames = $derived(view?.groups.map((g) => g.name) ?? []);
 
@@ -1033,6 +1045,7 @@
 							selectedStudentPreferences={activeStudentPreferences}
 							layout={layoutMode}
 							{studentPreferenceRanks}
+							{studentPreferences}
 							onStudentHoverStart={handleTooltipShow}
 							onStudentHoverEnd={handleTooltipHide}
 						/>

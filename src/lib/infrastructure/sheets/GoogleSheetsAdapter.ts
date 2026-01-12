@@ -91,7 +91,8 @@ export class GoogleSheetsAdapter implements GoogleSheetsService {
 		const response = await fetch(url, {
 			headers: {
 				Authorization: `Bearer ${token}`
-			}
+			},
+			cache: 'no-store'
 		});
 
 		if (!response.ok) {
@@ -129,7 +130,8 @@ export class GoogleSheetsAdapter implements GoogleSheetsService {
 		const response = await fetch(url, {
 			headers: {
 				Authorization: `Bearer ${token}`
-			}
+			},
+			cache: 'no-store'
 		});
 
 		if (!response.ok) {

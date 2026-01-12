@@ -56,6 +56,7 @@ import { RoundRobinGroupingAlgorithm } from '$lib/infrastructure/algorithms/roun
 import { PreferenceFirstGroupingAlgorithm } from '$lib/infrastructure/algorithms/preferenceFirstGrouping';
 import { SimulatedAnnealingGroupingAlgorithm } from '$lib/infrastructure/algorithms/simulatedAnnealingGrouping';
 import { GeneticGroupingAlgorithm } from '$lib/infrastructure/algorithms/geneticGrouping';
+import { FirstChoiceOnlyGroupingAlgorithm } from '$lib/infrastructure/algorithms/firstChoiceOnlyGrouping';
 import { MultiAlgorithmGroupingAlgorithm } from '$lib/infrastructure/algorithms/multiAlgorithm';
 import type {
 	Pool,
@@ -236,6 +237,11 @@ export function createInMemoryEnvironment(
 				id: 'balanced',
 				label: 'Balanced',
 				algorithm: new BalancedGroupingAlgorithm(studentRepo, preferenceRepo, idGenerator)
+			},
+			{
+				id: 'first-choice-only',
+				label: 'First Choice Only',
+				algorithm: new FirstChoiceOnlyGroupingAlgorithm(studentRepo, preferenceRepo, idGenerator)
 			},
 			{
 				id: 'random',

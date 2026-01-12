@@ -20,6 +20,7 @@
 		rowSpan = 1,
 		preferenceRank = null,
 		studentPreferenceRanks = new Map<string, number | null>(),
+		studentPreferences = new Map<string, string[]>(),
 		onStudentHoverStart,
 		onStudentHoverEnd
 	} = $props<{
@@ -38,6 +39,8 @@
 		rowSpan?: number;
 		preferenceRank?: number | null;
 		studentPreferenceRanks?: Map<string, number | null>;
+		/** Map of studentId to their first two preference group names */
+		studentPreferences?: Map<string, string[]>;
 		onStudentHoverStart?: (studentId: string, x: number, y: number) => void;
 		onStudentHoverEnd?: () => void;
 	}>();
@@ -222,7 +225,7 @@
 			/>
 			<div class="mt-1 flex items-center gap-2 px-1">
 				<div class="flex items-center gap-1 text-xs text-gray-600">
-					<span>{group.memberIds.length}</span>
+					<span class={capacityStatus.isOverEnrolled ? 'text-violet-600 font-medium' : ''}>{group.memberIds.length}</span>
 					<span>/</span>
 					<input
 						type="number"
@@ -234,18 +237,23 @@
 						aria-label="Group capacity"
 						aria-invalid={capacityError !== ''}
 					/>
+					{#if capacityStatus.isOverEnrolled}
+						<span class="text-xs font-medium text-violet-600">(+{capacityStatus.overEnrollmentCount})</span>
+					{/if}
 				</div>
 				{#if capacityProgress() !== null}
 					<div class="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
 						<div
 							class={`h-full rounded-full transition-all ${
-								capacityStatus.isFull
-									? 'bg-red-500'
-									: capacityStatus.isWarning
-										? 'bg-amber-500'
-										: 'bg-gray-400'
+								capacityStatus.isOverEnrolled
+									? 'bg-violet-500'
+									: capacityStatus.isFull
+										? 'bg-red-500'
+										: capacityStatus.isWarning
+											? 'bg-amber-500'
+											: 'bg-gray-400'
 							}`}
-							style={`width: ${capacityProgress()}%`}
+							style={`width: ${capacityStatus.isOverEnrolled ? '100%' : capacityProgress() + '%'}`}
 						></div>
 					</div>
 				{:else}
@@ -322,6 +330,8 @@
 						{onDragEnd}
 						flash={flashingIds.has(memberId)}
 						preferenceRank={studentPreferenceRanks.get(memberId) ?? null}
+						preferences={studentPreferences.get(memberId) ?? []}
+						currentGroupName={group.name}
 						onHoverStart={onStudentHoverStart}
 						onHoverEnd={onStudentHoverEnd}
 					/>

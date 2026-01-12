@@ -1,187 +1,235 @@
-# Plan: Track Google Form Responses Feature
+# Plan: First-Choice Placement with Over-Enrollment Support
 
-## Problem Summary
+## Problem Statement
 
-Teachers using Google Forms to collect club preferences need to see which students haven't submitted. Currently they must manually cross-reference roster vs form responses spreadsheets.
+In the auto-placement and drag-and-drop workspace, the user wants:
+1. **"Give everyone their first choice" algorithm option** - A new placement mode that assigns all students to their first preference, ignoring capacity limits
+2. **Over-enrollment visibility** - Visual and numerical indicators when groups exceed capacity
+3. **Preference display on student cards** - Show each student's 1st/2nd choices directly on their card for easy visual reference
+4. **Current placement indication** - Subtle indicator showing which of their choices a student is currently in
 
 ## Research Findings
 
-### Existing Patterns (files to reuse)
+### Current Architecture
 
-1. **Google Sheets Integration**
-   - `src/lib/infrastructure/sheets/GoogleSheetsAdapter.ts` - fetches sheet metadata and tab data
-   - `src/lib/application/ports/GoogleSheetsService.ts` - port interface with error types
-   - `src/lib/application/useCases/connectGoogleSheet.ts` - validates URL, fetches metadata
-   - `src/lib/application/useCases/importFromSheetTab.ts` - fetches tab data
+**Key files involved:**
+- `src/lib/algorithms/balanced-assignment.ts` - Current algorithm respects capacity (lines 104, 138)
+- `src/lib/stores/scenarioEditingStore.ts` - Blocks moves to full groups via `validateMove()` (lines 738-746)
+- `src/lib/domain/group.ts` - `isGroupFull()` enforces capacity (line 121-126)
+- `src/lib/components/editing/DraggableStudentCard.svelte` - Shows star for 1st choice only
+- `src/lib/components/editing/EditableGroupColumn.svelte` - Shows capacity progress bar (gray/amber/red)
+- `src/lib/utils/groups.ts` - `getCapacityStatus()` returns colors for capacity states
 
-2. **UI Components**
-   - `src/lib/components/import/SheetConnector.svelte` - URL input, connects to sheet
-   - `src/lib/components/import/TabSelector.svelte` - dropdown to select tab, shows preview
+**Preference data flow:**
+- Preferences stored as `StudentPreference.likeGroupIds[]` (ordered list)
+- Workspace page computes `studentPreferenceRanks` map from preferences to groups
+- `DraggableStudentCard` receives `preferenceRank` prop (only shows star if rank === 1)
+- `StudentInfoTooltip` shows full preference list on hover (1st, 2nd, 3rd...)
 
-3. **Choice Extraction**
-   - `src/lib/utils/matrixPreferenceParser.ts:179-195` - `extractChoiceRank()` parses "1st Choice", "2nd Choice", etc.
-   - Already handles the exact format needed
+**Current capacity enforcement:**
+1. Algorithm: `remainingCapacity(group) > 0` check (balanced-assignment.ts:104)
+2. Store validation: `isGroupFull(targetGroup)` blocks moves (scenarioEditingStore.ts:743)
+3. UI: Progress bar turns red at 100%, but no "over" state
 
-4. **Auth & Storage**
-   - Auth available via `getAppEnvContext()` → `env.authService`
-   - `LocalStorageAdapter` for persistence (direct localStorage also used in `googleOAuth.ts`)
-
-5. **Route Pattern**
-   - Header nav defined in `src/routes/+layout.svelte:114-127`
-   - Standalone pages at `src/routes/<path>/+page.svelte`
-
-### Architecture Constraints
+### Architectural Constraints
 
 Per `docs/ARCHITECTURE.md`:
-- Domain layer must be pure (no framework code)
-- Use cases take `deps` object, return `Result<Success, Error>`
-- UI calls use cases via facade (`appEnvUseCases.ts`)
-- Components get context via `getAppEnvContext()`
-
-**Key decision**: This feature is standalone (out of scope: connecting to Activity/Program entities). It should be a lightweight utility page, not a full domain feature.
-
----
-
-## Approaches
-
-### Approach A: Minimal UI-Only (Recommended)
-
-**What it does**: All logic lives in the page component. No new use cases, ports, or domain types. Uses existing `connectGoogleSheet` and `importFromSheetTab` use cases.
-
-**Files created/modified**:
-- `src/routes/track-responses/+page.svelte` (new) - main page with all logic
-- `src/routes/+layout.svelte` - add nav link
-- `src/lib/utils/responseTracker.ts` (new) - pure utility functions for matching/extraction
-
-**Why this approach**:
-- Feature is standalone and explicitly out of scope for domain integration
-- Matching roster↔responses and extracting choices are pure transformations (no I/O)
-- Existing use cases (`connectGoogleSheet`, `importFromSheetTab`) handle all API calls
-- No new ports or adapters needed
-
-**Trade-offs**:
-- Implementation effort: Quick
-- Best-practice alignment: Acceptable (logic in utils, not domain, but feature is explicitly standalone)
-- Maintenance: Simple
+- New algorithm logic belongs in `src/lib/algorithms/`
+- UI changes belong in `src/lib/components/`
+- Domain helper changes belong in `src/lib/domain/`
+- No business logic in components (only presentation)
+- Algorithm catalog lives in `src/lib/application/algorithmCatalog.ts`
 
 ---
 
-### Approach B: Full Hexagonal (Use Case Layer)
+## Proposed Approaches
 
-**What it does**: Create new use case `trackFormResponses` that encapsulates all logic.
+### Approach A: Algorithm Flag + Soft Capacity (Recommended)
 
-**Files created/modified**:
-- `src/lib/application/useCases/trackFormResponses.ts` (new)
-- `src/lib/services/appEnvUseCases.ts` - add facade helper
-- `src/routes/track-responses/+page.svelte` (new)
-- `src/routes/+layout.svelte` - add nav link
+**What it does:**
+- Adds a new algorithm option "First Choice Only" that ignores capacity
+- Modifies capacity enforcement to distinguish "soft" vs "hard" capacity
+- Allows over-enrollment for algorithm-generated placements, but warns visually
 
-**Trade-offs**:
-- Implementation effort: Moderate
-- Best-practice alignment: Canonical (everything in use cases)
-- Maintenance: More code to maintain for a standalone utility
+**Files modified:**
+1. `src/lib/algorithms/first-choice-only.ts` (NEW) - New algorithm that assigns everyone to first choice
+2. `src/lib/application/algorithmCatalog.ts` - Add new algorithm entry
+3. `src/lib/application/useCases/generateCandidate.ts` - Wire up new algorithm
+4. `src/lib/stores/scenarioEditingStore.ts` - Allow moves to over-capacity groups (remove hard block, or make configurable)
+5. `src/lib/domain/group.ts` - Add `isOverEnrolled()` helper
+6. `src/lib/utils/groups.ts` - Extend `getCapacityStatus()` to return over-enrolled state with distinct styling
+7. `src/lib/components/editing/EditableGroupColumn.svelte` - Show over-enrollment indicator (e.g., "+3 over")
+8. `src/lib/components/editing/DraggableStudentCard.svelte` - Display 1st/2nd choice preferences inline
 
-**Why not**: Over-engineering for a feature explicitly scoped as standalone. Use cases are for domain operations; this is a utility.
-
----
-
-### Approach C: Domain-Integrated
-
-**What it does**: Create domain types (`ResponseTrackingSession`, `TrackedStudent`) and integrate with Program/Activity entities.
-
-**Trade-offs**:
-- Implementation effort: Significant
-- Best-practice alignment: Over-engineered (violates "out of scope" requirement)
-- Maintenance: Complex, creates coupling that was explicitly excluded
-
-**Why not**: Directly contradicts the "out of scope" requirement to NOT connect to Activity/Program entities.
+**Trade-offs:**
+- Implementation effort: Moderate (new algorithm + UI changes)
+- Best-practice alignment: Canonical (proper layering, new algorithm file)
+- Maintenance burden: Manageable (clear separation of concerns)
 
 ---
 
-## Recommendation
+### Approach B: Config-Based Capacity Override
 
-**Approach A: Minimal UI-Only**
+**What it does differently:**
+- Instead of a new algorithm, adds an "Allow over-enrollment" toggle to existing algorithms
+- Capacity becomes advisory rather than enforced when toggle is on
 
-**Reasons**:
-1. Requirements explicitly exclude domain integration ("not tied to activities")
-2. Existing use cases handle all Sheets API work; only new code is UI + pure transformations
-3. Simplest approach that meets all acceptance criteria
+**Files modified:**
+1. `src/lib/algorithms/balanced-assignment.ts` - Add `allowOverEnrollment: boolean` config option
+2. `src/lib/stores/scenarioEditingStore.ts` - Store toggle state, conditionally skip capacity check
+3. Same UI changes as Approach A (items 5-8)
 
-**What would change this**: If future requirements need to persist tracking sessions or link to activities, Approach B would be appropriate.
+**Trade-offs:**
+- Implementation effort: Quick win (fewer files, no new algorithm)
+- Best-practice alignment: Acceptable (config flag approach is common)
+- Maintenance burden: Simple (single toggle controls behavior)
 
 ---
 
-## Implementation Plan (Approach A)
+### Approach C: Modal Capacity System
 
-### Step 1: Create utility functions
-File: `src/lib/utils/responseTracker.ts`
+**What it does differently:**
+- Introduces a "capacity mode" concept: strict, soft, or none
+- Groups can have different enforcement levels
+- More flexible but more complex
 
-Functions:
-- `matchRosterToResponses(roster, responses, emailColumnIndex)` - returns { submitted, notSubmitted, cantTrack }
-- `extractChoices(row, headers)` - returns { studentName, email, choices: string[] } using existing pattern from matrixPreferenceParser
-- `findEmailColumn(headers)` - auto-detect column by header name (case-insensitive "email")
-- `deduplicateResponses(rows)` - keep later row for same email
+**Files modified:**
+1. `src/lib/domain/group.ts` - Add `capacityMode: 'strict' | 'soft' | 'none'` field
+2. Multiple algorithm files to respect the mode
+3. Repository changes for persistence
+4. Extensive UI changes
 
-### Step 2: Create the page
-File: `src/routes/track-responses/+page.svelte`
+**Trade-offs:**
+- Implementation effort: Significant (domain model change, migrations)
+- Best-practice alignment: Canonical (proper modeling)
+- Maintenance burden: Complex (more states to handle)
 
-UI sections:
-1. **Auth guard** - show "Sign in required" if not authenticated
-2. **Sheet connection** - reuse SheetConnector component
-3. **Tab selectors** - two TabSelector components (roster tab, responses tab)
-4. **Results display** - three lists: Not Submitted, Submitted (with choices), Can't Track
-5. **Auto-refresh** - `setInterval` every 30s + manual refresh button
-6. **Persistence** - save/load sheet ID and tab selections to localStorage
+---
 
-State shape:
-```typescript
-interface TrackingState {
-  spreadsheetId: string | null;
-  rosterTabGid: string | null;
-  responsesTabGid: string | null;
-}
+## Recommendation: Approach A (Algorithm Flag + Soft Capacity)
+
+**Reasons:**
+1. **Clean separation** - "First Choice Only" is a distinct algorithm with clear semantics, not a config hack on existing algorithms
+2. **Explicit intent** - Users choosing this algorithm understand they're opting into over-enrollment
+3. **Minimal domain changes** - No schema changes, just new helper functions
+
+**What would flip the choice:**
+- If users need per-group capacity control: Approach C
+- If implementation speed is critical and first-choice-only is rarely used: Approach B
+
+---
+
+## Detailed Implementation Plan
+
+### Phase 1: Algorithm & Domain Layer
+
+1. **Create `src/lib/algorithms/first-choice-only.ts`**
+   - Export `assignFirstChoiceOnly(options: AssignmentOptions): AssignmentResult`
+   - For each student with preferences: assign to first choice regardless of capacity
+   - Students without preferences: leave unassigned (or balanced fill)
+
+2. **Update `src/lib/application/algorithmCatalog.ts`**
+   - Add entry: `{ id: 'first-choice-only', label: 'First Choice Only' }`
+
+3. **Add domain helper `src/lib/domain/group.ts`**
+   - `isOverEnrolled(group: Group): boolean` - returns true if memberIds.length > capacity
+
+4. **Update `src/lib/utils/groups.ts`**
+   - Extend `getCapacityStatus()` to include `isOverEnrolled: boolean` and distinct color (e.g., purple or darker red)
+
+### Phase 2: Store & Validation Layer
+
+5. **Update `src/lib/stores/scenarioEditingStore.ts`**
+   - Option A: Remove the `isGroupFull()` block entirely (always allow moves)
+   - Option B: Add store-level config `allowOverEnrollment` that skips the check
+   - Recommended: Option A for simplicity - let users move students anywhere, show visual warnings
+
+### Phase 3: UI Components
+
+6. **Update `src/lib/components/editing/EditableGroupColumn.svelte`**
+   - Show over-enrollment indicator: e.g., "8/5 (+3)" with red/purple styling
+   - Progress bar extends beyond 100% with distinct visual (striped or pulsing)
+
+7. **Update `src/lib/components/editing/DraggableStudentCard.svelte`**
+   - Display 1st and 2nd choice preferences compactly below name
+   - Format: "1st: Band, 2nd: Choir" in smaller text
+   - Highlight current group match: if student is in their 1st choice, show checkmark or green highlight on "1st"; same for 2nd
+
+8. **Update workspace page if needed**
+   - Ensure `selectedStudentPreferences` data flows correctly to new card display
+
+---
+
+## Visual Design Concepts
+
+### Student Card (DraggableStudentCard)
+```
++-----------------------------+
+| Alice Smith              *  |  <- Star if got 1st choice
+| 1st: Band (checkmark)  2nd: Choir     |  <- Preferences with checkmark on current
++-----------------------------+
 ```
 
-localStorage key: `groupwheel_response_tracker`
+If in 2nd choice:
+```
++-----------------------------+
+| Bob Jones                   |
+| 1st: Band    2nd: Choir (checkmark)   |  <- Checkmark moves to 2nd
++-----------------------------+
+```
 
-### Step 3: Add nav link
-File: `src/routes/+layout.svelte`
+### Over-Enrolled Group
+```
++-----------------------------+
+| Band                        |
+| 8 / 5  [========+3]         |  <- Red bar extends with "+3" label
+| Warning: Over capacity      |  <- Warning badge
++-----------------------------+
+| [Alice Smith]               |
+| [Bob Jones]                 |
+| ...                         |
++-----------------------------+
+```
 
-Add link in header nav between "Activities" and the settings button.
-
-### Step 4: Tests
-- Unit tests for utility functions in `src/lib/utils/responseTracker.test.ts`
-- Test cases: email matching (case-insensitive), duplicate handling, choice extraction, empty email handling
+### Subtle preference match indication
+- If in 1st choice: small green dot or checkmark on card
+- If in 2nd choice: small teal/blue indicator
+- No explicit "not a preference" indicator (absence of indicator is sufficient)
 
 ---
 
-## Files to Create/Modify
+## Questions for Clarification
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/lib/utils/responseTracker.ts` | Create | Pure matching/extraction utilities |
-| `src/lib/utils/responseTracker.test.ts` | Create | Unit tests |
-| `src/routes/track-responses/+page.svelte` | Create | Main page component |
-| `src/routes/+layout.svelte` | Modify | Add nav link (~5 lines) |
+1. **Drag-drop behavior**: Should users be able to manually drag students into over-capacity groups, or only via the "First Choice Only" algorithm?
+   - Recommendation: Allow both - makes manual adjustment easier
+
+2. **Unassigned handling in first-choice algorithm**: What happens to students with no preferences?
+   - Option A: Leave unassigned
+   - Option B: Balanced fill after preference students are placed
+   - Recommendation: Option B for teacher convenience
+
+3. **Preference display depth**: Show 1st and 2nd only, or 1st/2nd/3rd?
+   - Recommendation: 1st and 2nd (keeps cards compact)
 
 ---
 
-## Acceptance Criteria Mapping
+## Files Summary
 
-| Requirement | Implementation |
-|-------------|----------------|
-| New page at /track-responses | `src/routes/track-responses/+page.svelte` |
-| Accessible via header link | Nav link in `+layout.svelte` |
-| User must be authenticated | Auth check using `isAuthenticated(env)` |
-| Browse Google Drive / select spreadsheet | Reuse `SheetConnector` component |
-| Select roster and responses tabs | Two `TabSelector` components |
-| Match by email | `matchRosterToResponses()` utility |
-| Display Not Submitted list | Component renders `notSubmitted` array |
-| Display Submitted list with choices | Component renders `submitted` array with choices |
-| Extract "1st Choice", "2nd Choice" | `extractChoices()` using existing parser patterns |
-| Duplicate handling (use later row) | `deduplicateResponses()` utility |
-| Can't Track bucket (missing email) | `cantTrack` array from matcher |
-| Persist sheet ID to localStorage | Save `TrackingState` to localStorage |
-| Auto-refresh every 30s | `setInterval` + refresh function |
-| Manual refresh button | Button calls refresh function |
-| Return to page loads previous sheet | `onMount` reads localStorage and auto-loads |
+| File | Action | Layer |
+|------|--------|-------|
+| `src/lib/algorithms/first-choice-only.ts` | Create | Algorithm |
+| `src/lib/application/algorithmCatalog.ts` | Modify | Application |
+| `src/lib/domain/group.ts` | Modify | Domain |
+| `src/lib/utils/groups.ts` | Modify | Utility |
+| `src/lib/stores/scenarioEditingStore.ts` | Modify | Store |
+| `src/lib/components/editing/EditableGroupColumn.svelte` | Modify | UI |
+| `src/lib/components/editing/DraggableStudentCard.svelte` | Modify | UI |
+
+---
+
+## Tests to Add
+
+- Unit test for `assignFirstChoiceOnly` algorithm
+- Unit test for `isOverEnrolled` helper
+- Unit test for updated `getCapacityStatus` with over-enrollment
+- Component test for DraggableStudentCard preference display

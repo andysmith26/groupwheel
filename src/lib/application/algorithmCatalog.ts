@@ -6,6 +6,7 @@ export interface AlgorithmCatalogEntry {
 
 export const candidateAlgorithmCatalog: AlgorithmCatalogEntry[] = [
 	{ id: 'balanced', label: 'Balanced' },
+	{ id: 'first-choice-only', label: 'First Choice Only' },
 	{ id: 'random', label: 'Random Shuffle' },
 	{ id: 'round-robin', label: 'Round Robin' },
 	{ id: 'preference-first', label: 'Preference-First' },

@@ -28,7 +28,9 @@
 	import { isErr } from '$lib/types/result';
 
 	import WizardProgress from '$lib/components/wizard/WizardProgress.svelte';
-	import StepStudentsUnified from '$lib/components/wizard/StepStudentsUnified.svelte';
+	import StepStudentsUnified, {
+		type DetectedResponsesData
+	} from '$lib/components/wizard/StepStudentsUnified.svelte';
 	import StepGroupsUnified from '$lib/components/wizard/StepGroupsUnified.svelte';
 	import StepReviewGenerate from '$lib/components/wizard/StepReviewGenerate.svelte';
 	import type { GroupShellConfig } from '$lib/components/wizard/StepGroups.svelte';
@@ -83,12 +85,31 @@
 	// --- Google Sheets connection (optional) ---
 	let sheetConnection = $state<SheetConnection | null>(null);
 
+	// --- Detected responses from form data (auto-detected groups) ---
+	let detectedResponses = $state<DetectedResponsesData | null>(null);
+
 	function handleSheetConnect(connection: SheetConnection) {
 		sheetConnection = connection;
 	}
 
 	function handleSheetDisconnect() {
 		sheetConnection = null;
+		detectedResponses = null;
+	}
+
+	function handleResponsesDetected(data: DetectedResponsesData | null) {
+		detectedResponses = data;
+
+		// Auto-populate groups if we detected responses with group names
+		if (data && data.groupNames.length > 0) {
+			// Pre-fill groups for Step 2
+			groupCreationGroups = data.groupNames.map((name) => ({
+				name,
+				capacity: null
+			}));
+			// Auto-set mode to 'specific' since we have named groups
+			groupCreationMode = 'specific';
+		}
 	}
 
 	// Check if user is logged in (needed for Google Sheets)
@@ -390,6 +411,9 @@
 		existingRosters.find((r) => r.pool.id === selectedRosterId)?.activityName
 	);
 
+	// Track if groups were pre-filled from detected responses
+	let groupsFromResponses = $derived(detectedResponses !== null && groupCreationGroups.length > 0);
+
 	let continueHelper = $derived.by(() => {
 		if (canProceed()) return '';
 		switch (activeStepType) {
@@ -439,6 +463,7 @@
 					onRosterSelect={handleRosterSelect}
 					onSheetConnect={handleSheetConnect}
 					onSheetDisconnect={handleSheetDisconnect}
+					onResponsesDetected={handleResponsesDetected}
 				/>
 			{:else if activeStepType === 'groups'}
 				<StepGroupsUnified

@@ -42,6 +42,7 @@
 		selectedStudentPreferences = null,
 		layout = 'masonry',
 		studentPreferenceRanks = new Map<string, number | null>(),
+		studentPreferences = new Map<string, string[]>(),
 		onStudentHoverStart,
 		onStudentHoverEnd
 	} = $props<{
@@ -61,6 +62,8 @@
 		selectedStudentPreferences?: string[] | null;
 		layout?: LayoutMode;
 		studentPreferenceRanks?: Map<string, number | null>;
+		/** Map of studentId to their first two preference group names */
+		studentPreferences?: Map<string, string[]>;
 		onStudentHoverStart?: (studentId: string, x: number, y: number) => void;
 		onStudentHoverEnd?: () => void;
 	}>();
@@ -102,6 +105,7 @@
 					focusNameOnMount={group.id === newGroupId}
 					preferenceRank={getPreferenceRank(group.id)}
 					{studentPreferenceRanks}
+					{studentPreferences}
 					{onStudentHoverStart}
 					{onStudentHoverEnd}
 				/>
@@ -131,6 +135,7 @@
 				focusNameOnMount={group.id === newGroupId}
 				preferenceRank={getPreferenceRank(group.id)}
 				{studentPreferenceRanks}
+				{studentPreferences}
 				{onStudentHoverStart}
 				{onStudentHoverEnd}
 			/>

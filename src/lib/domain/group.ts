@@ -124,3 +124,24 @@ export function isGroupFull(group: Group): boolean {
 	}
 	return group.memberIds.length >= group.capacity;
 }
+
+/**
+ * Check if a group is over capacity (more members than capacity allows).
+ */
+export function isOverEnrolled(group: Group): boolean {
+	if (group.capacity === null) {
+		return false;
+	}
+	return group.memberIds.length > group.capacity;
+}
+
+/**
+ * Get the number of members over capacity.
+ * Returns 0 if not over capacity or capacity is unlimited.
+ */
+export function getOverEnrollmentCount(group: Group): number {
+	if (group.capacity === null) {
+		return 0;
+	}
+	return Math.max(0, group.memberIds.length - group.capacity);
+}

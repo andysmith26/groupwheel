@@ -17,6 +17,8 @@ describe('getCapacityStatus (from groups.ts)', () => {
 			expect(status.color).toBe('#6b7280');
 			expect(status.isWarning).toBe(false);
 			expect(status.isFull).toBe(false);
+			expect(status.isOverEnrolled).toBe(false);
+			expect(status.overEnrollmentCount).toBe(0);
 		});
 
 		it('should return gray even with many members when capacity is null', () => {
@@ -32,6 +34,8 @@ describe('getCapacityStatus (from groups.ts)', () => {
 			expect(status.color).toBe('#6b7280');
 			expect(status.isWarning).toBe(false);
 			expect(status.isFull).toBe(false);
+			expect(status.isOverEnrolled).toBe(false);
+			expect(status.overEnrollmentCount).toBe(0);
 		});
 	});
 
@@ -49,6 +53,8 @@ describe('getCapacityStatus (from groups.ts)', () => {
 			expect(status.color).toBe('#6b7280');
 			expect(status.isWarning).toBe(false);
 			expect(status.isFull).toBe(false);
+			expect(status.isOverEnrolled).toBe(false);
+			expect(status.overEnrollmentCount).toBe(0);
 		});
 
 		it('should return gray when at 50% capacity', () => {
@@ -64,6 +70,8 @@ describe('getCapacityStatus (from groups.ts)', () => {
 			expect(status.color).toBe('#6b7280');
 			expect(status.isWarning).toBe(false);
 			expect(status.isFull).toBe(false);
+			expect(status.isOverEnrolled).toBe(false);
+			expect(status.overEnrollmentCount).toBe(0);
 		});
 	});
 
@@ -81,6 +89,8 @@ describe('getCapacityStatus (from groups.ts)', () => {
 			expect(status.color).toBe('#f59e0b');
 			expect(status.isWarning).toBe(true);
 			expect(status.isFull).toBe(false);
+			expect(status.isOverEnrolled).toBe(false);
+			expect(status.overEnrollmentCount).toBe(0);
 		});
 
 		it('should return amber when at 90% capacity', () => {
@@ -96,10 +106,12 @@ describe('getCapacityStatus (from groups.ts)', () => {
 			expect(status.color).toBe('#f59e0b');
 			expect(status.isWarning).toBe(true);
 			expect(status.isFull).toBe(false);
+			expect(status.isOverEnrolled).toBe(false);
+			expect(status.overEnrollmentCount).toBe(0);
 		});
 	});
 
-	describe('100%+ capacity (full/over)', () => {
+	describe('100% capacity (full)', () => {
 		it('should return red when at exactly 100% capacity', () => {
 			const group: Group = {
 				id: 'group-1',
@@ -113,9 +125,13 @@ describe('getCapacityStatus (from groups.ts)', () => {
 			expect(status.color).toBe('#dc2626');
 			expect(status.isWarning).toBe(true);
 			expect(status.isFull).toBe(true);
+			expect(status.isOverEnrolled).toBe(false);
+			expect(status.overEnrollmentCount).toBe(0);
 		});
+	});
 
-		it('should return red when over capacity', () => {
+	describe('over capacity (over-enrolled)', () => {
+		it('should return purple when over capacity', () => {
 			const group: Group = {
 				id: 'group-1',
 				name: 'Group 1',
@@ -125,9 +141,25 @@ describe('getCapacityStatus (from groups.ts)', () => {
 
 			const status = getCapacityStatus(group);
 
-			expect(status.color).toBe('#dc2626');
+			expect(status.color).toBe('#7c3aed');
 			expect(status.isWarning).toBe(true);
 			expect(status.isFull).toBe(true);
+			expect(status.isOverEnrolled).toBe(true);
+			expect(status.overEnrollmentCount).toBe(2);
+		});
+
+		it('should return correct over-enrollment count', () => {
+			const group: Group = {
+				id: 'group-1',
+				name: 'Group 1',
+				capacity: 5,
+				memberIds: Array.from({ length: 8 }, (_, i) => `s${i}`)
+			};
+
+			const status = getCapacityStatus(group);
+
+			expect(status.isOverEnrolled).toBe(true);
+			expect(status.overEnrollmentCount).toBe(3);
 		});
 	});
 });

@@ -1,40 +1,77 @@
 import type { Group } from '$lib/domain';
 
 /**
- * Capacity status result containing color, warning state, and full state
+ * Capacity status result containing color, warning state, full state, and over-enrollment info
  */
 export interface CapacityStatus {
 	color: string;
 	isWarning: boolean;
 	isFull: boolean;
+	isOverEnrolled: boolean;
+	overEnrollmentCount: number;
 }
 
 /**
  * Calculate capacity status for a group (color and warning state)
  *
  * Returns an object with:
- * - color: Hex color code indicating status (gray, amber, or red)
+ * - color: Hex color code indicating status (gray, amber, red, or purple for over-enrolled)
  * - isWarning: Whether the group is at or near capacity (80%+)
  * - isFull: Whether the group is at or over capacity (100%+)
+ * - isOverEnrolled: Whether the group exceeds capacity (>100%)
+ * - overEnrollmentCount: Number of members over capacity (0 if not over)
  *
  * @param group - The group to calculate capacity status for
- * @returns CapacityStatus object with color, isWarning, and isFull properties
+ * @returns CapacityStatus object with color, isWarning, isFull, and over-enrollment properties
  */
 export function getCapacityStatus(group: Group): CapacityStatus {
 	const currentCount = group.memberIds.length;
 
 	if (group.capacity === null) {
-		return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for unlimited
+		return {
+			color: '#6b7280',
+			isWarning: false,
+			isFull: false,
+			isOverEnrolled: false,
+			overEnrollmentCount: 0
+		}; // Gray for unlimited
 	}
 
 	const percentage = (currentCount / group.capacity) * 100;
+	const overCount = Math.max(0, currentCount - group.capacity);
 
-	if (percentage >= 100) {
-		return { color: '#dc2626', isWarning: true, isFull: true }; // Red for at/over capacity
+	if (percentage > 100) {
+		return {
+			color: '#7c3aed',
+			isWarning: true,
+			isFull: true,
+			isOverEnrolled: true,
+			overEnrollmentCount: overCount
+		}; // Purple for over capacity
+	} else if (percentage >= 100) {
+		return {
+			color: '#dc2626',
+			isWarning: true,
+			isFull: true,
+			isOverEnrolled: false,
+			overEnrollmentCount: 0
+		}; // Red for at capacity
 	} else if (percentage >= 80) {
-		return { color: '#f59e0b', isWarning: true, isFull: false }; // Amber for 80-99%
+		return {
+			color: '#f59e0b',
+			isWarning: true,
+			isFull: false,
+			isOverEnrolled: false,
+			overEnrollmentCount: 0
+		}; // Amber for 80-99%
 	} else {
-		return { color: '#6b7280', isWarning: false, isFull: false }; // Gray for < 80%
+		return {
+			color: '#6b7280',
+			isWarning: false,
+			isFull: false,
+			isOverEnrolled: false,
+			overEnrollmentCount: 0
+		}; // Gray for < 80%
 	}
 }
 

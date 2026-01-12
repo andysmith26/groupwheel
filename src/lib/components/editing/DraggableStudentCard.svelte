@@ -13,7 +13,9 @@
 		flash = false,
 		preferenceRank = null,
 		onHoverStart,
-		onHoverEnd
+		onHoverEnd,
+		preferences = [],
+		currentGroupName = null
 	} = $props<{
 		student: Student;
 		container: string;
@@ -26,10 +28,29 @@
 		preferenceRank?: number | null;
 		onHoverStart?: (studentId: string, x: number, y: number) => void;
 		onHoverEnd?: () => void;
+		/** First two preference group names */
+		preferences?: string[];
+		/** Current group name (to show checkmark if matching a preference) */
+		currentGroupName?: string | null;
 	}>();
 
 	const name = `${student.firstName} ${student.lastName ?? ''}`.trim() || student.id;
 	const gotTopChoice = $derived(preferenceRank === 1);
+
+	// Get first and second choices
+	const firstChoice = $derived(preferences[0] ?? null);
+	const secondChoice = $derived(preferences[1] ?? null);
+
+	// Check if current group matches a preference
+	const isInFirstChoice = $derived(
+		currentGroupName !== null && firstChoice !== null && currentGroupName === firstChoice
+	);
+	const isInSecondChoice = $derived(
+		currentGroupName !== null && secondChoice !== null && currentGroupName === secondChoice
+	);
+
+	// Whether to show preference row
+	const hasPreferences = $derived(firstChoice !== null || secondChoice !== null);
 
 	// Hover delay handling (300ms)
 	let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -92,4 +113,18 @@
 			<span class="text-yellow-500" title="Got 1st choice">★</span>
 		{/if}
 	</div>
+	{#if hasPreferences}
+		<div class="mt-1 flex flex-wrap gap-x-2 text-xs text-gray-500">
+			{#if firstChoice}
+				<span class={isInFirstChoice ? 'text-green-600 font-medium' : ''}>
+					1st: {firstChoice}{#if isInFirstChoice}<span class="ml-0.5">✓</span>{/if}
+				</span>
+			{/if}
+			{#if secondChoice}
+				<span class={isInSecondChoice ? 'text-teal-600 font-medium' : ''}>
+					2nd: {secondChoice}{#if isInSecondChoice}<span class="ml-0.5">✓</span>{/if}
+				</span>
+			{/if}
+		</div>
+	{/if}
 </div>
