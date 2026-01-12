@@ -16,7 +16,8 @@
 	import { GoogleSheetsAdapter } from '$lib/infrastructure/sheets';
 	import { syncSettings } from '$lib/stores/syncSettings.svelte';
 	import LoginButton from '$lib/components/auth/LoginButton.svelte';
-	import SyncStatus from '$lib/components/sync/SyncStatus.svelte';
+	import TrackResponsesNavControls from '$lib/components/track-responses/TrackResponsesNavControls.svelte';
+	import { trackResponsesSession } from '$lib/stores/trackResponsesSession.svelte';
 	import { OfflineBanner } from '$lib/components/ui';
 
 	const { children } = $props();
@@ -83,6 +84,8 @@
 	// Check if we're on the landing page or auth pages
 	let isLandingPage = $derived($page.url.pathname === '/');
 	let isAuthPage = $derived($page.url.pathname.startsWith('/auth'));
+	let isTrackResponses = $derived($page.url.pathname.startsWith('/track-responses'));
+	let isWorkspace = $derived($page.route.id?.startsWith('/activities/[id]/workspace') ?? false);
 
 	function isActiveLink(pathname: string, href: string) {
 		if (href === '/') return pathname === '/';
@@ -90,12 +93,14 @@
 	}
 </script>
 
-<div class="min-h-screen bg-gray-50">
+<div class="flex min-h-screen flex-col bg-gray-50">
 	{#if browser}
 		<OfflineBanner />
 	{/if}
-	<header class="border-b bg-white shadow-sm">
-		<div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+	<header
+		class={`border-b bg-white shadow-sm ${isTrackResponses ? 'sticky top-0 z-40' : ''}`}
+	>
+		<div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2">
 			<a href="/" class="group flex items-center gap-2">
 				<img src={logo} alt="Groupwheel logo" class="h-8 w-8" />
 				<div>
@@ -105,62 +110,21 @@
 						Groupwheel
 					</p>
 					{#if !isLandingPage && !isAuthPage}
-						<p class="text-xs text-gray-500">Teacher workspace</p>
+						<p class="text-xs text-gray-500">
+							{trackResponsesSession.sheetTitle ?? 'No sheet connected'}
+						</p>
 					{/if}
 				</div>
 			</a>
 
 			{#if !isLandingPage && !isAuthPage}
-				<nav aria-label="Main navigation" class="flex items-center gap-4">
-					<a
-						href="/activities"
-						class="rounded-md px-3 py-2 text-sm font-medium transition-colors {isActiveLink(
-							$page.url.pathname,
-							'/activities'
-						) || isActiveLink($page.url.pathname, '/groups')
-							? 'bg-teal/10 text-teal'
-							: 'text-gray-700 hover:bg-gray-100 hover:text-coral'}"
-						aria-current={isActiveLink($page.url.pathname, '/activities') ? 'page' : undefined}
-					>
-						Activities
-					</a>
-					<a
-						href="/track-responses"
-						class="rounded-md px-3 py-2 text-sm font-medium transition-colors {isActiveLink(
-							$page.url.pathname,
-							'/track-responses'
-						)
-							? 'bg-teal/10 text-teal'
-							: 'text-gray-700 hover:bg-gray-100 hover:text-coral'}"
-						aria-current={isActiveLink($page.url.pathname, '/track-responses') ? 'page' : undefined}
-					>
-						Track Responses
-					</a>
+				<nav aria-label="Main navigation" class="flex flex-1 items-center gap-4">
+					{#if isTrackResponses && trackResponsesSession.isConnected}
+						<TrackResponsesNavControls />
+					{/if}
 
-					<div class="flex items-center gap-3 border-l pl-4">
+					<div class="ml-auto flex items-center gap-3">
 						{#if browser}
-							<SyncStatus />
-							<a
-								href="/settings"
-								class="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-								title="Settings"
-								aria-label="Settings"
-							>
-								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-									/>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-									/>
-								</svg>
-							</a>
 							<LoginButton />
 						{/if}
 					</div>
@@ -175,7 +139,15 @@
 		</div>
 	</header>
 
-	<main class={$page.route.id?.startsWith('/groups/[id]') || $page.route.id?.startsWith('/activities/[id]') ? '' : 'mx-auto max-w-6xl p-4'}>
+	<main
+		class={
+			isWorkspace
+				? 'flex-1 overflow-hidden'
+				: $page.route.id?.startsWith('/groups/[id]') || $page.route.id?.startsWith('/activities/[id]')
+					? 'flex-1'
+					: 'flex-1 mx-auto max-w-6xl p-4'
+		}
+	>
 		{@render children()}
 	</main>
 </div>

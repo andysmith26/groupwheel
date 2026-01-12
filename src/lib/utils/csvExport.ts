@@ -193,3 +193,29 @@ export function exportGroupsToCSV(groups: Group[], studentsById: Map<string, Stu
 	return rows.join('\n');
 }
 
+/**
+ * Export groups as columns for Google Sheets (group names as header row).
+ */
+export function exportGroupsToColumnsTSV(
+	groups: Group[],
+	studentsById: Map<string, Student>
+): string {
+	const rows: string[] = [];
+
+	const header = groups.map((group) => group.name);
+	rows.push(header.join('\t'));
+
+	const maxMembers = groups.reduce((max, group) => Math.max(max, group.memberIds.length), 0);
+
+	for (let rowIndex = 0; rowIndex < maxMembers; rowIndex += 1) {
+		const row = groups.map((group) => {
+			const studentId = group.memberIds[rowIndex];
+			if (!studentId) return '';
+			const student = studentsById.get(studentId);
+			return student ? getStudentDisplayName(student) : studentId;
+		});
+		rows.push(row.join('\t'));
+	}
+
+	return rows.join('\n');
+}

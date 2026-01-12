@@ -1,235 +1,202 @@
-# Plan: First-Choice Placement with Over-Enrollment Support
+# Activity Export/Import Feature Plan
 
-## Problem Statement
+## Summary
 
-In the auto-placement and drag-and-drop workspace, the user wants:
-1. **"Give everyone their first choice" algorithm option** - A new placement mode that assigns all students to their first preference, ignoring capacity limits
-2. **Over-enrollment visibility** - Visual and numerical indicators when groups exceed capacity
-3. **Preference display on student cards** - Show each student's 1st/2nd choices directly on their card for easy visual reference
-4. **Current placement indication** - Subtle indicator showing which of their choices a student is currently in
+Enable teachers to export an activity (grouping configuration) as a JSON file that can be shared with colleagues, and allow any user (including unauthenticated) to import such files to recreate the activity.
+
+---
 
 ## Research Findings
 
-### Current Architecture
+### What is an "Activity"?
 
-**Key files involved:**
-- `src/lib/algorithms/balanced-assignment.ts` - Current algorithm respects capacity (lines 104, 138)
-- `src/lib/stores/scenarioEditingStore.ts` - Blocks moves to full groups via `validateMove()` (lines 738-746)
-- `src/lib/domain/group.ts` - `isGroupFull()` enforces capacity (line 121-126)
-- `src/lib/components/editing/DraggableStudentCard.svelte` - Shows star for 1st choice only
-- `src/lib/components/editing/EditableGroupColumn.svelte` - Shows capacity progress bar (gray/amber/red)
-- `src/lib/utils/groups.ts` - `getCapacityStatus()` returns colors for capacity states
+An "activity" is a composite concept combining multiple domain entities:
+- **Program** (`src/lib/domain/program.ts`) - The activity metadata (name, type, timeSpan)
+- **Pool** (`src/lib/domain/pool.ts`) - The student roster
+- **Students** (`src/lib/domain/student.ts`) - Individual student records
+- **Preferences** (`src/lib/domain/preference.ts`) - Student group preferences
+- **Scenario** (`src/lib/domain/scenario.ts`) - The current grouping state (groups + assignments)
 
-**Preference data flow:**
-- Preferences stored as `StudentPreference.likeGroupIds[]` (ordered list)
-- Workspace page computes `studentPreferenceRanks` map from preferences to groups
-- `DraggableStudentCard` receives `preferenceRank` prop (only shows star if rank === 1)
-- `StudentInfoTooltip` shows full preference list on hover (1st, 2nd, 3rd...)
+### Existing Patterns
 
-**Current capacity enforcement:**
-1. Algorithm: `remainingCapacity(group) > 0` check (balanced-assignment.ts:104)
-2. Store validation: `isGroupFull(targetGroup)` blocks moves (scenarioEditingStore.ts:743)
-3. UI: Progress bar turns red at 100%, but no "over" state
+1. **CSV Export** (`src/lib/utils/csvExport.ts:85-124`) - Exports student assignments to CSV format, called from workspace page
+2. **Clipboard Adapter** (`src/lib/infrastructure/clipboard/`) - Abstracted browser clipboard access via `ClipboardPort`
+3. **Activity Loading** (`src/lib/application/useCases/getActivityData.ts`) - Loads complete activity data for workspace
+4. **Activity Creation** (`src/lib/application/useCases/createGroupingActivity.ts`) - Composite use case that creates Pool + Program + Preferences
 
-### Architectural Constraints
+### Architecture Constraints (from `docs/ARCHITECTURE.md`)
 
-Per `docs/ARCHITECTURE.md`:
-- New algorithm logic belongs in `src/lib/algorithms/`
-- UI changes belong in `src/lib/components/`
-- Domain helper changes belong in `src/lib/domain/`
-- No business logic in components (only presentation)
-- Algorithm catalog lives in `src/lib/application/algorithmCatalog.ts`
+- Domain layer must be pure (no browser APIs)
+- Use cases in `src/lib/application/useCases/` must accept deps via `deps` object
+- UI must call use cases via facade (`src/lib/services/appEnvUseCases.ts`)
+- Browser APIs should be abstracted via ports (like `ClipboardPort`)
 
 ---
 
-## Proposed Approaches
+## Files to Modify/Create
 
-### Approach A: Algorithm Flag + Soft Capacity (Recommended)
+### New Files
+1. `src/lib/application/useCases/exportActivity.ts` - Use case to serialize activity data
+2. `src/lib/application/useCases/importActivity.ts` - Use case to import activity from JSON
+3. `src/lib/utils/activityFile.ts` - JSON serialization/validation utilities (pure functions)
+4. `src/lib/application/ports/FileDownloadPort.ts` - Port for file download abstraction
+5. `src/lib/infrastructure/file/BrowserFileDownloadAdapter.ts` - Browser file download implementation
+6. `src/routes/activities/import/+page.svelte` - Import page UI (accessible without auth)
 
-**What it does:**
-- Adds a new algorithm option "First Choice Only" that ignores capacity
-- Modifies capacity enforcement to distinguish "soft" vs "hard" capacity
-- Allows over-enrollment for algorithm-generated placements, but warns visually
-
-**Files modified:**
-1. `src/lib/algorithms/first-choice-only.ts` (NEW) - New algorithm that assigns everyone to first choice
-2. `src/lib/application/algorithmCatalog.ts` - Add new algorithm entry
-3. `src/lib/application/useCases/generateCandidate.ts` - Wire up new algorithm
-4. `src/lib/stores/scenarioEditingStore.ts` - Allow moves to over-capacity groups (remove hard block, or make configurable)
-5. `src/lib/domain/group.ts` - Add `isOverEnrolled()` helper
-6. `src/lib/utils/groups.ts` - Extend `getCapacityStatus()` to return over-enrolled state with distinct styling
-7. `src/lib/components/editing/EditableGroupColumn.svelte` - Show over-enrollment indicator (e.g., "+3 over")
-8. `src/lib/components/editing/DraggableStudentCard.svelte` - Display 1st/2nd choice preferences inline
-
-**Trade-offs:**
-- Implementation effort: Moderate (new algorithm + UI changes)
-- Best-practice alignment: Canonical (proper layering, new algorithm file)
-- Maintenance burden: Manageable (clear separation of concerns)
+### Modified Files
+1. `src/lib/components/editing/EditingToolbar.svelte` - Add "Export Activity" button
+2. `src/lib/services/appEnvUseCases.ts` - Wire up new use cases to facade
+3. `src/lib/infrastructure/inMemoryEnvironment.ts` - Add file download adapter to env
+4. `src/routes/activities/+page.svelte` - Add "Import Activity" link to empty state/header
 
 ---
 
-### Approach B: Config-Based Capacity Override
+## Approaches
 
-**What it does differently:**
-- Instead of a new algorithm, adds an "Allow over-enrollment" toggle to existing algorithms
-- Capacity becomes advisory rather than enforced when toggle is on
+### Approach A: Minimal - Direct Browser Download (Recommended)
 
-**Files modified:**
-1. `src/lib/algorithms/balanced-assignment.ts` - Add `allowOverEnrollment: boolean` config option
-2. `src/lib/stores/scenarioEditingStore.ts` - Store toggle state, conditionally skip capacity check
-3. Same UI changes as Approach A (items 5-8)
+**What it does differently**: Uses direct browser APIs (`URL.createObjectURL`, `<a download>`) for file operations without creating new ports.
 
-**Trade-offs:**
-- Implementation effort: Quick win (fewer files, no new algorithm)
-- Best-practice alignment: Acceptable (config flag approach is common)
-- Maintenance burden: Simple (single toggle controls behavior)
+**Implementation**:
+- Export: Utility function in `src/lib/utils/activityFile.ts` creates JSON blob, triggers download via temporary anchor element
+- Import: File input on import page, `FileReader` to parse JSON, then call existing `createGroupingActivity` use case
 
----
+**Files created/modified**:
+- `src/lib/utils/activityFile.ts` (new) - ~100 lines
+- `src/lib/application/useCases/importActivity.ts` (new) - ~80 lines
+- `src/lib/components/editing/EditingToolbar.svelte` (modify) - add button
+- `src/routes/activities/import/+page.svelte` (new) - ~150 lines
+- `src/lib/services/appEnvUseCases.ts` (modify) - wire import use case
 
-### Approach C: Modal Capacity System
+**Trade-offs**:
+- Implementation effort: **Quick win** (~2 hours)
+- Best-practice alignment: **Acceptable** - Browser APIs in utils is slightly impure but pragmatic for file I/O
+- Maintenance burden: **Simple** - Minimal new abstractions
 
-**What it does differently:**
-- Introduces a "capacity mode" concept: strict, soft, or none
-- Groups can have different enforcement levels
-- More flexible but more complex
+### Approach B: Port-Based - Full Abstraction
 
-**Files modified:**
-1. `src/lib/domain/group.ts` - Add `capacityMode: 'strict' | 'soft' | 'none'` field
-2. Multiple algorithm files to respect the mode
-3. Repository changes for persistence
-4. Extensive UI changes
+**What it does differently**: Creates `FileDownloadPort` and `FileUploadPort` abstractions in the application layer.
 
-**Trade-offs:**
-- Implementation effort: Significant (domain model change, migrations)
-- Best-practice alignment: Canonical (proper modeling)
-- Maintenance burden: Complex (more states to handle)
+**Implementation**:
+- New ports: `FileDownloadPort`, `FileUploadPort`
+- New adapters: `BrowserFileDownloadAdapter`, `BrowserFileUploadAdapter`
+- In-memory adapters for testing
+- Use cases call ports for file operations
 
----
+**Files created/modified**:
+- `src/lib/application/ports/FileDownloadPort.ts` (new)
+- `src/lib/application/ports/FileUploadPort.ts` (new)
+- `src/lib/infrastructure/file/BrowserFileDownloadAdapter.ts` (new)
+- `src/lib/infrastructure/file/BrowserFileUploadAdapter.ts` (new)
+- `src/lib/infrastructure/file/InMemoryFileAdapter.ts` (new)
+- `src/lib/application/useCases/exportActivity.ts` (new)
+- `src/lib/application/useCases/importActivity.ts` (new)
+- `src/lib/utils/activityFile.ts` (new)
+- `src/lib/infrastructure/inMemoryEnvironment.ts` (modify)
+- `src/lib/services/appEnvUseCases.ts` (modify)
+- `src/lib/components/editing/EditingToolbar.svelte` (modify)
+- `src/routes/activities/import/+page.svelte` (new)
 
-## Recommendation: Approach A (Algorithm Flag + Soft Capacity)
+**Trade-offs**:
+- Implementation effort: **Moderate** (~4 hours)
+- Best-practice alignment: **Canonical** - Fully testable, follows hexagonal architecture strictly
+- Maintenance burden: **Manageable** - More files but cleaner separation
 
-**Reasons:**
-1. **Clean separation** - "First Choice Only" is a distinct algorithm with clear semantics, not a config hack on existing algorithms
-2. **Explicit intent** - Users choosing this algorithm understand they're opting into over-enrollment
-3. **Minimal domain changes** - No schema changes, just new helper functions
+### Approach C: Server-Assisted Export
 
-**What would flip the choice:**
-- If users need per-group capacity control: Approach C
-- If implementation speed is critical and first-choice-only is rarely used: Approach B
+**What it does differently**: Generates shareable URLs instead of files (requires backend)
 
----
-
-## Detailed Implementation Plan
-
-### Phase 1: Algorithm & Domain Layer
-
-1. **Create `src/lib/algorithms/first-choice-only.ts`**
-   - Export `assignFirstChoiceOnly(options: AssignmentOptions): AssignmentResult`
-   - For each student with preferences: assign to first choice regardless of capacity
-   - Students without preferences: leave unassigned (or balanced fill)
-
-2. **Update `src/lib/application/algorithmCatalog.ts`**
-   - Add entry: `{ id: 'first-choice-only', label: 'First Choice Only' }`
-
-3. **Add domain helper `src/lib/domain/group.ts`**
-   - `isOverEnrolled(group: Group): boolean` - returns true if memberIds.length > capacity
-
-4. **Update `src/lib/utils/groups.ts`**
-   - Extend `getCapacityStatus()` to include `isOverEnrolled: boolean` and distinct color (e.g., purple or darker red)
-
-### Phase 2: Store & Validation Layer
-
-5. **Update `src/lib/stores/scenarioEditingStore.ts`**
-   - Option A: Remove the `isGroupFull()` block entirely (always allow moves)
-   - Option B: Add store-level config `allowOverEnrollment` that skips the check
-   - Recommended: Option A for simplicity - let users move students anywhere, show visual warnings
-
-### Phase 3: UI Components
-
-6. **Update `src/lib/components/editing/EditableGroupColumn.svelte`**
-   - Show over-enrollment indicator: e.g., "8/5 (+3)" with red/purple styling
-   - Progress bar extends beyond 100% with distinct visual (striped or pulsing)
-
-7. **Update `src/lib/components/editing/DraggableStudentCard.svelte`**
-   - Display 1st and 2nd choice preferences compactly below name
-   - Format: "1st: Band, 2nd: Choir" in smaller text
-   - Highlight current group match: if student is in their 1st choice, show checkmark or green highlight on "1st"; same for 2nd
-
-8. **Update workspace page if needed**
-   - Ensure `selectedStudentPreferences` data flows correctly to new card display
+**Why not recommended**:
+- Violates core principle "All data stays in the browser"
+- Requires server infrastructure
+- Out of scope for current architecture
 
 ---
 
-## Visual Design Concepts
+## Recommendation
 
-### Student Card (DraggableStudentCard)
+**Approach A (Minimal - Direct Browser Download)** is recommended because:
+
+1. **Pragmatic**: File download/upload is a one-way operation that doesn't need mocking in tests (the data serialization can be tested separately)
+2. **Follows existing patterns**: Similar to how CSV export currently works (utility function in `src/lib/utils/`)
+3. **Fast delivery**: Minimal abstraction overhead, can be implemented quickly
+
+**What would flip the choice**: If we needed to test file operations in automated e2e tests without actual file system access, Approach B would be worth the investment.
+
+---
+
+## Implementation Plan
+
+### Export Feature
+
+1. Create `src/lib/utils/activityFile.ts`:
+   - `serializeActivityToJson(data: ActivityExportData): string`
+   - `downloadActivityFile(data: ActivityExportData, filename: string): void`
+   - `ActivityExportData` type definition
+
+2. Add "Export Activity" button to `EditingToolbar.svelte`:
+   - Button in export dropdown (next to CSV options)
+   - On click: gather current activity data, call `downloadActivityFile`
+
+### Import Feature
+
+1. Create `src/lib/application/useCases/importActivity.ts`:
+   - Validates imported JSON structure
+   - Checks version compatibility
+   - Creates Program, Pool, Students, Preferences, and optionally Scenario
+   - Returns new program ID on success
+
+2. Create `src/routes/activities/import/+page.svelte`:
+   - File drop zone / file input
+   - Parse and validate JSON
+   - Preview import data (activity name, student count, group count)
+   - "Import" button → call use case → redirect to workspace
+
+3. Add "Import Activity" link to `/activities` page header
+
+### Export Data Schema
+
+```typescript
+interface ActivityExportData {
+  version: 1;
+  exportedAt: string; // ISO date
+  activity: {
+    name: string;
+    type: ProgramType;
+  };
+  roster: {
+    students: Array<{
+      id: string;
+      firstName: string;
+      lastName?: string;
+      gradeLevel?: string;
+    }>;
+  };
+  preferences: Array<{
+    studentId: string;
+    likeGroupIds: string[];
+    avoidStudentIds: string[];
+  }>;
+  scenario?: {
+    groups: Array<{
+      name: string;
+      capacity?: number;
+      memberIds: string[];
+    }>;
+    algorithmConfig?: unknown;
+  };
+}
 ```
-+-----------------------------+
-| Alice Smith              *  |  <- Star if got 1st choice
-| 1st: Band (checkmark)  2nd: Choir     |  <- Preferences with checkmark on current
-+-----------------------------+
-```
-
-If in 2nd choice:
-```
-+-----------------------------+
-| Bob Jones                   |
-| 1st: Band    2nd: Choir (checkmark)   |  <- Checkmark moves to 2nd
-+-----------------------------+
-```
-
-### Over-Enrolled Group
-```
-+-----------------------------+
-| Band                        |
-| 8 / 5  [========+3]         |  <- Red bar extends with "+3" label
-| Warning: Over capacity      |  <- Warning badge
-+-----------------------------+
-| [Alice Smith]               |
-| [Bob Jones]                 |
-| ...                         |
-+-----------------------------+
-```
-
-### Subtle preference match indication
-- If in 1st choice: small green dot or checkmark on card
-- If in 2nd choice: small teal/blue indicator
-- No explicit "not a preference" indicator (absence of indicator is sufficient)
 
 ---
 
-## Questions for Clarification
+## Questions for Approval
 
-1. **Drag-drop behavior**: Should users be able to manually drag students into over-capacity groups, or only via the "First Choice Only" algorithm?
-   - Recommendation: Allow both - makes manual adjustment easier
+1. Should the import create a new scenario with the same groups, or start fresh with just the roster/preferences?
+   - **Recommendation**: Include scenario (groups) so the import is a full copy
 
-2. **Unassigned handling in first-choice algorithm**: What happens to students with no preferences?
-   - Option A: Leave unassigned
-   - Option B: Balanced fill after preference students are placed
-   - Recommendation: Option B for teacher convenience
+2. Should we support importing without groups (roster-only)?
+   - **Recommendation**: Yes, make scenario optional in the export
 
-3. **Preference display depth**: Show 1st and 2nd only, or 1st/2nd/3rd?
-   - Recommendation: 1st and 2nd (keeps cards compact)
-
----
-
-## Files Summary
-
-| File | Action | Layer |
-|------|--------|-------|
-| `src/lib/algorithms/first-choice-only.ts` | Create | Algorithm |
-| `src/lib/application/algorithmCatalog.ts` | Modify | Application |
-| `src/lib/domain/group.ts` | Modify | Domain |
-| `src/lib/utils/groups.ts` | Modify | Utility |
-| `src/lib/stores/scenarioEditingStore.ts` | Modify | Store |
-| `src/lib/components/editing/EditableGroupColumn.svelte` | Modify | UI |
-| `src/lib/components/editing/DraggableStudentCard.svelte` | Modify | UI |
-
----
-
-## Tests to Add
-
-- Unit test for `assignFirstChoiceOnly` algorithm
-- Unit test for `isOverEnrolled` helper
-- Unit test for updated `getCapacityStatus` with over-enrollment
-- Component test for DraggableStudentCard preference display
+3. Filename convention?
+   - **Recommendation**: `{activity-name}-{date}.groupwheel.json`

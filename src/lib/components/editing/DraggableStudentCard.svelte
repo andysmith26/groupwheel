@@ -12,10 +12,10 @@
 		onDragEnd,
 		flash = false,
 		preferenceRank = null,
+		hasPreferences = false,
+		textTone = 'text-gray-800',
 		onHoverStart,
-		onHoverEnd,
-		preferences = [],
-		currentGroupName = null
+		onHoverEnd
 	} = $props<{
 		student: Student;
 		container: string;
@@ -26,33 +26,34 @@
 		onDragEnd?: () => void;
 		flash?: boolean;
 		preferenceRank?: number | null;
+		hasPreferences?: boolean;
+		textTone?: string;
 		onHoverStart?: (studentId: string, x: number, y: number) => void;
 		onHoverEnd?: () => void;
-		/** First two preference group names */
-		preferences?: string[];
-		/** Current group name (to show checkmark if matching a preference) */
-		currentGroupName?: string | null;
 	}>();
 
-	const name = `${student.firstName} ${student.lastName ?? ''}`.trim() || student.id;
+	const fullName = `${student.firstName} ${student.lastName ?? ''}`.trim() || student.id;
 	const gotTopChoice = $derived(preferenceRank === 1);
 
-	// Get first and second choices
-	const firstChoice = $derived(preferences[0] ?? null);
-	const secondChoice = $derived(preferences[1] ?? null);
+	function getCompactLabel(firstName: string, lastName: string | null): string {
+		const cleanFirst = firstName.trim();
+		const lastInitial = (lastName ?? '').trim().charAt(0);
+		const truncatedFirst =
+			cleanFirst.length > 8 ? `${cleanFirst.slice(0, 8)}...` : cleanFirst;
+		if (truncatedFirst && lastInitial) return `${truncatedFirst} ${lastInitial}.`;
+		if (truncatedFirst) return truncatedFirst;
+		return student.id.slice(0, 2).toUpperCase();
+	}
 
-	// Check if current group matches a preference
-	const isInFirstChoice = $derived(
-		currentGroupName !== null && firstChoice !== null && currentGroupName === firstChoice
-	);
-	const isInSecondChoice = $derived(
-		currentGroupName !== null && secondChoice !== null && currentGroupName === secondChoice
-	);
+	const compactLabel = $derived(getCompactLabel(student.firstName, student.lastName ?? null));
+	const dotClass = $derived(() => {
+		if (preferenceRank === 1) return 'bg-green-500';
+		if (preferenceRank === 2) return 'bg-yellow-400';
+		if (hasPreferences) return 'bg-red-400';
+		return '';
+	});
 
-	// Whether to show preference row
-	const hasPreferences = $derived(firstChoice !== null || secondChoice !== null);
-
-	// Hover delay handling (300ms)
+	// Hover delay handling (100ms)
 	let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	function handleMouseEnter(event: MouseEvent) {
@@ -64,7 +65,7 @@
 
 		hoverTimeout = setTimeout(() => {
 			onHoverStart?.(student.id, x, y);
-		}, 300);
+		}, 100);
 	}
 
 	function handleMouseLeave() {
@@ -92,11 +93,12 @@
 		dragData: { id: student.id },
 		callbacks: { onDragStart: handleDragStartInternal, onDragEnd }
 	}}
-	class={`rounded-lg border bg-white px-3 py-2 text-sm shadow-sm transition duration-150 ease-out cursor-grab ${
+	class={`mx-auto flex items-center justify-center rounded-md border bg-white p-0.5 text-sm shadow-sm transition duration-150 ease-out cursor-grab w-[92px] ${
 		selected ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'
 	} ${isDragging ? 'opacity-60 cursor-grabbing' : ''} ${flash ? 'flash-move' : ''}`}
 	role="button"
 	tabindex="0"
+	aria-label={fullName}
 	onclick={() => onSelect?.(student.id)}
 	onkeydown={(event) => {
 		if (event.key === 'Enter' || event.key === ' ') {
@@ -107,24 +109,10 @@
 	onmouseenter={handleMouseEnter}
 	onmouseleave={handleMouseLeave}
 >
-	<div class="flex items-center justify-between gap-1">
-		<span class="font-medium text-gray-900">{name}</span>
-		{#if gotTopChoice}
-			<span class="text-yellow-500" title="Got 1st choice">★</span>
+	<div class={`relative flex w-full items-center justify-center rounded-md bg-white px-1.5 py-0.5 text-[15px] font-semibold ${textTone}`}>
+		<span class="truncate leading-none">{compactLabel}</span>
+		{#if dotClass()}
+			<span class={`absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full ${dotClass()}`} aria-hidden="true"></span>
 		{/if}
 	</div>
-	{#if hasPreferences}
-		<div class="mt-1 flex flex-wrap gap-x-2 text-xs text-gray-500">
-			{#if firstChoice}
-				<span class={isInFirstChoice ? 'text-green-600 font-medium' : ''}>
-					1st: {firstChoice}{#if isInFirstChoice}<span class="ml-0.5">✓</span>{/if}
-				</span>
-			{/if}
-			{#if secondChoice}
-				<span class={isInSecondChoice ? 'text-teal-600 font-medium' : ''}>
-					2nd: {secondChoice}{#if isInSecondChoice}<span class="ml-0.5">✓</span>{/if}
-				</span>
-			{/if}
-		</div>
-	{/if}
 </div>

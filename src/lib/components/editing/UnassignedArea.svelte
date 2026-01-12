@@ -38,18 +38,19 @@
 	}
 </script>
 
-<div class="rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-	<div class="mb-3 flex items-center justify-between">
+<div class="rounded-xl bg-gray-50 p-3">
+	<div class="mb-1 flex items-center justify-between">
 		<p class="text-sm font-semibold text-gray-900">Not in groups ({unassignedIds.length})</p>
 	</div>
 	<div
 		use:droppable={{ container: 'unassigned', callbacks: { onDrop: handleDrop } }}
-		class={`flex flex-wrap gap-2 rounded-lg border border-dashed px-2 py-3 ${
+		class={`grid content-start justify-items-center gap-2 rounded-lg border border-dashed p-2 ${
 			draggingId ? 'border-blue-200 bg-white' : 'border-gray-200'
 		}`}
+		style="grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));"
 	>
 		{#if unassignedIds.length === 0}
-			<p class="w-full py-4 text-center text-xs text-gray-500">All students are assigned</p>
+			<p class="col-span-full py-4 text-center text-xs text-gray-500">All students are assigned</p>
 		{:else}
 			{#each unassignedIds as studentId (studentId)}
 				{#if studentsById[studentId]}
@@ -58,6 +59,7 @@
 						container="unassigned"
 						selected={selectedStudentId === studentId}
 						isDragging={draggingId === studentId}
+						textTone="text-gray-500"
 						{onSelect}
 						onDragStart={() => onDragStart?.(studentId)}
 						{onDragEnd}

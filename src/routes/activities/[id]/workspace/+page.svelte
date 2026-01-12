@@ -21,26 +21,22 @@
 	import type { Program, Pool, Scenario, Student, Preference, Group } from '$lib/domain';
 
 	import EditingToolbar from '$lib/components/editing/EditingToolbar.svelte';
-	import AnalyticsPanel from '$lib/components/editing/AnalyticsPanel.svelte';
 	import UnassignedArea from '$lib/components/editing/UnassignedArea.svelte';
 	import GroupEditingLayout, {
 		type LayoutMode
 	} from '$lib/components/editing/GroupEditingLayout.svelte';
 	import ConfirmDialog from '$lib/components/editing/ConfirmDialog.svelte';
-	import StudentSidebar from '$lib/components/workspace/StudentSidebar.svelte';
 	import EmptyWorkspaceState from '$lib/components/workspace/EmptyWorkspaceState.svelte';
 	import HistorySelector from '$lib/components/editing/HistorySelector.svelte';
 	import type { ScenarioSatisfaction } from '$lib/domain';
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
-	import WorkspaceHeader from '$lib/components/workspace/WorkspaceHeader.svelte';
 	import ShowToClassPrompt from '$lib/components/workspace/ShowToClassPrompt.svelte';
 	import StudentInfoTooltip from '$lib/components/editing/StudentInfoTooltip.svelte';
 	import {
 		generateScenario,
 		getActivityData,
 		createSession,
-		publishSession,
-		renameActivity
+		publishSession
 	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 	import type { Session } from '$lib/domain';
@@ -51,7 +47,8 @@
 		buildAssignmentList,
 		exportToCSV,
 		exportToTSV,
-		exportGroupsToCSV
+		exportGroupsToCSV,
+		exportGroupsToColumnsTSV
 	} from '$lib/utils/csvExport';
 	import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
 	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
@@ -85,8 +82,6 @@
 	let view = $state<ScenarioEditingView | null>(null);
 
 	// --- UI state ---
-	let sidebarOpen = $state(false);
-	let analyticsOpen = $state(false);
 	let selectedStudentId = $state<string | null>(null);
 	let draggingId = $state<string | null>(null);
 	let flashingIds = $state<Set<string>>(new Set());
@@ -106,9 +101,6 @@
 	let showDeleteGroupConfirm = $state(false);
 	let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
 
-	// --- Export menu state ---
-	let showExportMenu = $state(false);
-
 	// --- Show to class prompt state ---
 	let showShowToClassPrompt = $state(false);
 	let showToClassPublishing = $state(false);
@@ -124,7 +116,7 @@
 	let keyboardCleanup: (() => void) | null = null;
 
 	// --- Layout mode ---
-	let layoutMode = $state<LayoutMode>('masonry');
+	let layoutMode = $state<LayoutMode>('row');
 
 	// --- Result history state (session-only) ---
 	interface HistoryEntry {
@@ -153,6 +145,8 @@
 	let preferencesCount = $derived(
 		students.filter((s) => preferenceMap[s.id]?.likeGroupIds?.length > 0).length
 	);
+	let topChoicePercent = $derived(view?.currentAnalytics?.percentAssignedTopChoice ?? null);
+	let topTwoPercent = $derived(view?.currentAnalytics?.percentAssignedTop2 ?? null);
 
 	// Detect if scenario has been edited since last publish
 	let hasEditsSincePublish = $derived.by(() => {
@@ -182,18 +176,6 @@
 	let tooltipPreferences = $derived(
 		tooltipStudentId ? preferenceMap[tooltipStudentId] ?? null : null
 	);
-	let tooltipCurrentGroup = $derived.by(() => {
-		if (!tooltipStudentId || !view) return null;
-		const group = view.groups.find((g) => g.memberIds.includes(tooltipStudentId!));
-		return group?.name ?? null;
-	});
-	let tooltipPreferenceRank = $derived.by(() => {
-		if (!tooltipStudentId || !tooltipPreferences?.likeGroupIds || !tooltipCurrentGroup) {
-			return null;
-		}
-		const rank = tooltipPreferences.likeGroupIds.indexOf(tooltipCurrentGroup);
-		return rank >= 0 ? rank + 1 : null;
-	});
 
 	// --- Compute preference ranks for all students ---
 	let studentPreferenceRanks = $derived.by(() => {
@@ -215,14 +197,11 @@
 		return ranks;
 	});
 
-	// --- Compute first two preferences for all students (for display on cards) ---
-	let studentPreferences = $derived.by(() => {
-		const prefs = new Map<string, string[]>();
+	let studentHasPreferences = $derived.by(() => {
+		const prefs = new Map<string, boolean>();
 		for (const studentId of students.map((s) => s.id)) {
 			const studentPrefs = preferenceMap[studentId]?.likeGroupIds;
-			if (studentPrefs && studentPrefs.length > 0) {
-				prefs.set(studentId, studentPrefs.slice(0, 2));
-			}
+			prefs.set(studentId, Boolean(studentPrefs && studentPrefs.length > 0));
 		}
 		return prefs;
 	});
@@ -539,15 +518,6 @@
 		isTryingAnother = false;
 	}
 
-	function metricSummary(): string {
-		if (!view?.currentAnalytics) return '';
-		const top = Math.round(view.currentAnalytics.percentAssignedTopChoice);
-		if (view.analyticsDelta?.topChoice === undefined) return `${top}% top choice`;
-		const delta = Math.round(view.analyticsDelta.topChoice);
-		const arrow = delta >= 0 ? '↑' : '↓';
-		return `${top}% top choice (${arrow}${Math.abs(delta)}%)`;
-	}
-
 	function selectStudent(id: string) {
 		selectedStudentId = selectedStudentId === id ? null : id;
 	}
@@ -654,7 +624,6 @@
 		const csv = exportToCSV(assignments);
 		const success = await env?.clipboard?.writeText(csv);
 		showToast(success ? 'CSV copied to clipboard!' : 'Failed to copy');
-		showExportMenu = false;
 	}
 
 	async function handleExportTSV() {
@@ -664,7 +633,6 @@
 		const tsv = exportToTSV(assignments);
 		const success = await env?.clipboard?.writeText(tsv);
 		showToast(success ? 'Copied! Paste directly into Google Sheets' : 'Failed to copy');
-		showExportMenu = false;
 	}
 
 	async function handleExportGroupsSummary() {
@@ -673,7 +641,14 @@
 		const csv = exportGroupsToCSV(view.groups, studentsMap);
 		const success = await env?.clipboard?.writeText(csv);
 		showToast(success ? 'Groups summary copied!' : 'Failed to copy');
-		showExportMenu = false;
+	}
+
+	async function handleExportGroupsColumns() {
+		if (!view) return;
+		const studentsMap = new Map(Object.entries(studentsById));
+		const tsv = exportGroupsToColumnsTSV(view.groups, studentsMap);
+		const success = await env?.clipboard?.writeText(tsv);
+		showToast(success ? 'Groups copied for Sheets!' : 'Failed to copy');
 	}
 
 	async function handlePublish(data: {
@@ -735,25 +710,6 @@
 		showPublishModal = false;
 		isPublishing = false;
 		showToast('Groups published successfully!');
-	}
-
-	// --- Activity name rename handler ---
-	async function handleNameChange(newName: string) {
-		if (!env || !program) return;
-
-		const result = await renameActivity(env, {
-			programId: program.id,
-			newName
-		});
-
-		if (isErr(result)) {
-			showToast(result.error.message ?? 'Failed to rename activity');
-			throw new Error(result.error.message);
-		}
-
-		// Update local state
-		program = { ...program, name: newName };
-		showToast('Activity renamed');
 	}
 
 	// --- Show to class handlers ---
@@ -855,7 +811,7 @@
 	<title>{program?.name ?? 'Workspace'} | Groupwheel</title>
 </svelte:head>
 
-<div class="flex h-screen flex-col">
+<div class="flex h-full min-h-0 flex-col">
 	{#if loading}
 		<div class="flex flex-1 items-center justify-center">
 			<p class="text-gray-500">Loading activity...</p>
@@ -870,22 +826,8 @@
 			</div>
 		</div>
 	{:else if program}
-		<!-- Header -->
-		<WorkspaceHeader
-			programId={program.id}
-			programName={program.name}
-			onNameChange={handleNameChange}
-			onExportCSV={handleExportCSV}
-			onExportTSV={handleExportTSV}
-			onExportGroupsSummary={handleExportGroupsSummary}
-			onShowToClass={handleShowToClassClick}
-			hasGroups={!!scenario && !!view}
-			onToggleSidebar={() => (sidebarOpen = !sidebarOpen)}
-			{sidebarOpen}
-		/>
-
 		<!-- Main content area -->
-		<div class="flex flex-1 overflow-hidden">
+		<div class="flex flex-1 min-h-0 overflow-hidden">
 			<!-- Workspace (main area) -->
 			<main class="flex-1 overflow-y-auto p-4">
 				<!-- Post-creation guidance banner -->
@@ -953,35 +895,20 @@
 						<EditingToolbar
 							canUndo={view.canUndo}
 							canRedo={view.canRedo}
-							saveStatus={view.saveStatus}
-							lastSavedAt={view.lastSavedAt}
-							metricSummary={metricSummary()}
-							{analyticsOpen}
-							{isRegenerating}
-							{isTryingAnother}
 							onUndo={() => editingStore?.undo()}
 							onRedo={() => editingStore?.redo()}
-							onStartOver={() => (showStartOverConfirm = true)}
-							onTryAnother={handleTryAnother}
-							onToggleAnalytics={() => (analyticsOpen = !analyticsOpen)}
-							onRetrySave={() => editingStore?.retrySave()}
-							canPublish={view.saveStatus === 'saved' || view.saveStatus === 'idle'}
-							isPublished={latestPublishedSession !== null && !hasEditsSincePublish}
-							publishedSessionName={latestPublishedSession?.name ?? ''}
-							onPublish={() => (showPublishModal = true)}
+							{topChoicePercent}
+							{topTwoPercent}
+							onExportCSV={handleExportCSV}
+							onExportTSV={handleExportTSV}
+							onExportGroupsSummary={handleExportGroupsSummary}
+							onExportGroupsColumns={handleExportGroupsColumns}
 						/>
 
 						<HistorySelector
 							historyLength={resultHistory.length}
 							currentIndex={currentHistoryIndex}
 							onSelect={switchToHistoryEntry}
-						/>
-
-						<AnalyticsPanel
-							open={analyticsOpen}
-							baseline={view.baseline}
-							current={view.currentAnalytics}
-							delta={view.analyticsDelta}
 						/>
 
 						<UnassignedArea
@@ -996,35 +923,6 @@
 							{flashingIds}
 						/>
 
-						<!-- Layout toggle -->
-						<div class="flex justify-end">
-							<div class="inline-flex rounded-lg border border-gray-200 bg-white p-1">
-								<button
-									type="button"
-									class={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
-										layoutMode === 'masonry'
-											? 'bg-gray-100 text-gray-900'
-											: 'text-gray-500 hover:text-gray-700'
-									}`}
-									onclick={() => (layoutMode = 'masonry')}
-									aria-pressed={layoutMode === 'masonry'}
-								>
-									Grid
-								</button>
-								<button
-									type="button"
-									class={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
-										layoutMode === 'row'
-											? 'bg-gray-100 text-gray-900'
-											: 'text-gray-500 hover:text-gray-700'
-									}`}
-									onclick={() => (layoutMode = 'row')}
-									aria-pressed={layoutMode === 'row'}
-								>
-									Row
-								</button>
-							</div>
-						</div>
 					</div>
 
 					<div class={layoutMode === 'row' ? '' : 'mx-auto max-w-6xl'}>
@@ -1045,30 +943,16 @@
 							selectedStudentPreferences={activeStudentPreferences}
 							layout={layoutMode}
 							{studentPreferenceRanks}
-							{studentPreferences}
+							{studentHasPreferences}
 							onStudentHoverStart={handleTooltipShow}
 							onStudentHoverEnd={handleTooltipHide}
 						/>
 					</div>
 
-					<!-- Footer hint -->
-					<div class="mt-4 text-center text-sm text-gray-400">
-						Drag students between groups &middot; Changes save automatically
-					</div>
+					<!-- Footer hint removed for compact view -->
 				{/if}
 			</main>
 
-			<!-- Sidebar -->
-			{#if sidebarOpen}
-				<StudentSidebar
-					{students}
-					{preferenceMap}
-					{selectedStudentId}
-					programId={program?.id}
-					onSelect={selectStudent}
-					onClose={() => (sidebarOpen = false)}
-				/>
-			{/if}
 		</div>
 
 		<!-- Start Over confirmation dialog -->
@@ -1137,8 +1021,6 @@
 			<StudentInfoTooltip
 				student={tooltipStudent}
 				preferences={tooltipPreferences}
-				currentGroupName={tooltipCurrentGroup}
-				preferenceRank={tooltipPreferenceRank}
 				x={tooltipX}
 				y={tooltipY}
 				visible={true}

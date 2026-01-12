@@ -9,9 +9,7 @@
 		onExportTSV,
 		onExportGroupsSummary,
 		onShowToClass,
-		hasGroups = false,
-		onToggleSidebar,
-		sidebarOpen = false
+		hasGroups = false
 	} = $props<{
 		programId: string;
 		programName: string;
@@ -21,8 +19,6 @@
 		onExportGroupsSummary: () => void;
 		onShowToClass: () => void;
 		hasGroups?: boolean;
-		onToggleSidebar?: () => void;
-		sidebarOpen?: boolean;
 	}>();
 
 	let isEditing = $state(false);
@@ -139,16 +135,6 @@
 	</div>
 
 	<div class="flex items-center gap-3">
-		{#if onToggleSidebar}
-			<button
-				type="button"
-				class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-				onclick={onToggleSidebar}
-			>
-				{sidebarOpen ? 'Hide Students' : 'Students'}
-			</button>
-		{/if}
-
 		{#if hasGroups}
 			<!-- Export dropdown -->
 			<div class="relative">

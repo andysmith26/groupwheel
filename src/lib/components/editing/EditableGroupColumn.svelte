@@ -20,7 +20,7 @@
 		rowSpan = 1,
 		preferenceRank = null,
 		studentPreferenceRanks = new Map<string, number | null>(),
-		studentPreferences = new Map<string, string[]>(),
+		studentHasPreferences = new Map<string, boolean>(),
 		onStudentHoverStart,
 		onStudentHoverEnd
 	} = $props<{
@@ -39,13 +39,11 @@
 		rowSpan?: number;
 		preferenceRank?: number | null;
 		studentPreferenceRanks?: Map<string, number | null>;
-		/** Map of studentId to their first two preference group names */
-		studentPreferences?: Map<string, string[]>;
+		studentHasPreferences?: Map<string, boolean>;
 		onStudentHoverStart?: (studentId: string, x: number, y: number) => void;
 		onStudentHoverEnd?: () => void;
 	}>();
 
-	import { onMount, tick } from 'svelte';
 
 	const capacityStatus = $derived(getCapacityStatus(group));
 
@@ -66,7 +64,7 @@
 						? '3rd Choice'
 						: `Choice ${preferenceRank}`;
 
-		// Only highlight top choice with border and background
+		// Highlight top choice with border and background
 		if (preferenceRank <= MAX_HIGHLIGHTED_RANK) {
 			return {
 				borderColor: 'border-green-500',
@@ -77,63 +75,37 @@
 			};
 		}
 
-		// Other choices: show badge only, no border/background highlight
+		if (preferenceRank === 2) {
+			return {
+				borderColor: 'border-yellow-400',
+				bgColor: 'bg-yellow-50',
+				textColor: 'text-yellow-700',
+				badgeBg: 'bg-yellow-100',
+				label
+			};
+		}
+
+		// Other choices: default styling, no highlight
 		return {
-			borderColor: null,
-			bgColor: null,
+			borderColor: 'border-gray-200',
+			bgColor: 'bg-gray-50',
 			textColor: 'text-gray-700',
 			badgeBg: 'bg-gray-100',
 			label
 		};
 	});
 
-	// Menu state
-	let menuOpen = $state(false);
-	let menuContainer = $state<HTMLDivElement | null>(null);
-
-	// Input references
-	let nameInput: HTMLInputElement;
-
 	// Local editing state to handle validation
 	let editingName = $state(group.name);
-	let capacityError = $state('');
 
-	// Computed styles for capacity input
-	const capacityInputClass = $derived(
-		`w-8 border-0 border-b ${capacityError ? 'border-red-500' : 'border-transparent'} bg-transparent text-center text-xs hover:border-gray-300 focus:border-blue-500 focus:ring-0`
-	);
-
-	// Capacity progress (0-100, null if no limit)
-	const capacityProgress = $derived(() => {
-		if (group.capacity === null) return null;
-		return Math.min(100, (group.memberIds.length / group.capacity) * 100);
+	const capacityLabel = $derived(() => {
+		if (group.capacity === null) return `${group.memberIds.length}`;
+		return `${group.memberIds.length}/${group.capacity}`;
 	});
 
 	// Sync local state when group changes externally
 	$effect(() => {
 		editingName = group.name;
-	});
-
-	// Only attach click handler when menu is open
-	$effect(() => {
-		if (!menuOpen) return;
-
-		function handleClickOutside(event: MouseEvent) {
-			if (menuContainer && event.target && !menuContainer.contains(event.target as Node)) {
-				menuOpen = false;
-			}
-		}
-
-		document.addEventListener('click', handleClickOutside);
-		return () => document.removeEventListener('click', handleClickOutside);
-	});
-
-	onMount(async () => {
-		if (focusNameOnMount) {
-			await tick();
-			nameInput?.focus();
-			nameInput?.select();
-		}
 	});
 
 	function handleDrop(event: {
@@ -149,63 +121,10 @@
 		});
 	}
 
-	function handleNameInput(e: Event) {
-		const value = (e.target as HTMLInputElement).value;
-		editingName = value;
-		onUpdateGroup?.(group.id, { name: value });
-	}
-
-	function handleNameBlur() {
-		const trimmed = editingName.trim();
-		if (trimmed.length === 0) {
-			// Revert to original name if empty
-			editingName = group.name;
-		} else if (trimmed !== editingName) {
-			editingName = trimmed;
-			onUpdateGroup?.(group.id, { name: trimmed });
-		}
-	}
-
-	function handleCapacityInput(e: Event) {
-		const value = (e.target as HTMLInputElement).value;
-
-		// Empty value means unlimited capacity (null)
-		if (value === '') {
-			capacityError = '';
-			onUpdateGroup?.(group.id, { capacity: null });
-			return;
-		}
-
-		const parsed = parseInt(value, 10);
-
-		// Check for invalid input
-		if (Number.isNaN(parsed)) {
-			capacityError = 'Please enter a valid number';
-			return;
-		}
-
-		if (parsed <= 0) {
-			capacityError = 'Capacity must be greater than 0';
-			return;
-		}
-
-		// Valid input - clear error and update
-		capacityError = '';
-		onUpdateGroup?.(group.id, { capacity: parsed });
-	}
-
-	function toggleMenu() {
-		menuOpen = !menuOpen;
-	}
-
-	function handleDeleteClick() {
-		menuOpen = false;
-		onDeleteGroup?.(group.id);
-	}
 </script>
 
 <div
-	class={`relative flex flex-col gap-3 rounded-xl border-2 p-4 shadow-sm ${
+	class={`relative flex flex-col gap-2 rounded-xl border-2 p-1.5 shadow-sm ${
 		preferenceStyles()
 			? `${preferenceStyles()!.borderColor} ${preferenceStyles()!.bgColor}`
 			: 'border-gray-200 bg-gray-50'
@@ -213,110 +132,30 @@
 	style={`grid-row: span ${rowSpan};`}
 >
 	<div class="flex items-center justify-between gap-2">
-		<div class="min-w-0 flex-1">
-			<input
-				bind:this={nameInput}
-				type="text"
-				class="w-full border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold text-gray-900 hover:border-gray-300 focus:border-blue-500 focus:ring-0"
-				value={editingName}
-				oninput={handleNameInput}
-				onblur={handleNameBlur}
-				aria-label="Group name"
-			/>
-			<div class="mt-1 flex items-center gap-2 px-1">
-				<div class="flex items-center gap-1 text-xs text-gray-600">
-					<span class={capacityStatus.isOverEnrolled ? 'text-violet-600 font-medium' : ''}>{group.memberIds.length}</span>
-					<span>/</span>
-					<input
-						type="number"
-						min="1"
-						class={capacityInputClass}
-						value={group.capacity ?? ''}
-						placeholder="--"
-						oninput={handleCapacityInput}
-						aria-label="Group capacity"
-						aria-invalid={capacityError !== ''}
-					/>
-					{#if capacityStatus.isOverEnrolled}
-						<span class="text-xs font-medium text-violet-600">(+{capacityStatus.overEnrollmentCount})</span>
-					{/if}
-				</div>
-				{#if capacityProgress() !== null}
-					<div class="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
-						<div
-							class={`h-full rounded-full transition-all ${
-								capacityStatus.isOverEnrolled
-									? 'bg-violet-500'
-									: capacityStatus.isFull
-										? 'bg-red-500'
-										: capacityStatus.isWarning
-											? 'bg-amber-500'
-											: 'bg-gray-400'
-							}`}
-							style={`width: ${capacityStatus.isOverEnrolled ? '100%' : capacityProgress() + '%'}`}
-						></div>
-					</div>
-				{:else}
-					<span class="text-xs text-gray-400">No limit</span>
-				{/if}
-			</div>
-			{#if capacityError}
-				<div class="mt-1 px-1 text-xs text-red-600">
-					{capacityError}
-				</div>
-			{/if}
-		</div>
-		{#if onDeleteGroup}
-			<div bind:this={menuContainer} class="relative">
-				<button
-					type="button"
-					class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-					onclick={toggleMenu}
-					aria-label="Group options"
-				>
-					<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-						<path
-							d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
-						/>
-					</svg>
-				</button>
-				{#if menuOpen}
-					<div
-						class="absolute right-0 z-10 mt-1 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
-					>
-						<button
-							type="button"
-							class="w-full px-4 py-2 text-left text-sm whitespace-nowrap text-red-600 hover:bg-red-50"
-							onclick={handleDeleteClick}
-						>
-							Delete group
-						</button>
-					</div>
-				{/if}
-			</div>
-		{/if}
-	</div>
-
-	<!-- Preference banner - shown only when a student is selected -->
-	{#if preferenceStyles()}
-		<div
-			class={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium ${preferenceStyles()!.badgeBg} ${preferenceStyles()!.textColor}`}
+		<span
+			class="min-w-0 flex-1 truncate px-1 py-0.5 text-xs font-semibold text-gray-900"
+			title={editingName}
 		>
-			<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-			</svg>
-			<span>{preferenceStyles()!.label} for selected student</span>
-		</div>
-	{/if}
+			{editingName}
+		</span>
+		<span
+			class={`text-xs font-medium ${
+				capacityStatus.isOverEnrolled ? 'text-violet-600' : 'text-gray-600'
+			}`}
+		>
+			{capacityLabel()}
+		</span>
+	</div>
 
 	<div
 		use:droppable={{ container: group.id, callbacks: { onDrop: handleDrop } }}
-		class={`flex flex-1 flex-col gap-2 rounded-lg border border-dashed px-2 py-2 ${
-			draggingId ? 'border-blue-200 bg-white' : 'border-gray-200'
+		class={`grid flex-1 content-start place-items-center gap-1 px-1 py-1 ${
+			draggingId ? 'bg-white' : ''
 		}`}
+		style="grid-template-columns: 1fr;"
 	>
 		{#if group.memberIds.length === 0}
-			<p class="py-6 text-center text-xs text-gray-500">Drop students here</p>
+			<p class="col-span-full py-6 text-center text-xs text-gray-500">Drop students here</p>
 		{:else}
 			{#each group.memberIds as memberId (memberId)}
 				{#if studentsById[memberId]}
@@ -330,8 +169,7 @@
 						{onDragEnd}
 						flash={flashingIds.has(memberId)}
 						preferenceRank={studentPreferenceRanks.get(memberId) ?? null}
-						preferences={studentPreferences.get(memberId) ?? []}
-						currentGroupName={group.name}
+						hasPreferences={studentHasPreferences.get(memberId) ?? false}
 						onHoverStart={onStudentHoverStart}
 						onHoverEnd={onStudentHoverEnd}
 					/>

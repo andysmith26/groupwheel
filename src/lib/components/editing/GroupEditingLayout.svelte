@@ -2,7 +2,6 @@
 	import type { Group, Student } from '$lib/domain';
 	import { calculateRowSpan } from '$lib/utils/groups';
 	import EditableGroupColumn from './EditableGroupColumn.svelte';
-	import AddGroupCard from './AddGroupCard.svelte';
 	import HorizontalScrollContainer from '$lib/components/ui/HorizontalScrollContainer.svelte';
 
 	export type LayoutMode = 'masonry' | 'row';
@@ -12,7 +11,7 @@
 	// =============================================================================
 	const ROW_CONFIG = {
 		/** Width of each group card in pixels */
-		itemWidth: 220,
+		itemWidth: 114,
 		/** Gap between cards in pixels */
 		itemGap: 12,
 		/** Number of cards to scroll per button click */
@@ -42,7 +41,7 @@
 		selectedStudentPreferences = null,
 		layout = 'masonry',
 		studentPreferenceRanks = new Map<string, number | null>(),
-		studentPreferences = new Map<string, string[]>(),
+		studentHasPreferences = new Map<string, boolean>(),
 		onStudentHoverStart,
 		onStudentHoverEnd
 	} = $props<{
@@ -62,11 +61,11 @@
 		selectedStudentPreferences?: string[] | null;
 		layout?: LayoutMode;
 		studentPreferenceRanks?: Map<string, number | null>;
-		/** Map of studentId to their first two preference group names */
-		studentPreferences?: Map<string, string[]>;
+		studentHasPreferences?: Map<string, boolean>;
 		onStudentHoverStart?: (studentId: string, x: number, y: number) => void;
 		onStudentHoverEnd?: () => void;
 	}>();
+
 
 	// Helper to get preference rank for a group
 	function getPreferenceRank(groupId: string): number | null {
@@ -83,8 +82,7 @@
 	<HorizontalScrollContainer
 		totalItems={groups.length + (onAddGroup ? 1 : 0)}
 		config={ROW_CONFIG}
-		showProgress={true}
-		progressVariant="fraction"
+		showProgress={false}
 		ariaLabel="Group cards"
 	>
 		<div class="group-row">
@@ -105,15 +103,13 @@
 					focusNameOnMount={group.id === newGroupId}
 					preferenceRank={getPreferenceRank(group.id)}
 					{studentPreferenceRanks}
-					{studentPreferences}
+					{studentHasPreferences}
 					{onStudentHoverStart}
 					{onStudentHoverEnd}
 				/>
 			{/each}
 
-			{#if onAddGroup}
-				<AddGroupCard rowSpan={1} {onAddGroup} />
-			{/if}
+			<!-- Add Group card removed for compact view -->
 		</div>
 	</HorizontalScrollContainer>
 {:else}
@@ -135,15 +131,13 @@
 				focusNameOnMount={group.id === newGroupId}
 				preferenceRank={getPreferenceRank(group.id)}
 				{studentPreferenceRanks}
-				{studentPreferences}
+				{studentHasPreferences}
 				{onStudentHoverStart}
 				{onStudentHoverEnd}
 			/>
 		{/each}
 
-		{#if onAddGroup}
-			<AddGroupCard rowSpan={4} {onAddGroup} />
-		{/if}
+		<!-- Add Group card removed for compact view -->
 	</div>
 {/if}
 
@@ -169,16 +163,17 @@
 	}
 
 	.group-row {
-		display: flex;
-		flex-direction: row;
-		flex-wrap: nowrap;
-		align-items: flex-start;
-		justify-content: flex-start;
+		display: grid;
+		grid-auto-flow: column;
+		grid-template-rows: repeat(2, auto);
+		align-items: start;
+		justify-content: center;
 		gap: 12px;
+		width: max-content;
+		margin: 0 auto;
 	}
 
 	.group-row > :global(*) {
-		flex: 0 0 auto;
-		width: 220px;
+		width: 114px;
 	}
 </style>

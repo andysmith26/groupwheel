@@ -117,7 +117,14 @@
 
 	async function completeLogin(authData: AuthCallbackData) {
 		await authService?.setUser(authData.user, authData.accessToken);
-		await goto('/');
+		const redirectTarget =
+			typeof window !== 'undefined'
+				? window.sessionStorage.getItem('post_login_redirect')
+				: null;
+		if (typeof window !== 'undefined') {
+			window.sessionStorage.removeItem('post_login_redirect');
+		}
+		await goto(redirectTarget || '/track-responses');
 	}
 
 	async function handleMigrationChoice(choice: 'upload' | 'separate' | 'discard') {

@@ -8,16 +8,17 @@
 	 */
 
 	import { onMount, onDestroy } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import {
-		isAuthenticated,
 		connectGoogleSheet,
-		importFromSheetTab
+		importFromSheetTab,
+		createGroupingActivity,
+		generateScenario
 	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 	import { Button } from '$lib/components/ui';
 	import ActivityStatusBar from '$lib/components/track-responses/ActivityStatusBar.svelte';
-	import StudentFiltersBar from '$lib/components/track-responses/StudentFiltersBar.svelte';
 	import type { SheetConnection, SheetTab } from '$lib/domain/sheetConnection';
 	import type { RawSheetData } from '$lib/domain/import';
 	import {
@@ -26,14 +27,17 @@
 		type FormResponse,
 		type RosterStudent
 	} from '$lib/utils/responseTracker';
+	import { formatRelativeUpdatedLabel } from '$lib/utils/trackResponsesUi';
 	import {
-		formatRelativeUpdatedLabel,
-		getNextHeaderCollapseState,
-		type StudentStateFilter
-	} from '$lib/utils/trackResponsesUi';
+		trackResponsesSession,
+		type SortAlgorithm
+	} from '$lib/stores/trackResponsesSession.svelte';
+	import type { ParsedStudent, ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 
 	// Environment - initialized in onMount (SSR-safe)
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
+	let authUnsubscribe: (() => void) | null = null;
+	let isLoggedIn = $state(false);
 
 	// LocalStorage keys
 	const STORAGE_KEY = 'groupwheel_response_tracker';
@@ -90,13 +94,10 @@
 	let isRefreshing = $state(false);
 
 	// Search and ignore state
-	let searchQuery = $state('');
 	let ignoredEmails = $state<Set<string>>(new Set());
-	let stateFilter = $state<StudentStateFilter>('all');
 	let showClubRequests = $state(false);
 
 	// Derived
-	let isLoggedIn = $derived(env ? isAuthenticated(env) : false);
 	let tabs = $derived(connection?.tabs ?? []);
 	let canProcess = $derived(rosterData !== null && responsesData !== null);
 
@@ -158,9 +159,10 @@
 
 	let filteredStudents = $derived(() => {
 		if (!matchResult) return [];
-		const query = searchQuery.toLowerCase().trim();
+		const query = trackResponsesSession.searchQuery.toLowerCase().trim();
+		const activeFilter = trackResponsesSession.stateFilter;
 		return studentRows().filter((row) => {
-			if (stateFilter !== 'all' && row.state !== stateFilter) return false;
+			if (activeFilter !== 'all' && row.state !== activeFilter) return false;
 			return nameMatchesQuery(row.student.name, query);
 		});
 	});
@@ -170,29 +172,6 @@
 	let lastUpdatedLabel = $derived(() =>
 		lastRefresh ? formatRelativeUpdatedLabel(lastRefresh) : 'Updated —'
 	);
-	let isHeaderExpanded = $derived(
-		() => !isHeaderCollapsed || isHeaderHovered || isHeaderPinnedOpen
-	);
-	let filterIndicatorLabel = $derived(() => {
-		const counts = studentCounts();
-		switch (stateFilter) {
-			case 'submitted':
-				return `Submitted ${counts.submitted}`;
-			case 'ignored':
-				return `Ignored ${counts.ignored}`;
-			case 'not_submitted':
-				return `Not submitted ${counts.unresolved}`;
-			default:
-				return `All ${counts.total}`;
-		}
-	});
-
-	let isHeaderCollapsed = $state(false);
-	let isHeaderPinnedOpen = $state(false);
-	let isHeaderHovered = $state(false);
-	let lastScrollY = 0;
-	const HEADER_COLLAPSE_THRESHOLD = 80;
-
 	// Club requests - aggregate choices by club name
 	interface ClubRequest {
 		clubName: string;
@@ -240,6 +219,39 @@
 		return result;
 	});
 
+	$effect(() => {
+		trackResponsesSession.setSession({
+			sheetTitle: connection?.title ?? null,
+			sheetUrl: connection?.url ?? sheetUrl,
+			isConnected: Boolean(connection),
+			canRefresh: canProcess && !isRefreshing,
+			onDisconnect: connection ? handleDisconnect : null,
+			onRefresh: connection ? refreshData : null
+		});
+	});
+
+	$effect(() => {
+		const counts = studentCounts();
+		trackResponsesSession.setCounts({
+			total: counts.total,
+			submitted: counts.submitted,
+			ignored: counts.ignored,
+			unresolved: counts.unresolved,
+			accountedFor: accountedFor(),
+			accountedForPercent: accountedForPercent()
+		});
+	});
+
+	$effect(() => {
+		// Wire up sort functionality when we have valid data
+		trackResponsesSession.onSort = handleSort;
+		// Can sort when we have match result with students and detected groups
+		trackResponsesSession.canSort =
+			matchResult !== null &&
+			(matchResult.submitted.length > 0 || matchResult.notSubmitted.length > 0) &&
+			clubRequests().length > 0;
+	});
+
 	// Load persisted state on mount
 	onMount(() => {
 		env = getAppEnvContext();
@@ -247,26 +259,17 @@
 		loadPersistedState();
 		startAutoRefresh();
 
-		if (typeof window === 'undefined') return;
-
-		lastScrollY = window.scrollY;
-		const handleScroll = () => {
-			isHeaderCollapsed = getNextHeaderCollapseState({
-				currentScrollY: window.scrollY,
-				previousScrollY: lastScrollY,
-				threshold: HEADER_COLLAPSE_THRESHOLD,
-				isCollapsed: isHeaderCollapsed
+		if (env?.authService) {
+			authUnsubscribe = env.authService.onAuthStateChange((user) => {
+				isLoggedIn = Boolean(user);
 			});
-			lastScrollY = window.scrollY;
-		};
-
-		window.addEventListener('scroll', handleScroll, { passive: true });
-		handleScroll();
-		return () => window.removeEventListener('scroll', handleScroll);
+		}
 	});
 
 	onDestroy(() => {
 		stopAutoRefresh();
+		authUnsubscribe?.();
+		trackResponsesSession.clear();
 	});
 
 	function loadPersistedState() {
@@ -374,6 +377,13 @@
 
 		// Auto-detect tabs based on headers
 		await autoDetectTabs();
+	}
+
+	async function handleLogin() {
+		if (typeof window !== 'undefined') {
+			window.sessionStorage.setItem('post_login_redirect', '/track-responses');
+		}
+		await env?.authService?.login();
 	}
 
 	function handleDisconnect() {
@@ -605,143 +615,238 @@
 		sheetUrl = sheet.url;
 		await handleConnect();
 	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Sort / Create Activity
+	// ─────────────────────────────────────────────────────────────────────────
+
+	/**
+	 * Parse a full name into first and last name parts.
+	 */
+	function parseName(fullName: string): { firstName: string; lastName: string } {
+		const parts = fullName.trim().split(/\s+/);
+		if (parts.length === 1) {
+			return { firstName: parts[0], lastName: '' };
+		}
+		const firstName = parts[0];
+		const lastName = parts.slice(1).join(' ');
+		return { firstName, lastName };
+	}
+
+	/**
+	 * Build ParsedStudent array from the match result.
+	 * Creates a stable ID from email for preference matching.
+	 */
+	function buildStudentsFromMatchResult(): { students: ParsedStudent[]; emailToId: Map<string, string> } {
+		if (!matchResult || !env) return { students: [], emailToId: new Map() };
+
+		const emailToId = new Map<string, string>();
+		const students: ParsedStudent[] = [];
+
+		// Include all students from roster (submitted + not submitted)
+		const allRosterStudents = [
+			...matchResult.submitted.map((s) => s.student),
+			...matchResult.notSubmitted
+		];
+
+		for (const rosterStudent of allRosterStudents) {
+			// Skip students we can't track (no email)
+			if (!rosterStudent.email) continue;
+
+			const id = env.idGenerator.generateId();
+			emailToId.set(rosterStudent.email.toLowerCase(), id);
+
+			const { firstName, lastName } = parseName(rosterStudent.name);
+			students.push({
+				id,
+				firstName,
+				lastName,
+				displayName: rosterStudent.name,
+				meta: { email: rosterStudent.email }
+			});
+		}
+
+		return { students, emailToId };
+	}
+
+	/**
+	 * Build ParsedPreference array from submitted responses.
+	 * Maps response choices to likeGroupIds.
+	 */
+	function buildPreferencesFromMatchResult(emailToId: Map<string, string>): ParsedPreference[] {
+		if (!matchResult) return [];
+
+		const preferences: ParsedPreference[] = [];
+
+		for (const { student, response } of matchResult.submitted) {
+			const studentId = emailToId.get(student.email.toLowerCase());
+			if (!studentId) continue;
+
+			// Only include if they have choices
+			if (response.choices && response.choices.length > 0) {
+				preferences.push({
+					studentId,
+					likeGroupIds: response.choices
+				});
+			}
+		}
+
+		return preferences;
+	}
+
+	/**
+	 * Handle sort action - creates activity and navigates to workspace.
+	 */
+	async function handleSort(algorithm: SortAlgorithm) {
+		if (!env || !matchResult) return;
+
+		trackResponsesSession.isSorting = true;
+
+		try {
+			// Build students and preferences from match result
+			const { students, emailToId } = buildStudentsFromMatchResult();
+			const preferences = buildPreferencesFromMatchResult(emailToId);
+
+			if (students.length === 0) {
+				console.error('No students to create activity with');
+				trackResponsesSession.isSorting = false;
+				return;
+			}
+
+			// Create the activity
+			const activityName = connection?.title ?? 'Form Responses';
+			const result = await createGroupingActivity(env, {
+				activityName,
+				students,
+				preferences,
+				ownerStaffId: 'owner-1'
+			});
+
+			if (isErr(result)) {
+				console.error('Failed to create activity:', result.error);
+				trackResponsesSession.isSorting = false;
+				return;
+			}
+
+			const { program } = result.value;
+
+			// Build algorithm config with detected groups
+			const groups = clubRequests().map((c) => ({ name: c.clubName }));
+			const algorithmConfig = {
+				algorithm,
+				groups: groups.length > 0 ? groups : undefined
+			};
+
+			// Generate scenario
+			const genResult = await generateScenario(env, {
+				programId: program.id,
+				algorithmConfig
+			});
+
+			if (isErr(genResult)) {
+				// Activity created but generation failed - still navigate but show error
+				console.error('Failed to generate scenario:', genResult.error);
+				goto(`/activities/${program.id}/workspace?genError=${genResult.error.type}`);
+				return;
+			}
+
+			// Success - navigate to workspace
+			goto(`/activities/${program.id}/workspace?showBanner=true`);
+		} catch (error) {
+			console.error('Error during sort:', error);
+			trackResponsesSession.isSorting = false;
+		}
+	}
 </script>
 
 <svelte:head>
 	<title>Track Responses | Groupwheel</title>
 </svelte:head>
 
-<div class="space-y-4">
-	<div
-		class={`sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur ${
-			isHeaderCollapsed ? 'shadow-sm' : ''
-		}`}
-		onmouseenter={() => (isHeaderHovered = true)}
-		onmouseleave={() => (isHeaderHovered = false)}
-	>
-		<div class="px-4 py-2 space-y-2">
+<div class="space-y-3">
+	<div class="sticky top-14 z-30 border-b border-gray-200 bg-white/95 backdrop-blur">
+		<div class="px-4 py-2">
 			<ActivityStatusBar
 				activityName={activityName()}
 				isConnected={Boolean(connection)}
 				lastUpdatedLabel={lastUpdatedLabel()}
-				canRefresh={canProcess}
-				isRefreshing={isRefreshing}
 				accountedFor={accountedFor()}
 				rosterCount={studentCounts().total}
 				submittedCount={studentCounts().submitted}
-				ignoredCount={studentCounts().ignored}
 				unresolvedCount={studentCounts().unresolved}
 				accountedForPercent={accountedForPercent()}
-				collapsed={isHeaderCollapsed}
-				expanded={isHeaderExpanded()}
-				filterIndicatorLabel={filterIndicatorLabel()}
-				stateFilter={stateFilter}
-				onRefresh={refreshData}
-				onFilterSelect={(filter) => (stateFilter = filter)}
-				onToggleDetails={() => (isHeaderPinnedOpen = !isHeaderPinnedOpen)}
+				stateFilter={trackResponsesSession.stateFilter}
+				onFilterSelect={(filter) => (trackResponsesSession.stateFilter = filter)}
+				onDisconnect={handleDisconnect}
 			/>
-			{#if matchResult && isHeaderExpanded()}
-				<StudentFiltersBar
-					stateFilter={stateFilter}
-					totalCount={studentCounts().total}
-					submittedCount={studentCounts().submitted}
-					ignoredCount={studentCounts().ignored}
-					unresolvedCount={studentCounts().unresolved}
-					onFilterSelect={(filter) => (stateFilter = filter)}
-					bind:searchQuery={searchQuery}
-				/>
-			{/if}
 		</div>
 	</div>
 
 	{#if !isLoggedIn}
 		<!-- Auth required message -->
-		<div class="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center">
-			<svg
-				class="mx-auto h-12 w-12 text-amber-400"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-				/>
-			</svg>
-			<h2 class="mt-4 text-lg font-medium text-gray-900">Sign in Required</h2>
+		<div class="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm">
+			<h2 class="text-lg font-semibold text-gray-900">Connect your Google account</h2>
 			<p class="mt-2 text-sm text-gray-600">
-				Please sign in with your Google account to access your Google Sheets.
+				Sign in to connect a sheet and start tracking student responses.
 			</p>
+			<Button variant="secondary" class="mt-4 w-full justify-center" onclick={handleLogin}>
+				Sign in with Google
+			</Button>
 		</div>
 	{:else}
 		<!-- Sheet Connection -->
-		<div class="rounded-lg border border-gray-200 bg-white p-4">
-			{#if connection}
-				<div class="space-y-3">
-					<div class="flex flex-wrap items-center justify-between gap-2">
-						<p class="text-sm text-gray-600">
-							Connected to <span class="font-medium text-gray-900">{connection.title}</span>
-						</p>
-						<button
-							type="button"
-							onclick={handleDisconnect}
-							class="text-sm text-gray-500 hover:text-gray-700 focus:underline focus:outline-none"
-						>
-							Disconnect
-						</button>
-					</div>
-					{#if isAutoDetecting}
-						<p class="text-sm text-teal">Detecting tabs...</p>
-					{:else if !rosterData || !responsesData || autoDetectFailed}
-						<p class="text-sm text-amber-600 mb-3">
-							Could not auto-detect all tabs. Please select manually:
-						</p>
-						<!-- Manual Tab Selection -->
-						<div class="grid gap-3 md:grid-cols-2">
-							<div>
-								<label for="roster-tab" class="block text-xs font-medium text-gray-600 mb-1">
-									Roster Tab
-								</label>
-								<select
-									id="roster-tab"
-									value={rosterTabGid ?? ''}
-									onchange={(e) => selectRosterTab((e.target as HTMLSelectElement).value)}
-									class="block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
-								>
-									<option value="">Choose roster tab...</option>
-									{#each tabs as tab}
-										<option value={tab.gid}>{tab.title}</option>
-									{/each}
-								</select>
-								{#if rosterData}
-									<p class="mt-1 text-xs text-green-600">{rosterData.rows.length} students</p>
-								{/if}
-							</div>
-							<div>
-								<label for="responses-tab" class="block text-xs font-medium text-gray-600 mb-1">
-									Responses Tab
-								</label>
-								<select
-									id="responses-tab"
-									value={responsesTabGid ?? ''}
-									onchange={(e) => selectResponsesTab((e.target as HTMLSelectElement).value)}
-									class="block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
-								>
-									<option value="">Choose responses tab...</option>
-									{#each tabs as tab}
-										<option value={tab.gid}>{tab.title}</option>
-									{/each}
-								</select>
-								{#if responsesData}
-									<p class="mt-1 text-xs text-green-600">{responsesData.rows.length} responses</p>
-								{/if}
-							</div>
+		{#if connection && (autoDetectFailed || !rosterData || !responsesData)}
+			<div class="rounded-md border border-amber-200 bg-amber-50 p-3">
+				{#if isAutoDetecting}
+					<p class="text-sm text-teal">Detecting tabs...</p>
+				{:else}
+					<p class="text-sm text-amber-700">
+						Could not auto-detect all tabs. Please select manually:
+					</p>
+					<div class="mt-3 grid gap-3 md:grid-cols-2">
+						<div>
+							<label for="roster-tab" class="block text-xs font-medium text-gray-600 mb-1">
+								Roster Tab
+							</label>
+							<select
+								id="roster-tab"
+								value={rosterTabGid ?? ''}
+								onchange={(e) => selectRosterTab((e.target as HTMLSelectElement).value)}
+								class="block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
+							>
+								<option value="">Choose roster tab...</option>
+								{#each tabs as tab}
+									<option value={tab.gid}>{tab.title}</option>
+								{/each}
+							</select>
+							{#if rosterData}
+								<p class="mt-1 text-xs text-green-600">{rosterData.rows.length} students</p>
+							{/if}
 						</div>
-					{/if}
-				</div>
-			{:else}
+						<div>
+							<label for="responses-tab" class="block text-xs font-medium text-gray-600 mb-1">
+								Responses Tab
+							</label>
+							<select
+								id="responses-tab"
+								value={responsesTabGid ?? ''}
+								onchange={(e) => selectResponsesTab((e.target as HTMLSelectElement).value)}
+								class="block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
+							>
+								<option value="">Choose responses tab...</option>
+								{#each tabs as tab}
+									<option value={tab.gid}>{tab.title}</option>
+								{/each}
+							</select>
+							{#if responsesData}
+								<p class="mt-1 text-xs text-green-600">{responsesData.rows.length} responses</p>
+							{/if}
+						</div>
+					</div>
+				{/if}
+			</div>
+		{:else if !connection}
+			<div class="mx-auto max-w-2xl rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
 				<div class="space-y-4">
 					<!-- Recent Sheets -->
 					{#if recentSheets.length > 0}
@@ -819,8 +924,8 @@
 						(as separate tabs). Tabs will be auto-detected based on their headers.
 					</p>
 				</div>
-			{/if}
-		</div>
+			</div>
+		{/if}
 
 		{#if matchResult}
 			{#if cantTrackCount() > 0}
@@ -848,36 +953,21 @@
 
 			{#if filteredStudents().length === 0}
 				<div class="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-sm text-gray-600">
-					{searchQuery ? 'No students match that search.' : 'No students to display yet.'}
+					{trackResponsesSession.searchQuery ? 'No students match that search.' : 'No students to display yet.'}
 				</div>
 			{:else}
-				<ul class="space-y-2">
+				<ul class="rounded-md border border-gray-200 bg-white">
 					{#each filteredStudents() as row}
-						<li class="group rounded-lg border border-gray-200 bg-white px-3 py-2">
-							<div class="flex items-start justify-between gap-3">
-								<div>
-									<div class="flex flex-wrap items-center gap-2">
-										<span class="text-sm font-medium text-gray-900">{row.student.name}</span>
-										<span class={`rounded-full px-2 py-0.5 text-xs font-medium ${STATE_BADGE_CLASSES[row.state]}`}>
-											{STATE_LABELS[row.state]}
-										</span>
-									</div>
-									{#if row.state === 'submitted' && row.response?.choices.length}
-										<div class="mt-1 flex flex-wrap gap-1">
-											{#each row.response.choices as choice, idx}
-												<span class="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-800">
-													{idx + 1}. {choice}
-												</span>
-											{/each}
-										</div>
-									{:else if row.state === 'not_submitted'}
-										<p class="mt-1 text-xs text-gray-500">Awaiting response.</p>
-									{/if}
-								</div>
+						<li class="group flex items-center justify-between gap-3 border-b border-gray-200 px-3 py-2 last:border-b-0 hover:bg-gray-50">
+							<span class="truncate text-sm font-medium text-gray-900">{row.student.name}</span>
+							<div class="flex items-center gap-2">
+								<span class={`min-w-[110px] rounded-full px-2 py-0.5 text-center text-xs font-medium ${STATE_BADGE_CLASSES[row.state]}`}>
+									{STATE_LABELS[row.state]}
+								</span>
 								<button
 									type="button"
 									onclick={() => (row.state === 'ignored' ? unignoreStudent(row.student.email) : ignoreStudent(row.student.email))}
-									class={`ml-2 text-xs opacity-0 transition-opacity group-hover:opacity-100 ${
+									class={`text-xs opacity-0 transition-opacity group-hover:opacity-100 ${
 										row.state === 'ignored'
 											? 'text-amber-600 hover:text-amber-800'
 											: 'text-gray-400 hover:text-gray-600'
