@@ -5,9 +5,7 @@
 	const {
 		student,
 		container,
-		selected = false,
 		isDragging = false,
-		onSelect,
 		onDragStart,
 		onDragEnd,
 		flash = false,
@@ -19,9 +17,7 @@
 	} = $props<{
 		student: Student;
 		container: string;
-		selected?: boolean;
 		isDragging?: boolean;
-		onSelect?: (id: string) => void;
 		onDragStart?: () => void;
 		onDragEnd?: () => void;
 		flash?: boolean;
@@ -93,19 +89,10 @@
 		dragData: { id: student.id },
 		callbacks: { onDragStart: handleDragStartInternal, onDragEnd }
 	}}
-	class={`mx-auto flex items-center justify-center rounded-md border bg-white p-0.5 text-sm shadow-sm transition duration-150 ease-out cursor-grab w-[92px] ${
-		selected ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'
-	} ${isDragging ? 'opacity-60 cursor-grabbing' : ''} ${flash ? 'flash-move' : ''}`}
-	role="button"
-	tabindex="0"
+	class={`mx-auto flex items-center justify-center rounded-md border bg-white p-0.5 text-sm shadow-sm transition duration-150 ease-out cursor-grab w-[92px] border-gray-200 ${
+		isDragging ? 'opacity-60 cursor-grabbing' : ''
+	} ${flash ? 'flash-move' : ''}`}
 	aria-label={fullName}
-	onclick={() => onSelect?.(student.id)}
-	onkeydown={(event) => {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			onSelect?.(student.id);
-		}
-	}}
 	onmouseenter={handleMouseEnter}
 	onmouseleave={handleMouseLeave}
 >

@@ -652,6 +652,7 @@
 		for (const rosterStudent of allRosterStudents) {
 			// Skip students we can't track (no email)
 			if (!rosterStudent.email) continue;
+			if (ignoredEmails.has(rosterStudent.email)) continue;
 
 			const id = env.idGenerator.generateId();
 			emailToId.set(rosterStudent.email.toLowerCase(), id);
@@ -679,6 +680,7 @@
 		const preferences: ParsedPreference[] = [];
 
 		for (const { student, response } of matchResult.submitted) {
+			if (ignoredEmails.has(student.email)) continue;
 			const studentId = emailToId.get(student.email.toLowerCase());
 			if (!studentId) continue;
 
@@ -789,7 +791,12 @@
 			<p class="mt-2 text-sm text-gray-600">
 				Sign in to connect a sheet and start tracking student responses.
 			</p>
-			<Button variant="secondary" class="mt-4 w-full justify-center" onclick={handleLogin}>
+			<Button
+				variant="secondary"
+				class="mt-4 w-full justify-center"
+				onclick={handleLogin}
+				disabled
+			>
 				Sign in with Google
 			</Button>
 		</div>

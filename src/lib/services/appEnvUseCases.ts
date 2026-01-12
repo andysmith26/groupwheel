@@ -69,6 +69,12 @@ import {
 	type CreateGroupingActivityResult,
 	type CreateGroupingActivityError
 } from '$lib/application/useCases/createGroupingActivity';
+import {
+	importActivity as importActivityUseCase,
+	type ImportActivityInput,
+	type ImportActivityResult,
+	type ImportActivityError
+} from '$lib/application/useCases/importActivity';
 import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
@@ -278,6 +284,30 @@ export async function createGroupingActivity(
 	);
 }
 
+/**
+ * Import an activity from a previously exported JSON file.
+ * Creates all necessary entities: Students, Pool, Program, Preferences,
+ * and optionally a Scenario with groups.
+ */
+export async function importActivity(
+	env: InMemoryEnvironment,
+	input: Omit<ImportActivityInput, 'userId'>
+): Promise<Result<ImportActivityResult, ImportActivityError>> {
+	const userId = getCurrentUserId(env);
+	return importActivityUseCase(
+		{
+			poolRepo: env.poolRepo,
+			studentRepo: env.studentRepo,
+			programRepo: env.programRepo,
+			preferenceRepo: env.preferenceRepo,
+			scenarioRepo: env.scenarioRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock
+		},
+		{ ...input, userId }
+	);
+}
+
 export async function computeAnalytics(
 	env: InMemoryEnvironment,
 	input: ComputeScenarioAnalyticsInput
@@ -327,6 +357,8 @@ export type {
 	ParsedStudent,
 	ParsedPreference
 } from '$lib/application/useCases/createGroupingActivity';
+
+export type { ImportActivityInput, ImportActivityResult, ImportActivityError };
 
 export async function listPrograms(
 	env: InMemoryEnvironment

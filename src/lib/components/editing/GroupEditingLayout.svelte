@@ -27,10 +27,8 @@
 	const {
 		groups = [],
 		studentsById = {},
-		selectedStudentId = null,
 		draggingId = null,
 		onDrop,
-		onSelect,
 		onDragStart,
 		onDragEnd,
 		flashingIds = new Set<string>(),
@@ -43,14 +41,14 @@
 		studentPreferenceRanks = new Map<string, number | null>(),
 		studentHasPreferences = new Map<string, boolean>(),
 		onStudentHoverStart,
-		onStudentHoverEnd
+		onStudentHoverEnd,
+		rowOrderTop = [],
+		rowOrderBottom = []
 	} = $props<{
 		groups?: Group[];
 		studentsById?: Record<string, Student>;
-		selectedStudentId?: string | null;
 		draggingId?: string | null;
 		onDrop?: (payload: { studentId: string; source: string; target: string }) => void;
-		onSelect?: (id: string) => void;
 		onDragStart?: (id: string) => void;
 		onDragEnd?: () => void;
 		flashingIds?: Set<string>;
@@ -64,8 +62,54 @@
 		studentHasPreferences?: Map<string, boolean>;
 		onStudentHoverStart?: (studentId: string, x: number, y: number) => void;
 		onStudentHoverEnd?: () => void;
+		rowOrderTop?: string[];
+		rowOrderBottom?: string[];
 	}>();
 
+	type RowLayoutItem = { type: 'group'; group: Group } | { type: 'spacer'; key: string };
+
+	const rowLayoutItems = $derived.by((): RowLayoutItem[] => {
+		if (layout !== 'row') return [];
+		if (groups.length === 0) return [];
+
+		const groupsById = new Map(groups.map((group) => [group.id, group] as const));
+		const hasCustomRowLayout = rowOrderTop.length > 0 || rowOrderBottom.length > 0;
+		const topRow = hasCustomRowLayout
+			? (rowOrderTop.map((id) => groupsById.get(id)).filter(Boolean) as Group[])
+			: groups;
+		const bottomRow = hasCustomRowLayout
+			? (rowOrderBottom.map((id) => groupsById.get(id)).filter(Boolean) as Group[])
+			: [];
+
+		const columns = Math.max(topRow.length, bottomRow.length);
+		const items: RowLayoutItem[] = [];
+
+		for (let i = 0; i < columns; i += 1) {
+			if (topRow[i]) {
+				items.push({
+					type: 'group',
+					group: topRow[i]
+				});
+			} else {
+				items.push({ type: 'spacer', key: `spacer-top-${i}` });
+			}
+
+			if (bottomRow[i]) {
+				items.push({
+					type: 'group',
+					group: bottomRow[i]
+				});
+			}
+		}
+
+		return items;
+	});
+
+	const rowColumnCount = $derived.by(() => {
+		if (layout !== 'row') return groups.length;
+		const count = Math.max(rowOrderTop.length, rowOrderBottom.length);
+		return count > 0 ? count : groups.length;
+	});
 
 	// Helper to get preference rank for a group
 	function getPreferenceRank(groupId: string): number | null {
@@ -80,33 +124,35 @@
 
 {#if layout === 'row'}
 	<HorizontalScrollContainer
-		totalItems={groups.length + (onAddGroup ? 1 : 0)}
+		totalItems={rowColumnCount + (onAddGroup ? 1 : 0)}
 		config={ROW_CONFIG}
 		showProgress={false}
 		ariaLabel="Group cards"
 	>
 		<div class="group-row">
-			{#each groups as group (group.id)}
-				<EditableGroupColumn
-					{group}
-					{studentsById}
-					{selectedStudentId}
-					{draggingId}
-					rowSpan={1}
-					{onDrop}
-					{onSelect}
-					{onDragStart}
-					{onDragEnd}
-					{flashingIds}
-					{onUpdateGroup}
-					{onDeleteGroup}
-					focusNameOnMount={group.id === newGroupId}
-					preferenceRank={getPreferenceRank(group.id)}
-					{studentPreferenceRanks}
-					{studentHasPreferences}
-					{onStudentHoverStart}
-					{onStudentHoverEnd}
-				/>
+			{#each rowLayoutItems as item, i (item.type === 'group' ? `${item.group.id}-${i}` : item.key)}
+				{#if item.type === 'group'}
+					<EditableGroupColumn
+						group={item.group}
+						{studentsById}
+						{draggingId}
+						rowSpan={1}
+						{onDrop}
+						{onDragStart}
+						{onDragEnd}
+						{flashingIds}
+						{onUpdateGroup}
+						{onDeleteGroup}
+						focusNameOnMount={item.group.id === newGroupId}
+						preferenceRank={getPreferenceRank(item.group.id)}
+						{studentPreferenceRanks}
+						{studentHasPreferences}
+						{onStudentHoverStart}
+						{onStudentHoverEnd}
+					/>
+				{:else}
+					<div class="group-spacer" aria-hidden="true"></div>
+				{/if}
 			{/each}
 
 			<!-- Add Group card removed for compact view -->
@@ -114,15 +160,13 @@
 	</HorizontalScrollContainer>
 {:else}
 	<div class="group-grid">
-		{#each groups as group (group.id)}
+		{#each groups as group, i (`${group.id}-${i}`)}
 			<EditableGroupColumn
 				{group}
 				{studentsById}
-				{selectedStudentId}
 				{draggingId}
 				rowSpan={calculateRowSpan(group)}
 				{onDrop}
-				{onSelect}
 				{onDragStart}
 				{onDragEnd}
 				{flashingIds}
@@ -145,7 +189,7 @@
 	.group-grid {
 		display: grid;
 		grid-template-columns: repeat(1, 1fr);
-		grid-auto-rows: 40px;
+		grid-auto-rows: min-content;
 		grid-auto-flow: dense;
 		gap: 16px;
 	}
@@ -166,7 +210,7 @@
 		display: grid;
 		grid-auto-flow: column;
 		grid-template-rows: repeat(2, auto);
-		align-items: start;
+		align-items: stretch;
 		justify-content: center;
 		gap: 12px;
 		width: max-content;
@@ -174,6 +218,10 @@
 	}
 
 	.group-row > :global(*) {
+		width: 114px;
+	}
+
+	.group-spacer {
 		width: 114px;
 	}
 </style>

@@ -13,6 +13,8 @@
 		listActivities,
 		renameActivity,
 		deleteActivity,
+		onAuthStateChange,
+		isAuthenticated,
 		type ActivityDisplay
 	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
@@ -20,6 +22,9 @@
 	import type { Program } from '$lib/domain';
 
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
+	let authUnsubscribe: (() => void) | null = null;
+	let isLoggedIn = $state(false);
+	let newActivityHref = $derived(isLoggedIn ? '/track-responses' : '/activities/import');
 
 	let activities = $state<ActivityDisplay[]>([]);
 	let loading = $state(true);
@@ -34,9 +39,16 @@
 	let deleteModalOpen = $state(false);
 	let deleteTarget = $state<ActivityDisplay | null>(null);
 	let isDeleting = $state(false);
+	let now = $state(new Date());
 
 	onMount(async () => {
 		env = getAppEnvContext();
+		if (env) {
+			isLoggedIn = isAuthenticated(env);
+			authUnsubscribe = onAuthStateChange(env, (user) => {
+				isLoggedIn = Boolean(user);
+			});
+		}
 		await loadActivities();
 
 		// Close menu on outside click
@@ -45,8 +57,16 @@
 				openMenuId = null;
 			}
 		};
+		const intervalId = window.setInterval(() => {
+			now = new Date();
+		}, 60_000);
+
 		document.addEventListener('click', handleClick);
-		return () => document.removeEventListener('click', handleClick);
+		return () => {
+			document.removeEventListener('click', handleClick);
+			window.clearInterval(intervalId);
+			authUnsubscribe?.();
+		};
 	});
 
 	async function loadActivities() {
@@ -66,12 +86,42 @@
 		loading = false;
 	}
 
+	function formatRelativeDate(date: Date, reference: Date): string {
+		const diffMs = date.getTime() - reference.getTime();
+		const diffMinutes = Math.round(Math.abs(diffMs) / 60_000);
+		const isFuture = diffMs > 0;
+
+		if (diffMinutes < 1) return 'just now';
+		if (diffMinutes < 60) {
+			const label = `${diffMinutes}m`;
+			return isFuture ? `in ${label}` : `${label} ago`;
+		}
+		const diffHours = Math.round(diffMinutes / 60);
+		if (diffHours < 24) {
+			const label = `${diffHours}h`;
+			return isFuture ? `in ${label}` : `${label} ago`;
+		}
+		const diffDays = Math.round(diffHours / 24);
+		const label = `${diffDays}d`;
+		return isFuture ? `in ${label}` : `${label} ago`;
+	}
+
+	function parseDateLabel(label: string): Date | null {
+		const trimmed = label.trim();
+		const looksNumericDate =
+			/^\d{4}-\d{2}-\d{2}/.test(trimmed) || /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmed);
+		if (!looksNumericDate) return null;
+		const parsed = new Date(trimmed);
+		return Number.isNaN(parsed.getTime()) ? null : parsed;
+	}
+
 	function getProgramTimeLabel(program: Program): string {
 		if ('termLabel' in program.timeSpan) {
-			return program.timeSpan.termLabel;
+			const parsed = parseDateLabel(program.timeSpan.termLabel);
+			return parsed ? formatRelativeDate(parsed, now) : program.timeSpan.termLabel;
 		}
 		if ('start' in program.timeSpan && program.timeSpan.start) {
-			return program.timeSpan.start.toLocaleDateString();
+			return formatRelativeDate(program.timeSpan.start, now);
 		}
 		return '';
 	}
@@ -80,13 +130,9 @@
 		label: string;
 		style: string;
 		icon: string;
-	} {
+	} | null {
 		if (activity.hasScenario) {
-			return {
-				label: 'Editing',
-				style: 'bg-yellow-100 text-yellow-700',
-				icon: '○'
-			};
+			return null;
 		}
 		return {
 			label: 'Draft',
@@ -130,9 +176,6 @@
 				renameValue = activity.program.name;
 				renameError = null;
 				renameModalOpen = true;
-				break;
-			case 'setup':
-				window.location.href = `/activities/${activity.program.id}/setup`;
 				break;
 			case 'delete':
 				deleteTarget = activity;
@@ -222,11 +265,22 @@
 			</p>
 		</div>
 		<div class="flex items-center gap-3">
-			<Button href="/activities/new" variant="primary">
+			<Button href="/activities/import" variant="secondary">
+				Import
+			</Button>
+			<Button href={newActivityHref} variant="primary">
 				+ New Activity
 			</Button>
 		</div>
 	</header>
+
+	<div class="rounded-lg border-2 border-amber-200 bg-amber-50 p-6 text-amber-900">
+		<h2 class="text-base font-semibold">Heads up: activities stay on this device</h2>
+		<p class="mt-2 text-sm text-amber-900/90">
+			Activities are saved only in this browser. Other people cannot see them.
+			To share or permanently save an activity, use the Export option on the editing page.
+		</p>
+	</div>
 
 	{#if loading}
 		<div class="flex items-center justify-center gap-3 py-12">
@@ -252,11 +306,14 @@
 			</div>
 			<h3 class="text-lg font-medium text-gray-900">No activities yet</h3>
 			<p class="mt-1 text-sm text-gray-500">Create your first grouping activity to get started.</p>
-			<div class="mt-4">
-				<Button href="/activities/new" variant="primary">
+			<div class="mt-4 flex items-center justify-center gap-3">
+				<Button href={newActivityHref} variant="primary">
 					+ New Activity
 				</Button>
 			</div>
+			<p class="mt-4 text-sm text-gray-500">
+				or <a href="/activities/import" class="text-teal hover:text-teal-dark underline">import from a file</a>
+			</p>
 		</div>
 	{:else}
 		<!-- Activity cards -->
@@ -279,11 +336,13 @@
 							</div>
 
 							<!-- Status badge -->
-							<span
-								class="ml-2 flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium {status.style}"
-							>
-								{status.icon} {status.label}
-							</span>
+							{#if status}
+								<span
+									class="ml-2 flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium {status.style}"
+								>
+									{status.icon} {status.label}
+								</span>
+							{/if}
 						</div>
 
 						<div class="mt-3 flex items-center justify-between text-xs text-gray-400">
@@ -321,13 +380,6 @@
 										onclick={() => handleMenuAction('rename', activity)}
 									>
 										Rename
-									</button>
-									<button
-										type="button"
-										class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-										onclick={() => handleMenuAction('setup', activity)}
-									>
-										Go to Setup
 									</button>
 									<hr class="my-1 border-gray-100" />
 									<button

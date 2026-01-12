@@ -93,3 +93,17 @@ export function calculateRowSpan(group: Pick<Group, 'capacity' | 'memberIds'>): 
 
 	return HEADER_ROWS + Math.max(MIN_CONTENT_ROWS, contentSlots);
 }
+
+/**
+ * Calculate how many grid rows a group currently needs based on actual members.
+ *
+ * This is intended for layouts that should size themselves to the tallest rendered group.
+ */
+export function calculateVisibleRowSpan(group: Pick<Group, 'memberIds'>): number {
+	const HEADER_ROWS = 2;
+	const MIN_CONTENT_ROWS = 1;
+	const DROP_BUFFER = 1;
+
+	const contentRows = Math.max(MIN_CONTENT_ROWS, group.memberIds.length + DROP_BUFFER);
+	return HEADER_ROWS + contentRows;
+}

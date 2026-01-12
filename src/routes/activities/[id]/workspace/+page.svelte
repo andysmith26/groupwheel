@@ -12,6 +12,8 @@
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
+	import { activityHeader } from '$lib/stores/activityHeader.svelte';
+	import { workspaceHeader } from '$lib/stores/workspaceHeader.svelte';
 	import {
 		ScenarioEditingStore,
 		type ScenarioEditingView,
@@ -20,7 +22,6 @@
 	import { buildPreferenceMap } from '$lib/utils/preferenceAdapter';
 	import type { Program, Pool, Scenario, Student, Preference, Group } from '$lib/domain';
 
-	import EditingToolbar from '$lib/components/editing/EditingToolbar.svelte';
 	import UnassignedArea from '$lib/components/editing/UnassignedArea.svelte';
 	import GroupEditingLayout, {
 		type LayoutMode
@@ -50,6 +51,13 @@
 		exportGroupsToCSV,
 		exportGroupsToColumnsTSV
 	} from '$lib/utils/csvExport';
+	import {
+		downloadActivityFile,
+		downloadActivityScreenshot,
+		generateExportFilename,
+		type ActivityExportData
+	} from '$lib/utils/activityFile';
+	import { extractStudentPreference } from '$lib/domain/preference';
 	import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
 	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 
@@ -82,7 +90,6 @@
 	let view = $state<ScenarioEditingView | null>(null);
 
 	// --- UI state ---
-	let selectedStudentId = $state<string | null>(null);
 	let draggingId = $state<string | null>(null);
 	let flashingIds = $state<Set<string>>(new Set());
 	let showStartOverConfirm = $state(false);
@@ -132,6 +139,10 @@
 	let isTryingAnother = $state(false);
 	let savedCurrentGroups = $state<Group[] | null>(null);
 
+	$effect(() => {
+		activityHeader.setName(program?.name ?? null);
+	});
+
 	// --- Toast ---
 	let toastMessage = $state('');
 	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -148,6 +159,30 @@
 	let topChoicePercent = $derived(view?.currentAnalytics?.percentAssignedTopChoice ?? null);
 	let topTwoPercent = $derived(view?.currentAnalytics?.percentAssignedTop2 ?? null);
 
+	$effect(() => {
+		if (!scenario || !view) {
+			workspaceHeader.clear();
+			return;
+		}
+
+		workspaceHeader.set({
+			canUndo: view.canUndo,
+			canRedo: view.canRedo,
+			topChoicePercent,
+			topTwoPercent,
+			onUndo: () => editingStore?.undo(),
+			onRedo: () => editingStore?.redo(),
+			onExportCSV: handleExportCSV,
+			onExportTSV: handleExportTSV,
+			onExportGroupsSummary: handleExportGroupsSummary,
+			onExportGroupsColumns: handleExportGroupsColumns,
+			onExportActivitySchema: handleExportActivitySchema,
+			onExportActivityScreenshot: handleExportActivityScreenshot
+		});
+	});
+
+	type RowLayoutConfig = { top: string[]; bottom: string[] };
+
 	// Detect if scenario has been edited since last publish
 	let hasEditsSincePublish = $derived.by(() => {
 		if (!view?.lastModifiedAt || !latestPublishedSession?.publishedAt) {
@@ -156,7 +191,7 @@
 		return view.lastModifiedAt > latestPublishedSession.publishedAt;
 	});
 
-	let activeStudentId = $derived(draggingId ?? selectedStudentId);
+	let activeStudentId = $derived(draggingId ?? tooltipStudentId);
 
 	let activeStudentPreferences = $derived.by(() => {
 		if (!activeStudentId || !view) return null;
@@ -208,6 +243,119 @@
 
 	// --- Group names for preferences modal ---
 	let groupNames = $derived(view?.groups.map((g) => g.name) ?? []);
+
+	function isStringArray(value: unknown): value is string[] {
+		return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+	}
+
+	function getRowLayoutConfig(config: unknown): RowLayoutConfig | null {
+		if (!config || typeof config !== 'object' || Array.isArray(config)) return null;
+		const workspace = (config as Record<string, unknown>).workspace;
+		if (!workspace || typeof workspace !== 'object' || Array.isArray(workspace)) return null;
+		const rowLayout = (workspace as Record<string, unknown>).rowLayout;
+		if (!rowLayout || typeof rowLayout !== 'object' || Array.isArray(rowLayout)) return null;
+		const top = (rowLayout as Record<string, unknown>).top;
+		const bottom = (rowLayout as Record<string, unknown>).bottom;
+		if (!isStringArray(top) || !isStringArray(bottom)) return null;
+		return { top: [...top], bottom: [...bottom] };
+	}
+
+	function dedupeRowLayoutEntries(ids: string[], seen: Set<string>): string[] {
+		const sanitized: string[] = [];
+		for (const id of ids) {
+			if (seen.has(id)) continue;
+			seen.add(id);
+			sanitized.push(id);
+		}
+		return sanitized;
+	}
+
+	function computeInitialRowLayout(groups: Group[]): RowLayoutConfig {
+		if (groups.length === 0) return { top: [], bottom: [] };
+		const sortedBySize = [...groups].sort(
+			(a, b) => b.memberIds.length - a.memberIds.length
+		);
+		const bottomCount = Math.ceil(sortedBySize.length / 2);
+		const bottomIds = new Set(sortedBySize.slice(0, bottomCount).map((group) => group.id));
+		return {
+			top: groups.filter((group) => !bottomIds.has(group.id)).map((group) => group.id),
+			bottom: groups.filter((group) => bottomIds.has(group.id)).map((group) => group.id)
+		};
+	}
+
+	function normalizeRowLayout(layout: RowLayoutConfig, groups: Group[]): RowLayoutConfig {
+		const groupIds = new Set(groups.map((group) => group.id));
+		const seen = new Set<string>();
+		const top = dedupeRowLayoutEntries(
+			layout.top.filter((id) => groupIds.has(id)),
+			seen
+		);
+		const bottom = dedupeRowLayoutEntries(
+			layout.bottom.filter((id) => groupIds.has(id)),
+			seen
+		);
+		const missing = groups
+			.filter((group) => !seen.has(group.id))
+			.map((group) => group.id);
+		const nextTop = top;
+		const nextBottom = missing.length > 0 ? [...bottom, ...missing] : bottom;
+
+		if (nextTop.length === 0 && nextBottom.length === groups.length) {
+			return computeInitialRowLayout(groups);
+		}
+		if (nextBottom.length === 0 && nextTop.length === groups.length) {
+			return computeInitialRowLayout(groups);
+		}
+
+		return {
+			top: nextTop,
+			bottom: nextBottom
+		};
+	}
+
+	function rowLayoutEquals(a: RowLayoutConfig, b: RowLayoutConfig): boolean {
+		const same = (left: string[], right: string[]) =>
+			left.length === right.length && left.every((value, index) => value === right[index]);
+		return same(a.top, b.top) && same(a.bottom, b.bottom);
+	}
+
+	function setRowLayoutConfig(config: unknown, rowLayout: RowLayoutConfig): unknown {
+		const base =
+			config && typeof config === 'object' && !Array.isArray(config)
+				? { ...(config as Record<string, unknown>) }
+				: {};
+		const workspace =
+			base.workspace && typeof base.workspace === 'object' && !Array.isArray(base.workspace)
+				? { ...(base.workspace as Record<string, unknown>) }
+				: {};
+		return {
+			...base,
+			workspace: {
+				...workspace,
+				rowLayout: {
+					top: [...rowLayout.top],
+					bottom: [...rowLayout.bottom]
+				}
+			}
+		};
+	}
+
+	let resolvedRowLayout = $derived.by(() => {
+		if (!view) return null;
+		const stored = getRowLayoutConfig(scenario?.algorithmConfig);
+		const base = stored ?? computeInitialRowLayout(view.groups);
+		return normalizeRowLayout(base, view.groups);
+	});
+
+	$effect(() => {
+		if (!scenario || !editingStore || !resolvedRowLayout) return;
+		const stored = getRowLayoutConfig(scenario.algorithmConfig);
+		if (stored && rowLayoutEquals(stored, resolvedRowLayout)) return;
+
+		const nextConfig = setRowLayoutConfig(scenario.algorithmConfig, resolvedRowLayout);
+		editingStore.updateAlgorithmConfig(nextConfig);
+		scenario = { ...scenario, algorithmConfig: nextConfig };
+	});
 
 	// --- Handle preferences import ---
 	async function handlePreferencesImport(
@@ -301,6 +449,8 @@
 
 	onDestroy(() => {
 		keyboardCleanup?.();
+		activityHeader.clear();
+		workspaceHeader.clear();
 	});
 
 	async function loadActivityData() {
@@ -518,15 +668,11 @@
 		isTryingAnother = false;
 	}
 
-	function selectStudent(id: string) {
-		selectedStudentId = selectedStudentId === id ? null : id;
-	}
-
 	function flashStudent(id: string) {
 		flashingIds = new Set([id]);
 		setTimeout(() => {
 			flashingIds = new Set();
-		}, 500);
+		}, 900);
 	}
 
 	function showToast(message: string) {
@@ -649,6 +795,63 @@
 		const tsv = exportGroupsToColumnsTSV(view.groups, studentsMap);
 		const success = await env?.clipboard?.writeText(tsv);
 		showToast(success ? 'Groups copied for Sheets!' : 'Failed to copy');
+	}
+
+	function buildActivityExportData(): ActivityExportData | null {
+		if (!program || !view) return null;
+		return {
+			version: 1,
+			exportedAt: new Date().toISOString(),
+			activity: {
+				name: program.name,
+				type: program.type
+			},
+			roster: {
+				students: students.map((s) => ({
+					id: s.id,
+					firstName: s.firstName,
+					lastName: s.lastName,
+					gradeLevel: s.gradeLevel,
+					gender: s.gender,
+					meta: s.meta
+				}))
+			},
+			preferences: preferences.map((p) => {
+				const payload = extractStudentPreference(p);
+				return {
+					studentId: p.studentId,
+					likeGroupIds: payload.likeGroupIds,
+					avoidStudentIds: payload.avoidStudentIds,
+					avoidGroupIds: payload.avoidGroupIds
+				};
+			}),
+			scenario: {
+				groups: view.groups.map((g) => ({
+					id: g.id,
+					name: g.name,
+					capacity: g.capacity,
+					memberIds: [...g.memberIds]
+				})),
+				algorithmConfig: scenario?.algorithmConfig
+			}
+		};
+	}
+
+	async function handleExportActivitySchema() {
+		if (!program) return;
+		const exportData = buildActivityExportData();
+		if (!exportData) return;
+		const filename = generateExportFilename(program.name);
+		downloadActivityFile(exportData, filename);
+		showToast('Schema downloaded');
+	}
+
+	async function handleExportActivityScreenshot() {
+		if (!program) return;
+		const filename = generateExportFilename(program.name);
+		const screenshotName = filename.replace(/\.json$/i, '.png');
+		const screenshotSuccess = await downloadActivityScreenshot(screenshotName);
+		showToast(screenshotSuccess ? 'Screenshot downloaded' : 'Screenshot failed');
 	}
 
 	async function handlePublish(data: {
@@ -776,6 +979,7 @@
 		goto(`/activities/${program?.id}/present`);
 	}
 
+
 	// --- Tooltip handlers ---
 	function handleTooltipShow(studentId: string, x: number, y: number) {
 		// Don't show tooltip if a drag is in progress or just ended
@@ -892,19 +1096,6 @@
 					<EmptyWorkspaceState studentCount={students.length} {preferencesCount} />
 				{:else}
 					<div class="mx-auto max-w-6xl space-y-4">
-						<EditingToolbar
-							canUndo={view.canUndo}
-							canRedo={view.canRedo}
-							onUndo={() => editingStore?.undo()}
-							onRedo={() => editingStore?.redo()}
-							{topChoicePercent}
-							{topTwoPercent}
-							onExportCSV={handleExportCSV}
-							onExportTSV={handleExportTSV}
-							onExportGroupsSummary={handleExportGroupsSummary}
-							onExportGroupsColumns={handleExportGroupsColumns}
-						/>
-
 						<HistorySelector
 							historyLength={resultHistory.length}
 							currentIndex={currentHistoryIndex}
@@ -914,13 +1105,13 @@
 						<UnassignedArea
 							{studentsById}
 							unassignedIds={view.unassignedStudentIds}
-							{selectedStudentId}
 							{draggingId}
 							onDrop={handleDrop}
-							onSelect={selectStudent}
 							onDragStart={(id) => (draggingId = id)}
 							onDragEnd={handleDragEnd}
 							{flashingIds}
+							onStudentHoverStart={handleTooltipShow}
+							onStudentHoverEnd={handleTooltipHide}
 						/>
 
 					</div>
@@ -929,11 +1120,9 @@
 						<GroupEditingLayout
 							groups={view.groups}
 							{studentsById}
-							{selectedStudentId}
 							{draggingId}
 							onDrop={handleDrop}
 							onDragStart={(id) => (draggingId = id)}
-							onSelect={selectStudent}
 							onDragEnd={handleDragEnd}
 							{flashingIds}
 							onUpdateGroup={handleUpdateGroup}
@@ -942,6 +1131,8 @@
 							{newGroupId}
 							selectedStudentPreferences={activeStudentPreferences}
 							layout={layoutMode}
+							rowOrderTop={resolvedRowLayout?.top ?? []}
+							rowOrderBottom={resolvedRowLayout?.bottom ?? []}
 							{studentPreferenceRanks}
 							{studentHasPreferences}
 							onStudentHoverStart={handleTooltipShow}

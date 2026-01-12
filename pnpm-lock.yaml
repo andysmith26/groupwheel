@@ -14,6 +14,9 @@ importers:
       googleapis:
         specifier: ^164.1.0
         version: 164.1.0
+      html-to-image:
+        specifier: ^1.11.13
+        version: 1.11.13
     devDependencies:
       '@eslint/compat':
         specifier: ^1.2.5
@@ -1233,6 +1236,9 @@ packages:
 
   html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
+
+  html-to-image@1.11.13:
+    resolution: {integrity: sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg==}
 
   https-proxy-agent@7.0.6:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
@@ -3142,6 +3148,8 @@ snapshots:
       function-bind: 1.1.2
 
   html-escaper@2.0.2: {}
+
+  html-to-image@1.11.13: {}
 
   https-proxy-agent@7.0.6:
     dependencies:

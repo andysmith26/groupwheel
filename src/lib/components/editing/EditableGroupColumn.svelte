@@ -7,10 +7,8 @@
 	const {
 		group,
 		studentsById,
-		selectedStudentId = null,
 		draggingId = null,
 		onDrop,
-		onSelect,
 		onDragStart,
 		onDragEnd,
 		flashingIds = new Set<string>(),
@@ -26,10 +24,8 @@
 	} = $props<{
 		group: Group;
 		studentsById: Record<string, Student>;
-		selectedStudentId?: string | null;
 		draggingId?: string | null;
 		onDrop?: (payload: { studentId: string; source: string; target: string }) => void;
-		onSelect?: (id: string) => void;
 		onDragStart?: (id: string) => void;
 		onDragEnd?: () => void;
 		flashingIds?: Set<string>;
@@ -103,6 +99,29 @@
 		return `${group.memberIds.length}/${group.capacity}`;
 	});
 
+	const sortedMemberIds = $derived(() => {
+		const ids = [...group.memberIds];
+		return ids.sort((leftId, rightId) => {
+			const left = studentsById[leftId];
+			const right = studentsById[rightId];
+			if (!left && !right) return leftId.localeCompare(rightId);
+			if (!left) return 1;
+			if (!right) return -1;
+
+			const leftLast = (left.lastName ?? '').trim();
+			const rightLast = (right.lastName ?? '').trim();
+			const lastCompare = leftLast.localeCompare(rightLast, undefined, { sensitivity: 'base' });
+			if (lastCompare !== 0) return lastCompare;
+
+			const leftFirst = (left.firstName ?? '').trim();
+			const rightFirst = (right.firstName ?? '').trim();
+			const firstCompare = leftFirst.localeCompare(rightFirst, undefined, { sensitivity: 'base' });
+			if (firstCompare !== 0) return firstCompare;
+
+			return left.id.localeCompare(right.id);
+		});
+	});
+
 	// Sync local state when group changes externally
 	$effect(() => {
 		editingName = group.name;
@@ -129,7 +148,7 @@
 			? `${preferenceStyles()!.borderColor} ${preferenceStyles()!.bgColor}`
 			: 'border-gray-200 bg-gray-50'
 	}`}
-	style={`grid-row: span ${rowSpan};`}
+	style={`grid-row: span ${rowSpan}; height: 100%;`}
 >
 	<div class="flex items-center justify-between gap-2">
 		<span
@@ -157,14 +176,12 @@
 		{#if group.memberIds.length === 0}
 			<p class="col-span-full py-6 text-center text-xs text-gray-500">Drop students here</p>
 		{:else}
-			{#each group.memberIds as memberId (memberId)}
+			{#each sortedMemberIds() as memberId (memberId)}
 				{#if studentsById[memberId]}
 					<DraggableStudentCard
 						student={studentsById[memberId]}
 						container={group.id}
-						selected={selectedStudentId === memberId}
 						isDragging={draggingId === memberId}
-						{onSelect}
 						onDragStart={() => onDragStart?.(memberId)}
 						{onDragEnd}
 						flash={flashingIds.has(memberId)}
@@ -176,5 +193,11 @@
 				{/if}
 			{/each}
 		{/if}
+		<div
+			class="mx-auto w-[92px] p-0.5 opacity-0 pointer-events-none select-none"
+			aria-hidden="true"
+		>
+			<div class="px-1.5 py-0.5 text-[15px] font-semibold">&nbsp;</div>
+		</div>
 	</div>
 </div>

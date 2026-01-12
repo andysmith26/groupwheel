@@ -21,6 +21,7 @@
 		detectMatrixFormat,
 		extractGroupNameFromHeader
 	} from '$lib/utils/matrixPreferenceParser';
+	import { ensureUniqueGroupNames } from '$lib/utils/ensureUniqueGroupNames';
 
 	type GroupSource = 'manual' | 'template' | 'sheet';
 
@@ -104,7 +105,8 @@
 		if (detectedGroups.length === 0) return;
 
 		// Convert to GroupShell format
-		const groups: GroupShell[] = detectedGroups.map((name) => ({
+		const uniqueNames = ensureUniqueGroupNames(detectedGroups);
+		const groups: GroupShell[] = uniqueNames.map((name) => ({
 			name,
 			capacity: null
 		}));

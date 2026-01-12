@@ -246,6 +246,18 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		});
 	}
 
+	updateAlgorithmConfig(algorithmConfig: unknown): void {
+		this.ensureInitialized();
+		if (!this.metadata) return;
+
+		this.metadata.algorithmConfig = algorithmConfig;
+		this.state.update((current) => ({
+			...current,
+			pendingSave: true
+		}));
+		this.scheduleSave();
+	}
+
 	dispatch(command: MoveStudentCommand): { success: boolean; reason?: string } {
 		this.ensureInitialized();
 

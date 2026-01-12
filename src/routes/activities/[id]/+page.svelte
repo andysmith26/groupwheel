@@ -90,6 +90,17 @@
 		});
 	}
 
+	function formatTimeSpanLabel(timeSpan: Program['timeSpan']): string {
+		if ('termLabel' in timeSpan) {
+			const parsed = new Date(timeSpan.termLabel);
+			return Number.isNaN(parsed.getTime()) ? timeSpan.termLabel : formatDate(parsed);
+		}
+		if (timeSpan.start) {
+			return formatDate(timeSpan.start);
+		}
+		return '';
+	}
+
 	function startEditingName() {
 		if (!program) return;
 		editNameValue = program.name;
@@ -210,11 +221,7 @@
 						</button>
 					{/if}
 					<p class="mt-1 text-sm text-gray-500">
-						{#if 'termLabel' in program.timeSpan}
-							{program.timeSpan.termLabel}
-						{:else if program.timeSpan.start}
-							{formatDate(program.timeSpan.start)}
-						{/if}
+						{formatTimeSpanLabel(program.timeSpan)}
 					</p>
 				</div>
 				<span class="ml-4 rounded-full px-3 py-1 text-sm font-medium {statusInfo.style}">

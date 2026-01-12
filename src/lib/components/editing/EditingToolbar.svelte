@@ -6,10 +6,9 @@
 		onRedo,
 		topChoicePercent = null,
 		topTwoPercent = null,
-		onExportCSV,
-		onExportTSV,
-		onExportGroupsSummary,
-		onExportGroupsColumns
+		onExportGroupsColumns,
+		onExportActivitySchema,
+		onExportActivityScreenshot
 	} = $props<{
 		canUndo?: boolean;
 		canRedo?: boolean;
@@ -17,10 +16,9 @@
 		onRedo?: () => void;
 		topChoicePercent?: number | null;
 		topTwoPercent?: number | null;
-		onExportCSV?: (() => void) | null;
-		onExportTSV?: (() => void) | null;
-		onExportGroupsSummary?: (() => void) | null;
 		onExportGroupsColumns?: (() => void) | null;
+		onExportActivitySchema?: (() => void | Promise<void>) | null;
+		onExportActivityScreenshot?: (() => void | Promise<void>) | null;
 	}>();
 
 	let showExportMenu = $state(false);
@@ -59,7 +57,7 @@
 			Top 2: {formatPercent(topTwoPercent)}
 		</span>
 	</div>
-	{#if onExportCSV || onExportTSV || onExportGroupsSummary || onExportGroupsColumns}
+	{#if onExportGroupsColumns || onExportActivitySchema || onExportActivityScreenshot}
 		<div class="relative">
 			<button
 				type="button"
@@ -82,45 +80,42 @@
 						}}
 						role="menuitem"
 					>
-						Copy groups for Sheets
-						<span class="block text-xs text-gray-500">Groups as columns, students below</span>
+						Copy groupings
+						<span class="block text-xs text-gray-500">
+							for pasting into a spreadsheet
+						</span>
 					</button>
-					<button
-						type="button"
-						class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-						onclick={() => {
-							onExportTSV?.();
-							showExportMenu = false;
-						}}
-						role="menuitem"
-					>
-						Copy for Google Sheets
-						<span class="block text-xs text-gray-500">Tab-separated, paste directly</span>
-					</button>
-					<button
-						type="button"
-						class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-						onclick={() => {
-							onExportCSV?.();
-							showExportMenu = false;
-						}}
-						role="menuitem"
-					>
-						Copy as CSV
-						<span class="block text-xs text-gray-500">Student ID, Name, Grade, Group</span>
-					</button>
-					<button
-						type="button"
-						class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-						onclick={() => {
-							onExportGroupsSummary?.();
-							showExportMenu = false;
-						}}
-						role="menuitem"
-					>
-						Copy Groups Summary
-						<span class="block text-xs text-gray-500">One row per group with members</span>
-					</button>
+					{#if onExportActivitySchema || onExportActivityScreenshot}
+						<hr class="my-1 border-gray-100" />
+						{#if onExportActivitySchema}
+							<button
+								type="button"
+								class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+								onclick={() => {
+									onExportActivitySchema?.();
+									showExportMenu = false;
+								}}
+								role="menuitem"
+							>
+								Download schema
+								<span class="block text-xs text-gray-500">for emailing</span>
+							</button>
+						{/if}
+						{#if onExportActivityScreenshot}
+							<button
+								type="button"
+								class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+								onclick={() => {
+									onExportActivityScreenshot?.();
+									showExportMenu = false;
+								}}
+								role="menuitem"
+							>
+								Download screenshot
+								<span class="block text-xs text-gray-500">for reference</span>
+							</button>
+						{/if}
+					{/if}
 				</div>
 				<button
 					type="button"

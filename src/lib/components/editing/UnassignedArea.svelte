@@ -6,23 +6,23 @@
 	const {
 		studentsById,
 		unassignedIds = [],
-		selectedStudentId = null,
 		draggingId = null,
 		onDrop,
-		onSelect,
 		onDragStart,
 		onDragEnd,
-		flashingIds = new Set<string>()
+		flashingIds = new Set<string>(),
+		onStudentHoverStart,
+		onStudentHoverEnd
 	} = $props<{
 		studentsById: Record<string, Student>;
 		unassignedIds?: string[];
-		selectedStudentId?: string | null;
 		draggingId?: string | null;
 		onDrop?: (payload: { studentId: string; source: string; target: string }) => void;
-		onSelect?: (id: string) => void;
 		onDragStart?: (id: string) => void;
 		onDragEnd?: () => void;
 		flashingIds?: Set<string>;
+		onStudentHoverStart?: (studentId: string, x: number, y: number) => void;
+		onStudentHoverEnd?: () => void;
 	}>();
 
 	function handleDrop(event: {
@@ -57,13 +57,13 @@
 					<DraggableStudentCard
 						student={studentsById[studentId]}
 						container="unassigned"
-						selected={selectedStudentId === studentId}
 						isDragging={draggingId === studentId}
 						textTone="text-gray-500"
-						{onSelect}
 						onDragStart={() => onDragStart?.(studentId)}
 						{onDragEnd}
 						flash={flashingIds.has(studentId)}
+						onHoverStart={onStudentHoverStart}
+						onHoverEnd={onStudentHoverEnd}
 					/>
 				{/if}
 			{/each}

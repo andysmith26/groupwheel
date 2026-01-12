@@ -143,10 +143,6 @@
 				<div class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-600">
 					{user.name.charAt(0).toUpperCase()}
 				</div>
-			{:else}
-				<div class="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
-					?
-				</div>
 			{/if}
 			<span class="hidden text-sm text-gray-700 sm:inline">
 				{user ? user.name : 'Account'}

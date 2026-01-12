@@ -18,6 +18,7 @@
 	import type { ExtractedGroup } from '$lib/application/useCases/extractGroupsFromPreferences';
 	import TabSelector from './TabSelector.svelte';
 	import SheetPreview from './SheetPreview.svelte';
+	import { ensureUniqueGroupNames } from '$lib/utils/ensureUniqueGroupNames';
 
 	type SourceType = 'preferences' | 'sheet' | 'template' | null;
 
@@ -110,9 +111,8 @@
 	}
 
 	function handleUseExtractedGroups() {
-		const groups: GroupOption[] = extractedGroups.map((g) => ({
-			name: g.name
-		}));
+		const uniqueNames = ensureUniqueGroupNames(extractedGroups.map((g) => g.name));
+		const groups: GroupOption[] = uniqueNames.map((name) => ({ name }));
 		onGroupsSelect(groups);
 	}
 
@@ -148,16 +148,17 @@
 		const nameMapping = columnMappings.find((m) => m.mappedTo === 'firstName');
 		if (!nameMapping) return;
 
-		const groups: GroupOption[] = [];
-		const seen = new Set<string>();
+		const names: string[] = [];
 
 		for (const row of tabData.rows) {
 			const name = row.cells[nameMapping.columnIndex]?.trim();
-			if (name && !seen.has(name.toLowerCase())) {
-				seen.add(name.toLowerCase());
-				groups.push({ name });
+			if (name) {
+				names.push(name);
 			}
 		}
+
+		const uniqueNames = ensureUniqueGroupNames(names);
+		const groups: GroupOption[] = uniqueNames.map((name) => ({ name }));
 
 		onGroupsSelect(groups);
 	}

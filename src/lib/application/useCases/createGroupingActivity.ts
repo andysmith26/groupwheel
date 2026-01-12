@@ -205,7 +205,7 @@ export async function createGroupingActivity(
 		id: programId,
 		name: input.activityName,
 		type: 'CLASS_ACTIVITY' as const,
-		timeSpan: { termLabel: new Date().toLocaleDateString() },
+		timeSpan: { termLabel: new Date().toISOString() },
 		poolIds: [pool.id],
 		primaryPoolId: pool.id,
 		ownerStaffIds: [input.ownerStaffId],

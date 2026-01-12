@@ -18,7 +18,9 @@
 	import LoginButton from '$lib/components/auth/LoginButton.svelte';
 	import TrackResponsesNavControls from '$lib/components/track-responses/TrackResponsesNavControls.svelte';
 	import { trackResponsesSession } from '$lib/stores/trackResponsesSession.svelte';
-	import { OfflineBanner } from '$lib/components/ui';
+	import { activityHeader } from '$lib/stores/activityHeader.svelte';
+	import { workspaceHeader } from '$lib/stores/workspaceHeader.svelte';
+	import { Button, OfflineBanner } from '$lib/components/ui';
 
 	const { children } = $props();
 
@@ -84,14 +86,59 @@
 	// Check if we're on the landing page or auth pages
 	let isLandingPage = $derived($page.url.pathname === '/');
 	let isAuthPage = $derived($page.url.pathname.startsWith('/auth'));
+	let isActivitiesPage = $derived($page.url.pathname === '/activities');
+	let isImportPage = $derived($page.url.pathname === '/activities/import');
 	let isTrackResponses = $derived($page.url.pathname.startsWith('/track-responses'));
 	let isWorkspace = $derived($page.route.id?.startsWith('/activities/[id]/workspace') ?? false);
+	let shouldShowHeaderSubtitle = $derived(isTrackResponses || isWorkspace);
+	let isSpaceHeld = $state(false);
+	let shouldShowAccountDropdown = $derived(
+		(!isTrackResponses || isAuthenticated) &&
+			(!isWorkspace || isAuthenticated) &&
+			(!isActivitiesPage || isSpaceHeld) &&
+			!isImportPage
+	);
+	let workspaceHeaderState = $derived(workspaceHeader.state);
+	let showWorkspaceExportMenu = $state(false);
 
 	function isActiveLink(pathname: string, href: string) {
 		if (href === '/') return pathname === '/';
 		return pathname === href || pathname.startsWith(`${href}/`);
 	}
+
+	function formatPercent(value: number | null): string {
+		if (value === null || Number.isNaN(value)) return '--%';
+		return `${Math.round(value)}%`;
+	}
+
+	$effect(() => {
+		if (!isWorkspace || !workspaceHeaderState) {
+			showWorkspaceExportMenu = false;
+		}
+	});
+
+	$effect(() => {
+		if (!isActivitiesPage) {
+			isSpaceHeld = false;
+		}
+	});
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (!isActivitiesPage) return;
+		if (event.code === 'Space') {
+			isSpaceHeld = true;
+		}
+	}
+
+	function handleKeyup(event: KeyboardEvent) {
+		if (!isActivitiesPage) return;
+		if (event.code === 'Space') {
+			isSpaceHeld = false;
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
 
 <div class="flex min-h-screen flex-col bg-gray-50">
 	{#if browser}
@@ -110,9 +157,15 @@
 						Groupwheel
 					</p>
 					{#if !isLandingPage && !isAuthPage}
-						<p class="text-xs text-gray-500">
-							{trackResponsesSession.sheetTitle ?? 'No sheet connected'}
-						</p>
+						{#if shouldShowHeaderSubtitle}
+							{#if isTrackResponses}
+								<p class="text-xs text-gray-500">
+									{trackResponsesSession.sheetTitle ?? 'No sheet connected'}
+								</p>
+							{:else if isWorkspace && activityHeader.name}
+								<p class="text-xs text-gray-500">{activityHeader.name}</p>
+							{/if}
+						{/if}
 					{/if}
 				</div>
 			</a>
@@ -124,7 +177,102 @@
 					{/if}
 
 					<div class="ml-auto flex items-center gap-3">
-						{#if browser}
+						{#if isWorkspace && workspaceHeaderState}
+							<div class="flex flex-wrap items-center gap-3">
+								<div class="flex items-center gap-2 text-xs text-gray-600">
+									<button
+										type="button"
+										class="text-gray-600 hover:text-gray-900 disabled:text-gray-300"
+										onclick={workspaceHeaderState.onUndo}
+										disabled={!workspaceHeaderState.canUndo}
+									>
+										← Undo
+									</button>
+									<button
+										type="button"
+										class="text-gray-600 hover:text-gray-900 disabled:text-gray-300"
+										onclick={workspaceHeaderState.onRedo}
+										disabled={!workspaceHeaderState.canRedo}
+									>
+										Redo →
+									</button>
+									<span class="hidden md:inline text-gray-300">/</span>
+									<span class="hidden md:inline whitespace-nowrap text-gray-700">
+										Top 1: {formatPercent(workspaceHeaderState.topChoicePercent)}
+									</span>
+									<span class="hidden md:inline whitespace-nowrap text-gray-700">
+										Top 2: {formatPercent(workspaceHeaderState.topTwoPercent)}
+									</span>
+								</div>
+								<div class="flex items-center gap-2">
+									<Button href="/activities/import" variant="secondary" size="sm">
+										Import
+									</Button>
+									<div class="relative">
+										<button
+											type="button"
+											class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+											onclick={() => (showWorkspaceExportMenu = !showWorkspaceExportMenu)}
+										>
+											Export ▾
+										</button>
+										{#if showWorkspaceExportMenu}
+											<div
+												class="absolute right-0 z-20 mt-1 w-56 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+												role="menu"
+											>
+												<button
+													type="button"
+													class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+													onclick={() => {
+														workspaceHeaderState.onExportGroupsColumns();
+														showWorkspaceExportMenu = false;
+													}}
+													role="menuitem"
+												>
+													Copy groupings
+													<span class="block text-xs text-gray-500">
+														for pasting into a spreadsheet
+													</span>
+												</button>
+												<hr class="my-1 border-gray-100" />
+												<button
+													type="button"
+													class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+													onclick={() => {
+														workspaceHeaderState.onExportActivitySchema();
+														showWorkspaceExportMenu = false;
+													}}
+													role="menuitem"
+												>
+													Download schema
+													<span class="block text-xs text-gray-500">for emailing</span>
+												</button>
+												<button
+													type="button"
+													class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+													onclick={() => {
+														workspaceHeaderState.onExportActivityScreenshot();
+														showWorkspaceExportMenu = false;
+													}}
+													role="menuitem"
+												>
+													Download screenshot
+													<span class="block text-xs text-gray-500">for reference</span>
+												</button>
+											</div>
+											<button
+												type="button"
+												class="fixed inset-0 z-10"
+												onclick={() => (showWorkspaceExportMenu = false)}
+												aria-label="Close menu"
+											></button>
+										{/if}
+									</div>
+								</div>
+							</div>
+						{/if}
+						{#if browser && shouldShowAccountDropdown}
 							<LoginButton />
 						{/if}
 					</div>
