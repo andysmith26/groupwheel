@@ -7,6 +7,7 @@
 	 */
 
 	import type { Student } from '$lib/domain';
+	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 	import { getStudentDisplayName } from '$lib/domain/student';
 	import CollapsibleSection from './CollapsibleSection.svelte';
 
@@ -21,6 +22,10 @@
 		onAddStudent?: (firstName: string, lastName?: string) => Promise<void>;
 		/** Callback to remove a student */
 		onRemoveStudent?: (studentId: string) => Promise<void>;
+		/** Preferences for display (optional) */
+		preferences?: ParsedPreference[];
+		/** Build a link to edit a student (optional) */
+		getEditStudentHref?: (studentId: string) => string;
 		/** Callback to import more students */
 		onImportMore?: () => void;
 		/** Whether operations are in progress */
@@ -33,6 +38,8 @@
 		onToggle,
 		onAddStudent,
 		onRemoveStudent,
+		preferences = [],
+		getEditStudentHref = null,
 		onImportMore,
 		isLoading = false
 	}: Props = $props();
@@ -50,6 +57,16 @@
 	// Derived state
 	let studentCount = $derived(students.length);
 	let showSearch = $derived(students.length > 20);
+	let preferencesMap = $derived(() => {
+		const map = new Map<string, string[]>();
+		for (const pref of preferences) {
+			map.set(pref.studentId, pref.likeGroupIds ?? []);
+		}
+		return map;
+	});
+	let studentsWithPreferences = $derived(
+		preferences.filter((pref) => (pref.likeGroupIds ?? []).length > 0).length
+	);
 	let filteredStudents = $derived(() => {
 		if (!searchQuery.trim()) return students;
 		const query = searchQuery.toLowerCase().trim();
@@ -63,6 +80,12 @@
 		if (studentCount === 0) return 'No students yet';
 		if (studentCount === 1) return '1 student';
 		return `${studentCount} students`;
+	});
+	let preferencesSummary = $derived(() => {
+		if (studentCount === 0) return '';
+		if (studentsWithPreferences === 0) return 'No preferences yet';
+		if (studentsWithPreferences === studentCount) return 'All students have preferences';
+		return `${studentsWithPreferences} of ${studentCount} students have preferences`;
 	});
 
 	let previewNames = $derived(() => {
@@ -156,6 +179,10 @@
 				</div>
 			{/if}
 
+			{#if studentCount > 0}
+				<p class="text-xs text-gray-500">{preferencesSummary()}</p>
+			{/if}
+
 			<!-- Student list -->
 			<div class="max-h-64 divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-200">
 				{#if filteredStudents().length === 0}
@@ -168,23 +195,48 @@
 					</div>
 				{:else}
 					{#each filteredStudents() as student (student.id)}
+						{@const prefs = preferencesMap().get(student.id) ?? []}
 						<div
 							class="flex items-center justify-between px-3 py-2 hover:bg-gray-50 {removingStudentId === student.id ? 'opacity-50' : ''}"
 						>
-							<span class="text-sm text-gray-900">{getStudentDisplayName(student)}</span>
-							{#if onRemoveStudent}
-								<button
-									type="button"
-									class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
-									onclick={() => handleRemoveStudent(student)}
-									disabled={removingStudentId === student.id}
-									aria-label={`Remove ${getStudentDisplayName(student)}`}
-								>
-									<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-									</svg>
-								</button>
-							{/if}
+							<div class="min-w-0 flex-1">
+								<span class="text-sm text-gray-900">{getStudentDisplayName(student)}</span>
+								{#if prefs.length > 0}
+									<div class="mt-1 flex flex-wrap gap-1">
+										{#each prefs as pref, index (pref)}
+											<span class="inline-flex items-center rounded bg-gray-100 text-xs text-gray-600 px-1.5 py-0.5">
+												<span class="mr-0.5 font-medium text-gray-500">{index + 1}.</span>
+												{pref}
+											</span>
+										{/each}
+									</div>
+								{:else}
+									<p class="mt-0.5 text-xs text-gray-400">No preferences</p>
+								{/if}
+							</div>
+							<div class="ml-3 flex items-center gap-2">
+								{#if getEditStudentHref}
+									<a
+										href={getEditStudentHref(student.id)}
+										class="text-xs font-medium text-teal hover:text-teal-dark"
+									>
+										Edit
+									</a>
+								{/if}
+								{#if onRemoveStudent}
+									<button
+										type="button"
+										class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+										onclick={() => handleRemoveStudent(student)}
+										disabled={removingStudentId === student.id}
+										aria-label={`Remove ${getStudentDisplayName(student)}`}
+									>
+										<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+										</svg>
+									</button>
+								{/if}
+							</div>
 						</div>
 					{/each}
 				{/if}
@@ -263,6 +315,9 @@
 					</button>
 				{/if}
 			</div>
+			<p class="text-xs text-gray-500">
+				Edit a student to update their details and preferences.
+			</p>
 		</div>
 	{/snippet}
 </CollapsibleSection>

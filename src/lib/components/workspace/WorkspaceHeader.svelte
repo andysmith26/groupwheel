@@ -85,7 +85,7 @@
 
 	function handleGoToSetup() {
 		showExportMenu = false;
-		goto(`/activities/${programId}/setup`);
+		goto(`/activities/${programId}`);
 	}
 </script>
 

@@ -10,8 +10,18 @@ import {
 	dropTargetForElements,
 	monitorForElements
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
+import {
+	attachClosestEdge,
+	extractClosestEdge,
+	type Edge
+} from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
+import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 
 const isBrowser = typeof window !== 'undefined';
+
+export type { Edge };
+export { extractClosestEdge };
 
 // Type for drag data - matches the structure used in the original app
 export type DragData = {
@@ -69,6 +79,36 @@ export function draggable(element: HTMLElement, config: DraggableConfig) {
 			...config.dragData,
 			container: config.container || null
 		}),
+		onGenerateDragPreview: ({ nativeSetDragImage, location }) => {
+			// Calculate offset to preserve click position (no jump)
+			const rect = element.getBoundingClientRect();
+			const offsetX = location.current.input.clientX - rect.left;
+			const offsetY = location.current.input.clientY - rect.top;
+
+			// Create a custom drag preview with "floating" state styling
+			setCustomNativeDragPreview({
+				nativeSetDragImage,
+				getOffset: () => ({ x: offsetX, y: offsetY }),
+				render: ({ container }) => {
+					// Clone the element for the preview
+					const clone = element.cloneNode(true) as HTMLElement;
+					clone.style.width = `${element.offsetWidth}px`;
+
+					// Find the preference dot and update it to grey (floating state)
+					const dot = clone.querySelector('span.rounded-full');
+					if (dot) {
+						// Remove color classes and set to grey for students with preferences
+						// or keep hollow for students without preferences
+						const isHollow = dot.classList.contains('bg-transparent');
+						if (!isHollow) {
+							dot.className = 'absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-gray-400';
+						}
+					}
+
+					container.appendChild(clone);
+				}
+			});
+		},
 		onDragStart: () => {
 			config.callbacks?.onDragStart?.();
 		},
@@ -141,6 +181,143 @@ export function droppable(element: HTMLElement, config: DroppableConfig) {
 	return {
 		destroy() {
 			cleanup();
+		}
+	};
+}
+
+// Sortable item action configuration
+export type SortableItemConfig = {
+	container: string; // The ID of the container this item belongs to
+	index: number; // The current index of this item in the list
+	dragData: DragData;
+	callbacks?: {
+		onDragStart?: () => void;
+		onDragEnd?: () => void;
+		onEdgeChange?: (edge: Edge | null) => void;
+		onDrop?: (state: SortableDropState) => void;
+	};
+};
+
+// Extended drop state with index information
+export type SortableDropState = DropState & {
+	targetIndex?: number;
+	closestEdge?: Edge | null;
+};
+
+/**
+ * Svelte action for sortable list items.
+ * Makes an element both draggable and a drop target for reordering.
+ */
+export function sortableItem(element: HTMLElement, config: SortableItemConfig) {
+	if (!isBrowser) {
+		return {
+			update() {},
+			destroy() {}
+		};
+	}
+
+	let currentConfig = config;
+
+	const draggableCleanup = makeDraggable({
+		element,
+		getInitialData: () => ({
+			type: 'student-card',
+			...currentConfig.dragData,
+			container: currentConfig.container,
+			index: currentConfig.index
+		}),
+		onGenerateDragPreview: ({ nativeSetDragImage, location }) => {
+			const rect = element.getBoundingClientRect();
+			const offsetX = location.current.input.clientX - rect.left;
+			const offsetY = location.current.input.clientY - rect.top;
+
+			setCustomNativeDragPreview({
+				nativeSetDragImage,
+				getOffset: () => ({ x: offsetX, y: offsetY }),
+				render: ({ container }) => {
+					const clone = element.cloneNode(true) as HTMLElement;
+					clone.style.width = `${element.offsetWidth}px`;
+
+					const dot = clone.querySelector('span.rounded-full');
+					if (dot) {
+						const isHollow = dot.classList.contains('bg-transparent');
+						if (!isHollow) {
+							dot.className = 'absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-gray-400';
+						}
+					}
+
+					container.appendChild(clone);
+				}
+			});
+		},
+		onDragStart: () => {
+			currentConfig.callbacks?.onDragStart?.();
+		},
+		onDrop: () => {
+			currentConfig.callbacks?.onDragEnd?.();
+		}
+	});
+
+	const dropTargetCleanup = dropTargetForElements({
+		element,
+		getData: ({ input, element: el }) => {
+			return attachClosestEdge(
+				{
+					containerId: currentConfig.container,
+					itemId: currentConfig.dragData.id,
+					index: currentConfig.index
+				},
+				{
+					input,
+					element: el,
+					allowedEdges: ['top', 'bottom']
+				}
+			);
+		},
+		onDrag: ({ self }) => {
+			const edge = extractClosestEdge(self.data);
+			currentConfig.callbacks?.onEdgeChange?.(edge);
+		},
+		onDragLeave: () => {
+			currentConfig.callbacks?.onEdgeChange?.(null);
+		},
+		onDrop: ({ source, self }) => {
+			currentConfig.callbacks?.onEdgeChange?.(null);
+
+			// Extract the drag data from the source
+			const dragData = source.data as DragData & { container?: string; type?: string };
+			const sourceContainer = dragData.container || null;
+
+			// Get edge and target info
+			const edge = extractClosestEdge(self.data);
+			const targetData = self.data as { containerId?: string; index?: number };
+			const targetContainer = targetData?.containerId || null;
+			const targetIndex = targetData?.index ?? 0;
+
+			// Calculate insertion index based on edge
+			let insertIndex = targetIndex;
+			if (edge === 'bottom') {
+				insertIndex = targetIndex + 1;
+			}
+
+			// Call the onDrop callback with the drop state
+			currentConfig.callbacks?.onDrop?.({
+				draggedItem: { id: dragData.id },
+				sourceContainer,
+				targetContainer,
+				targetIndex: insertIndex,
+				closestEdge: edge
+			});
+		}
+	});
+
+	return {
+		update(newConfig: SortableItemConfig) {
+			currentConfig = newConfig;
+		},
+		destroy() {
+			draggableCleanup();
+			dropTargetCleanup();
 		}
 	};
 }

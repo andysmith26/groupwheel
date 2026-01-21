@@ -16,6 +16,8 @@ export type MoveStudentCommand = {
 	studentId: string;
 	source: string; // groupId or 'unassigned'
 	target: string; // groupId or 'unassigned'
+	targetIndex?: number; // Optional index to insert at (for reordering)
+	previousIndex?: number; // Previous index for undo (set automatically)
 };
 
 export type CreateGroupCommand = {
@@ -37,11 +39,26 @@ export type UpdateGroupCommand = {
 	previousValues: Partial<Pick<Group, 'name' | 'capacity'>>;
 };
 
+export type ReorderGroupCommand = {
+	type: 'REORDER_GROUP';
+	groupId: string;
+	newOrder: string[]; // New memberIds order
+	previousOrder: string[]; // Previous memberIds order for undo
+};
+
+export type ReorderUnassignedCommand = {
+	type: 'REORDER_UNASSIGNED';
+	newOrder: string[]; // New unassigned order
+	previousOrder: string[]; // Previous order for undo
+};
+
 export type Command =
 	| MoveStudentCommand
 	| CreateGroupCommand
 	| DeleteGroupCommand
-	| UpdateGroupCommand;
+	| UpdateGroupCommand
+	| ReorderGroupCommand
+	| ReorderUnassignedCommand;
 
 type ScenarioMetadata = {
 	id: string;
@@ -69,6 +86,7 @@ type InternalState = {
 	baseline: ScenarioSatisfaction | null;
 	currentAnalytics: ScenarioSatisfaction | null;
 	participantSnapshot: string[];
+	unassignedOrder: string[] | null; // Custom order for unassigned students (null = use snapshot order)
 	preferences: Preference[];
 	pendingSave: boolean;
 	retryCount: number;
@@ -106,13 +124,24 @@ function cloneGroups(groups: Group[]): Group[] {
 	return groups.map((group) => ({ ...group, memberIds: [...group.memberIds] }));
 }
 
-function deriveUnassigned(snapshot: string[], groups: Group[]): string[] {
+function deriveUnassigned(snapshot: string[], groups: Group[], customOrder: string[] | null): string[] {
 	const assigned = new Set<string>();
 	for (const group of groups) {
 		for (const memberId of group.memberIds) {
 			assigned.add(memberId);
 		}
 	}
+
+	// If we have a custom order, use it (filtering out any now-assigned students)
+	if (customOrder) {
+		const unassignedSet = new Set(snapshot.filter((id) => !assigned.has(id)));
+		// Return custom order items that are still unassigned, then any new unassigned
+		const orderedUnassigned = customOrder.filter((id) => unassignedSet.has(id));
+		const orderedSet = new Set(orderedUnassigned);
+		const newUnassigned = snapshot.filter((id) => unassignedSet.has(id) && !orderedSet.has(id));
+		return [...orderedUnassigned, ...newUnassigned];
+	}
+
 	return snapshot.filter((id) => !assigned.has(id));
 }
 
@@ -155,6 +184,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		baseline: null,
 		currentAnalytics: null,
 		participantSnapshot: [],
+		unassignedOrder: null,
 		preferences: [],
 		pendingSave: false,
 		retryCount: 0,
@@ -164,7 +194,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	});
 
 	private readonly view = derived(this.state, (state): ScenarioEditingView => {
-		const unassignedStudentIds = deriveUnassigned(state.participantSnapshot, state.groups);
+		const unassignedStudentIds = deriveUnassigned(state.participantSnapshot, state.groups, state.unassignedOrder);
 		const canUndo = state.historyIndex >= 0;
 		const canRedo = state.historyIndex < state.history.length - 1;
 		const canAdopt = !['saving', 'error', 'failed'].includes(state.saveStatus);
@@ -237,6 +267,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			baseline,
 			currentAnalytics: baseline,
 			participantSnapshot: [...scenario.participantSnapshot],
+			unassignedOrder: null,
 			preferences: [...preferences],
 			pendingSave: false,
 			retryCount: 0,
@@ -271,10 +302,24 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			return { success: false, reason: validation.reason };
 		}
 
+		// Capture previous index for undo support
+		let previousIndex: number | undefined;
+		if (command.source !== 'unassigned') {
+			const sourceGroup = snapshot.groups.find((g) => g.id === command.source);
+			if (sourceGroup) {
+				previousIndex = sourceGroup.memberIds.indexOf(command.studentId);
+			}
+		}
+
+		const commandWithPreviousIndex: MoveStudentCommand = {
+			...command,
+			previousIndex
+		};
+
 		this.state.update((current) => {
-			const updatedGroups = this.applyMove(current.groups, command);
+			const updatedGroups = this.applyMove(current.groups, commandWithPreviousIndex);
 			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
-			const history = [...truncatedHistory, command];
+			const history = [...truncatedHistory, commandWithPreviousIndex];
 			const historyIndex = history.length - 1;
 
 			return {
@@ -492,6 +537,99 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		});
 	}
 
+	reorderGroup(groupId: string, newOrder: string[]): { success: boolean; reason?: string } {
+		this.ensureInitialized();
+
+		const snapshot = get(this.state);
+		if (snapshot.saveStatus === 'failed') {
+			return { success: false, reason: 'save_failed' };
+		}
+
+		const targetGroup = snapshot.groups.find((g) => g.id === groupId);
+		if (!targetGroup) {
+			return { success: false, reason: 'group_not_found' };
+		}
+
+		// Validate that newOrder contains exactly the same members
+		const currentSet = new Set(targetGroup.memberIds);
+		const newSet = new Set(newOrder);
+		if (
+			currentSet.size !== newSet.size ||
+			![...currentSet].every((id) => newSet.has(id))
+		) {
+			return { success: false, reason: 'invalid_order' };
+		}
+
+		const command: ReorderGroupCommand = {
+			type: 'REORDER_GROUP',
+			groupId,
+			newOrder: [...newOrder],
+			previousOrder: [...targetGroup.memberIds]
+		};
+
+		this.state.update((current) => {
+			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			return {
+				...current,
+				groups: current.groups.map((g) =>
+					g.id === groupId ? { ...g, memberIds: [...newOrder] } : g
+				),
+				history: [...truncatedHistory, command],
+				historyIndex: truncatedHistory.length,
+				pendingSave: true
+			};
+		});
+
+		this.scheduleSave();
+		return { success: true };
+	}
+
+	reorderUnassigned(newOrder: string[]): { success: boolean; reason?: string } {
+		this.ensureInitialized();
+
+		const snapshot = get(this.state);
+		if (snapshot.saveStatus === 'failed') {
+			return { success: false, reason: 'save_failed' };
+		}
+
+		// Get current unassigned list
+		const currentUnassigned = deriveUnassigned(
+			snapshot.participantSnapshot,
+			snapshot.groups,
+			snapshot.unassignedOrder
+		);
+
+		// Validate that newOrder contains exactly the same students
+		const currentSet = new Set(currentUnassigned);
+		const newSet = new Set(newOrder);
+		if (
+			currentSet.size !== newSet.size ||
+			![...currentSet].every((id) => newSet.has(id))
+		) {
+			return { success: false, reason: 'invalid_order' };
+		}
+
+		const command: ReorderUnassignedCommand = {
+			type: 'REORDER_UNASSIGNED',
+			newOrder: [...newOrder],
+			previousOrder: [...currentUnassigned]
+		};
+
+		this.state.update((current) => {
+			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			return {
+				...current,
+				unassignedOrder: [...newOrder],
+				history: [...truncatedHistory, command],
+				historyIndex: truncatedHistory.length,
+				pendingSave: true
+			};
+		});
+
+		this.scheduleSave();
+		return { success: true };
+	}
+
 	undo(): boolean {
 		this.ensureInitialized();
 
@@ -507,6 +645,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 		this.state.update((current) => {
 			let newGroups: Group[];
+			let newUnassignedOrder = current.unassignedOrder;
 
 			switch (command.type) {
 				case 'MOVE_STUDENT': {
@@ -514,7 +653,9 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 						type: 'MOVE_STUDENT',
 						studentId: command.studentId,
 						source: command.target,
-						target: command.source
+						target: command.source,
+						// Use previousIndex to restore original position
+						targetIndex: command.previousIndex
 					};
 					newGroups = this.applyMove(current.groups, inverse);
 					break;
@@ -538,6 +679,19 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 					break;
 				}
 
+				case 'REORDER_GROUP': {
+					newGroups = current.groups.map((g) =>
+						g.id === command.groupId ? { ...g, memberIds: [...command.previousOrder] } : g
+					);
+					break;
+				}
+
+				case 'REORDER_UNASSIGNED': {
+					newGroups = current.groups;
+					newUnassignedOrder = [...command.previousOrder];
+					break;
+				}
+
 				default:
 					newGroups = current.groups;
 			}
@@ -545,6 +699,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			return {
 				...current,
 				groups: newGroups,
+				unassignedOrder: newUnassignedOrder,
 				historyIndex: current.historyIndex - 1,
 				pendingSave: true
 			};
@@ -570,6 +725,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 		this.state.update((current) => {
 			let newGroups: Group[];
+			let newUnassignedOrder = current.unassignedOrder;
 
 			switch (command.type) {
 				case 'MOVE_STUDENT': {
@@ -594,6 +750,19 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 					break;
 				}
 
+				case 'REORDER_GROUP': {
+					newGroups = current.groups.map((g) =>
+						g.id === command.groupId ? { ...g, memberIds: [...command.newOrder] } : g
+					);
+					break;
+				}
+
+				case 'REORDER_UNASSIGNED': {
+					newGroups = current.groups;
+					newUnassignedOrder = [...command.newOrder];
+					break;
+				}
+
 				default:
 					newGroups = current.groups;
 			}
@@ -601,6 +770,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			return {
 				...current,
 				groups: newGroups,
+				unassignedOrder: newUnassignedOrder,
 				historyIndex: current.historyIndex + 1,
 				pendingSave: true
 			};
@@ -648,6 +818,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		this.state.update((current) => ({
 			...current,
 			groups: cloneGroups(groups),
+			unassignedOrder: null, // Reset custom order on regenerate
 			history: [],
 			historyIndex: -1,
 			pendingSave: true,
@@ -760,7 +931,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 	private applyMove(groups: Group[], command: MoveStudentCommand): Group[] {
 		const updatedGroups = cloneGroups(groups);
-		const { source, target, studentId } = command;
+		const { source, target, studentId, targetIndex } = command;
 
 		if (source !== 'unassigned') {
 			const sourceGroup = updatedGroups.find((group) => group.id === source);
@@ -772,7 +943,15 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		if (target !== 'unassigned') {
 			const targetGroup = updatedGroups.find((group) => group.id === target);
 			if (targetGroup) {
-				targetGroup.memberIds = [...targetGroup.memberIds, studentId];
+				if (targetIndex !== undefined && targetIndex >= 0) {
+					// Insert at specific index
+					const newMemberIds = [...targetGroup.memberIds];
+					newMemberIds.splice(targetIndex, 0, studentId);
+					targetGroup.memberIds = newMemberIds;
+				} else {
+					// Append to end (default behavior)
+					targetGroup.memberIds = [...targetGroup.memberIds, studentId];
+				}
 			}
 		}
 

@@ -60,6 +60,8 @@
 	import { extractStudentPreference } from '$lib/domain/preference';
 	import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
 	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
+	import Skeleton from '$lib/components/ui/Skeleton.svelte';
+	import GroupColumnSkeleton from '$lib/components/ui/GroupColumnSkeleton.svelte';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -113,11 +115,21 @@
 	let showToClassPublishing = $state(false);
 	let showToClassError = $state<string | null>(null);
 
+	// --- Alphabetize confirmation state ---
+	let showAlphabetizeConfirm = $state(false);
+	let groupToAlphabetize = $state<{ id: string; name: string; memberCount: number } | null>(null);
+
 	// --- Student tooltip state ---
 	let tooltipStudentId = $state<string | null>(null);
 	let tooltipX = $state(0);
 	let tooltipY = $state(0);
 	let dragCooldown = $state(false); // Brief cooldown after drag to prevent spurious tooltips
+
+	// --- Keyboard navigation state ---
+	let pickedUpStudentId = $state<string | null>(null);
+	let pickedUpFromContainer = $state<string | null>(null);
+	let pickedUpFromIndex = $state<number>(0);
+	let keyboardAnnouncement = $state<string>('');
 
 	// --- Keyboard handler cleanup ---
 	let keyboardCleanup: (() => void) | null = null;
@@ -144,7 +156,18 @@
 	});
 
 	// --- Toast ---
-	let toastMessage = $state('');
+	interface ToastAction {
+		label: string;
+		callback: () => void;
+	}
+
+	interface ToastState {
+		message: string;
+		subtitle?: string;
+		action?: ToastAction;
+	}
+
+	let toast = $state<ToastState | null>(null);
 	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 	let lastSaveStatus = $state<SaveStatus | null>(null);
 
@@ -243,6 +266,36 @@
 
 	// --- Group names for preferences modal ---
 	let groupNames = $derived(view?.groups.map((g) => g.name) ?? []);
+
+	/**
+	 * Get groups ordered by UI display order (top row first, then bottom row).
+	 * This ensures exports match what users see on screen.
+	 */
+	function getGroupsInDisplayOrder(): Group[] {
+		if (!view || !resolvedRowLayout) return view?.groups ?? [];
+
+		const groupsById = new Map(view.groups.map((g) => [g.id, g]));
+		const orderedGroups: Group[] = [];
+
+		// Add groups in display order: top row first, then bottom row
+		for (const id of resolvedRowLayout.top) {
+			const group = groupsById.get(id);
+			if (group) orderedGroups.push(group);
+		}
+		for (const id of resolvedRowLayout.bottom) {
+			const group = groupsById.get(id);
+			if (group) orderedGroups.push(group);
+		}
+
+		// Add any remaining groups not in the layout (shouldn't happen, but be safe)
+		for (const group of view.groups) {
+			if (!orderedGroups.some((g) => g.id === group.id)) {
+				orderedGroups.push(group);
+			}
+		}
+
+		return orderedGroups;
+	}
 
 	function isStringArray(value: unknown): value is string[] {
 		return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
@@ -485,8 +538,8 @@
 		latestPublishedSession = data.latestPublishedSession;
 
 		if (!scenario) {
-			// No groups yet - redirect to setup
-			goto(`/activities/${programId}/setup`);
+			// No groups yet - redirect to main activity page
+			goto(`/activities/${programId}`);
 			return;
 		}
 
@@ -526,7 +579,7 @@
 		isRetryingGeneration = false;
 	}
 
-	function handleDrop(payload: { studentId: string; source: string; target: string }) {
+	function handleDrop(payload: { studentId: string; source: string; target: string; targetIndex?: number }) {
 		if (!editingStore) return;
 
 		const currentSourceGroup = view?.groups.find((g) => g.memberIds.includes(payload.studentId));
@@ -536,7 +589,8 @@
 			type: 'MOVE_STUDENT',
 			studentId: payload.studentId,
 			source: normalizedSource,
-			target: payload.target
+			target: payload.target,
+			targetIndex: payload.targetIndex
 		});
 
 		if (!result.success) {
@@ -549,6 +603,78 @@
 			}
 		} else {
 			flashStudent(payload.studentId);
+
+			// Build student name and group transition for toast
+			const student = studentsById[payload.studentId];
+			const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : 'Student';
+			const sourceGroup = view?.groups.find(g => g.id === normalizedSource);
+			const targetGroup = view?.groups.find(g => g.id === payload.target);
+			const sourceName = normalizedSource === 'unassigned' ? 'Unassigned' : (sourceGroup?.name ?? 'Unknown');
+			const targetName = payload.target === 'unassigned' ? 'Unassigned' : (targetGroup?.name ?? 'Unknown');
+
+			showToast(`${studentName} moved.`, {
+				label: 'Undo',
+				callback: () => {
+					editingStore?.undo();
+					toast = null;
+				}
+			}, `${sourceName} → ${targetName}`);
+		}
+	}
+
+	function handleReorder(payload: { groupId: string; studentId: string; newIndex: number }) {
+		if (!editingStore || !view) return;
+
+		// Handle unassigned area reordering
+		if (payload.groupId === 'unassigned') {
+			const currentIndex = view.unassignedStudentIds.indexOf(payload.studentId);
+			if (currentIndex === -1) return;
+
+			const newOrder = [...view.unassignedStudentIds];
+			newOrder.splice(currentIndex, 1);
+			newOrder.splice(payload.newIndex, 0, payload.studentId);
+
+			const result = editingStore.reorderUnassigned(newOrder);
+			if (result.success) {
+				flashStudent(payload.studentId);
+				const student = studentsById[payload.studentId];
+				const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : 'Student';
+				showToast(`${studentName} reordered.`, {
+					label: 'Undo',
+					callback: () => {
+						editingStore?.undo();
+						toast = null;
+					}
+				});
+			}
+			return;
+		}
+
+		const group = view.groups.find((g) => g.id === payload.groupId);
+		if (!group) return;
+
+		// Compute the new order by moving the student to newIndex
+		const currentIndex = group.memberIds.indexOf(payload.studentId);
+		if (currentIndex === -1) return;
+
+		const newOrder = [...group.memberIds];
+		// Remove from current position
+		newOrder.splice(currentIndex, 1);
+		// Insert at new position
+		newOrder.splice(payload.newIndex, 0, payload.studentId);
+
+		const result = editingStore.reorderGroup(payload.groupId, newOrder);
+		if (result.success) {
+			flashStudent(payload.studentId);
+			const student = studentsById[payload.studentId];
+			const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : 'Student';
+			showToast(`${studentName} reordered.`, {
+				label: 'Undo',
+				callback: () => {
+					editingStore?.undo();
+					toast = null;
+				}
+			});
 		}
 	}
 
@@ -675,13 +801,15 @@
 		}, 900);
 	}
 
-	function showToast(message: string) {
-		toastMessage = message;
+	function showToast(message: string, action?: ToastAction, subtitle?: string) {
+		toast = { message, action, subtitle };
 		if (toastTimeout) clearTimeout(toastTimeout);
+		// Longer timeout (5s) when there's an action button, otherwise 2s
+		const duration = action ? 5000 : 2000;
 		toastTimeout = setTimeout(() => {
-			toastMessage = '';
+			toast = null;
 			toastTimeout = null;
-		}, 2000);
+		}, duration);
 	}
 
 	$effect(() => {
@@ -763,10 +891,111 @@
 		groupToDelete = null;
 	}
 
+	function handleAlphabetize(groupId: string) {
+		if (!editingStore || !view) return;
+
+		const group = view.groups.find((g) => g.id === groupId);
+		if (!group || group.memberIds.length < 2) return;
+
+		// Show confirmation dialog
+		groupToAlphabetize = {
+			id: groupId,
+			name: group.name,
+			memberCount: group.memberIds.length
+		};
+		showAlphabetizeConfirm = true;
+	}
+
+	function confirmAlphabetize() {
+		if (!editingStore || !groupToAlphabetize || !view) return;
+
+		const group = view.groups.find((g) => g.id === groupToAlphabetize.id);
+		if (!group) {
+			showAlphabetizeConfirm = false;
+			groupToAlphabetize = null;
+			return;
+		}
+
+		// Sort memberIds alphabetically by last name, then first name
+		const sortedMemberIds = [...group.memberIds].sort((leftId, rightId) => {
+			const left = studentsById[leftId];
+			const right = studentsById[rightId];
+			if (!left && !right) return leftId.localeCompare(rightId);
+			if (!left) return 1;
+			if (!right) return -1;
+
+			const leftLast = (left.lastName ?? '').trim();
+			const rightLast = (right.lastName ?? '').trim();
+			const lastCompare = leftLast.localeCompare(rightLast, undefined, { sensitivity: 'base' });
+			if (lastCompare !== 0) return lastCompare;
+
+			const leftFirst = (left.firstName ?? '').trim();
+			const rightFirst = (right.firstName ?? '').trim();
+			const firstCompare = leftFirst.localeCompare(rightFirst, undefined, { sensitivity: 'base' });
+			if (firstCompare !== 0) return firstCompare;
+
+			return left.id.localeCompare(right.id);
+		});
+
+		const result = editingStore.reorderGroup(group.id, sortedMemberIds);
+		if (!result.success) {
+			showToast('Failed to alphabetize group');
+		} else {
+			showToast(`"${group.name}" sorted alphabetically`);
+		}
+
+		showAlphabetizeConfirm = false;
+		groupToAlphabetize = null;
+	}
+
+	function cancelAlphabetize() {
+		showAlphabetizeConfirm = false;
+		groupToAlphabetize = null;
+	}
+
+	function handleAlphabetizeUnassigned() {
+		if (!editingStore || !view || view.unassignedStudentIds.length < 2) return;
+
+		// Sort unassigned students alphabetically by last name, then first name
+		const sortedIds = [...view.unassignedStudentIds].sort((leftId, rightId) => {
+			const left = studentsById[leftId];
+			const right = studentsById[rightId];
+			if (!left && !right) return leftId.localeCompare(rightId);
+			if (!left) return 1;
+			if (!right) return -1;
+
+			const leftLast = (left.lastName ?? '').trim();
+			const rightLast = (right.lastName ?? '').trim();
+			const lastCompare = leftLast.localeCompare(rightLast, undefined, { sensitivity: 'base' });
+			if (lastCompare !== 0) return lastCompare;
+
+			const leftFirst = (left.firstName ?? '').trim();
+			const rightFirst = (right.firstName ?? '').trim();
+			const firstCompare = leftFirst.localeCompare(rightFirst, undefined, { sensitivity: 'base' });
+			if (firstCompare !== 0) return firstCompare;
+
+			return left.id.localeCompare(right.id);
+		});
+
+		const result = editingStore.reorderUnassigned(sortedIds);
+		if (!result.success) {
+			showToast('Failed to sort unassigned students');
+		} else {
+			showToast('Unassigned students sorted alphabetically', {
+				label: 'Undo',
+				callback: () => {
+					editingStore?.undo();
+					toast = null;
+				}
+			});
+		}
+	}
+
 	async function handleExportCSV() {
 		if (!view) return;
 		const studentsMap = new Map(Object.entries(studentsById));
-		const assignments = buildAssignmentList(view.groups, studentsMap);
+		const orderedGroups = getGroupsInDisplayOrder();
+		const assignments = buildAssignmentList(orderedGroups, studentsMap);
 		const csv = exportToCSV(assignments);
 		const success = await env?.clipboard?.writeText(csv);
 		showToast(success ? 'CSV copied to clipboard!' : 'Failed to copy');
@@ -775,7 +1004,8 @@
 	async function handleExportTSV() {
 		if (!view) return;
 		const studentsMap = new Map(Object.entries(studentsById));
-		const assignments = buildAssignmentList(view.groups, studentsMap);
+		const orderedGroups = getGroupsInDisplayOrder();
+		const assignments = buildAssignmentList(orderedGroups, studentsMap);
 		const tsv = exportToTSV(assignments);
 		const success = await env?.clipboard?.writeText(tsv);
 		showToast(success ? 'Copied! Paste directly into Google Sheets' : 'Failed to copy');
@@ -784,7 +1014,8 @@
 	async function handleExportGroupsSummary() {
 		if (!view) return;
 		const studentsMap = new Map(Object.entries(studentsById));
-		const csv = exportGroupsToCSV(view.groups, studentsMap);
+		const orderedGroups = getGroupsInDisplayOrder();
+		const csv = exportGroupsToCSV(orderedGroups, studentsMap);
 		const success = await env?.clipboard?.writeText(csv);
 		showToast(success ? 'Groups summary copied!' : 'Failed to copy');
 	}
@@ -792,13 +1023,15 @@
 	async function handleExportGroupsColumns() {
 		if (!view) return;
 		const studentsMap = new Map(Object.entries(studentsById));
-		const tsv = exportGroupsToColumnsTSV(view.groups, studentsMap);
+		const orderedGroups = getGroupsInDisplayOrder();
+		const tsv = exportGroupsToColumnsTSV(orderedGroups, studentsMap);
 		const success = await env?.clipboard?.writeText(tsv);
 		showToast(success ? 'Groups copied for Sheets!' : 'Failed to copy');
 	}
 
 	function buildActivityExportData(): ActivityExportData | null {
 		if (!program || !view) return null;
+		const orderedGroups = getGroupsInDisplayOrder();
 		return {
 			version: 1,
 			exportedAt: new Date().toISOString(),
@@ -826,7 +1059,7 @@
 				};
 			}),
 			scenario: {
-				groups: view.groups.map((g) => ({
+				groups: orderedGroups.map((g) => ({
 					id: g.id,
 					name: g.name,
 					capacity: g.capacity,
@@ -1003,6 +1236,139 @@
 		}, 150);
 	}
 
+	// --- Keyboard navigation handlers ---
+	function handleKeyboardPickUp(studentId: string, container: string, index: number) {
+		pickedUpStudentId = studentId;
+		pickedUpFromContainer = container;
+		pickedUpFromIndex = index;
+
+		const student = studentsById[studentId];
+		const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : studentId;
+		keyboardAnnouncement = `${studentName} picked up. Use arrow keys to move, Enter to drop, Escape to cancel.`;
+	}
+
+	function handleKeyboardDrop() {
+		if (!pickedUpStudentId || !pickedUpFromContainer) return;
+
+		// The student is already in position (we move them as arrow keys are pressed)
+		// So just clear the state
+		const student = studentsById[pickedUpStudentId];
+		const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : pickedUpStudentId;
+		keyboardAnnouncement = `${studentName} dropped.`;
+
+		pickedUpStudentId = null;
+		pickedUpFromContainer = null;
+		pickedUpFromIndex = 0;
+	}
+
+	function handleKeyboardCancel() {
+		if (!pickedUpStudentId || !pickedUpFromContainer) return;
+
+		const student = studentsById[pickedUpStudentId];
+		const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : pickedUpStudentId;
+		keyboardAnnouncement = `Move cancelled. ${studentName} returned to original position.`;
+
+		pickedUpStudentId = null;
+		pickedUpFromContainer = null;
+		pickedUpFromIndex = 0;
+	}
+
+	function handleKeyboardMove(direction: 'up' | 'down' | 'left' | 'right') {
+		if (!pickedUpStudentId || !view) return;
+
+		// Find where the student currently is
+		let currentContainer = pickedUpFromContainer;
+		let currentIndex = pickedUpFromIndex;
+
+		// Check if student is in a group or unassigned
+		for (const group of view.groups) {
+			const idx = group.memberIds.indexOf(pickedUpStudentId);
+			if (idx !== -1) {
+				currentContainer = group.id;
+				currentIndex = idx;
+				break;
+			}
+		}
+
+		if (view.unassignedStudentIds.includes(pickedUpStudentId)) {
+			currentContainer = 'unassigned';
+			currentIndex = view.unassignedStudentIds.indexOf(pickedUpStudentId);
+		}
+
+		// Build list of all containers in visual order (unassigned, then top row L→R, then bottom row L→R)
+		const visualGroupOrder = resolvedRowLayout
+			? [...resolvedRowLayout.top, ...resolvedRowLayout.bottom]
+			: view.groups.map(g => g.id);
+		const containers = ['unassigned', ...visualGroupOrder];
+		const currentContainerIndex = containers.indexOf(currentContainer ?? 'unassigned');
+
+		let targetContainer = currentContainer;
+		let targetIndex = currentIndex;
+
+		if (direction === 'up' && currentContainer !== 'unassigned') {
+			// Move up within group (decrease index)
+			const group = view.groups.find(g => g.id === currentContainer);
+			if (group && currentIndex > 0) {
+				targetIndex = currentIndex - 1;
+			}
+		} else if (direction === 'down' && currentContainer !== 'unassigned') {
+			// Move down within group (increase index)
+			const group = view.groups.find(g => g.id === currentContainer);
+			if (group && currentIndex < group.memberIds.length - 1) {
+				targetIndex = currentIndex + 1;
+			}
+		} else if (direction === 'left') {
+			// Move to previous container
+			if (currentContainerIndex > 0) {
+				targetContainer = containers[currentContainerIndex - 1];
+				targetIndex = 0; // Start at beginning of new container
+			}
+		} else if (direction === 'right') {
+			// Move to next container
+			if (currentContainerIndex < containers.length - 1) {
+				targetContainer = containers[currentContainerIndex + 1];
+				targetIndex = 0; // Start at beginning of new container
+			}
+		}
+
+		// Only dispatch if something changed
+		if (targetContainer !== currentContainer || targetIndex !== currentIndex) {
+			const result = editingStore?.dispatch({
+				type: 'MOVE_STUDENT',
+				studentId: pickedUpStudentId,
+				source: currentContainer ?? 'unassigned',
+				target: targetContainer ?? 'unassigned',
+				targetIndex
+			});
+
+			if (result?.success) {
+				flashStudent(pickedUpStudentId);
+
+				// Announce the move
+				const student = studentsById[pickedUpStudentId];
+				const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : pickedUpStudentId;
+
+				if (targetContainer === 'unassigned') {
+					keyboardAnnouncement = `${studentName} moved to unassigned.`;
+				} else {
+					const group = view.groups.find(g => g.id === targetContainer);
+					const groupName = group?.name ?? targetContainer;
+					keyboardAnnouncement = `${studentName} moved to ${groupName}, position ${targetIndex + 1}.`;
+				}
+
+				// After moving to a different container, the DOM element is remounted.
+				// We need to restore focus to the new element after the DOM updates.
+				if (targetContainer !== currentContainer) {
+					const studentIdToFocus = pickedUpStudentId;
+					requestAnimationFrame(() => {
+						const newElement = document.querySelector(`[data-student-id="${studentIdToFocus}"]`) as HTMLElement | null;
+						newElement?.focus();
+					});
+				}
+			}
+		}
+	}
+
 	// Clear tooltip when any drag starts
 	$effect(() => {
 		if (draggingId) {
@@ -1017,8 +1383,24 @@
 
 <div class="flex h-full min-h-0 flex-col">
 	{#if loading}
-		<div class="flex flex-1 items-center justify-center">
-			<p class="text-gray-500">Loading activity...</p>
+		<div class="flex gap-3 p-4">
+			<!-- Left sidebar: Unassigned area skeleton -->
+			<div class="w-[148px] flex-shrink-0">
+				<div class="h-full rounded-xl bg-gray-50 p-3">
+					<Skeleton width="100%" height="1rem" class="mb-3" />
+					<div class="flex flex-col gap-2">
+						{#each Array(6) as _}
+							<Skeleton width="100%" height="2rem" rounded="md" />
+						{/each}
+					</div>
+				</div>
+			</div>
+			<!-- Main area: Group columns skeleton -->
+			<div class="flex-1 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{#each Array(6) as _}
+					<GroupColumnSkeleton studentCount={4} />
+				{/each}
+			</div>
 		</div>
 	{:else if loadError}
 		<div class="p-4">
@@ -1050,10 +1432,10 @@
 										Drag students between groups to adjust placements.
 										{#if preferencesCount === 0}
 											<a
-												href="/activities/{program?.id}/setup#preferences"
+												href="/activities/{program?.id}"
 												class="underline hover:text-teal-800"
 											>
-												Import student preferences
+												Add student preferences
 											</a> for smarter placement.
 										{/if}
 									</p>
@@ -1101,46 +1483,65 @@
 							currentIndex={currentHistoryIndex}
 							onSelect={switchToHistoryEntry}
 						/>
-
-						<UnassignedArea
-							{studentsById}
-							unassignedIds={view.unassignedStudentIds}
-							{draggingId}
-							onDrop={handleDrop}
-							onDragStart={(id) => (draggingId = id)}
-							onDragEnd={handleDragEnd}
-							{flashingIds}
-							onStudentHoverStart={handleTooltipShow}
-							onStudentHoverEnd={handleTooltipHide}
-						/>
-
 					</div>
 
-					<div class={layoutMode === 'row' ? '' : 'mx-auto max-w-6xl'}>
-						<GroupEditingLayout
-							groups={view.groups}
-							{studentsById}
-							{draggingId}
-							onDrop={handleDrop}
-							onDragStart={(id) => (draggingId = id)}
-							onDragEnd={handleDragEnd}
-							{flashingIds}
-							onUpdateGroup={handleUpdateGroup}
-							onDeleteGroup={handleDeleteGroup}
-							onAddGroup={handleAddGroup}
-							{newGroupId}
-							selectedStudentPreferences={activeStudentPreferences}
-							layout={layoutMode}
-							rowOrderTop={resolvedRowLayout?.top ?? []}
-							rowOrderBottom={resolvedRowLayout?.bottom ?? []}
-							{studentPreferenceRanks}
-							{studentHasPreferences}
-							onStudentHoverStart={handleTooltipShow}
-							onStudentHoverEnd={handleTooltipHide}
-						/>
-					</div>
+					<div class="flex gap-3 mt-4">
+						<!-- Left sidebar: Unassigned students -->
+						<div class="w-[148px] flex-shrink-0 self-stretch">
+							<UnassignedArea
+								{studentsById}
+								unassignedIds={view.unassignedStudentIds}
+								{draggingId}
+								onDrop={handleDrop}
+								onReorder={handleReorder}
+								onDragStart={(id) => (draggingId = id)}
+								onDragEnd={handleDragEnd}
+								{flashingIds}
+								{studentHasPreferences}
+								onStudentHoverStart={handleTooltipShow}
+								onStudentHoverEnd={handleTooltipHide}
+								{pickedUpStudentId}
+								onKeyboardPickUp={handleKeyboardPickUp}
+								onKeyboardDrop={handleKeyboardDrop}
+								onKeyboardCancel={handleKeyboardCancel}
+								onKeyboardMove={handleKeyboardMove}
+								onAlphabetize={handleAlphabetizeUnassigned}
+								vertical={true}
+							/>
+						</div>
 
-					<!-- Footer hint removed for compact view -->
+						<!-- Main area: Group columns -->
+						<div class="flex-1 min-w-0">
+							<GroupEditingLayout
+								groups={view.groups}
+								{studentsById}
+								{draggingId}
+								onDrop={handleDrop}
+								onReorder={handleReorder}
+								onDragStart={(id) => (draggingId = id)}
+								onDragEnd={handleDragEnd}
+								{flashingIds}
+								onUpdateGroup={handleUpdateGroup}
+								onDeleteGroup={handleDeleteGroup}
+								onAddGroup={handleAddGroup}
+								onAlphabetize={handleAlphabetize}
+								{newGroupId}
+								selectedStudentPreferences={activeStudentPreferences}
+								layout={layoutMode}
+								rowOrderTop={resolvedRowLayout?.top ?? []}
+								rowOrderBottom={resolvedRowLayout?.bottom ?? []}
+								{studentPreferenceRanks}
+								{studentHasPreferences}
+								onStudentHoverStart={handleTooltipShow}
+								onStudentHoverEnd={handleTooltipHide}
+								{pickedUpStudentId}
+								onKeyboardPickUp={handleKeyboardPickUp}
+								onKeyboardDrop={handleKeyboardDrop}
+								onKeyboardCancel={handleKeyboardCancel}
+								onKeyboardMove={handleKeyboardMove}
+							/>
+						</div>
+					</div>
 				{/if}
 			</main>
 
@@ -1168,6 +1569,18 @@
 			confirmLabel="Delete"
 			onConfirm={confirmDeleteGroup}
 			onCancel={cancelDeleteGroup}
+		/>
+
+		<!-- Alphabetize Group confirmation dialog -->
+		<ConfirmDialog
+			open={showAlphabetizeConfirm}
+			title="Sort alphabetically?"
+			message={groupToAlphabetize
+				? `This will rearrange all ${groupToAlphabetize.memberCount} students in "${groupToAlphabetize.name}" by last name. You can undo this change.`
+				: ''}
+			confirmLabel="Sort"
+			onConfirm={confirmAlphabetize}
+			onCancel={cancelAlphabetize}
 		/>
 
 		<!-- Publish Session Modal -->
@@ -1218,12 +1631,35 @@
 			/>
 		{/if}
 
+		<!-- Screen reader announcements for keyboard navigation -->
+		<div aria-live="polite" aria-atomic="true" class="sr-only">
+			{keyboardAnnouncement}
+		</div>
+
 		<!-- Toast -->
-		{#if toastMessage}
+		{#if toast}
 			<div
-				class="fixed right-4 bottom-4 z-50 rounded-lg bg-gray-900/90 px-4 py-2 text-sm text-white shadow-lg"
+				class="fixed right-4 bottom-4 z-50 rounded-lg bg-gray-900/90 px-4 py-3 text-sm text-white shadow-lg"
+				role="alert"
 			>
-				{toastMessage}
+				<div class="flex items-center gap-4">
+					<div>
+						<span class="font-medium">{toast.message}</span>
+						{#if toast.subtitle}
+							<span class="block text-xs text-gray-400">{toast.subtitle}</span>
+						{/if}
+					</div>
+					{#if toast.action}
+						<button
+							onclick={() => {
+								toast?.action?.callback();
+							}}
+							class="font-medium underline hover:no-underline whitespace-nowrap"
+						>
+							{toast.action.label}
+						</button>
+					{/if}
+				</div>
 			</div>
 		{/if}
 	{/if}

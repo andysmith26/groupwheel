@@ -1,202 +1,158 @@
-# Activity Export/Import Feature Plan
+# Plan: In-List Reordering and Alphabetize Feature
 
 ## Summary
 
-Enable teachers to export an activity (grouping configuration) as a JSON file that can be shared with colleagues, and allow any user (including unauthenticated) to import such files to recreate the activity.
-
----
+Add the ability to:
+1. Drag and drop a student **between** other students within the same group (or unassigned area) to reorder
+2. Provide an "Alphabetize" option that sorts all students in a group by last name (with a confirmation warning)
 
 ## Research Findings
 
-### What is an "Activity"?
+### Current State
 
-An "activity" is a composite concept combining multiple domain entities:
-- **Program** (`src/lib/domain/program.ts`) - The activity metadata (name, type, timeSpan)
-- **Pool** (`src/lib/domain/pool.ts`) - The student roster
-- **Students** (`src/lib/domain/student.ts`) - Individual student records
-- **Preferences** (`src/lib/domain/preference.ts`) - Student group preferences
-- **Scenario** (`src/lib/domain/scenario.ts`) - The current grouping state (groups + assignments)
+**Drag-and-drop library:** Atlassian's Pragmatic Drag and Drop (`@atlaskit/pragmatic-drag-and-drop`)
 
-### Existing Patterns
+**Current behavior:**
+- Students can be dragged **between containers** (groups ↔ unassigned)
+- Students **cannot** be reordered within a group - they're always sorted alphabetically on render
+- The `Group.memberIds` array exists but order is **not preserved** - it's re-sorted on every render (line 102-123 in `EditableGroupColumn.svelte`)
 
-1. **CSV Export** (`src/lib/utils/csvExport.ts:85-124`) - Exports student assignments to CSV format, called from workspace page
-2. **Clipboard Adapter** (`src/lib/infrastructure/clipboard/`) - Abstracted browser clipboard access via `ClipboardPort`
-3. **Activity Loading** (`src/lib/application/useCases/getActivityData.ts`) - Loads complete activity data for workspace
-4. **Activity Creation** (`src/lib/application/useCases/createGroupingActivity.ts`) - Composite use case that creates Pool + Program + Preferences
+**Key files:**
+- `src/lib/utils/pragmatic-dnd.ts` - Svelte actions for drag/drop
+- `src/lib/components/editing/EditableGroupColumn.svelte` - Group container with student cards
+- `src/lib/components/editing/UnassignedArea.svelte` - Unassigned student container
+- `src/lib/stores/scenarioEditingStore.ts` - State management with undo/redo
+- `src/lib/domain/group.ts` - Group entity (no explicit order field)
 
-### Architecture Constraints (from `docs/ARCHITECTURE.md`)
+**Architecture constraints:**
+- Domain layer is pure, no UI dependencies
+- All significant operations go through the editing store (for undo/redo)
+- Changes persist to IndexedDB via debounced auto-save
 
-- Domain layer must be pure (no browser APIs)
-- Use cases in `src/lib/application/useCases/` must accept deps via `deps` object
-- UI must call use cases via facade (`src/lib/services/appEnvUseCases.ts`)
-- Browser APIs should be abstracted via ports (like `ClipboardPort`)
+### What Needs to Change
 
----
-
-## Files to Modify/Create
-
-### New Files
-1. `src/lib/application/useCases/exportActivity.ts` - Use case to serialize activity data
-2. `src/lib/application/useCases/importActivity.ts` - Use case to import activity from JSON
-3. `src/lib/utils/activityFile.ts` - JSON serialization/validation utilities (pure functions)
-4. `src/lib/application/ports/FileDownloadPort.ts` - Port for file download abstraction
-5. `src/lib/infrastructure/file/BrowserFileDownloadAdapter.ts` - Browser file download implementation
-6. `src/routes/activities/import/+page.svelte` - Import page UI (accessible without auth)
-
-### Modified Files
-1. `src/lib/components/editing/EditingToolbar.svelte` - Add "Export Activity" button
-2. `src/lib/services/appEnvUseCases.ts` - Wire up new use cases to facade
-3. `src/lib/infrastructure/inMemoryEnvironment.ts` - Add file download adapter to env
-4. `src/routes/activities/+page.svelte` - Add "Import Activity" link to empty state/header
+1. **Stop auto-sorting on render** - Remove the alphabetical sort in `EditableGroupColumn.svelte`
+2. **Preserve memberIds order** - The order in `Group.memberIds` becomes meaningful
+3. **Add drop indicators** - Show visual gap where student will be inserted
+4. **Handle insert-at-index** - New command type to insert at specific position
+5. **Add alphabetize action** - Button + confirmation dialog + bulk reorder command
 
 ---
 
-## Approaches
+## Approach 1: Minimal Change - Position-Based Insert with Existing Commands (Recommended)
 
-### Approach A: Minimal - Direct Browser Download (Recommended)
+### What it does differently
+Uses the existing `MOVE_STUDENT` command but adds an optional `targetIndex` parameter. The memberIds array order becomes the source of truth. No domain model changes needed.
 
-**What it does differently**: Uses direct browser APIs (`URL.createObjectURL`, `<a download>`) for file operations without creating new ports.
+### Files modified
+1. `src/lib/stores/scenarioEditingStore.ts` - Add `targetIndex` to `MoveStudentCommand`, update `applyMove()`
+2. `src/lib/components/editing/EditableGroupColumn.svelte` - Remove auto-sort, add drop indicators, pass index to callbacks
+3. `src/lib/components/editing/UnassignedArea.svelte` - Same changes for unassigned area
+4. `src/lib/utils/pragmatic-dnd.ts` - Enhance droppable to detect insert position between items
+5. `src/routes/activities/[id]/workspace/+page.svelte` - Update `handleDrop` to pass index
 
-**Implementation**:
-- Export: Utility function in `src/lib/utils/activityFile.ts` creates JSON blob, triggers download via temporary anchor element
-- Import: File input on import page, `FileReader` to parse JSON, then call existing `createGroupingActivity` use case
+### New files created
+1. `src/lib/components/editing/DropIndicator.svelte` - Visual indicator for insert position
+2. `src/lib/components/editing/AlphabetizeConfirmDialog.svelte` - Confirmation for bulk alphabetize
 
-**Files created/modified**:
-- `src/lib/utils/activityFile.ts` (new) - ~100 lines
-- `src/lib/application/useCases/importActivity.ts` (new) - ~80 lines
-- `src/lib/components/editing/EditingToolbar.svelte` (modify) - add button
-- `src/routes/activities/import/+page.svelte` (new) - ~150 lines
-- `src/lib/services/appEnvUseCases.ts` (modify) - wire import use case
+### Trade-offs
+- **Implementation effort:** Moderate - pragmatic-dnd supports edge detection natively
+- **Best-practice alignment:** Canonical - follows existing patterns, minimal new concepts
+- **Maintenance burden:** Simple - reuses existing command system
 
-**Trade-offs**:
-- Implementation effort: **Quick win** (~2 hours)
-- Best-practice alignment: **Acceptable** - Browser APIs in utils is slightly impure but pragmatic for file I/O
-- Maintenance burden: **Simple** - Minimal new abstractions
+---
 
-### Approach B: Port-Based - Full Abstraction
+## Approach 2: Explicit Position Field on Group Domain
 
-**What it does differently**: Creates `FileDownloadPort` and `FileUploadPort` abstractions in the application layer.
+### What it does differently
+Adds a `memberOrder: string[]` field to the Group domain type that explicitly tracks order separate from membership. This provides a cleaner separation but requires domain changes.
 
-**Implementation**:
-- New ports: `FileDownloadPort`, `FileUploadPort`
-- New adapters: `BrowserFileDownloadAdapter`, `BrowserFileUploadAdapter`
-- In-memory adapters for testing
-- Use cases call ports for file operations
+### Files modified
+1. `src/lib/domain/group.ts` - Add `memberOrder?: string[]` field
+2. `src/lib/stores/scenarioEditingStore.ts` - New `REORDER_MEMBERS` command type
+3. All files from Approach 1
 
-**Files created/modified**:
-- `src/lib/application/ports/FileDownloadPort.ts` (new)
-- `src/lib/application/ports/FileUploadPort.ts` (new)
-- `src/lib/infrastructure/file/BrowserFileDownloadAdapter.ts` (new)
-- `src/lib/infrastructure/file/BrowserFileUploadAdapter.ts` (new)
-- `src/lib/infrastructure/file/InMemoryFileAdapter.ts` (new)
-- `src/lib/application/useCases/exportActivity.ts` (new)
-- `src/lib/application/useCases/importActivity.ts` (new)
-- `src/lib/utils/activityFile.ts` (new)
-- `src/lib/infrastructure/inMemoryEnvironment.ts` (modify)
-- `src/lib/services/appEnvUseCases.ts` (modify)
-- `src/lib/components/editing/EditingToolbar.svelte` (modify)
-- `src/routes/activities/import/+page.svelte` (new)
+### Trade-offs
+- **Implementation effort:** Significant - domain changes ripple through
+- **Best-practice alignment:** Acceptable - adds complexity but cleaner separation
+- **Maintenance burden:** Manageable - need to keep memberIds and memberOrder in sync
 
-**Trade-offs**:
-- Implementation effort: **Moderate** (~4 hours)
-- Best-practice alignment: **Canonical** - Fully testable, follows hexagonal architecture strictly
-- Maintenance burden: **Manageable** - More files but cleaner separation
+---
 
-### Approach C: Server-Assisted Export
+## Approach 3: Virtual Ordering via algorithmConfig
 
-**What it does differently**: Generates shareable URLs instead of files (requires backend)
+### What it does differently
+Stores order in `scenario.algorithmConfig` (similar to how `rowLayout` is stored), keeping domain model unchanged. Order is a "workspace preference" rather than domain data.
 
-**Why not recommended**:
-- Violates core principle "All data stays in the browser"
-- Requires server infrastructure
-- Out of scope for current architecture
+### Files modified
+1. `src/routes/activities/[id]/workspace/+page.svelte` - Store/retrieve order from algorithmConfig
+2. `src/lib/components/editing/EditableGroupColumn.svelte` - Accept order prop
+3. `src/lib/stores/scenarioEditingStore.ts` - Still needs reorder support for undo/redo
+
+### Trade-offs
+- **Implementation effort:** Moderate
+- **Best-practice alignment:** Acceptable - but order feels more like domain data than workspace preference
+- **Maintenance burden:** Complex - mixing concerns, harder to reason about
 
 ---
 
 ## Recommendation
 
-**Approach A (Minimal - Direct Browser Download)** is recommended because:
+**Approach 1: Minimal Change with Position-Based Insert**
 
-1. **Pragmatic**: File download/upload is a one-way operation that doesn't need mocking in tests (the data serialization can be tested separately)
-2. **Follows existing patterns**: Similar to how CSV export currently works (utility function in `src/lib/utils/`)
-3. **Fast delivery**: Minimal abstraction overhead, can be implemented quickly
+**Reasons:**
+1. **Follows existing patterns** - Uses the same command/undo system already in place
+2. **No domain changes** - `memberIds` array already exists and can hold order
+3. **Pragmatic-dnd has native support** - The library provides `closestEdge` detection for insert position out of the box
 
-**What would flip the choice**: If we needed to test file operations in automated e2e tests without actual file system access, Approach B would be worth the investment.
-
----
-
-## Implementation Plan
-
-### Export Feature
-
-1. Create `src/lib/utils/activityFile.ts`:
-   - `serializeActivityToJson(data: ActivityExportData): string`
-   - `downloadActivityFile(data: ActivityExportData, filename: string): void`
-   - `ActivityExportData` type definition
-
-2. Add "Export Activity" button to `EditingToolbar.svelte`:
-   - Button in export dropdown (next to CSV options)
-   - On click: gather current activity data, call `downloadActivityFile`
-
-### Import Feature
-
-1. Create `src/lib/application/useCases/importActivity.ts`:
-   - Validates imported JSON structure
-   - Checks version compatibility
-   - Creates Program, Pool, Students, Preferences, and optionally Scenario
-   - Returns new program ID on success
-
-2. Create `src/routes/activities/import/+page.svelte`:
-   - File drop zone / file input
-   - Parse and validate JSON
-   - Preview import data (activity name, student count, group count)
-   - "Import" button → call use case → redirect to workspace
-
-3. Add "Import Activity" link to `/activities` page header
-
-### Export Data Schema
-
-```typescript
-interface ActivityExportData {
-  version: 1;
-  exportedAt: string; // ISO date
-  activity: {
-    name: string;
-    type: ProgramType;
-  };
-  roster: {
-    students: Array<{
-      id: string;
-      firstName: string;
-      lastName?: string;
-      gradeLevel?: string;
-    }>;
-  };
-  preferences: Array<{
-    studentId: string;
-    likeGroupIds: string[];
-    avoidStudentIds: string[];
-  }>;
-  scenario?: {
-    groups: Array<{
-      name: string;
-      capacity?: number;
-      memberIds: string[];
-    }>;
-    algorithmConfig?: unknown;
-  };
-}
-```
+**What would flip the choice:**
+- If there's a future need to track order independently of membership (e.g., different orderings per view), Approach 2 would be better
+- If order is truly ephemeral/non-persisted, Approach 3 might fit
 
 ---
 
-## Questions for Approval
+## Implementation Steps
 
-1. Should the import create a new scenario with the same groups, or start fresh with just the roster/preferences?
-   - **Recommendation**: Include scenario (groups) so the import is a full copy
+### Phase 1: Core Reordering Infrastructure
+1. Update `MoveStudentCommand` to include optional `targetIndex: number`
+2. Modify `applyMove()` to insert at index when specified
+3. Update undo logic to restore previous position
 
-2. Should we support importing without groups (roster-only)?
-   - **Recommendation**: Yes, make scenario optional in the export
+### Phase 2: Drop Indicator UI
+4. Create `DropIndicator.svelte` component (thin horizontal line)
+5. Enhance `droppable` action to detect edge proximity (top/bottom of each card)
+6. Update `EditableGroupColumn.svelte`:
+   - Remove the alphabetical sorting on render
+   - Track which card/edge is being hovered
+   - Render drop indicators between cards
 
-3. Filename convention?
-   - **Recommendation**: `{activity-name}-{date}.groupwheel.json`
+### Phase 3: Wire Up Callbacks
+7. Update drop handlers to calculate and pass insertion index
+8. Update `UnassignedArea.svelte` with same indicator system
+
+### Phase 4: Alphabetize Feature
+9. Add "Alphabetize" button to group header (or menu)
+10. Create `AlphabetizeConfirmDialog.svelte` with warning about bulk change
+11. Add `REORDER_GROUP` command to scenarioEditingStore for bulk operations
+12. Implement alphabetize logic (sort by lastName, firstName)
+
+### Phase 5: Polish
+13. Ensure keyboard accessibility for reorder
+14. Add subtle animations for drop feedback
+15. Test undo/redo with reorder operations
+
+---
+
+## Risk Assessment
+
+**Low risk:**
+- Pragmatic-dnd's `closestEdge` is well-documented and stable
+- No breaking changes to external APIs or domain model
+
+**Medium risk:**
+- Performance with large lists (mitigated: lists are typically <40 students)
+- Edge cases in undo/redo with combined move+reorder operations
+
+**Mitigations:**
+- Comprehensive unit tests for reorder scenarios
+- Manual QA of undo stack with various operation sequences

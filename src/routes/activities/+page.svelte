@@ -18,7 +18,8 @@
 		type ActivityDisplay
 	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
-	import { Button, Alert, Spinner } from '$lib/components/ui';
+	import { Button, Alert } from '$lib/components/ui';
+	import ActivityCardSkeleton from '$lib/components/ui/ActivityCardSkeleton.svelte';
 	import type { Program } from '$lib/domain';
 
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -150,7 +151,7 @@
 		}
 		return {
 			label: 'Continue Setup',
-			href: `/activities/${activity.program.id}/setup`
+			href: `/activities/${activity.program.id}`
 		};
 	}
 
@@ -283,9 +284,10 @@
 	</div>
 
 	{#if loading}
-		<div class="flex items-center justify-center gap-3 py-12">
-			<Spinner />
-			<p class="text-gray-500">Loading activities...</p>
+		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			{#each Array(6) as _}
+				<ActivityCardSkeleton />
+			{/each}
 		</div>
 	{:else if error}
 		<Alert variant="error">{error}</Alert>

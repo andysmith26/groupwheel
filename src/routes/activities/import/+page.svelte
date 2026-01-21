@@ -107,11 +107,11 @@
 
 		const { program, scenario } = result.value;
 
-		// Navigate to workspace or setup depending on whether we have groups
+		// Navigate to workspace or main activity page depending on whether we have groups
 		if (scenario) {
 			goto(`/activities/${program.id}/workspace`);
 		} else {
-			goto(`/activities/${program.id}/setup`);
+			goto(`/activities/${program.id}`);
 		}
 	}
 

@@ -90,13 +90,15 @@
 	let isImportPage = $derived($page.url.pathname === '/activities/import');
 	let isTrackResponses = $derived($page.url.pathname.startsWith('/track-responses'));
 	let isWorkspace = $derived($page.route.id?.startsWith('/activities/[id]/workspace') ?? false);
+	let isActivityDetailPage = $derived(/^\/activities\/[^/]+$/.test($page.url.pathname));
 	let shouldShowHeaderSubtitle = $derived(isTrackResponses || isWorkspace);
 	let isSpaceHeld = $state(false);
 	let shouldShowAccountDropdown = $derived(
 		(!isTrackResponses || isAuthenticated) &&
 			(!isWorkspace || isAuthenticated) &&
 			(!isActivitiesPage || isSpaceHeld) &&
-			!isImportPage
+			!isImportPage &&
+			!isActivityDetailPage
 	);
 	let workspaceHeaderState = $derived(workspaceHeader.state);
 	let showWorkspaceExportMenu = $state(false);

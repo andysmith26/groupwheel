@@ -11,6 +11,39 @@ import type { Group } from '$lib/domain/group';
 import type { Student } from '$lib/domain/student';
 import { getStudentDisplayName } from '$lib/domain/student';
 
+/**
+ * Compare two students for sorting: by last name, then first name, then ID.
+ * Matches the sort order used in the UI (EditableGroupColumn).
+ */
+function compareStudents(a: Student | null, b: Student | null, aId: string, bId: string): number {
+	if (!a && !b) return aId.localeCompare(bId);
+	if (!a) return 1;
+	if (!b) return -1;
+
+	const aLast = (a.lastName ?? '').trim();
+	const bLast = (b.lastName ?? '').trim();
+	const lastCompare = aLast.localeCompare(bLast, undefined, { sensitivity: 'base' });
+	if (lastCompare !== 0) return lastCompare;
+
+	const aFirst = (a.firstName ?? '').trim();
+	const bFirst = (b.firstName ?? '').trim();
+	const firstCompare = aFirst.localeCompare(bFirst, undefined, { sensitivity: 'base' });
+	if (firstCompare !== 0) return firstCompare;
+
+	return a.id.localeCompare(b.id);
+}
+
+/**
+ * Sort student IDs by last name, then first name (matching UI display order).
+ */
+function sortStudentIds(memberIds: string[], studentsById: Map<string, Student>): string[] {
+	return [...memberIds].sort((aId, bId) => {
+		const a = studentsById.get(aId) ?? null;
+		const b = studentsById.get(bId) ?? null;
+		return compareStudents(a, b, aId, bId);
+	});
+}
+
 export interface ExportableAssignment {
 	studentId: string;
 	studentName: string;
@@ -23,6 +56,7 @@ export interface ExportableAssignment {
 
 /**
  * Build a list of student-to-group assignments from groups and students.
+ * Preserves the order of groups as given, with students sorted alphabetically within each group.
  */
 export function buildAssignmentList(
 	groups: Group[],
@@ -31,7 +65,10 @@ export function buildAssignmentList(
 	const assignments: ExportableAssignment[] = [];
 
 	for (const group of groups) {
-		for (const studentId of group.memberIds) {
+		// Sort students by last name, then first name (matching UI display order)
+		const sortedIds = sortStudentIds(group.memberIds, studentsById);
+
+		for (const studentId of sortedIds) {
 			const student = studentsById.get(studentId);
 			if (student) {
 				assignments.push({
@@ -57,13 +94,6 @@ export function buildAssignmentList(
 			}
 		}
 	}
-
-	// Sort by group name, then by student name
-	assignments.sort((a, b) => {
-		const groupCompare = a.groupName.localeCompare(b.groupName);
-		if (groupCompare !== 0) return groupCompare;
-		return a.studentName.localeCompare(b.studentName);
-	});
 
 	return assignments;
 }
@@ -166,6 +196,7 @@ export function exportToTSV(
 
 /**
  * Export a group-centric view (one row per group with student names).
+ * Preserves the order of groups as given, with students sorted alphabetically within each group.
  */
 export function exportGroupsToCSV(groups: Group[], studentsById: Map<string, Student>): string {
 	const rows: string[] = [];
@@ -173,16 +204,14 @@ export function exportGroupsToCSV(groups: Group[], studentsById: Map<string, Stu
 	// Header
 	rows.push('Group,Member Count,Students');
 
-	// Sort groups by name
-	const sortedGroups = [...groups].sort((a, b) => a.name.localeCompare(b.name));
-
-	for (const group of sortedGroups) {
-		const memberNames = group.memberIds
+	for (const group of groups) {
+		// Sort students by last name, then first name (matching UI display order)
+		const sortedIds = sortStudentIds(group.memberIds, studentsById);
+		const memberNames = sortedIds
 			.map((id) => {
 				const student = studentsById.get(id);
 				return student ? getStudentDisplayName(student) : id;
 			})
-			.sort()
 			.join('; ');
 
 		rows.push(
@@ -195,6 +224,7 @@ export function exportGroupsToCSV(groups: Group[], studentsById: Map<string, Stu
 
 /**
  * Export groups as columns for Google Sheets (group names as header row).
+ * Preserves group order as given, with students sorted by last name then first name within each group.
  */
 export function exportGroupsToColumnsTSV(
 	groups: Group[],
@@ -205,11 +235,16 @@ export function exportGroupsToColumnsTSV(
 	const header = groups.map((group) => group.name);
 	rows.push(header.join('\t'));
 
+	// Sort students within each group (matching UI display order)
+	const sortedMemberIdsByGroup = groups.map((group) =>
+		sortStudentIds(group.memberIds, studentsById)
+	);
+
 	const maxMembers = groups.reduce((max, group) => Math.max(max, group.memberIds.length), 0);
 
 	for (let rowIndex = 0; rowIndex < maxMembers; rowIndex += 1) {
-		const row = groups.map((group) => {
-			const studentId = group.memberIds[rowIndex];
+		const row = sortedMemberIdsByGroup.map((sortedIds) => {
+			const studentId = sortedIds[rowIndex];
 			if (!studentId) return '';
 			const student = studentsById.get(studentId);
 			return student ? getStudentDisplayName(student) : studentId;

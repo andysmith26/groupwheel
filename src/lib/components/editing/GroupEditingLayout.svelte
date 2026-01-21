@@ -3,6 +3,7 @@
 	import { calculateRowSpan } from '$lib/utils/groups';
 	import EditableGroupColumn from './EditableGroupColumn.svelte';
 	import HorizontalScrollContainer from '$lib/components/ui/HorizontalScrollContainer.svelte';
+	import type { KeyboardMoveDirection } from './DraggableStudentCard.svelte';
 
 	export type LayoutMode = 'masonry' | 'row';
 
@@ -11,7 +12,7 @@
 	// =============================================================================
 	const ROW_CONFIG = {
 		/** Width of each group card in pixels */
-		itemWidth: 114,
+		itemWidth: 136,
 		/** Gap between cards in pixels */
 		itemGap: 12,
 		/** Number of cards to scroll per button click */
@@ -29,12 +30,14 @@
 		studentsById = {},
 		draggingId = null,
 		onDrop,
+		onReorder,
 		onDragStart,
 		onDragEnd,
 		flashingIds = new Set<string>(),
 		onUpdateGroup,
 		onDeleteGroup,
 		onAddGroup,
+		onAlphabetize,
 		newGroupId = null,
 		selectedStudentPreferences = null,
 		layout = 'masonry',
@@ -43,18 +46,25 @@
 		onStudentHoverStart,
 		onStudentHoverEnd,
 		rowOrderTop = [],
-		rowOrderBottom = []
+		rowOrderBottom = [],
+		pickedUpStudentId = null,
+		onKeyboardPickUp,
+		onKeyboardDrop,
+		onKeyboardCancel,
+		onKeyboardMove
 	} = $props<{
 		groups?: Group[];
 		studentsById?: Record<string, Student>;
 		draggingId?: string | null;
-		onDrop?: (payload: { studentId: string; source: string; target: string }) => void;
+		onDrop?: (payload: { studentId: string; source: string; target: string; targetIndex?: number }) => void;
+		onReorder?: (payload: { groupId: string; studentId: string; newIndex: number }) => void;
 		onDragStart?: (id: string) => void;
 		onDragEnd?: () => void;
 		flashingIds?: Set<string>;
 		onUpdateGroup?: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
 		onDeleteGroup?: (groupId: string) => void;
 		onAddGroup?: () => void;
+		onAlphabetize?: (groupId: string) => void;
 		newGroupId?: string | null;
 		selectedStudentPreferences?: string[] | null;
 		layout?: LayoutMode;
@@ -64,6 +74,11 @@
 		onStudentHoverEnd?: () => void;
 		rowOrderTop?: string[];
 		rowOrderBottom?: string[];
+		pickedUpStudentId?: string | null;
+		onKeyboardPickUp?: (studentId: string, container: string, index: number) => void;
+		onKeyboardDrop?: () => void;
+		onKeyboardCancel?: () => void;
+		onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
 	}>();
 
 	type RowLayoutItem = { type: 'group'; group: Group } | { type: 'spacer'; key: string };
@@ -72,13 +87,13 @@
 		if (layout !== 'row') return [];
 		if (groups.length === 0) return [];
 
-		const groupsById = new Map(groups.map((group) => [group.id, group] as const));
+		const groupsById = new Map(groups.map((group: Group) => [group.id, group] as const));
 		const hasCustomRowLayout = rowOrderTop.length > 0 || rowOrderBottom.length > 0;
 		const topRow = hasCustomRowLayout
-			? (rowOrderTop.map((id) => groupsById.get(id)).filter(Boolean) as Group[])
+			? (rowOrderTop.map((id: string) => groupsById.get(id)).filter(Boolean) as Group[])
 			: groups;
 		const bottomRow = hasCustomRowLayout
-			? (rowOrderBottom.map((id) => groupsById.get(id)).filter(Boolean) as Group[])
+			? (rowOrderBottom.map((id: string) => groupsById.get(id)).filter(Boolean) as Group[])
 			: [];
 
 		const columns = Math.max(topRow.length, bottomRow.length);
@@ -138,17 +153,24 @@
 						{draggingId}
 						rowSpan={1}
 						{onDrop}
+						{onReorder}
 						{onDragStart}
 						{onDragEnd}
 						{flashingIds}
 						{onUpdateGroup}
 						{onDeleteGroup}
+						{onAlphabetize}
 						focusNameOnMount={item.group.id === newGroupId}
 						preferenceRank={getPreferenceRank(item.group.id)}
 						{studentPreferenceRanks}
 						{studentHasPreferences}
 						{onStudentHoverStart}
 						{onStudentHoverEnd}
+						{pickedUpStudentId}
+						{onKeyboardPickUp}
+						{onKeyboardDrop}
+						{onKeyboardCancel}
+						{onKeyboardMove}
 					/>
 				{:else}
 					<div class="group-spacer" aria-hidden="true"></div>
@@ -167,17 +189,24 @@
 				{draggingId}
 				rowSpan={calculateRowSpan(group)}
 				{onDrop}
+				{onReorder}
 				{onDragStart}
 				{onDragEnd}
 				{flashingIds}
 				{onUpdateGroup}
 				{onDeleteGroup}
+				{onAlphabetize}
 				focusNameOnMount={group.id === newGroupId}
 				preferenceRank={getPreferenceRank(group.id)}
 				{studentPreferenceRanks}
 				{studentHasPreferences}
 				{onStudentHoverStart}
 				{onStudentHoverEnd}
+				{pickedUpStudentId}
+				{onKeyboardPickUp}
+				{onKeyboardDrop}
+				{onKeyboardCancel}
+				{onKeyboardMove}
 			/>
 		{/each}
 
@@ -218,10 +247,10 @@
 	}
 
 	.group-row > :global(*) {
-		width: 114px;
+		width: 136px;
 	}
 
 	.group-spacer {
-		width: 114px;
+		width: 136px;
 	}
 </style>
