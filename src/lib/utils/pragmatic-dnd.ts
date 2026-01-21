@@ -156,17 +156,22 @@ export function droppable(element: HTMLElement, config: DroppableConfig) {
 			// Remove visual feedback when drag leaves
 			element.classList.remove('drop-target-active');
 		},
-		onDrop: ({ source, location }) => {
+		onDrop: ({ source, location, self }) => {
 			// Remove visual feedback on drop
 			element.classList.remove('drop-target-active');
+
+			// Only handle the innermost drop target to avoid duplicate drops
+			const primaryTarget = location.current.dropTargets[0];
+			if (primaryTarget && primaryTarget.element !== self.element) {
+				return;
+			}
 
 			// Extract the drag data from the source
 			const dragData = source.data as DragData & { container?: string; type?: string };
 			const sourceContainer = dragData.container || null;
 
 			// Get target container from the drop target's data
-			const targetRecord = location.current.dropTargets[0];
-			const targetData = targetRecord?.data as { containerId?: string };
+			const targetData = self.data as { containerId?: string };
 			const targetContainer = targetData?.containerId || null;
 
 			// Call the onDrop callback with the drop state
