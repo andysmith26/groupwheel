@@ -27,6 +27,8 @@ export interface QuickGenerateGroupsInput {
 	groupNamePrefix?: string;
 	/** Whether to avoid placing students with recent groupmates. */
 	avoidRecentGroupmates?: boolean;
+	/** Explicit group definitions. When provided, groupSize/groupNamePrefix are ignored. */
+	groups?: Array<{ name: string; capacity: number | null }>;
 }
 
 /**
@@ -80,13 +82,17 @@ export async function quickGenerateGroups(
 		return err({ type: 'POOL_HAS_NO_MEMBERS', poolId: primaryPoolId });
 	}
 
-	// Build group definitions from group size
-	const studentCount = pool.memberIds.length;
-	const groupCount = Math.ceil(studentCount / groupSize);
-	const groups = Array.from({ length: groupCount }, (_, i) => ({
-		name: `${groupNamePrefix} ${i + 1}`,
-		capacity: null as number | null
-	}));
+	// Build group definitions from explicit shells or group size
+	const groups = input.groups && input.groups.length > 0
+		? input.groups
+		: (() => {
+			const studentCount = pool.memberIds.length;
+			const groupCount = Math.ceil(studentCount / groupSize);
+			return Array.from({ length: groupCount }, (_, i) => ({
+				name: `${groupNamePrefix} ${i + 1}`,
+				capacity: null as number | null
+			}));
+		})();
 
 	// Generate candidate via balanced algorithm
 	const candidateResult = await generateCandidate(

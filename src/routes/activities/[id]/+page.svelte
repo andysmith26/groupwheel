@@ -35,10 +35,10 @@
 
 	// Section components
 	import SetupStudentsSection from '$lib/components/setup/SetupStudentsSection.svelte';
-	import SetupGroupsSection from '$lib/components/setup/SetupGroupsSection.svelte';
 	import SetupHistorySection from '$lib/components/setup/SetupHistorySection.svelte';
 	import TemplatePickerModal from '$lib/components/setup/TemplatePickerModal.svelte';
 	import SaveTemplateModal from '$lib/components/setup/SaveTemplateModal.svelte';
+	import GroupCard from '$lib/components/activity/GroupCard.svelte';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 
 	// --- Environment ---
@@ -63,14 +63,12 @@
 
 	// --- Generation settings ---
 	let generationSettings = $state<GenerationSettings>({ groupSize: 4, avoidRecentGroupmates: true });
-	let showSettingsEditor = $state(false);
 
 	// --- Setup section expand states ---
-	let expandedSection = $state<'students' | 'groups' | 'history' | null>(null);
+	let expandedSection = $state<'students' | 'history' | null>(null);
 
 	// --- Group configuration state ---
 	let groupShells = $state<GroupShell[]>([]);
-	let groupsModified = $state(false);
 
 	// --- Modal states ---
 	let showTemplatePicker = $state(false);
@@ -84,7 +82,6 @@
 	// --- Derived ---
 	let hasGroups = $derived(scenario !== null && scenario.groups.length > 0);
 	let studentCount = $derived(students.length);
-	let groupCount = $derived(groupShells.length);
 
 	let parsedPreferences = $derived<ParsedPreference[]>(
 		preferences.map((p) => ({
@@ -93,38 +90,9 @@
 		}))
 	);
 
-	let preferencesCount = $derived(
-		parsedPreferences.filter((pref) => (pref.likeGroupIds ?? []).length > 0).length
-	);
-
 	let publishedSessions = $derived(
 		sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED')
 	);
-
-	let latestPublishedSession = $derived(
-		publishedSessions.length > 0
-			? publishedSessions.sort(
-					(a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0)
-				)[0]
-			: null
-	);
-
-	let computedGroupCount = $derived(
-		studentCount > 0 && generationSettings.groupSize > 0
-			? Math.ceil(studentCount / generationSettings.groupSize)
-			: 0
-	);
-
-	let maxGroupSize = $derived(Math.max(2, Math.min(8, Math.floor(studentCount / 2))));
-
-	function formatDate(date: Date | undefined): string {
-		if (!date) return '';
-		return date.toLocaleDateString('en-US', {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric'
-		});
-	}
 
 	function formatTimeSpanLabel(timeSpan: Program['timeSpan']): string {
 		if ('termLabel' in timeSpan) {
@@ -265,7 +233,7 @@
 	}
 
 	// --- Section toggle handlers ---
-	function handleSectionToggle(section: 'students' | 'groups' | 'history') {
+	function handleSectionToggle(section: 'students' | 'history') {
 		return (isExpanded: boolean) => {
 			expandedSection = isExpanded ? section : null;
 		};
@@ -323,7 +291,6 @@
 	// --- Group handlers ---
 	function handleGroupsChange(newGroups: GroupShell[]) {
 		groupShells = newGroups;
-		groupsModified = true;
 	}
 
 	function handleUseTemplate() {
@@ -336,7 +303,7 @@
 
 	function handleSelectTemplate(shells: GroupShell[]) {
 		groupShells = shells;
-		groupsModified = true;
+		generationSettings = { ...generationSettings, customShells: shells };
 		showTemplatePicker = false;
 	}
 
@@ -359,34 +326,26 @@
 		await loadTemplates();
 	}
 
-	// --- Generation settings handlers ---
-	function decrementGroupSize() {
-		if (generationSettings.groupSize > 2) {
-			generationSettings = {
-				...generationSettings,
-				groupSize: generationSettings.groupSize - 1
-			};
-		}
+	// --- Settings change handler ---
+	function handleSettingsChange(settings: GenerationSettings) {
+		generationSettings = settings;
 	}
 
-	function incrementGroupSize() {
-		if (generationSettings.groupSize < maxGroupSize) {
-			generationSettings = {
-				...generationSettings,
-				groupSize: generationSettings.groupSize + 1
-			};
-		}
+	// --- History arrangement loader ---
+	async function handleLoadArrangement(sessionId: string) {
+		if (!env) return null;
+
+		const session = sessions.find((s) => s.id === sessionId);
+		if (!session?.scenarioId) return null;
+
+		const scenario = await env.scenarioRepo.getById(session.scenarioId);
+		if (!scenario) return null;
+
+		return { session, groups: scenario.groups };
 	}
 
-	function toggleAvoidRecent() {
-		generationSettings = {
-			...generationSettings,
-			avoidRecentGroupmates: !generationSettings.avoidRecentGroupmates
-		};
-	}
-
-	// --- Generate new groups ---
-	async function handleNewGroups() {
+	// --- Generate groups (unified) ---
+	async function handleGenerate() {
 		if (!env || !program) return;
 
 		isGeneratingNew = true;
@@ -397,35 +356,7 @@
 		const result = await quickGenerateGroups(env, {
 			programId: program.id,
 			groupSize: generationSettings.groupSize,
-			groupNamePrefix: 'Group',
-			avoidRecentGroupmates: generationSettings.avoidRecentGroupmates
-		});
-
-		if (isErr(result)) {
-			generateError =
-				result.error.type === 'GROUPING_ALGORITHM_FAILED'
-					? result.error.message
-					: `Failed to generate groups: ${result.error.type}`;
-			isGeneratingNew = false;
-			return;
-		}
-
-		await goto(`/activities/${program.id}/workspace`);
-	}
-
-	// --- First-time generate (from inline picker) ---
-	async function handleFirstGenerate() {
-		if (!env || !program) return;
-
-		isGeneratingNew = true;
-		generateError = null;
-
-		saveGenerationSettings(program.id, generationSettings);
-
-		const result = await quickGenerateGroups(env, {
-			programId: program.id,
-			groupSize: generationSettings.groupSize,
-			groupNamePrefix: 'Group',
+			groups: generationSettings.customShells,
 			avoidRecentGroupmates: generationSettings.avoidRecentGroupmates
 		});
 
@@ -548,189 +479,23 @@
 					Add students in the Setup section below, then generate groups.
 				</p>
 			</div>
-		{:else if !hasGroups}
-			<!-- First-time: inline group size picker -->
-			<div class="rounded-xl border-2 border-gray-200 bg-white p-6 shadow-sm">
-				<h2 class="text-lg font-semibold text-gray-900">Generate your first groups</h2>
-				<p class="mt-1 text-sm text-gray-500">{studentCount} students</p>
-
-				<!-- Group size selector -->
-				<div class="mt-5">
-					<label class="mb-2 block text-sm font-medium text-gray-700" for="first-group-size">
-						Students per group
-					</label>
-					<div class="flex items-center gap-4">
-						<button
-							onclick={decrementGroupSize}
-							disabled={generationSettings.groupSize <= 2}
-							class="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-lg font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-						>
-							-
-						</button>
-						<span id="first-group-size" class="min-w-[2ch] text-center text-3xl font-semibold text-gray-900">
-							{generationSettings.groupSize}
-						</span>
-						<button
-							onclick={incrementGroupSize}
-							disabled={generationSettings.groupSize >= maxGroupSize}
-							class="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-lg font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-						>
-							+
-						</button>
-					</div>
-					<p class="mt-2 text-sm text-gray-500">
-						{computedGroupCount} group{computedGroupCount !== 1 ? 's' : ''}
-					</p>
-				</div>
-
-				<!-- Generate button -->
-				<button
-					type="button"
-					class="mt-6 w-full rounded-lg bg-teal px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-dark focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-					onclick={handleFirstGenerate}
-					disabled={isGeneratingNew}
-				>
-					{#if isGeneratingNew}
-						<span class="inline-flex items-center gap-2">
-							<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-							</svg>
-							Generating...
-						</span>
-					{:else}
-						Generate Groups
-					{/if}
-				</button>
-			</div>
 		{:else}
-			<!-- Has groups: show two primary action cards -->
-			<div class="space-y-3">
-				<!-- New Groups card -->
-				<div class="relative">
-					<div
-						class="rounded-xl border-2 border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-teal {isGeneratingNew ? 'opacity-60' : ''}"
-					>
-						<div class="flex items-center justify-between">
-							<button
-								type="button"
-								class="flex-1 text-left"
-								onclick={handleNewGroups}
-								disabled={isGeneratingNew}
-							>
-								<div class="flex items-center gap-2">
-									{#if isGeneratingNew}
-										<svg class="h-5 w-5 animate-spin text-teal" viewBox="0 0 24 24" fill="none">
-											<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-											<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-										</svg>
-									{:else}
-										<svg class="h-5 w-5 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-										</svg>
-									{/if}
-									<h2 class="text-lg font-semibold text-gray-900">
-										{isGeneratingNew ? 'Generating...' : 'New Groups'}
-									</h2>
-								</div>
-								<p class="mt-1 text-sm text-gray-500">
-									Groups of {generationSettings.groupSize}
-									{#if generationSettings.avoidRecentGroupmates && publishedSessions.length > 0}
-										<span class="text-gray-400"> · avoid recent groupmates</span>
-									{/if}
-								</p>
-							</button>
-							<button
-								type="button"
-								class="rounded-md px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-								onclick={() => (showSettingsEditor = !showSettingsEditor)}
-							>
-								Change
-							</button>
-						</div>
-					</div>
-
-					<!-- Settings popover -->
-					{#if showSettingsEditor}
-						<div class="mt-2 rounded-lg border border-gray-200 bg-white p-4 shadow-md">
-							<div class="flex items-center justify-between">
-								<label class="text-sm font-medium text-gray-700" for="settings-group-size">
-									Students per group
-								</label>
-								<div class="flex items-center gap-3">
-									<button
-										onclick={decrementGroupSize}
-										disabled={generationSettings.groupSize <= 2}
-										class="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-									>
-										-
-									</button>
-									<span id="settings-group-size" class="min-w-[2ch] text-center text-xl font-semibold text-gray-900">
-										{generationSettings.groupSize}
-									</span>
-									<button
-										onclick={incrementGroupSize}
-										disabled={generationSettings.groupSize >= maxGroupSize}
-										class="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-									>
-										+
-									</button>
-								</div>
-							</div>
-							<p class="mt-1 text-xs text-gray-400">
-								{computedGroupCount} group{computedGroupCount !== 1 ? 's' : ''}
-							</p>
-
-							{#if publishedSessions.length > 0}
-								<label class="mt-3 flex cursor-pointer items-center gap-3">
-									<input
-										type="checkbox"
-										checked={generationSettings.avoidRecentGroupmates}
-										onchange={toggleAvoidRecent}
-										class="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
-									/>
-									<div>
-										<span class="text-sm font-medium text-gray-700">Avoid recent groupmates</span>
-										<p class="text-xs text-gray-500">Try to mix students into different groups</p>
-									</div>
-								</label>
-							{/if}
-
-							<button
-								type="button"
-								class="mt-3 w-full rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
-								onclick={() => {
-									if (program) saveGenerationSettings(program.id, generationSettings);
-									showSettingsEditor = false;
-								}}
-							>
-								Done
-							</button>
-						</div>
-					{/if}
-				</div>
-
-				<!-- Edit Current Groups card -->
-				<a
-					href="/activities/{program.id}/workspace"
-					class="block rounded-xl border-2 border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-teal"
-				>
-					<div class="flex items-center gap-2">
-						<svg class="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-						</svg>
-						<h2 class="text-lg font-semibold text-gray-900">Edit Current Groups</h2>
-					</div>
-					<p class="mt-1 text-sm text-gray-500">
-						{scenario?.groups.length ?? 0} groups
-						{#if latestPublishedSession?.publishedAt}
-							<span class="text-gray-400">
-								· last shown {formatDate(latestPublishedSession.publishedAt)}
-							</span>
-						{/if}
-					</p>
-				</a>
-			</div>
+			<GroupCard
+				{studentCount}
+				{groupShells}
+				{generationSettings}
+				hasPublishedSessions={publishedSessions.length > 0}
+				hasExistingGroups={hasGroups}
+				existingGroupCount={scenario?.groups.length ?? 0}
+				isGenerating={isGeneratingNew}
+				{generateError}
+				onGroupShellsChange={handleGroupsChange}
+				onSettingsChange={handleSettingsChange}
+				onGenerate={handleGenerate}
+				onEditCurrentGroups={() => goto(`/activities/${program!.id}/workspace`)}
+				onUseTemplate={handleUseTemplate}
+				onSaveAsTemplate={handleSaveAsTemplate}
+			/>
 		{/if}
 
 		<!-- Divider -->
@@ -749,23 +514,13 @@
 				getEditStudentHref={(studentId) => `/activities/${program!.id}/students/${studentId}`}
 			/>
 
-			<!-- Groups section -->
-			<SetupGroupsSection
-				groups={groupShells}
-				isExpanded={expandedSection === 'groups'}
-				onToggle={handleSectionToggle('groups')}
-				onGroupsChange={handleGroupsChange}
-				onUseTemplate={handleUseTemplate}
-				onSaveAsTemplate={handleSaveAsTemplate}
-				hasChanges={groupsModified && hasGroups}
-			/>
-
 			<!-- History section -->
 			<SetupHistorySection
 				{sessions}
 				{students}
 				isExpanded={expandedSection === 'history'}
 				onToggle={handleSectionToggle('history')}
+				onLoadArrangement={handleLoadArrangement}
 			/>
 		</div>
 	{/if}

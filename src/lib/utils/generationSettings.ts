@@ -7,9 +7,13 @@
  * with one tap using remembered settings.
  */
 
+import type { GroupShell } from '$lib/utils/groupShellValidation';
+
 export interface GenerationSettings {
 	groupSize: number;
 	avoidRecentGroupmates: boolean;
+	/** Custom group shells. Non-null when user has customized group names/caps. */
+	customShells?: GroupShell[];
 }
 
 const STORAGE_KEY_PREFIX = 'gw-gen-settings-';
@@ -24,7 +28,7 @@ export function getGenerationSettings(programId: string): GenerationSettings {
 		const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${programId}`);
 		if (raw) {
 			const parsed = JSON.parse(raw);
-			return {
+			const settings: GenerationSettings = {
 				groupSize:
 					typeof parsed.groupSize === 'number' && parsed.groupSize >= 2
 						? parsed.groupSize
@@ -34,6 +38,10 @@ export function getGenerationSettings(programId: string): GenerationSettings {
 						? parsed.avoidRecentGroupmates
 						: DEFAULTS.avoidRecentGroupmates
 			};
+			if (Array.isArray(parsed.customShells) && parsed.customShells.length > 0) {
+				settings.customShells = parsed.customShells;
+			}
+			return settings;
 		}
 	} catch {
 		// Ignore parse errors, return defaults
