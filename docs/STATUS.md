@@ -1,6 +1,6 @@
 # Groupwheel — Current Status
 
-**Last verified:** January 2026
+**Last verified:** February 2026
 
 This document tracks what's actually implemented. Update when features ship.
 
@@ -20,7 +20,7 @@ This document tracks what's actually implemented. Update when features ship.
 | Basic analytics             | ✅ Done | Activity detail page           | Top %, top 2 %, avg rank                                 |
 | Drag-drop editing           | ✅ Done | Activity detail page           | Via ScenarioEditingStore                                 |
 | Undo/redo                   | ✅ Done | Activity detail page           | Session-scoped command history                           |
-| Read-only student view      | ✅ Done | `/activities/[id]/present`     | Print-friendly                                           |
+| Live view (student/teacher)  | ✅ Done | `/activities/[id]/live`        | Read-only student view + teacher view                    |
 | Roster reuse                | ✅ Done | Wizard Start step              | Shows existing rosters for returning users               |
 | Auto-save                   | ✅ Done | Activity detail                | 500ms debounce to IndexedDB                              |
 | Activity dashboard          | ✅ Done | `/activities`                  | Lists all activities                                     |
@@ -31,7 +31,7 @@ This document tracks what's actually implemented. Update when features ship.
 | Feature                  | Status         | Notes                       |
 | ------------------------ | -------------- | --------------------------- |
 | Candidate Gallery        | 🔲 Not started | Phase 2 UX evolution        |
-| Inline workspace editing | 🔲 Not started | Merge edit into detail page |
+| Inline workspace editing | ✅ Done        | Generation integrated into workspace |
 | Conflict rules           | 🔲 Not started | Domain model ready          |
 | Adjustment logging       | 🔲 Not started | —                           |
 | Pool manual edit UI      | 🔲 Not started | Use cases ready, no UI      |
@@ -90,6 +90,7 @@ This document tracks what's actually implemented. Update when features ship.
 
 | Date     | Change                                                                             |
 | -------- | ---------------------------------------------------------------------------------- |
+| Feb 2026 | Flow simplification: merged /start, /present, /observe into /workspace and /live   |
 | Dec 2025 | Request-aware grouping algorithm (two-phase: preferences first, balanced fallback) |
 | Dec 2025 | Group request import with CSV/TSV parser and validation UI                         |
 | Dec 2025 | **Groupwheel pivot**: Removed friend-based preferences, request-only mode          |

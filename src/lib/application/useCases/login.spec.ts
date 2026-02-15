@@ -24,6 +24,20 @@ describe('login', () => {
 		authService = new InMemoryAuthAdapter();
 	});
 
+	/** Create a mock AuthService that delegates to the real adapter with optional overrides. */
+	function mockAuthService(overrides: Partial<AuthService> = {}): AuthService {
+		return {
+			login: authService.login.bind(authService),
+			logout: authService.logout.bind(authService),
+			setUser: authService.setUser.bind(authService),
+			getUser: authService.getUser.bind(authService),
+			getAccessToken: authService.getAccessToken.bind(authService),
+			onAuthStateChange: authService.onAuthStateChange.bind(authService),
+			isAuthenticated: authService.isAuthenticated.bind(authService),
+			...overrides
+		};
+	}
+
 	describe('success cases', () => {
 		it('should return ok when login succeeds', async () => {
 			const result = await login({ authService });
@@ -33,12 +47,11 @@ describe('login', () => {
 
 		it('should call authService.login()', async () => {
 			let loginCalled = false;
-			const trackingAuthService: AuthService = {
-				...authService,
+			const trackingAuthService = mockAuthService({
 				login: async () => {
 					loginCalled = true;
 				}
-			};
+			});
 
 			await login({ authService: trackingAuthService });
 
@@ -48,12 +61,11 @@ describe('login', () => {
 
 	describe('error cases', () => {
 		it('should return LOGIN_FAILED when authService.login() throws', async () => {
-			const failingAuthService: AuthService = {
-				...authService,
+			const failingAuthService = mockAuthService({
 				login: async () => {
 					throw new Error('OAuth configuration error');
 				}
-			};
+			});
 
 			const result = await login({ authService: failingAuthService });
 
@@ -62,12 +74,11 @@ describe('login', () => {
 		});
 
 		it('should handle non-Error throws gracefully', async () => {
-			const failingAuthService: AuthService = {
-				...authService,
+			const failingAuthService = mockAuthService({
 				login: async () => {
 					throw 'string error';
 				}
-			};
+			});
 
 			const result = await login({ authService: failingAuthService });
 

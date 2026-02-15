@@ -81,6 +81,6 @@
 			</div>
 		</div>
 	{:else if sessionCount === 0}
-		<p class="mt-2 text-xs text-gray-400">No published sessions</p>
+		<p class="mt-2 text-xs text-gray-400">No saved sessions</p>
 	{/if}
 </button>

@@ -48,9 +48,7 @@ export * from './getStudentView';
 export * from './createGroupingActivity';
 
 // Session operations
-export * from './createSession';
 export * from './listSessions';
-export * from './publishSession';
 export * from './showToClass';
 export * from './getActiveSession';
 export * from './endSession';

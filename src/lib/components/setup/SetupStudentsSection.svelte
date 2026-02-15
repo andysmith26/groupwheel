@@ -39,7 +39,7 @@
 		onAddStudent,
 		onRemoveStudent,
 		preferences = [],
-		getEditStudentHref = null,
+		getEditStudentHref,
 		onImportMore,
 		isLoading = false
 	}: Props = $props();

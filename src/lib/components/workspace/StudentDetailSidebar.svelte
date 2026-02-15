@@ -287,7 +287,7 @@
 			<!-- No canonical identity — show limited view -->
 			<div class="rounded-md border-2 border-dashed border-gray-200 p-4 text-center">
 				<p class="text-xs text-gray-500">No cross-activity history available.</p>
-				<p class="mt-1 text-[10px] text-gray-400">History builds as you publish sessions.</p>
+				<p class="mt-1 text-[10px] text-gray-400">History builds as you save sessions.</p>
 			</div>
 		{/if}
 

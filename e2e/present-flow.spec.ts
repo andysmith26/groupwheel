@@ -48,27 +48,27 @@ Dave Brown\tdave@example.com\t5`;
 	return match[1];
 }
 
-test.describe('Present Flow', () => {
-	test('can navigate to present page from workspace', async ({ page }) => {
-		const activityName = `Present Test ${Date.now()}`;
+test.describe('Live View Flow', () => {
+	test('can navigate to live page from workspace', async ({ page }) => {
+		const activityName = `Live Test ${Date.now()}`;
 		const activityId = await createActivityWithGroups(page, activityName);
 
 		// Verify we're on workspace with groups
 		await expect(page.getByText('Unassigned')).toBeVisible();
 
-		// Navigate directly to present page
-		await page.goto(`/activities/${activityId}/present`);
+		// Navigate directly to live page
+		await page.goto(`/activities/${activityId}/live`);
 
-		await expect(page).toHaveURL(/\/activities\/[^/]+\/present/);
+		await expect(page).toHaveURL(/\/activities\/[^/]+\/live/);
 		await expect(page.getByRole('heading', { name: activityName })).toBeVisible();
 	});
 
 	test('student view shows groups correctly', async ({ page }) => {
-		const activityName = `Present Groups ${Date.now()}`;
+		const activityName = `Live Groups ${Date.now()}`;
 		const activityId = await createActivityWithGroups(page, activityName);
 
-		// Navigate directly to present page
-		await page.goto(`/activities/${activityId}/present`);
+		// Navigate directly to live page
+		await page.goto(`/activities/${activityId}/live`);
 
 		// Should show the activity name as heading
 		await expect(page.getByRole('heading', { name: activityName })).toBeVisible();
@@ -84,29 +84,29 @@ test.describe('Present Flow', () => {
 	});
 
 	test('student view is read-only', async ({ page }) => {
-		const activityName = `Present ReadOnly ${Date.now()}`;
+		const activityName = `Live ReadOnly ${Date.now()}`;
 		const activityId = await createActivityWithGroups(page, activityName);
 
-		// Navigate to present page
-		await page.goto(`/activities/${activityId}/present`);
+		// Navigate to live page
+		await page.goto(`/activities/${activityId}/live`);
 
 		// Should NOT have workspace editing controls
 		await expect(page.getByRole('button', { name: /Undo/ })).not.toBeVisible();
 	});
 
-	test('present page shows error for invalid activity', async ({ page }) => {
-		await page.goto('/activities/nonexistent-id-12345/present');
+	test('live page shows error for invalid activity', async ({ page }) => {
+		await page.goto('/activities/nonexistent-id-12345/live');
 
 		// Should show error
 		await expect(page.getByText(/not found/i)).toBeVisible();
 	});
 
-	test('can navigate from present back to workspace', async ({ page }) => {
-		const activityName = `Present Nav ${Date.now()}`;
+	test('can navigate from live back to workspace', async ({ page }) => {
+		const activityName = `Live Nav ${Date.now()}`;
 		const activityId = await createActivityWithGroups(page, activityName);
 
-		// Navigate to present page
-		await page.goto(`/activities/${activityId}/present`);
+		// Navigate to live page
+		await page.goto(`/activities/${activityId}/live`);
 
 		// The "Done" link should navigate back to workspace
 		const doneLink = page.getByRole('link', { name: /Done/ });

@@ -7,6 +7,8 @@
  * @module domain/session
  */
 
+// Note: DRAFT status is retained for backward compatibility with existing data.
+// New sessions are created directly as PUBLISHED via createPublishedSession().
 export type SessionStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 /**

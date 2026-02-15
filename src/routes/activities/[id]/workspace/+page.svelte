@@ -27,22 +27,18 @@
 		type LayoutMode
 	} from '$lib/components/editing/GroupEditingLayout.svelte';
 	import ConfirmDialog from '$lib/components/editing/ConfirmDialog.svelte';
-	import EmptyWorkspaceState from '$lib/components/workspace/EmptyWorkspaceState.svelte';
+	import InlineGroupGenerator from '$lib/components/workspace/InlineGroupGenerator.svelte';
 	import HistorySelector from '$lib/components/editing/HistorySelector.svelte';
 	import type { ScenarioSatisfaction } from '$lib/domain';
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
-	import ShowToClassPrompt from '$lib/components/workspace/ShowToClassPrompt.svelte';
 	import StudentInfoTooltip from '$lib/components/editing/StudentInfoTooltip.svelte';
 	import {
 		generateScenario,
 		getActivityData,
-		createSession,
-		publishSession,
 		showToClass
 	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 	import type { Session } from '$lib/domain';
-	import PublishSessionModal from '$lib/components/editing/PublishSessionModal.svelte';
 	import PreferencesPromptBanner from '$lib/components/workspace/PreferencesPromptBanner.svelte';
 	import PreferencesImportModal from '$lib/components/workspace/PreferencesImportModal.svelte';
 	import {
@@ -67,7 +63,6 @@
 	import GuidedStepper from '$lib/components/workspace/GuidedStepper.svelte';
 	import StudentDetailSidebar from '$lib/components/workspace/StudentDetailSidebar.svelte';
 	import SatisfactionSummary from '$lib/components/workspace/SatisfactionSummary.svelte';
-	import PostPublishPrompt from '$lib/components/workspace/PostPublishPrompt.svelte';
 	import { getProgramPairingStats, type PairingStat } from '$lib/services/appEnvUseCases';
 
 	// --- Environment ---
@@ -81,11 +76,6 @@
 	let scenario = $state<Scenario | null>(null);
 	let sessions = $state<Session[]>([]);
 	let latestPublishedSession = $state<Session | null>(null);
-
-	// --- Publish modal state ---
-	let showPublishModal = $state(false);
-	let isPublishing = $state(false);
-	let publishError = $state<string | null>(null);
 
 	// --- Preferences modal state ---
 	let showPreferencesModal = $state(false);
@@ -117,14 +107,6 @@
 	let newGroupId = $state<string | null>(null);
 	let showDeleteGroupConfirm = $state(false);
 	let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
-
-	// --- Show to class prompt state ---
-	let showShowToClassPrompt = $state(false);
-	let showToClassPublishing = $state(false);
-	let showToClassError = $state<string | null>(null);
-
-	// --- Post-publish prompt state ---
-	let showPostPublishPrompt = $state(false);
 
 	// --- Pairing stats for tooltip (loaded when 2+ published sessions) ---
 	let pairingStats = $state<PairingStat[]>([]);
@@ -588,12 +570,6 @@
 		sessions = data.sessions;
 		latestPublishedSession = data.latestPublishedSession;
 
-		if (!scenario) {
-			// No groups yet - redirect to main activity page
-			goto(`/activities/${programId}`);
-			return;
-		}
-
 		// Load pairing stats if there are 2+ sessions with placements (meaningful history)
 		const publishedSessions = sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED');
 		if (publishedSessions.length >= 2) {
@@ -603,7 +579,9 @@
 			}
 		}
 
-		initializeEditingStore(scenario);
+		if (scenario) {
+			initializeEditingStore(scenario);
+		}
 		loading = false;
 	}
 
@@ -616,6 +594,12 @@
 		editingStore.subscribe((value) => {
 			view = value;
 		});
+	}
+
+	function handleInlineGenerated(newScenario: Scenario) {
+		scenario = newScenario;
+		generationError = null;
+		initializeEditingStore(newScenario);
 	}
 
 	async function handleRetryGeneration() {
@@ -974,7 +958,8 @@
 	function confirmAlphabetize() {
 		if (!editingStore || !groupToAlphabetize || !view) return;
 
-		const group = view.groups.find((g) => g.id === groupToAlphabetize.id);
+		const targetId = groupToAlphabetize.id;
+		const group = view.groups.find((g) => g.id === targetId);
 		if (!group) {
 			showAlphabetizeConfirm = false;
 			groupToAlphabetize = null;
@@ -1152,128 +1137,34 @@
 		showToast(screenshotSuccess ? 'Screenshot downloaded' : 'Screenshot failed');
 	}
 
-	async function handlePublish(data: {
-		sessionName: string;
-		academicYear: string;
-		startDate: Date;
-		endDate: Date;
-	}) {
-		if (!env || !program || !scenario || !view) return;
-
-		isPublishing = true;
-		publishError = null;
-
-		const sessionResult = await createSession(env, {
-			programId: program.id,
-			name: data.sessionName,
-			academicYear: data.academicYear,
-			startDate: data.startDate,
-			endDate: data.endDate
-		});
-
-		if (isErr(sessionResult)) {
-			const err = sessionResult.error;
-			publishError =
-				err.type === 'PROGRAM_NOT_FOUND'
-					? 'Program not found'
-					: 'message' in err
-						? err.message
-						: 'Failed to create session';
-			isPublishing = false;
-			return;
-		}
-
-		const session = sessionResult.value;
-
-		const publishResult = await publishSession(env, {
-			sessionId: session.id,
-			scenarioId: scenario.id
-		});
-
-		if (isErr(publishResult)) {
-			const err = publishResult.error;
-			publishError =
-				err.type === 'SESSION_NOT_FOUND'
-					? 'Session not found'
-					: err.type === 'SCENARIO_NOT_FOUND'
-						? 'Scenario not found'
-						: err.type === 'SESSION_ALREADY_PUBLISHED'
-							? 'Session already published'
-							: 'message' in err
-								? err.message
-								: 'Failed to publish session';
-			isPublishing = false;
-			return;
-		}
-
-		latestPublishedSession = publishResult.value;
-		sessions = [...sessions, publishResult.value];
-		showPublishModal = false;
-		isPublishing = false;
-		showToast('Groups published successfully!');
-	}
-
-	// --- Show to class handlers ---
-	function handleShowToClassClick() {
-		if (latestPublishedSession && !hasEditsSincePublish) {
-			// Already published and no edits since → go directly to live
-			goto(`/activities/${program?.id}/live`);
-		} else {
-			// Never published OR has edits since last publish → show prompt
-			showShowToClassPrompt = true;
-			showToClassError = null;
-		}
-	}
-
-	async function handlePublishAndPresent() {
+	// --- Show to class handler ---
+	async function handleShowToClassClick() {
 		if (!env || !program || !scenario) return;
 
-		showToClassPublishing = true;
-		showToClassError = null;
+		if (latestPublishedSession && !hasEditsSincePublish) {
+			// Already published and no edits since → go directly to live
+			goto(`/activities/${program.id}/live`);
+			return;
+		}
 
+		// Publish and navigate to live view
 		const result = await showToClass(env, {
 			programId: program.id,
 			scenarioId: scenario.id
 		});
 
 		if (isErr(result)) {
-			showToClassError = result.error.type === 'INTERNAL_ERROR'
+			const message = result.error.type === 'INTERNAL_ERROR'
 				? result.error.message
 				: `Failed: ${result.error.type}`;
-			showToClassPublishing = false;
+			showToast(message);
 			return;
 		}
 
 		latestPublishedSession = result.value;
 		sessions = [...sessions, result.value];
-		showShowToClassPrompt = false;
-		showToClassPublishing = false;
-
-		// Show post-publish prompt with navigation options
-		showPostPublishPrompt = true;
+		goto(`/activities/${program.id}/live`);
 	}
-
-	function handleJustPreview() {
-		showShowToClassPrompt = false;
-		goto(`/activities/${program?.id}/live`);
-	}
-
-	// --- Post-publish prompt handlers ---
-	function handlePostPublishShowToClass() {
-		showPostPublishPrompt = false;
-		window.open(`/activities/${program?.id}/live`, '_blank');
-	}
-
-	function handlePostPublishRecordObservations() {
-		showPostPublishPrompt = false;
-		goto(`/activities/${program?.id}/live`);
-	}
-
-	function handlePostPublishOpenBoth() {
-		showPostPublishPrompt = false;
-		goto(`/activities/${program?.id}/live`);
-	}
-
 
 	// --- Tooltip handlers ---
 	function handleTooltipShow(studentId: string, x: number, y: number) {
@@ -1524,7 +1415,16 @@
 						/>
 					</div>
 				{:else if !scenario || !view}
-					<EmptyWorkspaceState studentCount={students.length} {preferencesCount} />
+					<div class="mx-auto max-w-lg py-8">
+						<InlineGroupGenerator
+							programId={program.id}
+							programName={program.name}
+							studentCount={students.length}
+							{sessions}
+							onGenerated={handleInlineGenerated}
+							onError={(msg) => (generationError = msg)}
+						/>
+					</div>
 				{:else}
 					<div class="mx-auto max-w-6xl space-y-4">
 						<!-- Generation settings and history -->
@@ -1712,19 +1612,6 @@
 			onCancel={cancelAlphabetize}
 		/>
 
-		<!-- Publish Session Modal -->
-		<PublishSessionModal
-			isOpen={showPublishModal}
-			programName={program?.name ?? ''}
-			onPublish={handlePublish}
-			onCancel={() => {
-				showPublishModal = false;
-				publishError = null;
-			}}
-			{isPublishing}
-			error={publishError}
-		/>
-
 		<!-- Preferences Import Modal -->
 		<PreferencesImportModal
 			isOpen={showPreferencesModal}
@@ -1734,19 +1621,6 @@
 			sheetConnection={null}
 			onSuccess={handlePreferencesImport}
 			onCancel={() => showPreferencesModal = false}
-		/>
-
-		<!-- Show to Class Prompt -->
-		<ShowToClassPrompt
-			open={showShowToClassPrompt}
-			isPublishing={showToClassPublishing}
-			error={showToClassError}
-			onPublishAndPresent={handlePublishAndPresent}
-			onJustPreview={handleJustPreview}
-			onCancel={() => {
-				showShowToClassPrompt = false;
-				showToClassError = null;
-			}}
 		/>
 
 		<!-- Student Info Tooltip -->
@@ -1766,16 +1640,6 @@
 		<div aria-live="polite" aria-atomic="true" class="sr-only">
 			{keyboardAnnouncement}
 		</div>
-
-		<!-- Post-Publish Prompt -->
-		<PostPublishPrompt
-			open={showPostPublishPrompt}
-			activityId={program?.id ?? ''}
-			onShowToClass={handlePostPublishShowToClass}
-			onRecordObservations={handlePostPublishRecordObservations}
-			onOpenBoth={handlePostPublishOpenBoth}
-			onCancel={() => (showPostPublishPrompt = false)}
-		/>
 
 		<!-- Toast -->
 		{#if toast}

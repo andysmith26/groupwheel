@@ -24,6 +24,20 @@ describe('logout', () => {
 		authService = new InMemoryAuthAdapter();
 	});
 
+	/** Create a mock AuthService that delegates to the real adapter with optional overrides. */
+	function mockAuthService(overrides: Partial<AuthService> = {}): AuthService {
+		return {
+			login: authService.login.bind(authService),
+			logout: authService.logout.bind(authService),
+			setUser: authService.setUser.bind(authService),
+			getUser: authService.getUser.bind(authService),
+			getAccessToken: authService.getAccessToken.bind(authService),
+			onAuthStateChange: authService.onAuthStateChange.bind(authService),
+			isAuthenticated: authService.isAuthenticated.bind(authService),
+			...overrides
+		};
+	}
+
 	describe('success cases', () => {
 		it('should return ok when logout succeeds', async () => {
 			const result = await logout({ authService });
@@ -53,12 +67,11 @@ describe('logout', () => {
 
 		it('should call authService.logout()', async () => {
 			let logoutCalled = false;
-			const trackingAuthService: AuthService = {
-				...authService,
+			const trackingAuthService = mockAuthService({
 				logout: async () => {
 					logoutCalled = true;
 				}
-			};
+			});
 
 			await logout({ authService: trackingAuthService });
 
@@ -76,12 +89,11 @@ describe('logout', () => {
 
 	describe('error cases', () => {
 		it('should return LOGOUT_FAILED when authService.logout() throws', async () => {
-			const failingAuthService: AuthService = {
-				...authService,
+			const failingAuthService = mockAuthService({
 				logout: async () => {
 					throw new Error('Server logout failed');
 				}
-			};
+			});
 
 			const result = await logout({ authService: failingAuthService });
 
@@ -90,12 +102,11 @@ describe('logout', () => {
 		});
 
 		it('should handle non-Error throws gracefully', async () => {
-			const failingAuthService: AuthService = {
-				...authService,
+			const failingAuthService = mockAuthService({
 				logout: async () => {
 					throw 'string error';
 				}
-			};
+			});
 
 			const result = await logout({ authService: failingAuthService });
 

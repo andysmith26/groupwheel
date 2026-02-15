@@ -38,9 +38,9 @@
 	let isDeleting = $state(false);
 	let now = $state(new Date());
 
-	onMount(async () => {
+	onMount(() => {
 		env = getAppEnvContext();
-		await loadActivities();
+		loadActivities();
 
 		// Close menu on outside click
 		const handleClick = (e: MouseEvent) => {
@@ -141,14 +141,14 @@
 	function getPrimaryAction(activity: ActivityDisplay): { label: string; href: string } {
 		if (activity.activeSession) {
 			return {
-				label: 'Continue Session',
+				label: 'Show to Class',
 				href: `/activities/${activity.program.id}/live`
 			};
 		}
 		if (activity.studentCount > 0) {
 			return {
-				label: 'Start Session',
-				href: `/activities/${activity.program.id}/start`
+				label: 'Open Workspace',
+				href: `/activities/${activity.program.id}/workspace`
 			};
 		}
 		return {
