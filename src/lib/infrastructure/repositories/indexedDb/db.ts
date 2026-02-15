@@ -8,7 +8,7 @@
  */
 
 export const DB_NAME = 'groupwheel';
-export const DB_VERSION = 5; // Bumped to 5 to add sessions and placements stores
+export const DB_VERSION = 7; // Bumped to 7 to add studentIdentities store
 
 /**
  * Open the IndexedDB database, creating object stores if needed.
@@ -80,6 +80,29 @@ export function openDb(): Promise<IDBDatabase> {
 				const placementStore = db.createObjectStore('placements', { keyPath: 'id' });
 				placementStore.createIndex('sessionId', 'sessionId', { unique: false });
 				placementStore.createIndex('studentId', 'studentId', { unique: false });
+			}
+
+			// 10. Observations (v6)
+			if (!db.objectStoreNames.contains('observations')) {
+				const observationStore = db.createObjectStore('observations', { keyPath: 'id' });
+				observationStore.createIndex('programId', 'programId', { unique: false });
+				observationStore.createIndex('sessionId', 'sessionId', { unique: false });
+				observationStore.createIndex('groupId', 'groupId', { unique: false });
+			}
+
+			// 11. Student Identities (v7)
+			if (!db.objectStoreNames.contains('studentIdentities')) {
+				const identityStore = db.createObjectStore('studentIdentities', { keyPath: 'id' });
+				identityStore.createIndex('userId', 'userId', { unique: false });
+			}
+
+			// 12. Add canonicalId index to students (v7)
+			// Note: We can only add indexes during upgrade, so we check if we need to
+			if (db.objectStoreNames.contains('students')) {
+				const studentStore = (event.target as IDBOpenDBRequest).transaction?.objectStore('students');
+				if (studentStore && !studentStore.indexNames.contains('canonicalId')) {
+					studentStore.createIndex('canonicalId', 'canonicalId', { unique: false });
+				}
 			}
 		};
 	});

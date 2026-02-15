@@ -45,10 +45,10 @@
 	let loadingSessionId = $state<string | null>(null);
 	let loadedArrangements = $state<Map<string, HistoricalArrangement>>(new Map());
 
-	// Derived state - only show published sessions
+	// Derived state - show sessions with placement history
 	let publishedSessions = $derived(
 		sessions
-			.filter((s) => s.status === 'PUBLISHED')
+			.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED')
 			.sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0))
 	);
 

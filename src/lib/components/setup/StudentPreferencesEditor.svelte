@@ -2,12 +2,14 @@
 	/**
 	 * StudentPreferencesEditor.svelte
 	 *
-	 * Allows teachers to manually edit individual student group preferences.
+	 * Allows teachers to manually edit individual student group preferences
+	 * and "never together" constraints.
 	 * Simple, intuitive interface for busy teachers.
 	 *
 	 * Features:
 	 * - View all students with their current preferences
 	 * - Click to edit a student's ranked group choices
+	 * - Set "never together" pairs (avoidStudentIds)
 	 * - Drag to reorder preference ranks
 	 * - Quick clear/reset options
 	 */
@@ -31,6 +33,8 @@
 	let searchQuery = $state('');
 	let editingStudentId = $state<string | null>(null);
 	let editingChoices = $state<string[]>([]);
+	let editingAvoidStudents = $state<string[]>([]);
+	let activeTab = $state<'groups' | 'avoid'>('groups');
 
 	// Derived
 	let filteredStudents = $derived(() => {
@@ -44,6 +48,14 @@
 		);
 	});
 
+	let studentsById = $derived(() => {
+		const map = new Map<string, ParsedStudent>();
+		for (const s of students) {
+			map.set(s.id, s);
+		}
+		return map;
+	});
+
 	let preferencesMap = $derived(() => {
 		const map = new Map<string, string[]>();
 		for (const pref of preferences) {
@@ -52,22 +64,47 @@
 		return map;
 	});
 
+	let avoidStudentsMap = $derived(() => {
+		const map = new Map<string, string[]>();
+		for (const pref of preferences) {
+			map.set(pref.studentId, pref.avoidStudentIds ?? []);
+		}
+		return map;
+	});
+
 	let studentsWithPrefs = $derived(() => {
 		return preferences.filter((p) => p.likeGroupIds && p.likeGroupIds.length > 0).length;
+	});
+
+	let studentsWithAvoids = $derived(() => {
+		return preferences.filter((p) => p.avoidStudentIds && p.avoidStudentIds.length > 0).length;
 	});
 
 	function getStudentPrefs(studentId: string): string[] {
 		return preferencesMap().get(studentId) ?? [];
 	}
 
+	function getStudentAvoids(studentId: string): string[] {
+		return avoidStudentsMap().get(studentId) ?? [];
+	}
+
+	function getStudentName(studentId: string): string {
+		const student = studentsById().get(studentId);
+		return student?.displayName ?? studentId;
+	}
+
 	function startEditing(student: ParsedStudent) {
 		editingStudentId = student.id;
 		editingChoices = [...getStudentPrefs(student.id)];
+		editingAvoidStudents = [...getStudentAvoids(student.id)];
+		activeTab = 'groups';
 	}
 
 	function cancelEditing() {
 		editingStudentId = null;
 		editingChoices = [];
+		editingAvoidStudents = [];
+		activeTab = 'groups';
 	}
 
 	function saveEditing() {
@@ -77,15 +114,19 @@
 		const newPrefs = [...preferences];
 		const existingIndex = newPrefs.findIndex((p) => p.studentId === editingStudentId);
 
-		if (editingChoices.length === 0) {
-			// Remove preference if no choices
+		const hasChoices = editingChoices.length > 0;
+		const hasAvoids = editingAvoidStudents.length > 0;
+
+		if (!hasChoices && !hasAvoids) {
+			// Remove preference if no choices and no avoids
 			if (existingIndex >= 0) {
 				newPrefs.splice(existingIndex, 1);
 			}
 		} else {
 			const newPref: ParsedPreference = {
 				studentId: editingStudentId,
-				likeGroupIds: editingChoices
+				likeGroupIds: hasChoices ? editingChoices : undefined,
+				avoidStudentIds: hasAvoids ? editingAvoidStudents : undefined
 			};
 
 			if (existingIndex >= 0) {
@@ -98,6 +139,8 @@
 		onPreferencesChange(newPrefs);
 		editingStudentId = null;
 		editingChoices = [];
+		editingAvoidStudents = [];
+		activeTab = 'groups';
 	}
 
 	function toggleChoice(groupName: string) {
@@ -106,6 +149,15 @@
 			editingChoices = editingChoices.filter((c) => c !== groupName);
 		} else {
 			editingChoices = [...editingChoices, groupName];
+		}
+	}
+
+	function toggleAvoidStudent(studentId: string) {
+		const index = editingAvoidStudents.indexOf(studentId);
+		if (index >= 0) {
+			editingAvoidStudents = editingAvoidStudents.filter((id) => id !== studentId);
+		} else {
+			editingAvoidStudents = [...editingAvoidStudents, studentId];
 		}
 	}
 
@@ -194,77 +246,150 @@
 								</div>
 							</div>
 
-							<!-- Group selection -->
-							<div class="space-y-2">
-								<p class="text-xs text-gray-600">Click groups to add/remove, drag to reorder:</p>
+							<!-- Tabs -->
+							<div class="flex gap-1 rounded-lg bg-gray-100 p-1 mb-3">
+								<button
+									type="button"
+									class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors {activeTab === 'groups'
+										? 'bg-white text-gray-900 shadow-sm'
+										: 'text-gray-600 hover:text-gray-900'}"
+									onclick={() => (activeTab = 'groups')}
+								>
+									Group Preferences
+									{#if editingChoices.length > 0}
+										<span class="ml-1 text-teal">({editingChoices.length})</span>
+									{/if}
+								</button>
+								<button
+									type="button"
+									class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors {activeTab === 'avoid'
+										? 'bg-white text-gray-900 shadow-sm'
+										: 'text-gray-600 hover:text-gray-900'}"
+									onclick={() => (activeTab = 'avoid')}
+								>
+									Never Together
+									{#if editingAvoidStudents.length > 0}
+										<span class="ml-1 text-red-500">({editingAvoidStudents.length})</span>
+									{/if}
+								</button>
+							</div>
 
-								<!-- Selected choices with reorder -->
-								{#if editingChoices.length > 0}
-									<div class="flex flex-wrap gap-1 mb-2">
-										{#each editingChoices as choice, index (choice)}
-											<div class="inline-flex items-center gap-1 rounded-full bg-teal text-white text-xs px-2 py-1">
-												<span class="font-medium">{index + 1}.</span>
-												<span>{choice}</span>
-												<div class="flex gap-0.5 ml-1">
-													{#if index > 0}
-														<button
-															type="button"
-															class="hover:bg-teal-dark rounded p-0.5"
-															onclick={() => moveChoiceUp(index)}
-															aria-label="Move up"
-														>
-															<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-															</svg>
-														</button>
-													{/if}
-													{#if index < editingChoices.length - 1}
-														<button
-															type="button"
-															class="hover:bg-teal-dark rounded p-0.5"
-															onclick={() => moveChoiceDown(index)}
-															aria-label="Move down"
-														>
-															<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-															</svg>
-														</button>
-													{/if}
+							{#if activeTab === 'groups'}
+								<!-- Group selection -->
+								<div class="space-y-2">
+									<p class="text-xs text-gray-600">Click groups to add/remove, use arrows to reorder:</p>
+
+									<!-- Selected choices with reorder -->
+									{#if editingChoices.length > 0}
+										<div class="flex flex-wrap gap-1 mb-2">
+											{#each editingChoices as choice, index (choice)}
+												<div class="inline-flex items-center gap-1 rounded-full bg-teal text-white text-xs px-2 py-1">
+													<span class="font-medium">{index + 1}.</span>
+													<span>{choice}</span>
+													<div class="flex gap-0.5 ml-1">
+														{#if index > 0}
+															<button
+																type="button"
+																class="hover:bg-teal-dark rounded p-0.5"
+																onclick={() => moveChoiceUp(index)}
+																aria-label="Move up"
+															>
+																<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+																</svg>
+															</button>
+														{/if}
+														{#if index < editingChoices.length - 1}
+															<button
+																type="button"
+																class="hover:bg-teal-dark rounded p-0.5"
+																onclick={() => moveChoiceDown(index)}
+																aria-label="Move down"
+															>
+																<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+																</svg>
+															</button>
+														{/if}
+													</div>
+													<button
+														type="button"
+														class="hover:bg-teal-dark rounded p-0.5"
+														onclick={() => toggleChoice(choice)}
+														aria-label="Remove"
+													>
+														<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+														</svg>
+													</button>
 												</div>
-												<button
-													type="button"
-													class="hover:bg-teal-dark rounded p-0.5"
-													onclick={() => toggleChoice(choice)}
-													aria-label="Remove"
-												>
-													<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-													</svg>
-												</button>
-											</div>
+											{/each}
+										</div>
+									{/if}
+
+									<!-- Available groups -->
+									<div class="flex flex-wrap gap-1">
+										{#each groupNames as group (group)}
+											{@const isSelected = editingChoices.includes(group)}
+											<button
+												type="button"
+												class="rounded-full border text-xs px-2.5 py-1 transition-colors {isSelected
+													? 'border-teal bg-teal/10 text-teal'
+													: 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'}"
+												onclick={() => toggleChoice(group)}
+											>
+												{group}
+											</button>
 										{/each}
 									</div>
-								{/if}
-
-								<!-- Available groups -->
-								<div class="flex flex-wrap gap-1">
-									{#each groupNames as group (group)}
-										{@const isSelected = editingChoices.includes(group)}
-										<button
-											type="button"
-											class="rounded-full border text-xs px-2.5 py-1 transition-colors {isSelected
-												? 'border-teal bg-teal/10 text-teal'
-												: 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'}"
-											onclick={() => toggleChoice(group)}
-										>
-											{group}
-										</button>
-									{/each}
 								</div>
-							</div>
+							{:else}
+								<!-- Avoid students selection -->
+								<div class="space-y-2">
+									<p class="text-xs text-gray-600">Select students who should never be in the same group as {student.firstName}:</p>
+
+									<!-- Selected avoids -->
+									{#if editingAvoidStudents.length > 0}
+										<div class="flex flex-wrap gap-1 mb-2">
+											{#each editingAvoidStudents as avoidId (avoidId)}
+												<div class="inline-flex items-center gap-1 rounded-full bg-red-500 text-white text-xs px-2 py-1">
+													<span>{getStudentName(avoidId)}</span>
+													<button
+														type="button"
+														class="hover:bg-red-600 rounded p-0.5"
+														onclick={() => toggleAvoidStudent(avoidId)}
+														aria-label="Remove"
+													>
+														<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+														</svg>
+													</button>
+												</div>
+											{/each}
+										</div>
+									{/if}
+
+									<!-- Available students to avoid -->
+									<div class="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+										{#each students.filter((s) => s.id !== editingStudentId) as otherStudent (otherStudent.id)}
+											{@const isSelected = editingAvoidStudents.includes(otherStudent.id)}
+											<button
+												type="button"
+												class="rounded-full border text-xs px-2.5 py-1 transition-colors {isSelected
+													? 'border-red-400 bg-red-50 text-red-600'
+													: 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'}"
+												onclick={() => toggleAvoidStudent(otherStudent.id)}
+											>
+												{otherStudent.displayName}
+											</button>
+										{/each}
+									</div>
+								</div>
+							{/if}
 						</div>
 					{:else}
 						<!-- View mode -->
+						{@const avoids = getStudentAvoids(student.id)}
 						<button
 							type="button"
 							class="w-full p-3 text-left hover:bg-gray-50 flex items-center justify-between"
@@ -272,12 +397,20 @@
 						>
 							<div class="min-w-0 flex-1">
 								<span class="text-sm text-gray-900">{student.displayName}</span>
-								{#if prefs.length > 0}
+								{#if prefs.length > 0 || avoids.length > 0}
 									<div class="flex flex-wrap gap-1 mt-1">
 										{#each prefs as pref, index (pref)}
 											<span class="inline-flex items-center rounded bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5">
 												<span class="font-medium text-gray-500 mr-0.5">{index + 1}.</span>
 												{pref}
+											</span>
+										{/each}
+										{#each avoids as avoidId (avoidId)}
+											<span class="inline-flex items-center rounded bg-red-100 text-red-600 text-xs px-1.5 py-0.5">
+												<svg class="h-3 w-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+												</svg>
+												{getStudentName(avoidId)}
 											</span>
 										{/each}
 									</div>
@@ -302,6 +435,6 @@
 
 	<!-- Helper text -->
 	<p class="text-xs text-gray-500">
-		Click a student to edit their group preferences. First choice is their top preference.
+		Click a student to edit their group preferences or set "never together" constraints.
 	</p>
 </div>

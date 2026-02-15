@@ -28,7 +28,8 @@
 		onKeyboardPickUp,
 		onKeyboardDrop,
 		onKeyboardCancel,
-		onKeyboardMove
+		onKeyboardMove,
+		onStudentClick
 	} = $props<{
 		group: Group;
 		studentsById: Record<string, Student>;
@@ -53,6 +54,7 @@
 		onKeyboardDrop?: () => void;
 		onKeyboardCancel?: () => void;
 		onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
+		onStudentClick?: (studentId: string) => void;
 	}>();
 
 
@@ -263,6 +265,7 @@
 						{onKeyboardDrop}
 						{onKeyboardCancel}
 						{onKeyboardMove}
+						{onStudentClick}
 					/>
 
 					<!-- Drop indicator after this item (only for last item) -->

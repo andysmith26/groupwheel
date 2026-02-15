@@ -30,8 +30,10 @@ Bob\tbob@test.com\t5`;
 	await page.getByRole('button', { name: /Continue/ }).click();
 
 	// Step 3: Review - Name the activity
-	await page.getByRole('button', { name: /Activity Name/i }).click();
+	// Edit the auto-generated name
+	await page.getByRole('button', { name: /^Edit$/ }).click();
 	await page.locator('#activity-name').fill(activityName);
+	await page.getByRole('button', { name: /^Save$/ }).click();
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()

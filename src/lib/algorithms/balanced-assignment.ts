@@ -15,7 +15,12 @@
  */
 
 import type { Group } from '$lib/domain';
-import type { AssignmentOptions, AssignmentResult } from './types';
+import type {
+	AssignmentOptions,
+	AssignmentResult,
+	GroupingConstraints,
+	ConstraintViolation
+} from './types';
 
 /**
  * Simple seeded random number generator for deterministic results.
@@ -40,6 +45,111 @@ function shuffleArray<T>(array: T[], random: () => number): T[] {
 		[result[i], result[j]] = [result[j], result[i]];
 	}
 	return result;
+}
+
+/**
+ * Check if placing a student in a group would violate any avoid pair constraints.
+ */
+function wouldViolateAvoidPairs(
+	studentId: string,
+	groupMemberIds: string[],
+	constraints: GroupingConstraints | undefined
+): boolean {
+	if (!constraints?.avoidPairs || constraints.avoidPairs.length === 0) {
+		return false;
+	}
+
+	for (const [idA, idB] of constraints.avoidPairs) {
+		// Check if studentId is in this avoid pair
+		const otherStudent = idA === studentId ? idB : idB === studentId ? idA : null;
+		if (otherStudent && groupMemberIds.includes(otherStudent)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Check if placing a student in a group would violate the "avoid recent groupmates" constraint.
+ */
+function wouldViolateRecentGroupmates(
+	studentId: string,
+	groupMemberIds: string[],
+	constraints: GroupingConstraints | undefined
+): boolean {
+	if (!constraints?.avoidRecentGroupmates || !constraints.recentGroupmates) {
+		return false;
+	}
+
+	const recentGroupmates = constraints.recentGroupmates.get(studentId);
+	if (!recentGroupmates || recentGroupmates.size === 0) {
+		return false;
+	}
+
+	// Check if any current group member was a recent groupmate
+	for (const memberId of groupMemberIds) {
+		if (recentGroupmates.has(memberId)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Check if placing a student in a group would violate any constraints.
+ */
+function wouldViolateConstraints(
+	studentId: string,
+	groupMemberIds: string[],
+	constraints: GroupingConstraints | undefined
+): boolean {
+	return (
+		wouldViolateAvoidPairs(studentId, groupMemberIds, constraints) ||
+		wouldViolateRecentGroupmates(studentId, groupMemberIds, constraints)
+	);
+}
+
+/**
+ * Collect all constraint violations for placing a student in a group.
+ */
+function collectViolations(
+	studentId: string,
+	groupId: string,
+	groupMemberIds: string[],
+	constraints: GroupingConstraints | undefined
+): ConstraintViolation[] {
+	const violations: ConstraintViolation[] = [];
+
+	if (constraints?.avoidPairs) {
+		for (const [idA, idB] of constraints.avoidPairs) {
+			const otherStudent = idA === studentId ? idB : idB === studentId ? idA : null;
+			if (otherStudent && groupMemberIds.includes(otherStudent)) {
+				violations.push({
+					type: 'AVOID_PAIR',
+					studentId,
+					groupId,
+					conflictingStudentIds: [otherStudent]
+				});
+			}
+		}
+	}
+
+	if (constraints?.avoidRecentGroupmates && constraints.recentGroupmates) {
+		const recentGroupmates = constraints.recentGroupmates.get(studentId);
+		if (recentGroupmates) {
+			const conflicting = groupMemberIds.filter((id) => recentGroupmates.has(id));
+			if (conflicting.length > 0) {
+				violations.push({
+					type: 'RECENT_GROUPMATE',
+					studentId,
+					groupId,
+					conflictingStudentIds: conflicting
+				});
+			}
+		}
+	}
+
+	return violations;
 }
 
 /**
@@ -92,6 +202,7 @@ export function assignBalanced(options: AssignmentOptions): AssignmentResult {
 
 	const assigned = new Set<string>();
 	const unassigned: string[] = [];
+	const constraintViolations: ConstraintViolation[] = [];
 
 	// Phase 1: Process students with preferences
 	// Try to assign each student to one of their preferred groups
@@ -101,7 +212,11 @@ export function assignBalanced(options: AssignmentOptions): AssignmentResult {
 		// Try each choice in order of preference
 		for (const choice of choices) {
 			const group = findGroup(choice, groupById, groupByName);
-			if (group && remainingCapacity(group) > 0) {
+			if (
+				group &&
+				remainingCapacity(group) > 0 &&
+				!wouldViolateConstraints(studentId, group.memberIds, options.constraints)
+			) {
 				group.memberIds.push(studentId);
 				assigned.add(studentId);
 				assignedToGroup = true;
@@ -109,7 +224,7 @@ export function assignBalanced(options: AssignmentOptions): AssignmentResult {
 			}
 		}
 
-		// If no preferred group has space, add to fallback list
+		// If no preferred group has space or all violate constraints, add to fallback list
 		if (!assignedToGroup) {
 			studentsWithoutPrefs.push(studentId);
 		}
@@ -123,13 +238,16 @@ export function assignBalanced(options: AssignmentOptions): AssignmentResult {
 
 	// Phase 2: Balanced assignment for remaining students
 	for (const studentId of fallbackStudents) {
-		// Find group with most remaining capacity
+		// Find group with most remaining capacity that doesn't violate constraints
 		let bestGroup: Group | null = null;
 		let bestRemaining = 0;
 
 		for (const group of workingGroups) {
 			const remaining = remainingCapacity(group);
-			if (remaining > bestRemaining) {
+			if (
+				remaining > bestRemaining &&
+				!wouldViolateConstraints(studentId, group.memberIds, options.constraints)
+			) {
 				bestRemaining = remaining;
 				bestGroup = group;
 			}
@@ -139,11 +257,42 @@ export function assignBalanced(options: AssignmentOptions): AssignmentResult {
 			bestGroup.memberIds.push(studentId);
 			assigned.add(studentId);
 		} else {
-			unassigned.push(studentId);
+			// No group available without violating constraints - try to find any group with capacity
+			// This is a fallback to avoid leaving students unassigned when constraints are too strict
+			let fallbackGroup: Group | null = null;
+			let fallbackRemaining = 0;
+			for (const group of workingGroups) {
+				const remaining = remainingCapacity(group);
+				if (remaining > fallbackRemaining) {
+					fallbackRemaining = remaining;
+					fallbackGroup = group;
+				}
+			}
+
+			if (fallbackGroup && fallbackRemaining > 0) {
+				// Collect violations before assigning
+				const violations = collectViolations(
+					studentId,
+					fallbackGroup.id,
+					fallbackGroup.memberIds,
+					options.constraints
+				);
+				constraintViolations.push(...violations);
+
+				// Assign anyway despite constraint violations
+				fallbackGroup.memberIds.push(studentId);
+				assigned.add(studentId);
+			} else {
+				unassigned.push(studentId);
+			}
 		}
 	}
 
-	return { groups: workingGroups, unassignedStudentIds: unassigned };
+	return {
+		groups: workingGroups,
+		unassignedStudentIds: unassigned,
+		constraintViolations: constraintViolations.length > 0 ? constraintViolations : undefined
+	};
 }
 
 /**

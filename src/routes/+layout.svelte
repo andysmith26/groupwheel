@@ -21,6 +21,12 @@
 	import { activityHeader } from '$lib/stores/activityHeader.svelte';
 	import { workspaceHeader } from '$lib/stores/workspaceHeader.svelte';
 	import { Button, OfflineBanner } from '$lib/components/ui';
+	import { devTools } from '$lib/stores/devTools.svelte';
+	import {
+		initializeDemoModeIfRequested,
+		exposeDemoFunctionsToWindow,
+		seedDemoData
+	} from '$lib/infrastructure/demo';
 
 	const { children } = $props();
 
@@ -28,6 +34,7 @@
 	let syncManager: ReturnType<typeof getBrowserSyncManager> | null = null;
 	let authUnsubscribe: (() => void) | null = null;
 	let isAuthenticated = $state(false);
+	let appEnvRef: ReturnType<typeof createInMemoryEnvironment> | null = null;
 
 	if (browser) {
 		// Catch unhandled promise rejections to prevent silent failures
@@ -64,7 +71,22 @@
 			clipboard: new BrowserClipboardAdapter(),
 			sheetsService: sheetsAdapter
 		});
+		appEnvRef = appEnv;
 		setAppEnvContext(appEnv);
+
+		// Initialize demo mode if requested via URL parameter (?demo=true)
+		initializeDemoModeIfRequested(appEnv).then((result) => {
+			if (result) {
+				console.log('[Demo]', result.message);
+				// Redirect to activities page to see the demo data
+				if (result.success && window.location.pathname === '/') {
+					goto('/activities');
+				}
+			}
+		});
+
+		// Expose demo functions to window for developer access
+		exposeDemoFunctionsToWindow(appEnv);
 
 		// Subscribe to auth state changes; sync enablement is gated by user preference.
 		if (authAdapter) {
@@ -126,6 +148,21 @@
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
+		// Demo mode shortcut: Ctrl+Shift+D (when devtools enabled)
+		if (devTools.enabled && event.ctrlKey && event.shiftKey && event.code === 'KeyD') {
+			event.preventDefault();
+			if (appEnvRef) {
+				seedDemoData(appEnvRef, true).then((result) => {
+					console.log('[Demo]', result.message);
+					if (result.success) {
+						// Reload the page to see the demo data
+						window.location.href = '/activities';
+					}
+				});
+			}
+			return;
+		}
+
 		if (!isActivitiesPage) return;
 		if (event.code === 'Space') {
 			isSpaceHeld = true;

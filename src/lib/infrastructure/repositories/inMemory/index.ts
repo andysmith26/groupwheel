@@ -1,4 +1,5 @@
 export * from './InMemoryStudentRepository';
+export * from './InMemoryStudentIdentityRepository';
 export * from './InMemoryStaffRepository';
 export * from './InMemoryPoolRepository';
 export * from './InMemoryProgramRepository';
@@ -6,3 +7,4 @@ export * from './InMemoryScenarioRepository';
 export * from './InMemorySessionRepository';
 export * from './InMemoryPlacementRepository';
 export * from './InMemoryPreferenceRepository';
+export * from './InMemoryObservationRepository';

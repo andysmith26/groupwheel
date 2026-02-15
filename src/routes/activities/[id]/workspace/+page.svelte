@@ -37,7 +37,8 @@
 		generateScenario,
 		getActivityData,
 		createSession,
-		publishSession
+		publishSession,
+		showToClass
 	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 	import type { Session } from '$lib/domain';
@@ -62,6 +63,12 @@
 	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import GroupColumnSkeleton from '$lib/components/ui/GroupColumnSkeleton.svelte';
+	import RepeatedGroupingHint from '$lib/components/workspace/RepeatedGroupingHint.svelte';
+	import GuidedStepper from '$lib/components/workspace/GuidedStepper.svelte';
+	import StudentDetailSidebar from '$lib/components/workspace/StudentDetailSidebar.svelte';
+	import SatisfactionSummary from '$lib/components/workspace/SatisfactionSummary.svelte';
+	import PostPublishPrompt from '$lib/components/workspace/PostPublishPrompt.svelte';
+	import { getProgramPairingStats, type PairingStat } from '$lib/services/appEnvUseCases';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -101,9 +108,10 @@
 	let generationError = $state<string | null>(null);
 	let isRetryingGeneration = $state(false);
 
-	// --- Post-creation guidance banner (from wizard redirect) ---
+	// --- Post-creation guidance (from wizard redirect) ---
 	let showGuidanceBanner = $state(false);
 	let bannerDismissed = $state(false);
+	let guidedStep = $state<1 | 2>(1);
 
 	// --- Group shell editing state ---
 	let newGroupId = $state<string | null>(null);
@@ -115,9 +123,18 @@
 	let showToClassPublishing = $state(false);
 	let showToClassError = $state<string | null>(null);
 
+	// --- Post-publish prompt state ---
+	let showPostPublishPrompt = $state(false);
+
+	// --- Pairing stats for tooltip (loaded when 2+ published sessions) ---
+	let pairingStats = $state<PairingStat[]>([]);
+
 	// --- Alphabetize confirmation state ---
 	let showAlphabetizeConfirm = $state(false);
 	let groupToAlphabetize = $state<{ id: string; name: string; memberCount: number } | null>(null);
+
+	// --- Student detail sidebar state ---
+	let sidebarStudentId = $state<string | null>(null);
 
 	// --- Student tooltip state ---
 	let tooltipStudentId = $state<string | null>(null);
@@ -150,6 +167,9 @@
 	let currentHistoryIndex = $state<number>(-1);
 	let isTryingAnother = $state(false);
 	let savedCurrentGroups = $state<Group[] | null>(null);
+
+	// --- Generation settings ---
+	let avoidRecentGroupmates = $state(false);
 
 	$effect(() => {
 		activityHeader.setName(program?.name ?? null);
@@ -263,6 +283,37 @@
 		}
 		return prefs;
 	});
+
+	// --- Derive recent groupmates for tooltip from pairing stats ---
+	let studentRecentGroupmates = $derived.by(() => {
+		const groupmatesMap = new Map<string, Array<{ studentName: string; count: number }>>();
+
+		// Group pairing stats by each student
+		for (const pair of pairingStats) {
+			// Add to student A's groupmates
+			const groupmatesA = groupmatesMap.get(pair.studentAId) ?? [];
+			groupmatesA.push({ studentName: pair.studentBName, count: pair.count });
+			groupmatesMap.set(pair.studentAId, groupmatesA);
+
+			// Add to student B's groupmates
+			const groupmatesB = groupmatesMap.get(pair.studentBId) ?? [];
+			groupmatesB.push({ studentName: pair.studentAName, count: pair.count });
+			groupmatesMap.set(pair.studentBId, groupmatesB);
+		}
+
+		// Sort each student's groupmates by count (most frequent first)
+		for (const [studentId, groupmates] of groupmatesMap) {
+			groupmates.sort((a, b) => b.count - a.count);
+			groupmatesMap.set(studentId, groupmates);
+		}
+
+		return groupmatesMap;
+	});
+
+	// --- Tooltip recent groupmates (must be after studentRecentGroupmates) ---
+	let tooltipRecentGroupmates = $derived(
+		tooltipStudentId ? studentRecentGroupmates.get(tooltipStudentId) ?? [] : []
+	);
 
 	// --- Group names for preferences modal ---
 	let groupNames = $derived(view?.groups.map((g) => g.name) ?? []);
@@ -432,7 +483,7 @@
 						studentId: parsed.studentId,
 						likeGroupIds: parsed.likeGroupIds ?? [],
 						avoidGroupIds: [],
-						avoidStudentIds: []
+						avoidStudentIds: parsed.avoidStudentIds ?? []
 					}
 				};
 				await prefRepo.save(pref);
@@ -541,6 +592,15 @@
 			// No groups yet - redirect to main activity page
 			goto(`/activities/${programId}`);
 			return;
+		}
+
+		// Load pairing stats if there are 2+ sessions with placements (meaningful history)
+		const publishedSessions = sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED');
+		if (publishedSessions.length >= 2) {
+			const statsResult = await getProgramPairingStats(env, { programId });
+			if (!isErr(statsResult)) {
+				pairingStats = statsResult.value.pairs;
+			}
 		}
 
 		initializeEditingStore(scenario);
@@ -683,10 +743,14 @@
 		showStartOverConfirm = false;
 		isRegenerating = true;
 
+		const existingConfig = (scenario.algorithmConfig as Record<string, unknown>) ?? {};
 		const result = await env.groupingAlgorithm.generateGroups({
 			programId: scenario.programId,
 			studentIds: scenario.participantSnapshot,
-			algorithmConfig: scenario.algorithmConfig
+			algorithmConfig: {
+				...existingConfig,
+				avoidRecentGroupmates
+			}
 		});
 
 		if (!result.success) {
@@ -773,7 +837,8 @@
 			studentIds: scenario.participantSnapshot,
 			algorithmConfig: {
 				...existingConfig,
-				seed: Date.now()
+				seed: Date.now(),
+				avoidRecentGroupmates
 			}
 		});
 
@@ -1151,8 +1216,8 @@
 	// --- Show to class handlers ---
 	function handleShowToClassClick() {
 		if (latestPublishedSession && !hasEditsSincePublish) {
-			// Already published and no edits since → go directly to present
-			goto(`/activities/${program?.id}/present`);
+			// Already published and no edits since → go directly to live
+			goto(`/activities/${program?.id}/live`);
 		} else {
 			// Never published OR has edits since last publish → show prompt
 			showShowToClassPrompt = true;
@@ -1166,50 +1231,47 @@
 		showToClassPublishing = true;
 		showToClassError = null;
 
-		// Create a session with default values
-		const now = new Date();
-		const endDate = new Date(now);
-		endDate.setMonth(endDate.getMonth() + 6);
-
-		const sessionResult = await createSession(env, {
+		const result = await showToClass(env, {
 			programId: program.id,
-			name: `${program.name} - ${now.toLocaleDateString()}`,
-			academicYear: `${now.getFullYear()}-${now.getFullYear() + 1}`,
-			startDate: now,
-			endDate
-		});
-
-		if (isErr(sessionResult)) {
-			const err = sessionResult.error;
-			showToClassError =
-				'message' in err ? err.message : `Failed to create session: ${err.type}`;
-			showToClassPublishing = false;
-			return;
-		}
-
-		const publishResult = await publishSession(env, {
-			sessionId: sessionResult.value.id,
 			scenarioId: scenario.id
 		});
 
-		if (isErr(publishResult)) {
-			const err = publishResult.error;
-			showToClassError = 'message' in err ? err.message : `Failed to publish: ${err.type}`;
+		if (isErr(result)) {
+			showToClassError = result.error.type === 'INTERNAL_ERROR'
+				? result.error.message
+				: `Failed: ${result.error.type}`;
 			showToClassPublishing = false;
 			return;
 		}
 
-		latestPublishedSession = publishResult.value;
-		sessions = [...sessions, publishResult.value];
+		latestPublishedSession = result.value;
+		sessions = [...sessions, result.value];
 		showShowToClassPrompt = false;
 		showToClassPublishing = false;
 
-		goto(`/activities/${program.id}/present`);
+		// Show post-publish prompt with navigation options
+		showPostPublishPrompt = true;
 	}
 
 	function handleJustPreview() {
 		showShowToClassPrompt = false;
-		goto(`/activities/${program?.id}/present`);
+		goto(`/activities/${program?.id}/live`);
+	}
+
+	// --- Post-publish prompt handlers ---
+	function handlePostPublishShowToClass() {
+		showPostPublishPrompt = false;
+		window.open(`/activities/${program?.id}/live`, '_blank');
+	}
+
+	function handlePostPublishRecordObservations() {
+		showPostPublishPrompt = false;
+		goto(`/activities/${program?.id}/live`);
+	}
+
+	function handlePostPublishOpenBoth() {
+		showPostPublishPrompt = false;
+		goto(`/activities/${program?.id}/live`);
 	}
 
 
@@ -1235,6 +1297,20 @@
 			dragCooldown = false;
 		}, 150);
 	}
+
+	// --- Student detail sidebar handlers ---
+	function handleStudentClick(studentId: string) {
+		sidebarStudentId = sidebarStudentId === studentId ? null : studentId;
+		tooltipStudentId = null; // hide tooltip when opening sidebar
+	}
+
+	let sidebarStudent = $derived(sidebarStudentId ? studentsById[sidebarStudentId] ?? null : null);
+	let sidebarPreferences = $derived(
+		sidebarStudentId ? preferenceMap[sidebarStudentId] ?? null : null
+	);
+	let sidebarRecentGroupmates = $derived(
+		sidebarStudentId ? studentRecentGroupmates.get(sidebarStudentId) ?? [] : []
+	);
 
 	// --- Keyboard navigation handlers ---
 	function handleKeyboardPickUp(studentId: string, container: string, index: number) {
@@ -1416,42 +1492,15 @@
 		<div class="flex flex-1 min-h-0 overflow-hidden">
 			<!-- Workspace (main area) -->
 			<main class="flex-1 overflow-y-auto p-4">
-				<!-- Post-creation guidance banner -->
+				<!-- Post-creation guided stepper -->
 				{#if showGuidanceBanner && !bannerDismissed && scenario && view}
 					<div class="mx-auto max-w-6xl mb-4">
-						<div class="rounded-lg border border-teal-200 bg-teal-50 p-4 flex items-start justify-between gap-4">
-							<div class="flex items-start gap-3">
-								<div class="flex-shrink-0 mt-0.5">
-									<svg class="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-									</svg>
-								</div>
-								<div>
-									<p class="font-medium text-teal-900">Groups generated!</p>
-									<p class="text-sm text-teal-700 mt-1">
-										Drag students between groups to adjust placements.
-										{#if preferencesCount === 0}
-											<a
-												href="/activities/{program?.id}"
-												class="underline hover:text-teal-800"
-											>
-												Add student preferences
-											</a> for smarter placement.
-										{/if}
-									</p>
-								</div>
-							</div>
-							<button
-								type="button"
-								onclick={() => bannerDismissed = true}
-								class="flex-shrink-0 text-teal-600 hover:text-teal-800 p-1 rounded hover:bg-teal-100"
-								aria-label="Dismiss banner"
-							>
-								<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-								</svg>
-							</button>
-						</div>
+						<GuidedStepper
+							currentStep={guidedStep}
+							onAdvance={() => (guidedStep = 2)}
+							onShowToClass={handleShowToClassClick}
+							onDismiss={() => (bannerDismissed = true)}
+						/>
 					</div>
 				{/if}
 
@@ -1478,11 +1527,32 @@
 					<EmptyWorkspaceState studentCount={students.length} {preferencesCount} />
 				{:else}
 					<div class="mx-auto max-w-6xl space-y-4">
-						<HistorySelector
-							historyLength={resultHistory.length}
-							currentIndex={currentHistoryIndex}
-							onSelect={switchToHistoryEntry}
-						/>
+						<!-- Generation settings and history -->
+						<div class="flex items-center justify-between gap-4">
+							<HistorySelector
+								historyLength={resultHistory.length}
+								currentIndex={currentHistoryIndex}
+								onSelect={switchToHistoryEntry}
+							/>
+
+							<!-- Repeated grouping hint with avoid recent toggle -->
+							{#if sessions.length > 0 && program}
+								<RepeatedGroupingHint
+									activityId={program.id}
+									checked={avoidRecentGroupmates}
+									onToggle={(checked) => avoidRecentGroupmates = checked}
+								/>
+							{/if}
+						</div>
+
+						<!-- Satisfaction summary (when preferences exist) -->
+						{#if preferencesCount > 0 && view?.currentAnalytics}
+							<SatisfactionSummary
+								analytics={view.currentAnalytics}
+								studentsWithPreferences={preferencesCount}
+								totalStudents={students.length}
+							/>
+						{/if}
 					</div>
 
 					<div class="flex gap-3 mt-4">
@@ -1506,6 +1576,7 @@
 								onKeyboardCancel={handleKeyboardCancel}
 								onKeyboardMove={handleKeyboardMove}
 								onAlphabetize={handleAlphabetizeUnassigned}
+								onStudentClick={handleStudentClick}
 								vertical={true}
 							/>
 						</div>
@@ -1539,12 +1610,70 @@
 								onKeyboardDrop={handleKeyboardDrop}
 								onKeyboardCancel={handleKeyboardCancel}
 								onKeyboardMove={handleKeyboardMove}
+								onStudentClick={handleStudentClick}
 							/>
 						</div>
 					</div>
 				{/if}
 			</main>
 
+			<!-- Student Detail Sidebar -->
+			{#if sidebarStudent && scenario && view}
+				<StudentDetailSidebar
+					student={sidebarStudent}
+					preferences={sidebarPreferences}
+					recentGroupmates={sidebarRecentGroupmates}
+					onClose={() => (sidebarStudentId = null)}
+				/>
+			{/if}
+
+			<!-- Workspace Action Bar -->
+			{#if scenario && view}
+				<div
+					class="sticky bottom-0 z-10 border-t border-gray-200/70 bg-white px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]"
+				>
+					<div class="mx-auto flex max-w-6xl items-center justify-between">
+						<div class="flex items-center gap-3">
+							<button
+								type="button"
+								class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+								onclick={handleTryAnother}
+								disabled={isTryingAnother || isRegenerating}
+							>
+								{#if isTryingAnother}
+									<span class="inline-flex items-center gap-2">
+										<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+											<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+											<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+										</svg>
+										Generating...
+									</span>
+								{:else}
+									Try Another
+								{/if}
+							</button>
+							<button
+								type="button"
+								class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+								onclick={() => (showStartOverConfirm = true)}
+								disabled={isTryingAnother || isRegenerating}
+							>
+								Start Over
+							</button>
+						</div>
+						<button
+							type="button"
+							class="flex items-center gap-2 rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark"
+							onclick={handleShowToClassClick}
+						>
+							<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+							</svg>
+							Show to Class
+						</button>
+					</div>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Start Over confirmation dialog -->
@@ -1625,9 +1754,11 @@
 			<StudentInfoTooltip
 				student={tooltipStudent}
 				preferences={tooltipPreferences}
+				recentGroupmates={tooltipRecentGroupmates}
 				x={tooltipX}
 				y={tooltipY}
 				visible={true}
+				showProfileLink={true}
 			/>
 		{/if}
 
@@ -1635,6 +1766,16 @@
 		<div aria-live="polite" aria-atomic="true" class="sr-only">
 			{keyboardAnnouncement}
 		</div>
+
+		<!-- Post-Publish Prompt -->
+		<PostPublishPrompt
+			open={showPostPublishPrompt}
+			activityId={program?.id ?? ''}
+			onShowToClass={handlePostPublishShowToClass}
+			onRecordObservations={handlePostPublishRecordObservations}
+			onOpenBoth={handlePostPublishOpenBoth}
+			onCancel={() => (showPostPublishPrompt = false)}
+		/>
 
 		<!-- Toast -->
 		{#if toast}

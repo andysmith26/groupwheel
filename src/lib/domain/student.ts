@@ -23,6 +23,14 @@ export interface Student {
 	id: string;
 
 	/**
+	 * Canonical identity ID for cross-activity tracking.
+	 * Links this student record to a StudentIdentity.
+	 * If not set, the student's own `id` is used as the canonical ID
+	 * (backward compatible with existing data).
+	 */
+	canonicalId?: string;
+
+	/**
 	 * Student's first name. Required for display purposes.
 	 */
 	firstName: string;
@@ -58,6 +66,7 @@ export interface Student {
  */
 export function createStudent(input: {
 	id: string;
+	canonicalId?: string;
 	firstName: string;
 	lastName?: string;
 	gradeLevel?: string;
@@ -73,12 +82,22 @@ export function createStudent(input: {
 
 	return {
 		id: input.id.trim(),
+		canonicalId: input.canonicalId?.trim(),
 		firstName: input.firstName.trim(),
 		lastName: input.lastName?.trim(),
 		gradeLevel: input.gradeLevel?.trim(),
 		gender: input.gender?.trim(),
 		meta: input.meta
 	};
+}
+
+/**
+ * Get the effective canonical ID for a student.
+ * Returns canonicalId if set, otherwise returns the student's own id.
+ * This ensures backward compatibility with existing student records.
+ */
+export function getCanonicalId(student: Student): string {
+	return student.canonicalId ?? student.id;
 }
 
 /**

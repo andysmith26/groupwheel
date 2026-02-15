@@ -12,5 +12,7 @@ export { IndexedDbGroupTemplateRepository } from './IndexedDbGroupTemplateReposi
 export { IndexedDbProgramRepository } from './IndexedDbProgramRepository';
 export { IndexedDbPoolRepository } from './IndexedDbPoolRepository';
 export { IndexedDbStudentRepository } from './IndexedDbStudentRepository';
+export { IndexedDbStudentIdentityRepository } from './IndexedDbStudentIdentityRepository';
 export { IndexedDbStaffRepository } from './IndexedDbStaffRepository';
 export { IndexedDbPreferenceRepository } from './IndexedDbPreferenceRepository';
+export { IndexedDbObservationRepository } from './IndexedDbObservationRepository';

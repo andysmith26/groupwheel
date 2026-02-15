@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getStudentDisplayName } from './student';
+import { createStudent, getCanonicalId, getStudentDisplayName } from './student';
 import type { Student } from './student';
 
 describe('getStudentDisplayName', () => {
@@ -128,5 +128,72 @@ describe('getStudentDisplayName', () => {
 		};
 
 		expect(getStudentDisplayName(student)).toBe('John Doe (Grade Senior)');
+	});
+});
+
+describe('createStudent', () => {
+	it('should create a valid student', () => {
+		const student = createStudent({ id: 'student-1', firstName: 'John', lastName: 'Doe' });
+
+		expect(student.id).toBe('student-1');
+		expect(student.firstName).toBe('John');
+		expect(student.lastName).toBe('Doe');
+	});
+
+	it('should trim id and names', () => {
+		const student = createStudent({
+			id: '  student-1  ',
+			firstName: '  John  ',
+			lastName: '  Doe  '
+		});
+
+		expect(student.id).toBe('student-1');
+		expect(student.firstName).toBe('John');
+		expect(student.lastName).toBe('Doe');
+	});
+
+	it('should trim optional fields', () => {
+		const student = createStudent({
+			id: 'student-1',
+			firstName: 'John',
+			gradeLevel: '  10  ',
+			gender: '  F  ',
+			canonicalId: '  canon-1  '
+		});
+
+		expect(student.gradeLevel).toBe('10');
+		expect(student.gender).toBe('F');
+		expect(student.canonicalId).toBe('canon-1');
+	});
+
+	it('should throw for missing id', () => {
+		expect(() => createStudent({ id: '', firstName: 'John' })).toThrow(
+			'Student id is required and must be a string'
+		);
+	});
+
+	it('should throw for missing firstName', () => {
+		expect(() => createStudent({ id: 'student-1', firstName: '' })).toThrow(
+			'Student firstName is required and must be a string'
+		);
+	});
+
+	it('should preserve meta field', () => {
+		const meta = { email: 'john@example.com', homeroom: '101' };
+		const student = createStudent({ id: 'student-1', firstName: 'John', meta });
+
+		expect(student.meta).toEqual(meta);
+	});
+});
+
+describe('getCanonicalId', () => {
+	it('should return canonicalId when set', () => {
+		const student: Student = { id: 'student-1', firstName: 'John', canonicalId: 'canon-1' };
+		expect(getCanonicalId(student)).toBe('canon-1');
+	});
+
+	it('should return id when canonicalId is not set', () => {
+		const student: Student = { id: 'student-1', firstName: 'John' };
+		expect(getCanonicalId(student)).toBe('student-1');
 	});
 });

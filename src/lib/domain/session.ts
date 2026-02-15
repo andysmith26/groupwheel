@@ -75,3 +75,50 @@ export function createSession(params: CreateSessionParams): Session {
 		userId: params.userId
 	};
 }
+
+export interface CreatePublishedSessionParams {
+	id: string;
+	programId: string;
+	name: string;
+	academicYear: string;
+	startDate: Date;
+	endDate: Date;
+	createdAt: Date;
+	scenarioId: string;
+	publishedAt: Date;
+	publishedByStaffId?: string;
+	userId?: string;
+}
+
+/**
+ * Factory function to create a Session that is born PUBLISHED (no DRAFT step).
+ *
+ * Used by the showToClass use case to skip the DRAFT intermediate state.
+ *
+ * @throws {Error} If name is empty or endDate is before startDate
+ */
+export function createPublishedSession(params: CreatePublishedSessionParams): Session {
+	const name = params.name.trim();
+	if (!name) {
+		throw new Error('Session name must not be empty');
+	}
+
+	if (params.endDate < params.startDate) {
+		throw new Error('Session endDate must be after startDate');
+	}
+
+	return {
+		id: params.id,
+		programId: params.programId,
+		name,
+		academicYear: params.academicYear,
+		startDate: params.startDate,
+		endDate: params.endDate,
+		status: 'PUBLISHED',
+		scenarioId: params.scenarioId,
+		publishedAt: params.publishedAt,
+		createdAt: params.createdAt,
+		publishedByStaffId: params.publishedByStaffId,
+		userId: params.userId
+	};
+}

@@ -51,7 +51,8 @@
 		onKeyboardPickUp,
 		onKeyboardDrop,
 		onKeyboardCancel,
-		onKeyboardMove
+		onKeyboardMove,
+		onStudentClick
 	} = $props<{
 		groups?: Group[];
 		studentsById?: Record<string, Student>;
@@ -79,6 +80,7 @@
 		onKeyboardDrop?: () => void;
 		onKeyboardCancel?: () => void;
 		onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
+		onStudentClick?: (studentId: string) => void;
 	}>();
 
 	type RowLayoutItem = { type: 'group'; group: Group } | { type: 'spacer'; key: string };
@@ -171,6 +173,7 @@
 						{onKeyboardDrop}
 						{onKeyboardCancel}
 						{onKeyboardMove}
+						{onStudentClick}
 					/>
 				{:else}
 					<div class="group-spacer" aria-hidden="true"></div>

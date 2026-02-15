@@ -119,6 +119,7 @@ const DEFAULT_DEBOUNCE_MS = 400;
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [1000, 2000, 4000];
 const SAVED_IDLE_DELAY = 2000;
+const MAX_HISTORY_LENGTH = 100;
 
 function cloneGroups(groups: Group[]): Group[] {
 	return groups.map((group) => ({ ...group, memberIds: [...group.memberIds] }));
@@ -162,6 +163,26 @@ function computeDelta(
 
 function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function addToHistory(
+	currentHistory: Command[],
+	currentIndex: number,
+	command: Command
+): { history: Command[]; historyIndex: number } {
+	// Truncate any redo stack
+	const truncatedHistory = currentHistory.slice(0, currentIndex + 1);
+	let history = [...truncatedHistory, command];
+	let historyIndex = history.length - 1;
+
+	// Prune oldest entries if history exceeds limit
+	if (history.length > MAX_HISTORY_LENGTH) {
+		const excess = history.length - MAX_HISTORY_LENGTH;
+		history = history.slice(excess);
+		historyIndex = history.length - 1;
+	}
+
+	return { history, historyIndex };
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -318,9 +339,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 		this.state.update((current) => {
 			const updatedGroups = this.applyMove(current.groups, commandWithPreviousIndex);
-			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
-			const history = [...truncatedHistory, commandWithPreviousIndex];
-			const historyIndex = history.length - 1;
+			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, commandWithPreviousIndex);
 
 			return {
 				...current,
@@ -368,12 +387,12 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		};
 
 		this.state.update((current) => {
-			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
 				groups: [...current.groups, newGroup],
-				history: [...truncatedHistory, command],
-				historyIndex: truncatedHistory.length,
+				history,
+				historyIndex,
 				pendingSave: true
 			};
 		});
@@ -403,12 +422,12 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		};
 
 		this.state.update((current) => {
-			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
 				groups: current.groups.filter((g) => g.id !== groupId),
-				history: [...truncatedHistory, command],
-				historyIndex: truncatedHistory.length,
+				history,
+				historyIndex,
 				pendingSave: true
 			};
 		});
@@ -528,11 +547,11 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		}
 
 		this.state.update((current) => {
-			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
-				history: [...truncatedHistory, command],
-				historyIndex: truncatedHistory.length
+				history,
+				historyIndex
 			};
 		});
 	}
@@ -568,14 +587,14 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		};
 
 		this.state.update((current) => {
-			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
 				groups: current.groups.map((g) =>
 					g.id === groupId ? { ...g, memberIds: [...newOrder] } : g
 				),
-				history: [...truncatedHistory, command],
-				historyIndex: truncatedHistory.length,
+				history,
+				historyIndex,
 				pendingSave: true
 			};
 		});
@@ -616,12 +635,12 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		};
 
 		this.state.update((current) => {
-			const truncatedHistory = current.history.slice(0, current.historyIndex + 1);
+			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
 				unassignedOrder: [...newOrder],
-				history: [...truncatedHistory, command],
-				historyIndex: truncatedHistory.length,
+				history,
+				historyIndex,
 				pendingSave: true
 			};
 		});

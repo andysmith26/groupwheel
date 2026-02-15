@@ -13,8 +13,6 @@
 		listActivities,
 		renameActivity,
 		deleteActivity,
-		onAuthStateChange,
-		isAuthenticated,
 		type ActivityDisplay
 	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
@@ -23,9 +21,7 @@
 	import type { Program } from '$lib/domain';
 
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
-	let authUnsubscribe: (() => void) | null = null;
-	let isLoggedIn = $state(false);
-	let newActivityHref = $derived(isLoggedIn ? '/track-responses' : '/activities/import');
+	const newActivityHref = '/activities/new';
 
 	let activities = $state<ActivityDisplay[]>([]);
 	let loading = $state(true);
@@ -44,12 +40,6 @@
 
 	onMount(async () => {
 		env = getAppEnvContext();
-		if (env) {
-			isLoggedIn = isAuthenticated(env);
-			authUnsubscribe = onAuthStateChange(env, (user) => {
-				isLoggedIn = Boolean(user);
-			});
-		}
 		await loadActivities();
 
 		// Close menu on outside click
@@ -66,7 +56,6 @@
 		return () => {
 			document.removeEventListener('click', handleClick);
 			window.clearInterval(intervalId);
-			authUnsubscribe?.();
 		};
 	});
 
@@ -132,6 +121,13 @@
 		style: string;
 		icon: string;
 	} | null {
+		if (activity.activeSession) {
+			return {
+				label: 'Live',
+				style: 'bg-green-100 text-green-700',
+				icon: '●'
+			};
+		}
 		if (activity.hasScenario) {
 			return null;
 		}
@@ -143,10 +139,16 @@
 	}
 
 	function getPrimaryAction(activity: ActivityDisplay): { label: string; href: string } {
-		if (activity.hasScenario) {
+		if (activity.activeSession) {
 			return {
-				label: 'Edit Groups',
-				href: `/activities/${activity.program.id}/workspace`
+				label: 'Continue Session',
+				href: `/activities/${activity.program.id}/live`
+			};
+		}
+		if (activity.studentCount > 0) {
+			return {
+				label: 'Start Session',
+				href: `/activities/${activity.program.id}/start`
 			};
 		}
 		return {
@@ -266,6 +268,9 @@
 			</p>
 		</div>
 		<div class="flex items-center gap-3">
+			<Button href="/analytics" variant="secondary">
+				Analytics
+			</Button>
 			<Button href="/activities/import" variant="secondary">
 				Import
 			</Button>

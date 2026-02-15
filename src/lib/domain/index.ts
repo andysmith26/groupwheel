@@ -10,6 +10,7 @@
 
 // Core entities
 export * from './student';
+export * from './studentIdentity';
 export * from './staff';
 export * from './pool';
 export * from './program';
@@ -19,12 +20,15 @@ export * from './scenario';
 export * from './session';
 export * from './placement';
 export * from './preference';
+export * from './observation';
 export * from './analytics';
 export * from './import';
 export * from './sheetConnection';
 
 // Re-export commonly used types at top level for convenience
 export type { Student } from './student';
+
+export type { StudentIdentity, NameVariant } from './studentIdentity';
 
 export type { Group, GroupCreationMode } from './group';
 
@@ -39,3 +43,5 @@ export type { GroupTemplate, TemplateGroup } from './groupTemplate';
 export type { Session, SessionStatus } from './session';
 
 export type { Placement, PlacementType } from './placement';
+
+export type { Observation, ObservationSentiment } from './observation';

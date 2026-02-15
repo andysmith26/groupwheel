@@ -51,7 +51,28 @@ export * from './createGroupingActivity';
 export * from './createSession';
 export * from './listSessions';
 export * from './publishSession';
+export * from './showToClass';
+export * from './getActiveSession';
+export * from './endSession';
 export * from './getStudentPlacementHistory';
+export * from './getPairingHistory';
+
+// Observation operations
+export * from './createObservation';
+export * from './listObservations';
+export * from './getObservationSummary';
+
+// Analytics operations
+export * from './getProgramPairingStats';
+export * from './listStudentStats';
+
+// Student identity operations
+export * from './findMatchingStudents';
+export * from './createOrLinkStudent';
+export * from './getStudentProfile';
+
+// Quick grouping operations
+export * from './quickGenerateGroups';
 
 // Sync/Storage operations
 export * from './configureSheetsSyncStorage';

@@ -250,6 +250,41 @@ export async function generateCandidate(
 	);
 }
 
+// =============================================================================
+// Quick Grouping Operations
+// =============================================================================
+
+import {
+	quickGenerateGroups as quickGenerateGroupsUseCase,
+	type QuickGenerateGroupsInput,
+	type QuickGenerateGroupsError
+} from '$lib/application/useCases/quickGenerateGroups';
+
+/**
+ * Quick-generate groups from a target group size.
+ * Composes candidate generation + scenario persistence for the Start Session flow.
+ */
+export async function quickGenerateGroups(
+	env: InMemoryEnvironment,
+	input: QuickGenerateGroupsInput
+): Promise<Result<import('$lib/domain').Scenario, QuickGenerateGroupsError>> {
+	return quickGenerateGroupsUseCase(
+		{
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo,
+			preferenceRepo: env.preferenceRepo,
+			scenarioRepo: env.scenarioRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock,
+			groupingAlgorithm: env.groupingAlgorithm
+		},
+		input
+	);
+}
+
+// Re-export quick grouping types
+export type { QuickGenerateGroupsInput, QuickGenerateGroupsError };
+
 export async function createScenarioFromCandidate(
 	env: InMemoryEnvironment,
 	input: CreateScenarioFromGroupsInput
@@ -537,7 +572,8 @@ export async function listActivities(
 		{
 			programRepo: env.programRepo,
 			poolRepo: env.poolRepo,
-			scenarioRepo: env.scenarioRepo
+			scenarioRepo: env.scenarioRepo,
+			sessionRepo: env.sessionRepo
 		},
 		{ userId }
 	);
@@ -869,6 +905,19 @@ import {
 	type GetStudentPlacementHistoryInput,
 	type StudentPlacementHistoryResult
 } from '$lib/application/useCases/getStudentPlacementHistory';
+import {
+	getActiveSession as getActiveSessionUseCase,
+	type GetActiveSessionInput
+} from '$lib/application/useCases/getActiveSession';
+import {
+	endSession as endSessionUseCase,
+	type EndSessionInput
+} from '$lib/application/useCases/endSession';
+import {
+	showToClass as showToClassUseCase,
+	type ShowToClassInput,
+	type ShowToClassError
+} from '$lib/application/useCases/showToClass';
 import type { Session } from '$lib/domain';
 
 /**
@@ -942,6 +991,59 @@ export async function getStudentPlacementHistory(
 	);
 }
 
+/**
+ * Get the most recent PUBLISHED session for a program, or null.
+ */
+export async function getActiveSession(
+	env: InMemoryEnvironment,
+	input: GetActiveSessionInput
+): Promise<Result<Session | null, never>> {
+	return getActiveSessionUseCase(
+		{
+			sessionRepo: env.sessionRepo
+		},
+		input
+	);
+}
+
+/**
+ * Archive all PUBLISHED sessions for a program.
+ * Returns the number of sessions archived.
+ */
+export async function endSession(
+	env: InMemoryEnvironment,
+	input: EndSessionInput
+): Promise<Result<number, never>> {
+	return endSessionUseCase(
+		{
+			sessionRepo: env.sessionRepo
+		},
+		input
+	);
+}
+
+/**
+ * Show groups to class — archives existing sessions, creates a PUBLISHED
+ * session, and creates Placement records in a single atomic operation.
+ */
+export async function showToClass(
+	env: InMemoryEnvironment,
+	input: ShowToClassInput
+): Promise<Result<Session, ShowToClassError>> {
+	return showToClassUseCase(
+		{
+			programRepo: env.programRepo,
+			sessionRepo: env.sessionRepo,
+			scenarioRepo: env.scenarioRepo,
+			preferenceRepo: env.preferenceRepo,
+			placementRepo: env.placementRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock
+		},
+		input
+	);
+}
+
 // Re-export session types
 export type {
 	CreateSessionInput,
@@ -949,7 +1051,11 @@ export type {
 	ListSessionsInput,
 	PublishSessionInput,
 	PublishSessionError,
-	StudentPlacementHistoryResult
+	ShowToClassInput,
+	ShowToClassError,
+	StudentPlacementHistoryResult,
+	GetActiveSessionInput,
+	EndSessionInput
 };
 
 // =============================================================================
@@ -1011,4 +1117,339 @@ export type {
 	RemoveStudentFromPoolInput,
 	RemoveStudentFromPoolError,
 	RemoveStudentFromPoolResult
+};
+
+// =============================================================================
+// Observation Use Cases
+// =============================================================================
+
+import {
+	createObservation as createObservationUseCase,
+	type CreateObservationInput,
+	type CreateObservationError
+} from '$lib/application/useCases/createObservation';
+import {
+	listObservationsByProgram as listObservationsByProgramUseCase,
+	listObservationsBySession as listObservationsBySessionUseCase,
+	listObservationsByGroup as listObservationsByGroupUseCase,
+	type ListObservationsByProgramInput,
+	type ListObservationsBySessionInput,
+	type ListObservationsByGroupInput,
+	type ObservationListResult
+} from '$lib/application/useCases/listObservations';
+
+/**
+ * Create a new observation for a group.
+ */
+export async function createObservation(
+	env: InMemoryEnvironment,
+	input: CreateObservationInput
+): Promise<Result<import('$lib/domain').Observation, CreateObservationError>> {
+	return createObservationUseCase(
+		{
+			observationRepo: env.observationRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock
+		},
+		input
+	);
+}
+
+/**
+ * List all observations for a program.
+ */
+export async function listObservationsByProgram(
+	env: InMemoryEnvironment,
+	input: ListObservationsByProgramInput
+): Promise<Result<ObservationListResult, never>> {
+	return listObservationsByProgramUseCase(
+		{
+			observationRepo: env.observationRepo
+		},
+		input
+	);
+}
+
+/**
+ * List all observations for a session.
+ */
+export async function listObservationsBySession(
+	env: InMemoryEnvironment,
+	input: ListObservationsBySessionInput
+): Promise<Result<ObservationListResult, never>> {
+	return listObservationsBySessionUseCase(
+		{
+			observationRepo: env.observationRepo
+		},
+		input
+	);
+}
+
+/**
+ * List all observations for a specific group.
+ */
+export async function listObservationsByGroup(
+	env: InMemoryEnvironment,
+	input: ListObservationsByGroupInput
+): Promise<Result<ObservationListResult, never>> {
+	return listObservationsByGroupUseCase(
+		{
+			observationRepo: env.observationRepo
+		},
+		input
+	);
+}
+
+// Re-export observation types
+export type {
+	CreateObservationInput,
+	CreateObservationError,
+	ListObservationsByProgramInput,
+	ListObservationsBySessionInput,
+	ListObservationsByGroupInput,
+	ObservationListResult
+};
+
+// =============================================================================
+// Pairing History Use Cases
+// =============================================================================
+
+import {
+	getPairingHistory as getPairingHistoryUseCase,
+	type GetPairingHistoryInput,
+	type PairingHistoryResult
+} from '$lib/application/useCases/getPairingHistory';
+
+/**
+ * Get the history of how many times two students have been grouped together.
+ */
+export async function getPairingHistory(
+	env: InMemoryEnvironment,
+	input: GetPairingHistoryInput
+): Promise<Result<PairingHistoryResult, never>> {
+	return getPairingHistoryUseCase(
+		{
+			placementRepo: env.placementRepo,
+			sessionRepo: env.sessionRepo
+		},
+		input
+	);
+}
+
+// Re-export pairing history types
+export type { GetPairingHistoryInput, PairingHistoryResult };
+
+// =============================================================================
+// Analytics Dashboard Use Cases
+// =============================================================================
+
+import {
+	getProgramPairingStats as getProgramPairingStatsUseCase,
+	type GetProgramPairingStatsInput,
+	type ProgramPairingStatsResult,
+	type PairingStat
+} from '$lib/application/useCases/getProgramPairingStats';
+import {
+	getObservationSummary as getObservationSummaryUseCase,
+	type GetObservationSummaryInput,
+	type ObservationSummaryResult
+} from '$lib/application/useCases/getObservationSummary';
+import {
+	listStudentStats as listStudentStatsUseCase,
+	type ListStudentStatsInput,
+	type ListStudentStatsResult
+} from '$lib/application/useCases/listStudentStats';
+
+/**
+ * Get pairing frequency statistics for all student pairs in a program.
+ */
+export async function getProgramPairingStats(
+	env: InMemoryEnvironment,
+	input: GetProgramPairingStatsInput
+): Promise<Result<ProgramPairingStatsResult, never>> {
+	return getProgramPairingStatsUseCase(
+		{
+			placementRepo: env.placementRepo,
+			sessionRepo: env.sessionRepo,
+			studentRepo: env.studentRepo
+		},
+		input
+	);
+}
+
+/**
+ * Get an aggregated summary of observations for a program.
+ */
+export async function getObservationSummary(
+	env: InMemoryEnvironment,
+	input: GetObservationSummaryInput
+): Promise<Result<ObservationSummaryResult, never>> {
+	return getObservationSummaryUseCase(
+		{
+			observationRepo: env.observationRepo
+		},
+		input
+	);
+}
+
+/**
+ * Get aggregated placement statistics for all students in a program.
+ */
+export async function listStudentStats(
+	env: InMemoryEnvironment,
+	input: ListStudentStatsInput
+): Promise<Result<ListStudentStatsResult, never>> {
+	return listStudentStatsUseCase(
+		{
+			placementRepo: env.placementRepo,
+			sessionRepo: env.sessionRepo,
+			studentRepo: env.studentRepo,
+			poolRepo: env.poolRepo,
+			programRepo: env.programRepo
+		},
+		input
+	);
+}
+
+// Re-export analytics types
+export type {
+	GetProgramPairingStatsInput,
+	ProgramPairingStatsResult,
+	PairingStat,
+	GetObservationSummaryInput,
+	ObservationSummaryResult,
+	ListStudentStatsInput,
+	ListStudentStatsResult
+};
+
+// =============================================================================
+// Student Identity Use Cases
+// =============================================================================
+
+import {
+	findMatchingStudents as findMatchingStudentsUseCase,
+	matchImportedStudents as matchImportedStudentsUseCase,
+	type FindMatchingStudentsInput,
+	type MatchCandidate,
+	type MatchImportedStudentsInput,
+	type MatchImportedStudentsResult
+} from '$lib/application/useCases/findMatchingStudents';
+import {
+	createOrLinkStudent as createOrLinkStudentUseCase,
+	batchCreateOrLinkStudents as batchCreateOrLinkStudentsUseCase,
+	type CreateOrLinkStudentInput,
+	type CreateOrLinkStudentResult,
+	type CreateOrLinkStudentError,
+	type BatchCreateOrLinkInput,
+	type BatchCreateOrLinkResult
+} from '$lib/application/useCases/createOrLinkStudent';
+import {
+	getStudentProfile as getStudentProfileUseCase,
+	type GetStudentProfileInput,
+	type StudentProfile,
+	type GetStudentProfileError
+} from '$lib/application/useCases/getStudentProfile';
+
+/**
+ * Find matching student identities for an imported student name.
+ */
+export async function findMatchingStudents(
+	env: InMemoryEnvironment,
+	input: FindMatchingStudentsInput
+): Promise<Result<MatchCandidate[], never>> {
+	return findMatchingStudentsUseCase(
+		{
+			studentIdentityRepo: env.studentIdentityRepo
+		},
+		input
+	);
+}
+
+/**
+ * Match a batch of imported students against existing identities.
+ */
+export async function matchImportedStudents(
+	env: InMemoryEnvironment,
+	input: MatchImportedStudentsInput
+): Promise<Result<MatchImportedStudentsResult, never>> {
+	return matchImportedStudentsUseCase(
+		{
+			studentIdentityRepo: env.studentIdentityRepo
+		},
+		input
+	);
+}
+
+/**
+ * Create a student and either link to existing identity or create new one.
+ */
+export async function createOrLinkStudent(
+	env: InMemoryEnvironment,
+	input: CreateOrLinkStudentInput
+): Promise<Result<CreateOrLinkStudentResult, CreateOrLinkStudentError>> {
+	return createOrLinkStudentUseCase(
+		{
+			studentRepo: env.studentRepo,
+			studentIdentityRepo: env.studentIdentityRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock
+		},
+		input
+	);
+}
+
+/**
+ * Process a batch of student link/create decisions.
+ */
+export async function batchCreateOrLinkStudents(
+	env: InMemoryEnvironment,
+	input: BatchCreateOrLinkInput
+): Promise<Result<BatchCreateOrLinkResult, never>> {
+	return batchCreateOrLinkStudentsUseCase(
+		{
+			studentRepo: env.studentRepo,
+			studentIdentityRepo: env.studentIdentityRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock
+		},
+		input
+	);
+}
+
+/**
+ * Get a comprehensive profile for a student identity.
+ */
+export async function getStudentProfile(
+	env: InMemoryEnvironment,
+	input: GetStudentProfileInput
+): Promise<Result<StudentProfile, GetStudentProfileError>> {
+	return getStudentProfileUseCase(
+		{
+			studentRepo: env.studentRepo,
+			studentIdentityRepo: env.studentIdentityRepo,
+			placementRepo: env.placementRepo,
+			sessionRepo: env.sessionRepo,
+			preferenceRepo: env.preferenceRepo,
+			observationRepo: env.observationRepo,
+			poolRepo: env.poolRepo,
+			programRepo: env.programRepo
+		},
+		input
+	);
+}
+
+// Re-export student identity types
+export type {
+	FindMatchingStudentsInput,
+	MatchCandidate,
+	MatchImportedStudentsInput,
+	MatchImportedStudentsResult,
+	CreateOrLinkStudentInput,
+	CreateOrLinkStudentResult,
+	CreateOrLinkStudentError,
+	BatchCreateOrLinkInput,
+	BatchCreateOrLinkResult,
+	GetStudentProfileInput,
+	StudentProfile,
+	GetStudentProfileError
 };

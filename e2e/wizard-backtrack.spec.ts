@@ -72,15 +72,17 @@ Dave Brown\tdave@example.com\t5`;
 	await expect(page.getByRole('heading', { name: /Step 3 of 3/i })).toBeVisible();
 
 	// Click to edit activity name, then fill
-	await page.getByRole('button', { name: /Activity Name/i }).click();
+	// Edit the auto-generated name
+	await page.getByRole('button', { name: /^Edit$/ }).click();
 	await page.locator('#activity-name').fill(activityName);
+	await page.getByRole('button', { name: /^Save$/ }).click();
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 
 	// Verify: landed on workspace
-	await expect(page.getByRole('button', { name: activityName })).toBeVisible();
+	await expect(page.getByText(activityName)).toBeVisible();
 
 	// Verify the specific groups we defined are present
 	await expect(page.getByText('Team Alpha')).toBeVisible();
@@ -140,13 +142,15 @@ Dave Brown\tdave@example.com\t5`;
 	await expect(page.getByRole('heading', { name: /Step 3 of 3/i })).toBeVisible();
 
 	// Click to edit activity name, then fill
-	await page.getByRole('button', { name: /Activity Name/i }).click();
+	// Edit the auto-generated name
+	await page.getByRole('button', { name: /^Edit$/ }).click();
 	await page.locator('#activity-name').fill(activityName);
+	await page.getByRole('button', { name: /^Save$/ }).click();
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 
 	// Verify: landed on workspace
-	await expect(page.getByRole('button', { name: activityName })).toBeVisible();
+	await expect(page.getByText(activityName)).toBeVisible();
 });

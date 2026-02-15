@@ -23,7 +23,8 @@
 		onKeyboardPickUp,
 		onKeyboardDrop,
 		onKeyboardCancel,
-		onKeyboardMove
+		onKeyboardMove,
+		onStudentClick
 	} = $props<{
 		student: Student;
 		container: string;
@@ -44,6 +45,7 @@
 		onKeyboardDrop?: () => void;
 		onKeyboardCancel?: () => void;
 		onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
+		onStudentClick?: (studentId: string) => void;
 	}>();
 
 	const fullName = `${student.firstName} ${student.lastName ?? ''}`.trim() || student.id;
@@ -101,7 +103,11 @@
 		onHoverEnd?.();
 	}
 
+	// Track whether a drag occurred to distinguish click from drag
+	let didDrag = $state(false);
+
 	function handleDragStartInternal() {
+		didDrag = true;
 		// Cancel any pending hover when drag starts
 		if (hoverTimeout) {
 			clearTimeout(hoverTimeout);
@@ -109,6 +115,15 @@
 		}
 		onHoverEnd?.();
 		onDragStart?.();
+	}
+
+	function handleClick() {
+		if (didDrag) {
+			didDrag = false;
+			return;
+		}
+		if (isPickedUp) return;
+		onStudentClick?.(student.id);
 	}
 
 	function handleEdgeChange(edge: Edge | null) {
@@ -179,6 +194,7 @@
 	onmouseenter={handleMouseEnter}
 	onmouseleave={handleMouseLeave}
 	onkeydown={handleKeydown}
+	onclick={handleClick}
 >
 	<!-- Drag handle grip icon -->
 	<svg

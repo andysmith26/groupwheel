@@ -5,7 +5,7 @@
  * All operations work locally first, then queue for server sync.
  */
 
-import type { StudentRepository } from '$lib/application/ports';
+import type { StudentRepository, StudentSearchQuery } from '$lib/application/ports';
 import type { SyncService } from '$lib/application/ports';
 import type { Student } from '$lib/domain';
 
@@ -31,5 +31,17 @@ export class SyncedStudentRepository implements StudentRepository {
 				await this.sync.queueForSync('students', 'save', student.id);
 			}
 		}
+	}
+
+	async listByCanonicalId(canonicalId: string): Promise<Student[]> {
+		return this.local.listByCanonicalId(canonicalId);
+	}
+
+	async searchByName(query: StudentSearchQuery): Promise<Student[]> {
+		return this.local.searchByName(query);
+	}
+
+	async listAll(): Promise<Student[]> {
+		return this.local.listAll();
 	}
 }

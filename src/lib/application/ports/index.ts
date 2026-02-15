@@ -9,6 +9,7 @@
 
 // Repository ports
 export * from './StudentRepository';
+export * from './StudentIdentityRepository';
 export * from './StaffRepository';
 export * from './PoolRepository';
 export * from './ProgramRepository';
@@ -17,6 +18,7 @@ export * from './SessionRepository';
 export * from './PlacementRepository';
 export * from './PreferenceRepository';
 export * from './GroupTemplateRepository';
+export * from './ObservationRepository';
 
 // Service ports
 export * from './IdGenerator';

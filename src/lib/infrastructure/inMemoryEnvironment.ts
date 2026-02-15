@@ -1,5 +1,6 @@
 import type {
 	StudentRepository,
+	StudentIdentityRepository,
 	StaffRepository,
 	PoolRepository,
 	ProgramRepository,
@@ -8,6 +9,7 @@ import type {
 	PlacementRepository,
 	PreferenceRepository,
 	GroupTemplateRepository,
+	ObservationRepository,
 	IdGenerator,
 	Clock,
 	GroupingAlgorithm,
@@ -18,13 +20,15 @@ import type {
 } from '$lib/application/ports';
 import {
 	InMemoryStudentRepository,
+	InMemoryStudentIdentityRepository,
 	InMemoryStaffRepository,
 	InMemoryPoolRepository,
 	InMemoryProgramRepository,
 	InMemoryScenarioRepository,
 	InMemorySessionRepository,
 	InMemoryPlacementRepository,
-	InMemoryPreferenceRepository
+	InMemoryPreferenceRepository,
+	InMemoryObservationRepository
 } from '$lib/infrastructure/repositories/inMemory';
 import { InMemoryGroupTemplateRepository } from '$lib/infrastructure/repositories/inMemory/InMemoryGroupTemplateRepository';
 import {
@@ -35,8 +39,10 @@ import {
 	IndexedDbProgramRepository,
 	IndexedDbPoolRepository,
 	IndexedDbStudentRepository,
+	IndexedDbStudentIdentityRepository,
 	IndexedDbStaffRepository,
-	IndexedDbPreferenceRepository
+	IndexedDbPreferenceRepository,
+	IndexedDbObservationRepository
 } from '$lib/infrastructure/repositories/indexedDb';
 import {
 	SyncedStudentRepository,
@@ -67,7 +73,8 @@ import type {
 	Student,
 	Staff,
 	Preference,
-	GroupTemplate
+	GroupTemplate,
+	Observation
 } from '$lib/domain';
 /**
  * The full set of dependencies needed by MVP use cases, backed by in-memory implementations.
@@ -78,6 +85,7 @@ import type {
  */
 export interface InMemoryEnvironment {
 	studentRepo: StudentRepository;
+	studentIdentityRepo: StudentIdentityRepository;
 	staffRepo: StaffRepository;
 	poolRepo: PoolRepository;
 	programRepo: ProgramRepository;
@@ -86,6 +94,7 @@ export interface InMemoryEnvironment {
 	placementRepo: PlacementRepository;
 	preferenceRepo: PreferenceRepository;
 	groupTemplateRepo: GroupTemplateRepository;
+	observationRepo: ObservationRepository;
 	idGenerator: IdGenerator;
 	clock: Clock;
 	groupingAlgorithm: GroupingAlgorithm;
@@ -154,6 +163,7 @@ export function createInMemoryEnvironment(
 		placements?: Placement[];
 		preferences?: Preference[];
 		groupTemplates?: GroupTemplate[];
+		observations?: Observation[];
 	},
 	options?: CreateEnvironmentOptions
 ): InMemoryEnvironment {
@@ -199,6 +209,12 @@ export function createInMemoryEnvironment(
 	const basePlacementRepo: PlacementRepository = useIndexedDb
 		? new IndexedDbPlacementRepository()
 		: new InMemoryPlacementRepository(seed?.placements ?? []);
+	const baseObservationRepo: ObservationRepository = useIndexedDb
+		? new IndexedDbObservationRepository()
+		: new InMemoryObservationRepository(seed?.observations ?? []);
+	const baseStudentIdentityRepo: StudentIdentityRepository = useIndexedDb
+		? new IndexedDbStudentIdentityRepository()
+		: new InMemoryStudentIdentityRepository();
 
 	// Wrap with sync capability if syncService is provided
 	const studentRepo: StudentRepository = syncService
@@ -229,6 +245,12 @@ export function createInMemoryEnvironment(
 		? new SyncedPlacementRepository(basePlacementRepo, syncService)
 		: basePlacementRepo;
 
+	// Observation repo doesn't have sync wrapper yet - use base directly
+	const observationRepo: ObservationRepository = baseObservationRepo;
+
+	// StudentIdentity repo doesn't have sync wrapper yet - use base directly
+	const studentIdentityRepo: StudentIdentityRepository = baseStudentIdentityRepo;
+
 	const idGenerator = new UuidIdGenerator();
 	const clock = new SystemClock();
 	const groupingAlgorithm = new MultiAlgorithmGroupingAlgorithm(
@@ -236,7 +258,7 @@ export function createInMemoryEnvironment(
 			{
 				id: 'balanced',
 				label: 'Balanced',
-				algorithm: new BalancedGroupingAlgorithm(studentRepo, preferenceRepo, idGenerator)
+				algorithm: new BalancedGroupingAlgorithm(studentRepo, preferenceRepo, idGenerator, placementRepo)
 			},
 			{
 				id: 'first-choice-only',
@@ -274,6 +296,7 @@ export function createInMemoryEnvironment(
 
 	return {
 		studentRepo,
+		studentIdentityRepo,
 		staffRepo,
 		poolRepo,
 		programRepo,
@@ -282,6 +305,7 @@ export function createInMemoryEnvironment(
 		placementRepo,
 		preferenceRepo,
 		groupTemplateRepo,
+		observationRepo,
 		idGenerator,
 		clock,
 		groupingAlgorithm,

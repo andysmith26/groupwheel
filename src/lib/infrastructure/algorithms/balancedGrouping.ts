@@ -2,10 +2,13 @@ import type {
 	GroupingAlgorithm,
 	StudentRepository,
 	PreferenceRepository,
+	PlacementRepository,
 	IdGenerator
 } from '$lib/application/ports';
 import { assignBalanced } from '$lib/algorithms/balanced-assignment';
-import type { Student, Group, StudentPreference } from '$lib/domain';
+import { buildAvoidPairsFromPreferences, buildRecentGroupmatesMap } from '$lib/algorithms/buildConstraints';
+import type { GroupingConstraints } from '$lib/algorithms/types';
+import type { Student, Group, StudentPreference, Preference } from '$lib/domain';
 /**
  * Configuration options for the balanced grouping algorithm.
  */
@@ -31,6 +34,19 @@ export interface BalancedGroupingConfig {
 	 * Different seeds produce different grouping results.
 	 */
 	seed?: number;
+
+	/**
+	 * If true, enforce avoidStudentIds from preferences as "never together" constraints.
+	 * Default: true
+	 */
+	enforceAvoidPairs?: boolean;
+
+	/**
+	 * If true, avoid placing students with the same groupmates from their most recent session.
+	 * Requires placementRepo to be provided.
+	 * Default: false
+	 */
+	avoidRecentGroupmates?: boolean;
 }
 
 /**
@@ -47,7 +63,8 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 	constructor(
 		private studentRepo: StudentRepository,
 		private preferenceRepo: PreferenceRepository,
-		private idGenerator: IdGenerator
+		private idGenerator: IdGenerator,
+		private placementRepo?: PlacementRepository
 	) {}
 
 	async generateGroups(params: {
@@ -127,13 +144,21 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 				groups = this.generateDefaultGroups(params.studentIds.length, config);
 			}
 
+			// Build constraints from preferences and placement history
+			const constraints = await this.buildConstraints(
+				preferences,
+				params.studentIds,
+				config
+			);
+
 			// Call balanced assignment algorithm
 			const result = assignBalanced({
 				groups,
 				studentOrder,
 				preferencesById,
 				studentsById,
-				seed: config.seed
+				seed: config.seed,
+				constraints
 			});
 
 			// Check for unassigned students
@@ -208,6 +233,58 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 		}
 
 		return groups;
+	}
+
+	/**
+	 * Build grouping constraints from preferences and placement history.
+	 */
+	private async buildConstraints(
+		preferences: Preference[],
+		studentIds: string[],
+		config: BalancedGroupingConfig
+	): Promise<GroupingConstraints | undefined> {
+		const enforceAvoidPairs = config.enforceAvoidPairs !== false; // Default true
+		const avoidRecentGroupmates = config.avoidRecentGroupmates === true; // Default false
+
+		// If no constraints are enabled, return undefined
+		if (!enforceAvoidPairs && !avoidRecentGroupmates) {
+			return undefined;
+		}
+
+		const constraints: GroupingConstraints = {};
+
+		// Build avoid pairs from preferences
+		if (enforceAvoidPairs) {
+			const avoidPairs = buildAvoidPairsFromPreferences(preferences);
+			if (avoidPairs.length > 0) {
+				constraints.avoidPairs = avoidPairs;
+			}
+		}
+
+		// Build recent groupmates map from placement history
+		if (avoidRecentGroupmates && this.placementRepo) {
+			// Fetch all placements for all students
+			const allPlacements = await Promise.all(
+				studentIds.map((id) => this.placementRepo!.listByStudentId(id))
+			);
+			const flatPlacements = allPlacements.flat();
+
+			if (flatPlacements.length > 0) {
+				constraints.recentGroupmates = buildRecentGroupmatesMap(
+					flatPlacements,
+					studentIds,
+					true // Only consider most recent session
+				);
+				constraints.avoidRecentGroupmates = true;
+			}
+		}
+
+		// Return constraints only if there's something to enforce
+		if (constraints.avoidPairs || constraints.recentGroupmates) {
+			return constraints;
+		}
+
+		return undefined;
 	}
 }
 

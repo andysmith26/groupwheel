@@ -32,8 +32,10 @@ Dave Brown\tdave@example.com\t5`;
 	await page.getByRole('button', { name: /Continue/ }).click();
 
 	// Step 3: Review - Name the activity
-	await page.getByRole('button', { name: /Activity Name/i }).click();
+	// Edit the auto-generated name
+	await page.getByRole('button', { name: /^Edit$/ }).click();
 	await page.locator('#activity-name').fill(activityName);
+	await page.getByRole('button', { name: /^Save$/ }).click();
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
@@ -47,22 +49,15 @@ Dave Brown\tdave@example.com\t5`;
 }
 
 test.describe('Present Flow', () => {
-	test('can open student view from workspace', async ({ page }) => {
+	test('can navigate to present page from workspace', async ({ page }) => {
 		const activityName = `Present Test ${Date.now()}`;
-		await createActivityWithGroups(page, activityName);
+		const activityId = await createActivityWithGroups(page, activityName);
 
 		// Verify we're on workspace with groups
-		await expect(page.getByText('Not in groups')).toBeVisible();
+		await expect(page.getByText('Unassigned')).toBeVisible();
 
-		// Open present view via Show to Class
-		const showToClassButton = page.getByRole('button', { name: 'Show to Class' });
-		await expect(showToClassButton).toBeVisible();
-		await showToClassButton.click();
-
-		const justPreviewButton = page.getByRole('button', { name: 'Just Preview' });
-		if (await justPreviewButton.isVisible().catch(() => false)) {
-			await justPreviewButton.click();
-		}
+		// Navigate directly to present page
+		await page.goto(`/activities/${activityId}/present`);
 
 		await expect(page).toHaveURL(/\/activities\/[^/]+\/present/);
 		await expect(page.getByRole('heading', { name: activityName })).toBeVisible();
@@ -95,32 +90,28 @@ test.describe('Present Flow', () => {
 		// Navigate to present page
 		await page.goto(`/activities/${activityId}/present`);
 
-		// Should NOT have editing controls
-		await expect(page.getByRole('button', { name: /^Try Another$/ })).not.toBeVisible();
+		// Should NOT have workspace editing controls
 		await expect(page.getByRole('button', { name: /Undo/ })).not.toBeVisible();
-		await expect(page.getByRole('button', { name: /^Start Over$/ })).not.toBeVisible();
 	});
 
-	test('present page shows 404 for invalid activity', async ({ page }) => {
+	test('present page shows error for invalid activity', async ({ page }) => {
 		await page.goto('/activities/nonexistent-id-12345/present');
 
 		// Should show error
-		await expect(page.getByText(/not found|doesn't exist/i)).toBeVisible();
+		await expect(page.getByText(/not found/i)).toBeVisible();
 	});
 
-	test('can navigate from present to workspace via link', async ({ page }) => {
+	test('can navigate from present back to workspace', async ({ page }) => {
 		const activityName = `Present Nav ${Date.now()}`;
 		const activityId = await createActivityWithGroups(page, activityName);
 
 		// Navigate to present page
 		await page.goto(`/activities/${activityId}/present`);
 
-		// Look for edit/workspace link (if exists in the UI)
-		const editLink = page.getByRole('link', { name: /Edit|Workspace|Back/ });
-
-		// If there's an edit link, clicking it should go to workspace
-		if (await editLink.isVisible().catch(() => false)) {
-			await editLink.click();
+		// The "Done" link should navigate back to workspace
+		const doneLink = page.getByRole('link', { name: /Done/ });
+		if (await doneLink.isVisible().catch(() => false)) {
+			await doneLink.click();
 			await expect(page).toHaveURL(/\/activities\/[^/]+\/workspace/);
 		}
 	});

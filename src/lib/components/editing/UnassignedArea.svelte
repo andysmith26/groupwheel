@@ -21,6 +21,7 @@
 		onKeyboardDrop,
 		onKeyboardCancel,
 		onKeyboardMove,
+		onStudentClick,
 		onAlphabetize,
 		vertical = false
 	} = $props<{
@@ -40,6 +41,7 @@
 		onKeyboardDrop?: () => void;
 		onKeyboardCancel?: () => void;
 		onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
+		onStudentClick?: (studentId: string) => void;
 		onAlphabetize?: () => void;
 		vertical?: boolean;
 	}>();
@@ -173,6 +175,7 @@
 						{onKeyboardDrop}
 						{onKeyboardCancel}
 						{onKeyboardMove}
+						{onStudentClick}
 					/>
 
 					<!-- Drop indicator after this item (only for last item, vertical mode only) -->

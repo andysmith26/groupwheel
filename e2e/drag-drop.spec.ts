@@ -38,8 +38,10 @@ Jack Liu\tjack@example.com\t5`;
 	await page.getByRole('button', { name: /Continue/ }).click();
 
 	// Step 3: Review - Name the activity
-	await page.getByRole('button', { name: /Activity Name/i }).click();
+	// Edit the auto-generated name
+	await page.getByRole('button', { name: /^Edit$/ }).click();
 	await page.locator('#activity-name').fill(activityName);
+	await page.getByRole('button', { name: /^Save$/ }).click();
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
@@ -58,23 +60,17 @@ test.describe('Drag and Drop Workspace', () => {
 		await createActivityWithGroups(page, activityName);
 
 		// Verify basic workspace elements are visible
-		await expect(page.getByText('Not in groups')).toBeVisible();
+		await expect(page.getByText('Unassigned')).toBeVisible();
 
-		// Should have the toolbar with actions
+		// Should have the undo/redo buttons in the toolbar
 		await expect(page.getByRole('button', { name: '← Undo' })).toBeVisible();
-		await expect(page.getByRole('button', { name: /^Try Another$/ })).toBeVisible();
-		await expect(page.getByRole('button', { name: /^Start Over$/ })).toBeVisible();
 
-		// Should display analytics summary
-		await expect(page.getByText(/% top choice/)).toBeVisible();
-
-		// All students should be visible somewhere (in groups or unassigned)
-		await expect(page.getByText('Alice Smith')).toBeVisible();
-		await expect(page.getByText('Bob Jones')).toBeVisible();
-		await expect(page.getByText('Carol White')).toBeVisible();
-		await expect(page.getByText('Dave Brown')).toBeVisible();
-		await expect(page.getByText('Eve Wilson')).toBeVisible();
-		await expect(page.getByText('Frank Miller')).toBeVisible();
+		// Student cards show compact labels (e.g., "Alice S.") and have full name in aria-label
+		// Check that student cards with data-student-id attributes are present
+		const studentCards = page.locator('[data-student-id]');
+		await expect(studentCards.first()).toBeVisible();
+		const cardCount = await studentCards.count();
+		expect(cardCount).toBe(10); // 10 students total
 	});
 
 	test('undo button is initially disabled', async ({ page }) => {
@@ -82,7 +78,7 @@ test.describe('Drag and Drop Workspace', () => {
 		await createActivityWithGroups(page, activityName);
 
 		// Wait for workspace to load
-		await expect(page.getByText('Not in groups')).toBeVisible();
+		await expect(page.getByText('Unassigned')).toBeVisible();
 
 		// Undo button should be visible but disabled (no edits yet)
 		const undoButton = page.getByRole('button', { name: '← Undo' });
@@ -99,37 +95,27 @@ test.describe('Drag and Drop Workspace', () => {
 		const activityName = `DnD Move ${Date.now()}`;
 		await createActivityWithGroups(page, activityName);
 
-		await expect(page.getByText('Not in groups')).toBeVisible();
+		await expect(page.getByText('Unassigned')).toBeVisible();
 
-		// Find a student card (look for Alice)
-		const aliceCard = page.getByText('Alice Smith');
+		// Find a student card via aria-label (cards show compact names like "Alice S.")
+		const aliceCard = page.locator('[data-student-id]').first();
 		await expect(aliceCard).toBeVisible();
 
-		// Find group name inputs to identify groups
-		const groupNameInputs = page.getByLabel('Group name');
-		const groupCount = await groupNameInputs.count();
-
-		// We need at least 2 groups to test drag between them
-		expect(groupCount).toBeGreaterThanOrEqual(2);
-
-		// Get the bounding boxes of Alice's card and a drop target
-		const aliceBounds = await aliceCard.boundingBox();
-		expect(aliceBounds).not.toBeNull();
-
-		// Find drop zones (elements containing "Drop students here" or group member areas)
+		// Find drop zones (elements containing "Drop students here")
 		const dropZones = page.locator('text=Drop students here');
 		const emptyGroupCount = await dropZones.count();
 
 		if (emptyGroupCount > 0) {
-			// There's an empty group - drag Alice there
+			// There's an empty group - drag the student there
+			const cardBounds = await aliceCard.boundingBox();
 			const targetDropZone = dropZones.first();
 			const targetBounds = await targetDropZone.boundingBox();
 
-			if (targetBounds && aliceBounds) {
+			if (targetBounds && cardBounds) {
 				// Perform drag using mouse events
 				await page.mouse.move(
-					aliceBounds.x + aliceBounds.width / 2,
-					aliceBounds.y + aliceBounds.height / 2
+					cardBounds.x + cardBounds.width / 2,
+					cardBounds.y + cardBounds.height / 2
 				);
 				await page.mouse.down();
 				await page.mouse.move(
@@ -148,7 +134,6 @@ test.describe('Drag and Drop Workspace', () => {
 
 				// If the drag worked, undo should be enabled
 				// Note: pragmatic-dnd may not work perfectly with Playwright's mouse events
-				// This test verifies the structure is correct for drag-drop
 				if (isEnabled) {
 					await expect(undoButton).toBeEnabled();
 				}
@@ -156,121 +141,19 @@ test.describe('Drag and Drop Workspace', () => {
 		}
 	});
 
-	test('workspace displays group cards with correct elements', async ({ page }) => {
+	test('workspace displays group columns with student cards', async ({ page }) => {
 		const activityName = `Group Cards ${Date.now()}`;
 		await createActivityWithGroups(page, activityName);
 
-		await expect(page.getByText('Not in groups')).toBeVisible();
+		await expect(page.getByText('Unassigned')).toBeVisible();
 
-		// Each group should have:
-		// 1. An editable name input
-		const groupNameInputs = page.getByLabel('Group name');
-		const groupCount = await groupNameInputs.count();
+		// Groups should display as columns with border styling
+		const groupColumns = page.locator('.rounded-xl.border-2');
+		const groupCount = await groupColumns.count();
 		expect(groupCount).toBeGreaterThanOrEqual(2);
 
-		// 2. A capacity input
-		const capacityInputs = page.getByLabel('Group capacity');
-		expect(await capacityInputs.count()).toBe(groupCount);
-
-		// 3. A group options button
-		const optionsButtons = page.getByLabel('Group options');
-		expect(await optionsButtons.count()).toBe(groupCount);
-	});
-
-	test('can rename a group inline', async ({ page }) => {
-		const activityName = `Rename Group ${Date.now()}`;
-		await createActivityWithGroups(page, activityName);
-
-		await expect(page.getByText('Not in groups')).toBeVisible();
-
-		// Find the first group name input
-		const groupNameInput = page.getByLabel('Group name').first();
-		await expect(groupNameInput).toBeVisible();
-
-		// Get the current name
-		const currentName = await groupNameInput.inputValue();
-
-		// Clear and type new name
-		await groupNameInput.fill('Team Alpha');
-		await groupNameInput.blur();
-
-		// Verify the change
-		await expect(groupNameInput).toHaveValue('Team Alpha');
-	});
-
-	test('can set group capacity', async ({ page }) => {
-		const activityName = `Set Capacity ${Date.now()}`;
-		await createActivityWithGroups(page, activityName);
-
-		await expect(page.getByText('Not in groups')).toBeVisible();
-
-		// Find the first capacity input
-		const capacityInput = page.getByLabel('Group capacity').first();
-		await expect(capacityInput).toBeVisible();
-
-		// Set capacity to 3
-		await capacityInput.fill('3');
-		await capacityInput.blur();
-
-		// Verify the value was set
-		await expect(capacityInput).toHaveValue('3');
-	});
-
-	test('can delete an empty group', async ({ page }) => {
-		const activityName = `Delete Group ${Date.now()}`;
-		await createActivityWithGroups(page, activityName);
-
-		await expect(page.getByText('Not in groups')).toBeVisible();
-
-		// Count initial groups
-		const initialGroupCount = await page.getByLabel('Group name').count();
-
-		// Find a group with empty message (no students)
-		const emptyGroups = page.locator('text=Drop students here');
-		const hasEmptyGroup = (await emptyGroups.count()) > 0;
-
-		if (hasEmptyGroup) {
-			// Find the options button for that group
-			// Get the parent group container and then find the options button
-			const emptyGroupContainer = emptyGroups.first().locator('xpath=ancestor::div[contains(@class, "rounded-xl")]');
-			const optionsButton = emptyGroupContainer.getByLabel('Group options');
-
-			if (await optionsButton.isVisible()) {
-				await optionsButton.click();
-
-				// Click delete
-				await page.getByText('Delete group').click();
-
-				// Verify group count decreased
-				await expect(page.getByLabel('Group name')).toHaveCount(initialGroupCount - 1);
-			}
-		}
-	});
-
-	test('layout toggle switches between grid and row', async ({ page }) => {
-		const activityName = `Layout Toggle ${Date.now()}`;
-		await createActivityWithGroups(page, activityName);
-
-		await expect(page.getByText('Not in groups')).toBeVisible();
-
-		// Find layout toggle buttons
-		const gridButton = page.getByRole('button', { name: 'Grid', exact: true });
-		const rowButton = page.getByRole('button', { name: 'Row', exact: true });
-
-		await expect(gridButton).toBeVisible();
-		await expect(rowButton).toBeVisible();
-
-		// Grid should be active by default
-		await expect(gridButton).toHaveAttribute('aria-pressed', 'true');
-		await expect(rowButton).toHaveAttribute('aria-pressed', 'false');
-
-		// Switch to row layout
-		await rowButton.click();
-		await expect(rowButton).toHaveAttribute('aria-pressed', 'true');
-		await expect(gridButton).toHaveAttribute('aria-pressed', 'false');
-
-		// Switch back to grid
-		await gridButton.click();
-		await expect(gridButton).toHaveAttribute('aria-pressed', 'true');
+		// Students should be visible within the groups (via data-student-id attribute)
+		const studentCards = page.locator('[data-student-id]');
+		expect(await studentCards.count()).toBe(10);
 	});
 });

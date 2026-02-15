@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 /**
  * Helper to create an activity via the wizard and navigate to setup page.
- * Returns the activity URL path.
+ * The setup page redirects to /activities/[id] which serves as the hub.
  */
 async function createActivityAndGoToSetup(page: import('@playwright/test').Page, activityName: string) {
 	const rosterData = `name\tid\tgrade
@@ -31,21 +31,22 @@ Dave Brown\tdave@example.com\t5`;
 	await page.getByText('Just split students into groups').click();
 	await page.getByRole('button', { name: /Continue/ }).click();
 
-	// Step 3: Review - Name the activity (click button to edit, then fill)
-	await page.getByRole('button', { name: /Activity Name/i }).click();
+	// Step 3: Review - Edit the auto-generated name
+	await page.getByRole('button', { name: /^Edit$/ }).click();
 	await page.locator('#activity-name').fill(activityName);
+	await page.getByRole('button', { name: /^Save$/ }).click();
 	await Promise.all([
 		page.waitForURL(/\/activities\/[^/]+\/workspace$/),
 		page.getByRole('button', { name: /Create Groups/i }).click()
 	]);
 
-	// Extract activity ID from URL and navigate to setup
+	// Extract activity ID from URL and navigate to activity detail page (hub)
 	const url = page.url();
 	const match = url.match(/\/activities\/([^/]+)\/workspace/);
 	if (!match) throw new Error('Could not extract activity ID from URL');
 	const activityId = match[1];
 
-	await page.goto(`/activities/${activityId}/setup`);
+	await page.goto(`/activities/${activityId}`);
 	await expect(page.getByRole('heading', { name: activityName })).toBeVisible();
 
 	return activityId;
@@ -66,12 +67,12 @@ test.describe('Setup Page', () => {
 		// Click add student button
 		await page.getByRole('button', { name: '+ Add Student' }).click();
 
-		// Fill in the new student form
-		await page.getByLabel('First name').fill('Eve');
-		await page.getByLabel('Last name').fill('Wilson');
+		// Fill in the new student form (inputs use placeholders, not labels)
+		await page.getByPlaceholder('First name').fill('Eve');
+		await page.getByPlaceholder('Last name').fill('Wilson');
 
 		// Submit the form
-		await page.getByRole('button', { name: /Add$/ }).click();
+		await page.getByRole('button', { name: 'Add Student', exact: true }).click();
 
 		// Verify student was added
 		await expect(page.getByText('Eve Wilson')).toBeVisible();
@@ -89,20 +90,16 @@ test.describe('Setup Page', () => {
 		// Verify initial student count
 		await expect(studentsSectionToggle).toContainText('4 students');
 
-		// Find Alice and click remove button
-		const studentList = page.locator('.max-h-64');
-		const aliceRow = studentList.getByText('Alice Smith (Grade 5)', { exact: true }).locator('..');
-		await aliceRow.getByRole('button', { name: /Remove/ }).click();
+		// Find Alice and click remove button (aria-label includes grade)
+		const removeButton = page.getByRole('button', { name: /Remove Alice Smith/ });
+		await removeButton.click();
 
-		// Confirm removal if dialog appears
-		const confirmButton = page.getByRole('button', { name: /Confirm|Remove|Delete/ });
-		if (await confirmButton.isVisible({ timeout: 500 }).catch(() => false)) {
-			await confirmButton.click();
-		}
+		// Confirm removal in dialog
+		const confirmButton = page.getByRole('button', { name: 'Remove' }).last();
+		await confirmButton.click();
 
-		// Verify student was removed
-		// The removal dialog includes the student name; check within the list only.
-		await expect(studentList.getByText('Alice Smith (Grade 5)', { exact: true })).toHaveCount(0);
+		// Verify student was removed - wait for dialog to close, then check in the student list
+		await expect(page.locator('.max-h-64').getByText('Alice Smith')).not.toBeVisible();
 		await expect(studentsSectionToggle).toContainText('3 students');
 	});
 
@@ -132,7 +129,7 @@ test.describe('Setup Page', () => {
 		const activityName = `Setup Nav ${Date.now()}`;
 		const activityId = await createActivityAndGoToSetup(page, activityName);
 
-		// Click the "Edit Groups" button (visible when groups exist)
+		// Click the "Edit Groups" link (visible when groups exist)
 		await page.getByRole('link', { name: /Edit Groups/ }).click();
 
 		// Should navigate to workspace
@@ -140,12 +137,12 @@ test.describe('Setup Page', () => {
 	});
 
 	test('shows error for invalid activity ID', async ({ page }) => {
-		await page.goto('/activities/nonexistent-id-12345/setup');
+		await page.goto('/activities/nonexistent-id-12345');
 
 		// Should show error message
-		await expect(page.getByText(/not found|doesn't exist/i)).toBeVisible();
+		await expect(page.getByText(/not found/i)).toBeVisible();
 
 		// Should have link back to activities
-		await expect(page.getByRole('link', { name: 'Back to activities' })).toBeVisible();
+		await expect(page.getByText('Back to activities')).toBeVisible();
 	});
 });
