@@ -1,7 +1,7 @@
 # Plan: Migrate `scenarioEditingStore` to Svelte 5 Runes
 
 - Date: 2026-02-16
-- Status: In Progress (Phase 1 Complete)
+- Status: In Progress (Phases 1-2 Complete)
 - Scope: `src/lib/stores/scenarioEditingStore.ts` (+ adjacent call sites/tests only as needed)
 
 ## Goal
@@ -102,6 +102,8 @@ Exit criteria:
     - drag/reorder + unassigned ordering
     - retry/failure terminal state
     - public API surface used by call sites (`subscribe`, `initialize`, `dispatch`, `undo`, `redo`, `regenerate`, `destroy`, plus editing operations)
-- ⏳ Phase 2 not started
+- ✅ Phase 2 complete
+  - Replaced internal `writable` + `derived` mechanics with class-owned state and projected view adapter while preserving `Readable`-compatible `subscribe` semantics.
+  - Preserved debounce/save/retry/timer lifecycle behavior and existing public API.
 - ⏳ Phase 3 not started
 - ⏳ Phase 4 deferred (unchanged)

@@ -1,4 +1,4 @@
-import { derived, get, writable, type Readable } from 'svelte/store';
+import type { Readable } from 'svelte/store';
 import type {
 	Group,
 	Preference,
@@ -196,7 +196,7 @@ function extractErrorMessage(error: unknown): string {
 }
 
 export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
-	private readonly state = writable<InternalState>({
+	private state: InternalState = {
 		groups: [],
 		history: [],
 		historyIndex: -1,
@@ -212,9 +212,11 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		status: 'DRAFT',
 		lastSavedAt: null,
 		lastModifiedAt: null
-	});
+	};
 
-	private readonly view = derived(this.state, (state): ScenarioEditingView => {
+	private readonly subscribers = new Set<(value: ScenarioEditingView) => void>();
+
+	private toView(state: InternalState): ScenarioEditingView {
 		const unassignedStudentIds = deriveUnassigned(state.participantSnapshot, state.groups, state.unassignedOrder);
 		const canUndo = state.historyIndex >= 0;
 		const canRedo = state.historyIndex < state.history.length - 1;
@@ -239,7 +241,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			saveError: state.saveError,
 			lastModifiedAt: state.lastModifiedAt
 		};
-	});
+	}
 
 	private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 	private analyticsTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -248,7 +250,29 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	private metadata: ScenarioMetadata | null = null;
 	private readonly debounceMs: number;
 
-	readonly subscribe = this.view.subscribe;
+	readonly subscribe = (run: (value: ScenarioEditingView) => void): (() => void) => {
+		run(this.toView(this.state));
+		this.subscribers.add(run);
+		return () => {
+			this.subscribers.delete(run);
+		};
+	};
+
+	private notifySubscribers(): void {
+		const view = this.toView(this.state);
+		for (const subscriber of this.subscribers) {
+			subscriber(view);
+		}
+	}
+
+	private setState(next: InternalState): void {
+		this.state = next;
+		this.notifySubscribers();
+	}
+
+	private updateState(updater: (current: InternalState) => InternalState): void {
+		this.setState(updater(this.state));
+	}
 
 	constructor(
 		private readonly deps: {
@@ -279,7 +303,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			programId: scenario.programId
 		});
 
-		this.state.set({
+		this.setState({
 			groups: cloneGroups(scenario.groups),
 			history: [],
 			historyIndex: -1,
@@ -303,7 +327,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		if (!this.metadata) return;
 
 		this.metadata.algorithmConfig = algorithmConfig;
-		this.state.update((current) => ({
+		this.updateState((current) => ({
 			...current,
 			pendingSave: true
 		}));
@@ -313,7 +337,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	dispatch(command: MoveStudentCommand): { success: boolean; reason?: string } {
 		this.ensureInitialized();
 
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.saveStatus === 'failed') {
 			return { success: false, reason: 'save_failed' };
 		}
@@ -337,7 +361,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			previousIndex
 		};
 
-		this.state.update((current) => {
+		this.updateState((current) => {
 			const updatedGroups = this.applyMove(current.groups, commandWithPreviousIndex);
 			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, commandWithPreviousIndex);
 
@@ -358,7 +382,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	createGroup(name?: string): { success: boolean; groupId?: string; reason?: string } {
 		this.ensureInitialized();
 
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.saveStatus === 'failed') {
 			return { success: false, reason: 'save_failed' };
 		}
@@ -386,7 +410,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			group: newGroup
 		};
 
-		this.state.update((current) => {
+		this.updateState((current) => {
 			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
@@ -404,7 +428,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	deleteGroup(groupId: string): { success: boolean; reason?: string } {
 		this.ensureInitialized();
 
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.saveStatus === 'failed') {
 			return { success: false, reason: 'save_failed' };
 		}
@@ -421,7 +445,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			displacedStudentIds: [...targetGroup.memberIds]
 		};
 
-		this.state.update((current) => {
+		this.updateState((current) => {
 			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
@@ -468,7 +492,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	): { success: boolean; reason?: string } {
 		this.ensureInitialized();
 
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.saveStatus === 'failed') {
 			return { success: false, reason: 'save_failed' };
 		}
@@ -517,7 +541,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		}
 
 		// Apply to state immediately (optimistic)
-		this.state.update((current) => ({
+		this.updateState((current) => ({
 			...current,
 			groups: current.groups.map((g) => (g.id === groupId ? { ...g, ...changes } : g)),
 			pendingSave: true
@@ -546,7 +570,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			this.updateCoalesceTimeout = null;
 		}
 
-		this.state.update((current) => {
+		this.updateState((current) => {
 			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
@@ -559,7 +583,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	reorderGroup(groupId: string, newOrder: string[]): { success: boolean; reason?: string } {
 		this.ensureInitialized();
 
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.saveStatus === 'failed') {
 			return { success: false, reason: 'save_failed' };
 		}
@@ -586,7 +610,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			previousOrder: [...targetGroup.memberIds]
 		};
 
-		this.state.update((current) => {
+		this.updateState((current) => {
 			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
@@ -606,7 +630,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	reorderUnassigned(newOrder: string[]): { success: boolean; reason?: string } {
 		this.ensureInitialized();
 
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.saveStatus === 'failed') {
 			return { success: false, reason: 'save_failed' };
 		}
@@ -634,7 +658,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			previousOrder: [...currentUnassigned]
 		};
 
-		this.state.update((current) => {
+		this.updateState((current) => {
 			const { history, historyIndex } = addToHistory(current.history, current.historyIndex, command);
 			return {
 				...current,
@@ -655,14 +679,14 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		// Flush any pending update before undo
 		this.flushPendingUpdate();
 
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.historyIndex < 0 || snapshot.saveStatus === 'failed') {
 			return false;
 		}
 
 		const command = snapshot.history[snapshot.historyIndex];
 
-		this.state.update((current) => {
+		this.updateState((current) => {
 			let newGroups: Group[];
 			let newUnassignedOrder = current.unassignedOrder;
 
@@ -735,14 +759,14 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		// Flush any pending update before redo
 		this.flushPendingUpdate();
 
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.historyIndex >= snapshot.history.length - 1 || snapshot.saveStatus === 'failed') {
 			return false;
 		}
 
 		const command = snapshot.history[snapshot.historyIndex + 1];
 
-		this.state.update((current) => {
+		this.updateState((current) => {
 			let newGroups: Group[];
 			let newUnassignedOrder = current.unassignedOrder;
 
@@ -802,14 +826,14 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 	async adopt(): Promise<{ success: boolean; reason?: string }> {
 		this.ensureInitialized();
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.saveStatus === 'failed' || snapshot.saveStatus === 'error') {
 			return { success: false, reason: 'pending_save_error' };
 		}
 
 		await this.flushPendingSaves();
 
-		this.state.update((current) => ({
+		this.updateState((current) => ({
 			...current,
 			status: 'ADOPTED',
 			pendingSave: true
@@ -819,7 +843,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		}
 
 		await this.forceSave();
-		const finalState = get(this.state);
+		const finalState = this.state;
 		if (finalState.saveStatus === 'failed' || finalState.saveStatus === 'error') {
 			return { success: false, reason: 'save_failed' };
 		}
@@ -832,9 +856,9 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	 */
 	async regenerate(groups: Group[]): Promise<void> {
 		this.ensureInitialized();
-		const participantSnapshot = get(this.state).participantSnapshot;
+		const participantSnapshot = this.state.participantSnapshot;
 
-		this.state.update((current) => ({
+		this.updateState((current) => ({
 			...current,
 			groups: cloneGroups(groups),
 			unassignedOrder: null, // Reset custom order on regenerate
@@ -846,12 +870,12 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 		const baseline = computeAnalyticsSync({
 			groups,
-			preferences: get(this.state).preferences,
+			preferences: this.state.preferences,
 			participantSnapshot,
 			programId: this.metadata?.programId
 		});
 
-		this.state.update((current) => ({
+		this.updateState((current) => ({
 			...current,
 			baseline,
 			currentAnalytics: baseline
@@ -862,7 +886,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 	async retrySave(): Promise<void> {
 		this.ensureInitialized();
-		this.state.update((current) => ({
+		this.updateState((current) => ({
 			...current,
 			saveStatus: 'idle',
 			saveError: null,
@@ -874,7 +898,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 
 	exportState(): string {
 		this.ensureInitialized();
-		const scenario = this.buildScenario(get(this.state));
+		const scenario = this.buildScenario(this.state);
 		return JSON.stringify(scenario, null, 2);
 	}
 
@@ -883,7 +907,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			clearTimeout(this.saveTimeout);
 			this.saveTimeout = null;
 		}
-		if (get(this.state).pendingSave) {
+		if (this.state.pendingSave) {
 			await this.forceSave();
 		} else if (this.saveInFlight) {
 			await this.saveInFlight;
@@ -983,7 +1007,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		}
 		this.analyticsTimeout = setTimeout(() => {
 			this.analyticsTimeout = null;
-			const snapshot = get(this.state);
+			const snapshot = this.state;
 			if (!this.metadata) return;
 			const currentAnalytics = computeAnalyticsSync({
 				groups: snapshot.groups,
@@ -991,7 +1015,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 				participantSnapshot: snapshot.participantSnapshot,
 				programId: this.metadata.programId
 			});
-			this.state.update((current) => ({
+			this.updateState((current) => ({
 				...current,
 				currentAnalytics
 			}));
@@ -1019,7 +1043,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 	private startSave(force = false): Promise<void> {
 		this.ensureInitialized();
 
-		const snapshot = get(this.state);
+		const snapshot = this.state;
 		if (snapshot.saveStatus === 'failed') {
 			return Promise.resolve();
 		}
@@ -1029,11 +1053,11 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		}
 
 		if (this.saveInFlight) {
-			this.state.update((current) => ({ ...current, pendingSave: true }));
+			this.updateState((current) => ({ ...current, pendingSave: true }));
 			return this.saveInFlight;
 		}
 
-		this.state.update((current) => ({
+		this.updateState((current) => ({
 			...current,
 			pendingSave: false,
 			saveStatus: 'saving',
@@ -1041,13 +1065,13 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			retryCount: 0
 		}));
 
-		const scenario = this.buildScenario(get(this.state));
+		const scenario = this.buildScenario(this.state);
 		const savePromise = this.persistScenarioWithRetry(scenario);
 		this.saveInFlight = savePromise;
 
 		savePromise.finally(() => {
 			this.saveInFlight = null;
-			const latest = get(this.state);
+			const latest = this.state;
 			if (latest.pendingSave && latest.saveStatus !== 'failed') {
 				this.startSave();
 			}
@@ -1069,7 +1093,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 					error
 				});
 				if (attempt === MAX_RETRIES) {
-					this.state.update((current) => ({
+					this.updateState((current) => ({
 						...current,
 						saveStatus: 'failed',
 						retryCount: attempt + 1,
@@ -1078,7 +1102,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 					return;
 				}
 
-				this.state.update((current) => ({
+				this.updateState((current) => ({
 					...current,
 					saveStatus: 'error',
 					saveError: extractErrorMessage(error),
@@ -1086,7 +1110,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 				}));
 
 				await delay(RETRY_DELAYS[attempt]);
-				this.state.update((current) => ({
+				this.updateState((current) => ({
 					...current,
 					saveStatus: 'saving'
 				}));
@@ -1107,7 +1131,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 			clearTimeout(this.savedIdleTimeout);
 		}
 
-		this.state.update((current) => ({
+		this.updateState((current) => ({
 			...current,
 			saveStatus: 'saved',
 			saveError: null,
@@ -1118,7 +1142,7 @@ export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
 		}));
 
 		this.savedIdleTimeout = setTimeout(() => {
-			this.state.update((current) => ({
+			this.updateState((current) => ({
 				...current,
 				saveStatus: 'idle'
 			}));
