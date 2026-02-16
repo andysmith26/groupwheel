@@ -28,25 +28,11 @@
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
 	import StudentInfoTooltip from '$lib/components/editing/StudentInfoTooltip.svelte';
 	import {
-		getWorkspaceGroupsDisplayOrder,
 		normalizeWorkspaceRowLayout,
-		prepareWorkspaceExport,
 		type WorkspaceRowLayout
 	} from '$lib/services/appEnvUseCases';
-	import { err, ok } from '$lib/types/result';
 	import PreferencesPromptBanner from '$lib/components/workspace/PreferencesPromptBanner.svelte';
 	import PreferencesImportModal from '$lib/components/workspace/PreferencesImportModal.svelte';
-	import {
-		buildAssignmentList,
-		exportToCSV,
-		exportToTSV,
-		exportGroupsToCSV
-	} from '$lib/utils/csvExport';
-	import {
-		downloadActivityFile,
-		downloadActivityScreenshot,
-		generateExportFilename
-	} from '$lib/utils/activityFile';
 	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import GroupColumnSkeleton from '$lib/components/ui/GroupColumnSkeleton.svelte';
@@ -56,12 +42,17 @@
 	import SatisfactionSummary from '$lib/components/workspace/SatisfactionSummary.svelte';
 	import CardSizeToggle from '$lib/components/workspace/CardSizeToggle.svelte';
 	import GroupLayoutToggle from '$lib/components/workspace/GroupLayoutToggle.svelte';
+	import WorkspaceActionBar from '$lib/components/workspace/WorkspaceActionBar.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 	import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
 	import {
 		WorkspaceCommandRunner,
 		type WorkspaceToastAction
 	} from '$lib/stores/workspace-command-runner.svelte';
+	import { createWorkspaceExportHandlers } from '$lib/stores/workspace-export-handlers';
+	import { createWorkspaceStudentAnalytics } from '$lib/stores/workspace-student-analytics.svelte';
+	import { createWorkspaceKeyboardMoveHandlers } from '$lib/stores/workspace-keyboard-move.svelte';
+	import { createWorkspaceStudentLookup } from '$lib/stores/workspace-student-lookup.svelte';
 
 	const workspaceVm = createWorkspacePageVm(getAppEnvContext());
 
@@ -104,8 +95,6 @@
 	let draggingId = $state<string | null>(null);
 	let flashingIds = $state<Set<string>>(new Set());
 	let pickedUpStudentId = $derived(keyboardController.state.pickedUpStudentId);
-	let pickedUpFromContainer = $derived(keyboardController.state.pickedUpFromContainer);
-	let pickedUpFromIndex = $derived(keyboardController.state.pickedUpFromIndex);
 	let keyboardAnnouncement = $derived(keyboardController.state.announcement);
 	const commandRunner = new WorkspaceCommandRunner({
 		onAnnounce: (message) => {
@@ -131,141 +120,31 @@
 	let topChoicePercent = $derived(view?.currentAnalytics?.percentAssignedTopChoice ?? null);
 	let topTwoPercent = $derived(view?.currentAnalytics?.percentAssignedTop2 ?? null);
 
-	$effect(() => {
-		if (!scenario || !view) {
-			workspaceHeader.clear();
-			return;
-		}
+	// --- Composable modules ---
+	const analytics = createWorkspaceStudentAnalytics({
+		getView: () => view,
+		getStudents: () => students,
+		getPreferenceMap: () => preferenceMap,
+		getPairingStats: () => pairingStats,
+		getActiveStudentId: () => draggingId ?? tooltipController.state.studentId
+	});
 
-		workspaceHeader.set({
-			canUndo: view.canUndo,
-			canRedo: view.canRedo,
-			topChoicePercent,
-			topTwoPercent,
-			onUndo: () => editingStore?.undo(),
-			onRedo: () => editingStore?.redo(),
-			onExportCSV: handleExportCSV,
-			onExportTSV: handleExportTSV,
-			onExportGroupsSummary: handleExportGroupsSummary,
-			onExportGroupsColumns: handleExportGroupsColumns,
-			onExportActivitySchema: handleExportActivitySchema,
-			onExportActivityScreenshot: handleExportActivityScreenshot
-		});
+	const studentLookup = createWorkspaceStudentLookup({
+		getTooltipController: () => tooltipController,
+		getSidebarController: () => sidebarController,
+		getStudentsById: () => studentsById,
+		getPreferenceMap: () => preferenceMap,
+		getStudentRecentGroupmates: () => analytics.studentRecentGroupmates,
+		getDraggingId: () => draggingId
 	});
 
 	let hasEditsSincePublish = $derived(workspaceVm.actions.detectEditsSincePublish());
 
 	let sizeStyle = $derived(cardSizeStyle(uiSettings.cardSize));
 
-	let activeStudentId = $derived(draggingId ?? tooltipController.state.studentId);
-
-	let activeStudentPreferences = $derived.by(() => {
-		if (!activeStudentId || !view) return null;
-		const groupNamePrefs = preferenceMap[activeStudentId]?.likeGroupIds ?? null;
-		if (!groupNamePrefs || groupNamePrefs.length === 0) return null;
-
-		const nameToId = new Map(view.groups.map((g) => [g.name, g.id]));
-		const groupIdPrefs = groupNamePrefs
-			.map((name) => nameToId.get(name))
-			.filter((id): id is string => id !== undefined);
-
-		return groupIdPrefs.length > 0 ? groupIdPrefs : null;
-	});
-
-	// --- Tooltip student data ---
-	let tooltipStudent = $derived(
-		tooltipController.state.studentId
-			? (studentsById[tooltipController.state.studentId] ?? null)
-			: null
-	);
-	let tooltipPreferences = $derived(
-		tooltipController.state.studentId
-			? (preferenceMap[tooltipController.state.studentId] ?? null)
-			: null
-	);
-
-	// --- Compute preference ranks for all students ---
-	let studentPreferenceRanks = $derived.by(() => {
-		if (!view) return new Map<string, number | null>();
-		const ranks = new Map<string, number | null>();
-
-		for (const group of view.groups) {
-			for (const studentId of group.memberIds) {
-				const prefs = preferenceMap[studentId]?.likeGroupIds;
-				if (!prefs || prefs.length === 0) {
-					ranks.set(studentId, null);
-					continue;
-				}
-				const rank = prefs.indexOf(group.name);
-				ranks.set(studentId, rank >= 0 ? rank + 1 : null);
-			}
-		}
-
-		return ranks;
-	});
-
-	let studentHasPreferences = $derived.by(() => {
-		const prefs = new Map<string, boolean>();
-		for (const studentId of students.map((s) => s.id)) {
-			const studentPrefs = preferenceMap[studentId]?.likeGroupIds;
-			prefs.set(studentId, Boolean(studentPrefs && studentPrefs.length > 0));
-		}
-		return prefs;
-	});
-
-	// --- Derive recent groupmates for tooltip from pairing stats ---
-	let studentRecentGroupmates = $derived.by(() => {
-		const groupmatesMap = new Map<string, Array<{ studentName: string; count: number }>>();
-
-		// Group pairing stats by each student
-		for (const pair of pairingStats) {
-			// Add to student A's groupmates
-			const groupmatesA = groupmatesMap.get(pair.studentAId) ?? [];
-			groupmatesA.push({ studentName: pair.studentBName, count: pair.count });
-			groupmatesMap.set(pair.studentAId, groupmatesA);
-
-			// Add to student B's groupmates
-			const groupmatesB = groupmatesMap.get(pair.studentBId) ?? [];
-			groupmatesB.push({ studentName: pair.studentAName, count: pair.count });
-			groupmatesMap.set(pair.studentBId, groupmatesB);
-		}
-
-		// Sort each student's groupmates by count (most frequent first)
-		for (const [studentId, groupmates] of groupmatesMap) {
-			groupmates.sort((a, b) => b.count - a.count);
-			groupmatesMap.set(studentId, groupmates);
-		}
-
-		return groupmatesMap;
-	});
-
-	// --- Tooltip recent groupmates (must be after studentRecentGroupmates) ---
-	let tooltipRecentGroupmates = $derived(
-		tooltipController.state.studentId
-			? (studentRecentGroupmates.get(tooltipController.state.studentId) ?? [])
-			: []
-	);
-
 	// --- Group names for preferences modal ---
 	let groupNames = $derived(view?.groups.map((g) => g.name) ?? []);
 
-	/**
-	 * Get groups ordered by UI display order (top row first, then bottom row).
-	 * This ensures exports match what users see on screen.
-	 */
-	function getGroupsInDisplayOrder(): Group[] {
-		if (!view) return [];
-		const result = getWorkspaceGroupsDisplayOrder({
-			groups: view.groups,
-			rowLayout: resolvedRowLayout
-		});
-
-		if (result.status === 'ok') {
-			return result.value.groups;
-		}
-
-		return view.groups;
-	}
 	let rowLayoutState = $derived.by(() => {
 		if (!view) return null;
 		const result = normalizeWorkspaceRowLayout({
@@ -287,6 +166,49 @@
 
 		const nextConfig = rowLayoutState.nextAlgorithmConfig;
 		workspaceVm.actions.syncScenarioAlgorithmConfig(nextConfig);
+	});
+
+	const exportHandlers = createWorkspaceExportHandlers({
+		getView: () => view,
+		getProgram: () => program,
+		getScenario: () => scenario,
+		getStudentsById: () => studentsById,
+		getStudents: () => students,
+		getPreferences: () => preferences,
+		getResolvedRowLayout: () => resolvedRowLayout,
+		getEnv: () => env,
+		commandRunner,
+		showToast
+	});
+
+	$effect(() => {
+		if (!scenario || !view) {
+			workspaceHeader.clear();
+			return;
+		}
+
+		workspaceHeader.set({
+			canUndo: view.canUndo,
+			canRedo: view.canRedo,
+			topChoicePercent,
+			topTwoPercent,
+			onUndo: () => editingStore?.undo(),
+			onRedo: () => editingStore?.redo(),
+			onExportCSV: exportHandlers.handleExportCSV,
+			onExportTSV: exportHandlers.handleExportTSV,
+			onExportGroupsSummary: exportHandlers.handleExportGroupsSummary,
+			onExportGroupsColumns: exportHandlers.handleExportGroupsColumns,
+			onExportActivitySchema: exportHandlers.handleExportActivitySchema,
+			onExportActivityScreenshot: exportHandlers.handleExportActivityScreenshot
+		});
+	});
+
+	const keyboardMoveHandlers = createWorkspaceKeyboardMoveHandlers({
+		getKeyboardController: () => keyboardController,
+		getView: () => view,
+		getEditingStore: () => editingStore,
+		getResolvedRowLayout: () => resolvedRowLayout,
+		flashStudent
 	});
 
 	// --- Handle preferences import ---
@@ -479,106 +401,6 @@
 		});
 	}
 
-	async function runClipboardCommand(content: string, successMessage: string) {
-		await commandRunner.run({
-			run: async () => {
-				const success = await env?.clipboard?.writeText(content);
-				return success ? ok(undefined) : err('copy_failed');
-			},
-			successMessage,
-			errorMessage: 'Failed to copy'
-		});
-	}
-
-	async function handleExportCSV() {
-		if (!view) return;
-		const studentsMap = new Map(Object.entries(studentsById));
-		const orderedGroups = getGroupsInDisplayOrder();
-		const assignments = buildAssignmentList(orderedGroups, studentsMap);
-		const csv = exportToCSV(assignments);
-		await runClipboardCommand(csv, 'CSV copied to clipboard!');
-	}
-
-	async function handleExportTSV() {
-		if (!view) return;
-		const studentsMap = new Map(Object.entries(studentsById));
-		const orderedGroups = getGroupsInDisplayOrder();
-		const assignments = buildAssignmentList(orderedGroups, studentsMap);
-		const tsv = exportToTSV(assignments);
-		await runClipboardCommand(tsv, 'Copied! Paste directly into Google Sheets');
-	}
-
-	async function handleExportGroupsSummary() {
-		if (!view) return;
-		const studentsMap = new Map(Object.entries(studentsById));
-		const orderedGroups = getGroupsInDisplayOrder();
-		const csv = exportGroupsToCSV(orderedGroups, studentsMap);
-		await runClipboardCommand(csv, 'Groups summary copied!');
-	}
-
-	async function handleExportGroupsColumns() {
-		if (!program || !view) return;
-
-		const result = prepareWorkspaceExport(env, {
-			program,
-			students,
-			preferences,
-			groups: view.groups,
-			algorithmConfig: scenario?.algorithmConfig,
-			rowLayout: resolvedRowLayout
-		});
-
-		if (result.status === 'err') {
-			showToast('Failed to prepare export');
-			return;
-		}
-
-		await runClipboardCommand(result.value.columnsTsv, 'Groups copied for Sheets!');
-	}
-
-	async function handleExportActivitySchema() {
-		if (!program || !view) return;
-
-		const exportResult = prepareWorkspaceExport(env, {
-			program,
-			students,
-			preferences,
-			groups: view.groups,
-			algorithmConfig: scenario?.algorithmConfig,
-			rowLayout: resolvedRowLayout
-		});
-
-		if (exportResult.status === 'err') {
-			showToast('Failed to prepare export');
-			return;
-		}
-
-		const filename = generateExportFilename(program.name);
-
-		await commandRunner.run({
-			run: () => {
-				downloadActivityFile(exportResult.value.activityExportData, filename);
-				return ok(undefined);
-			},
-			successMessage: 'Schema downloaded'
-		});
-	}
-
-	async function handleExportActivityScreenshot() {
-		if (!program) return;
-		const filename = generateExportFilename(program.name);
-		const screenshotName = filename.replace(/\.json$/i, '.png');
-
-		await commandRunner.run({
-			run: async () => {
-				const screenshotSuccess = await downloadActivityScreenshot(screenshotName);
-				return screenshotSuccess ? ok(undefined) : err('screenshot_failed');
-			},
-			successMessage: 'Screenshot downloaded',
-			errorMessage: 'Screenshot failed'
-		});
-	}
-
 	// --- Show to class handler ---
 	async function handleShowToClassClick() {
 		const result = await workspaceVm.actions.publishToClass(hasEditsSincePublish);
@@ -590,162 +412,9 @@
 		goto(`/activities/${result.value.programId}/live`);
 	}
 
-	// --- Tooltip handlers ---
-	function handleTooltipShow(studentId: string, x: number, y: number) {
-		// Don't show tooltip if a drag is in progress or just ended
-		if (draggingId) return;
-		tooltipController.actions.show(studentId, x, y);
-	}
-
-	function handleTooltipHide() {
-		tooltipController.actions.hide();
-	}
-
-	// Handle drag end with cooldown to prevent spurious tooltips from DOM reflow
 	function handleDragEnd() {
 		draggingId = null;
-		tooltipController.actions.startDragCooldown(150);
-	}
-
-	// --- Student detail sidebar handlers ---
-	function handleStudentClick(studentId: string) {
-		sidebarController.actions.toggle(studentId);
-		tooltipController.actions.hide();
-	}
-
-	let sidebarStudent = $derived(
-		sidebarController.state.studentId
-			? (studentsById[sidebarController.state.studentId] ?? null)
-			: null
-	);
-	let sidebarPreferences = $derived(
-		sidebarController.state.studentId
-			? (preferenceMap[sidebarController.state.studentId] ?? null)
-			: null
-	);
-	let sidebarRecentGroupmates = $derived(
-		sidebarController.state.studentId
-			? (studentRecentGroupmates.get(sidebarController.state.studentId) ?? [])
-			: []
-	);
-
-	// --- Keyboard navigation handlers ---
-	function handleKeyboardPickUp(studentId: string, container: string, index: number) {
-		keyboardController.actions.pickup(studentId, container, index);
-	}
-
-	function handleKeyboardDrop() {
-		if (!pickedUpStudentId) return;
-
-		let currentContainer = pickedUpFromContainer ?? 'unassigned';
-		let currentIndex = pickedUpFromIndex;
-
-		for (const group of view?.groups ?? []) {
-			const idx = group.memberIds.indexOf(pickedUpStudentId);
-			if (idx !== -1) {
-				currentContainer = group.id;
-				currentIndex = idx;
-				break;
-			}
-		}
-
-		if (view?.unassignedStudentIds.includes(pickedUpStudentId)) {
-			currentContainer = 'unassigned';
-			currentIndex = view.unassignedStudentIds.indexOf(pickedUpStudentId);
-		}
-
-		keyboardController.actions.drop(currentContainer, currentIndex);
-	}
-
-	function handleKeyboardCancel() {
-		keyboardController.actions.cancel();
-	}
-
-	function handleKeyboardMove(direction: 'up' | 'down' | 'left' | 'right') {
-		if (!pickedUpStudentId || !view) return;
-
-		// Find where the student currently is
-		let currentContainer = pickedUpFromContainer;
-		let currentIndex = pickedUpFromIndex;
-
-		// Check if student is in a group or unassigned
-		for (const group of view.groups) {
-			const idx = group.memberIds.indexOf(pickedUpStudentId);
-			if (idx !== -1) {
-				currentContainer = group.id;
-				currentIndex = idx;
-				break;
-			}
-		}
-
-		if (view.unassignedStudentIds.includes(pickedUpStudentId)) {
-			currentContainer = 'unassigned';
-			currentIndex = view.unassignedStudentIds.indexOf(pickedUpStudentId);
-		}
-
-		// Build list of all containers in visual order (unassigned, then top row L→R, then bottom row L→R)
-		const visualGroupOrder = resolvedRowLayout
-			? [...resolvedRowLayout.top, ...resolvedRowLayout.bottom]
-			: view.groups.map((g) => g.id);
-		const containers = ['unassigned', ...visualGroupOrder];
-		const currentContainerIndex = containers.indexOf(currentContainer ?? 'unassigned');
-
-		let targetContainer = currentContainer;
-		let targetIndex = currentIndex;
-
-		if (direction === 'up' && currentContainer !== 'unassigned') {
-			// Move up within group (decrease index)
-			const group = view.groups.find((g) => g.id === currentContainer);
-			if (group && currentIndex > 0) {
-				targetIndex = currentIndex - 1;
-			}
-		} else if (direction === 'down' && currentContainer !== 'unassigned') {
-			// Move down within group (increase index)
-			const group = view.groups.find((g) => g.id === currentContainer);
-			if (group && currentIndex < group.memberIds.length - 1) {
-				targetIndex = currentIndex + 1;
-			}
-		} else if (direction === 'left') {
-			// Move to previous container
-			if (currentContainerIndex > 0) {
-				targetContainer = containers[currentContainerIndex - 1];
-				targetIndex = 0; // Start at beginning of new container
-			}
-		} else if (direction === 'right') {
-			// Move to next container
-			if (currentContainerIndex < containers.length - 1) {
-				targetContainer = containers[currentContainerIndex + 1];
-				targetIndex = 0; // Start at beginning of new container
-			}
-		}
-
-		// Only dispatch if something changed
-		if (targetContainer !== currentContainer || targetIndex !== currentIndex) {
-			const result = editingStore?.dispatch({
-				type: 'MOVE_STUDENT',
-				studentId: pickedUpStudentId,
-				source: currentContainer ?? 'unassigned',
-				target: targetContainer ?? 'unassigned',
-				targetIndex
-			});
-
-			if (result?.success) {
-				flashStudent(pickedUpStudentId);
-				keyboardController.actions.announceMove(targetContainer ?? 'unassigned', targetIndex);
-
-				// After moving to a different container, the DOM element is remounted.
-				// We need to restore focus to the new element after the DOM updates.
-				if (targetContainer !== currentContainer) {
-					const studentIdToFocus = pickedUpStudentId;
-					requestAnimationFrame(() => {
-						const newElement = document.querySelector(
-							`[data-student-id="${studentIdToFocus}"]`
-						) as HTMLElement | null;
-						newElement?.focus();
-					});
-				}
-			}
-		}
+		studentLookup.handleDragEnd();
 	}
 
 	// Clear tooltip when any drag starts
@@ -883,16 +552,16 @@
 							onDragStart={(id) => (draggingId = id)}
 							onDragEnd={handleDragEnd}
 							{flashingIds}
-							{studentHasPreferences}
-							onStudentHoverStart={handleTooltipShow}
-							onStudentHoverEnd={handleTooltipHide}
+							studentHasPreferences={analytics.studentHasPreferences}
+							onStudentHoverStart={studentLookup.handleTooltipShow}
+							onStudentHoverEnd={studentLookup.handleTooltipHide}
 							{pickedUpStudentId}
-							onKeyboardPickUp={handleKeyboardPickUp}
-							onKeyboardDrop={handleKeyboardDrop}
-							onKeyboardCancel={handleKeyboardCancel}
-							onKeyboardMove={handleKeyboardMove}
+							onKeyboardPickUp={keyboardMoveHandlers.handleKeyboardPickUp}
+							onKeyboardDrop={keyboardMoveHandlers.handleKeyboardDrop}
+							onKeyboardCancel={keyboardMoveHandlers.handleKeyboardCancel}
+							onKeyboardMove={keyboardMoveHandlers.handleKeyboardMove}
 							onAlphabetize={handleAlphabetizeUnassigned}
-							onStudentClick={handleStudentClick}
+							onStudentClick={studentLookup.handleStudentClick}
 							vertical={true}
 						/>
 					</div>
@@ -913,20 +582,20 @@
 							onAddGroup={handleAddGroup}
 							onAlphabetize={handleAlphabetize}
 							{newGroupId}
-							selectedStudentPreferences={activeStudentPreferences}
+							selectedStudentPreferences={analytics.activeStudentPreferences}
 							layout={layoutMode}
 							rowOrderTop={resolvedRowLayout?.top ?? []}
 							rowOrderBottom={resolvedRowLayout?.bottom ?? []}
-							{studentPreferenceRanks}
-							{studentHasPreferences}
-							onStudentHoverStart={handleTooltipShow}
-							onStudentHoverEnd={handleTooltipHide}
+							studentPreferenceRanks={analytics.studentPreferenceRanks}
+							studentHasPreferences={analytics.studentHasPreferences}
+							onStudentHoverStart={studentLookup.handleTooltipShow}
+							onStudentHoverEnd={studentLookup.handleTooltipHide}
 							{pickedUpStudentId}
-							onKeyboardPickUp={handleKeyboardPickUp}
-							onKeyboardDrop={handleKeyboardDrop}
-							onKeyboardCancel={handleKeyboardCancel}
-							onKeyboardMove={handleKeyboardMove}
-							onStudentClick={handleStudentClick}
+							onKeyboardPickUp={keyboardMoveHandlers.handleKeyboardPickUp}
+							onKeyboardDrop={keyboardMoveHandlers.handleKeyboardDrop}
+							onKeyboardCancel={keyboardMoveHandlers.handleKeyboardCancel}
+							onKeyboardMove={keyboardMoveHandlers.handleKeyboardMove}
+							onStudentClick={studentLookup.handleStudentClick}
 						/>
 					</div>
 				</div>
@@ -934,77 +603,24 @@
 		</main>
 
 		<!-- Student Detail Sidebar -->
-		{#if sidebarStudent && scenario && view}
+		{#if studentLookup.sidebarStudent && scenario && view}
 			<StudentDetailSidebar
-				student={sidebarStudent}
-				preferences={sidebarPreferences}
-				recentGroupmates={sidebarRecentGroupmates}
+				student={studentLookup.sidebarStudent}
+				preferences={studentLookup.sidebarPreferences}
+				recentGroupmates={studentLookup.sidebarRecentGroupmates}
 				onClose={() => sidebarController.actions.close()}
 			/>
 		{/if}
 
 		<!-- Workspace Action Bar -->
 		{#if scenario && view}
-			<div
-				class="sticky bottom-0 z-10 border-t border-gray-200/70 bg-white px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]"
-			>
-				<div class="mx-auto flex max-w-6xl items-center justify-between">
-					<div class="flex items-center gap-3">
-						<button
-							type="button"
-							class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-							onclick={handleTryAnother}
-							disabled={isTryingAnother || isRegenerating}
-						>
-							{#if isTryingAnother}
-								<span class="inline-flex items-center gap-2">
-									<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-										<circle
-											class="opacity-25"
-											cx="12"
-											cy="12"
-											r="10"
-											stroke="currentColor"
-											stroke-width="4"
-										></circle>
-										<path
-											class="opacity-75"
-											fill="currentColor"
-											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-										></path>
-									</svg>
-									Generating...
-								</span>
-							{:else}
-								Try Another
-							{/if}
-						</button>
-						<button
-							type="button"
-							class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-							onclick={() => workspaceVm.actions.openStartOverConfirm()}
-							disabled={isTryingAnother || isRegenerating}
-						>
-							Start Over
-						</button>
-					</div>
-					<button
-						type="button"
-						class="flex items-center gap-2 rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark"
-						onclick={handleShowToClassClick}
-					>
-						<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-							/>
-						</svg>
-						Show to Class
-					</button>
-				</div>
-			</div>
+			<WorkspaceActionBar
+				{isTryingAnother}
+				{isRegenerating}
+				onTryAnother={handleTryAnother}
+				onStartOver={() => workspaceVm.actions.openStartOverConfirm()}
+				onShowToClass={handleShowToClassClick}
+			/>
 		{/if}
 	</div>
 
@@ -1056,11 +672,11 @@
 	/>
 
 	<!-- Student Info Tooltip -->
-	{#if tooltipStudent}
+	{#if studentLookup.tooltipStudent}
 		<StudentInfoTooltip
-			student={tooltipStudent}
-			preferences={tooltipPreferences}
-			recentGroupmates={tooltipRecentGroupmates}
+			student={studentLookup.tooltipStudent}
+			preferences={studentLookup.tooltipPreferences}
+			recentGroupmates={studentLookup.tooltipRecentGroupmates}
 			x={tooltipController.state.x}
 			y={tooltipController.state.y}
 			visible={true}
