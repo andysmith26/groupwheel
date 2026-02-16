@@ -1,5 +1,5 @@
 /**
- * Utility types for the Friend Hat application.
+ * Utility types for the Groupwheel application.
  *
  * IMPORTANT: This module contains ONLY generic utility types, not domain entities.
  * For domain types (Student, Group, Preference, etc.), import from '$lib/domain'.

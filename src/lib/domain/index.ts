@@ -2,7 +2,7 @@
  * Domain layer exports.
  *
  * This is the single source of truth for all business entities and value objects
- * in the Friend Hat application. All domain types should be imported from here
+ * in the Groupwheel application. All domain types should be imported from here
  * (or from specific domain modules), NOT from src/lib/types/.
  *
  * @module domain

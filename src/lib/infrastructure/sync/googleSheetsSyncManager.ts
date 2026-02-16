@@ -18,7 +18,9 @@ import type {
 	SyncPullResult,
 	StoragePort,
 	NetworkStatusPort,
-	GoogleSheetsService
+	GoogleSheetsService,
+	GoogleSheetsSyncConfig,
+	GoogleSheetsConfigurableSyncService
 } from '$lib/application/ports';
 
 interface QueuedOperation {
@@ -30,18 +32,6 @@ interface QueuedOperation {
 
 const SYNC_QUEUE_KEY = 'groupwheel_sheets_sync_queue';
 const SHEETS_CONFIG_KEY = 'groupwheel_sheets_sync_config';
-
-/**
- * Configuration for Google Sheets sync.
- */
-export interface GoogleSheetsSyncConfig {
-	/** The spreadsheet ID to sync with */
-	spreadsheetId: string;
-	/** Human-readable name of the spreadsheet */
-	spreadsheetName?: string;
-	/** Last successful sync timestamp */
-	lastSyncedAt?: string;
-}
 
 /**
  * Tab names for each entity type.
@@ -71,7 +61,7 @@ export interface GoogleSheetsSyncManagerDeps {
  * Uses a Google Sheet as the sync backend instead of a server.
  * Data is stored as JSON in each tab.
  */
-export class GoogleSheetsSyncManager implements SyncService {
+export class GoogleSheetsSyncManager implements GoogleSheetsConfigurableSyncService {
 	private enabled = false;
 	private syncing = false;
 	private queue: QueuedOperation[] = [];

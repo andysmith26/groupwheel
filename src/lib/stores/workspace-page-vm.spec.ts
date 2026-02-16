@@ -216,4 +216,16 @@ describe('WorkspacePageVm', () => {
 		expect(vm.state.showPreferencesModal).toBe(false);
 		expect(vm.state.bannerDismissed).toBe(true);
 	});
+
+	it('disposes tooltip interaction controller state', () => {
+		const vm = createWorkspacePageVm(createEnv());
+
+		vm.state.tooltipController.actions.startDragCooldown(300);
+		expect(vm.state.tooltipController.state.dragCooldown).toBe(true);
+
+		vm.actions.dispose();
+
+		expect(vm.state.tooltipController.state.dragCooldown).toBe(false);
+		expect(vm.state.tooltipController.state.studentId).toBeNull();
+	});
 });

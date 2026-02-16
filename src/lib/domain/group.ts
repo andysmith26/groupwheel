@@ -1,5 +1,5 @@
 /**
- * Group entity for the Friend Hat domain.
+ * Group entity for the Groupwheel domain.
  *
  * Groups are containers into which students are assigned during a grouping
  * activity. They have a name, optional capacity limit, and a list of

@@ -12,14 +12,15 @@ import type {
 	SyncStatus,
 	SyncEntityType,
 	SyncPushResult,
-	SyncPullResult
+	SyncPullResult,
+	GoogleSheetsSyncConfig,
+	GoogleSheetsConfigurableSyncService
 } from '$lib/application/ports';
-import type { GoogleSheetsSyncConfig } from './googleSheetsSyncManager';
 
 /**
  * In-memory implementation of GoogleSheetsSyncManager for testing.
  */
-export class InMemoryGoogleSheetsSyncManager implements SyncService {
+export class InMemoryGoogleSheetsSyncManager implements GoogleSheetsConfigurableSyncService {
 	private enabled = false;
 	private syncing = false;
 	private lastSyncedAt: Date | null = null;

@@ -1,5 +1,5 @@
 /**
- * Student entity for the Friend Hat domain.
+ * Student entity for the Groupwheel domain.
  *
  * Represents a student in a class roster. Students are identified by a
  * unique ID and have display information (name). Preferences about who

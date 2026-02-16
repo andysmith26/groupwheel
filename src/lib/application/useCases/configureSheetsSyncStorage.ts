@@ -7,8 +7,13 @@
  * @module application/useCases/configureSheetsSyncStorage
  */
 
-import type { GoogleSheetsService, GoogleSheetsError, SyncService } from '$lib/application/ports';
-import type { GoogleSheetsSyncManager, GoogleSheetsSyncConfig } from '$lib/infrastructure/sync';
+import type {
+	GoogleSheetsService,
+	GoogleSheetsError,
+	SyncService,
+	GoogleSheetsSyncConfig,
+	GoogleSheetsConfigurableSyncService
+} from '$lib/application/ports';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
 
@@ -56,13 +61,20 @@ export interface ConfigureSheetsSyncStorageDeps {
 }
 
 // =============================================================================
-// Type guard for GoogleSheetsSyncManager
+// Type guard for Google Sheets configurable sync service
 // =============================================================================
 
-function isGoogleSheetsSyncManager(
+function isGoogleSheetsSyncService(
 	service: SyncService
-): service is GoogleSheetsSyncManager {
-	return 'configure' in service && typeof (service as GoogleSheetsSyncManager).configure === 'function';
+): service is GoogleSheetsConfigurableSyncService {
+	return (
+		'configure' in service
+		&& typeof service.configure === 'function'
+		&& 'getConfig' in service
+		&& typeof service.getConfig === 'function'
+		&& 'clearConfig' in service
+		&& typeof service.clearConfig === 'function'
+	);
 }
 
 // =============================================================================
@@ -86,8 +98,8 @@ export async function configureSheetsSyncStorage(
 	const { sheetsService, sheetsSyncService } = deps;
 	const { url } = input;
 
-	// Verify we have a GoogleSheetsSyncManager
-	if (!isGoogleSheetsSyncManager(sheetsSyncService)) {
+	// Verify we have a Google Sheets configurable sync service
+	if (!isGoogleSheetsSyncService(sheetsSyncService)) {
 		return err({
 			type: 'SYNC_NOT_AVAILABLE',
 			message: 'Google Sheets sync is not available'
@@ -161,7 +173,7 @@ export async function configureSheetsSyncStorage(
 export async function disconnectSheetsSyncStorage(
 	sheetsSyncService: SyncService
 ): Promise<void> {
-	if (isGoogleSheetsSyncManager(sheetsSyncService)) {
+	if (isGoogleSheetsSyncService(sheetsSyncService)) {
 		await sheetsSyncService.clearConfig();
 	}
 }
@@ -175,7 +187,7 @@ export async function disconnectSheetsSyncStorage(
 export function getSheetsSyncConfig(
 	sheetsSyncService: SyncService
 ): GoogleSheetsSyncConfig | null {
-	if (isGoogleSheetsSyncManager(sheetsSyncService)) {
+	if (isGoogleSheetsSyncService(sheetsSyncService)) {
 		return sheetsSyncService.getConfig();
 	}
 	return null;

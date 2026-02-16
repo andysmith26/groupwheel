@@ -28,6 +28,7 @@ export * from './GroupingAlgorithm';
 // Auth & Sync ports
 export * from './AuthService';
 export * from './SyncService';
+export * from './GoogleSheetsSync';
 
 // Infrastructure ports
 export * from './StoragePort';

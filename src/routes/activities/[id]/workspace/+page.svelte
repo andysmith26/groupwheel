@@ -98,28 +98,20 @@
 	let currentHistoryIndex = $derived(vmState.currentHistoryIndex);
 	let isTryingAnother = $derived(vmState.isTryingAnother);
 	let avoidRecentGroupmates = $derived(vmState.avoidRecentGroupmates);
+	let keyboardController = $derived(vmState.keyboardController);
+	let tooltipController = $derived(vmState.tooltipController);
+	let sidebarController = $derived(vmState.sidebarController);
 
 	// --- UI state ---
 	let draggingId = $state<string | null>(null);
 	let flashingIds = $state<Set<string>>(new Set());
-
-	// --- Student detail sidebar state ---
-	let sidebarStudentId = $state<string | null>(null);
-
-	// --- Student tooltip state ---
-	let tooltipStudentId = $state<string | null>(null);
-	let tooltipX = $state(0);
-	let tooltipY = $state(0);
-	let dragCooldown = $state(false); // Brief cooldown after drag to prevent spurious tooltips
-
-	// --- Keyboard navigation state ---
-	let pickedUpStudentId = $state<string | null>(null);
-	let pickedUpFromContainer = $state<string | null>(null);
-	let pickedUpFromIndex = $state<number>(0);
-	let keyboardAnnouncement = $state<string>('');
+	let pickedUpStudentId = $derived(keyboardController.state.pickedUpStudentId);
+	let pickedUpFromContainer = $derived(keyboardController.state.pickedUpFromContainer);
+	let pickedUpFromIndex = $derived(keyboardController.state.pickedUpFromIndex);
+	let keyboardAnnouncement = $derived(keyboardController.state.announcement);
 	const commandRunner = new WorkspaceCommandRunner({
 		onAnnounce: (message) => {
-			keyboardAnnouncement = message;
+			keyboardController.actions.announce(message);
 		}
 	});
 
@@ -167,7 +159,7 @@
 
 	let sizeStyle = $derived(cardSizeStyle(uiSettings.cardSize));
 
-	let activeStudentId = $derived(draggingId ?? tooltipStudentId);
+	let activeStudentId = $derived(draggingId ?? tooltipController.state.studentId);
 
 	let activeStudentPreferences = $derived.by(() => {
 		if (!activeStudentId || !view) return null;
@@ -183,9 +175,15 @@
 	});
 
 	// --- Tooltip student data ---
-	let tooltipStudent = $derived(tooltipStudentId ? (studentsById[tooltipStudentId] ?? null) : null);
+	let tooltipStudent = $derived(
+		tooltipController.state.studentId
+			? (studentsById[tooltipController.state.studentId] ?? null)
+			: null
+	);
 	let tooltipPreferences = $derived(
-		tooltipStudentId ? (preferenceMap[tooltipStudentId] ?? null) : null
+		tooltipController.state.studentId
+			? (preferenceMap[tooltipController.state.studentId] ?? null)
+			: null
 	);
 
 	// --- Compute preference ranks for all students ---
@@ -245,7 +243,9 @@
 
 	// --- Tooltip recent groupmates (must be after studentRecentGroupmates) ---
 	let tooltipRecentGroupmates = $derived(
-		tooltipStudentId ? (studentRecentGroupmates.get(tooltipStudentId) ?? []) : []
+		tooltipController.state.studentId
+			? (studentRecentGroupmates.get(tooltipController.state.studentId) ?? [])
+			: []
 	);
 
 	// --- Group names for preferences modal ---
@@ -611,81 +611,72 @@
 	// --- Tooltip handlers ---
 	function handleTooltipShow(studentId: string, x: number, y: number) {
 		// Don't show tooltip if a drag is in progress or just ended
-		if (draggingId || dragCooldown) return;
-		tooltipStudentId = studentId;
-		tooltipX = x;
-		tooltipY = y;
+		if (draggingId) return;
+		tooltipController.actions.show(studentId, x, y);
 	}
 
 	function handleTooltipHide() {
-		tooltipStudentId = null;
+		tooltipController.actions.hide();
 	}
 
 	// Handle drag end with cooldown to prevent spurious tooltips from DOM reflow
 	function handleDragEnd() {
 		draggingId = null;
-		dragCooldown = true;
-		// Clear cooldown after DOM has settled
-		setTimeout(() => {
-			dragCooldown = false;
-		}, 150);
+		tooltipController.actions.startDragCooldown(150);
 	}
 
 	// --- Student detail sidebar handlers ---
 	function handleStudentClick(studentId: string) {
-		sidebarStudentId = sidebarStudentId === studentId ? null : studentId;
-		tooltipStudentId = null; // hide tooltip when opening sidebar
+		sidebarController.actions.toggle(studentId);
+		tooltipController.actions.hide();
 	}
 
-	let sidebarStudent = $derived(sidebarStudentId ? (studentsById[sidebarStudentId] ?? null) : null);
+	let sidebarStudent = $derived(
+		sidebarController.state.studentId
+			? (studentsById[sidebarController.state.studentId] ?? null)
+			: null
+	);
 	let sidebarPreferences = $derived(
-		sidebarStudentId ? (preferenceMap[sidebarStudentId] ?? null) : null
+		sidebarController.state.studentId
+			? (preferenceMap[sidebarController.state.studentId] ?? null)
+			: null
 	);
 	let sidebarRecentGroupmates = $derived(
-		sidebarStudentId ? (studentRecentGroupmates.get(sidebarStudentId) ?? []) : []
+		sidebarController.state.studentId
+			? (studentRecentGroupmates.get(sidebarController.state.studentId) ?? [])
+			: []
 	);
 
 	// --- Keyboard navigation handlers ---
 	function handleKeyboardPickUp(studentId: string, container: string, index: number) {
-		pickedUpStudentId = studentId;
-		pickedUpFromContainer = container;
-		pickedUpFromIndex = index;
-
-		const student = studentsById[studentId];
-		const studentName = student
-			? `${student.firstName} ${student.lastName ?? ''}`.trim()
-			: studentId;
-		keyboardAnnouncement = `${studentName} picked up. Use arrow keys to move, Enter to drop, Escape to cancel.`;
+		keyboardController.actions.pickup(studentId, container, index);
 	}
 
 	function handleKeyboardDrop() {
-		if (!pickedUpStudentId || !pickedUpFromContainer) return;
+		if (!pickedUpStudentId) return;
 
-		// The student is already in position (we move them as arrow keys are pressed)
-		// So just clear the state
-		const student = studentsById[pickedUpStudentId];
-		const studentName = student
-			? `${student.firstName} ${student.lastName ?? ''}`.trim()
-			: pickedUpStudentId;
-		keyboardAnnouncement = `${studentName} dropped.`;
+		let currentContainer = pickedUpFromContainer ?? 'unassigned';
+		let currentIndex = pickedUpFromIndex;
 
-		pickedUpStudentId = null;
-		pickedUpFromContainer = null;
-		pickedUpFromIndex = 0;
+		for (const group of view?.groups ?? []) {
+			const idx = group.memberIds.indexOf(pickedUpStudentId);
+			if (idx !== -1) {
+				currentContainer = group.id;
+				currentIndex = idx;
+				break;
+			}
+		}
+
+		if (view?.unassignedStudentIds.includes(pickedUpStudentId)) {
+			currentContainer = 'unassigned';
+			currentIndex = view.unassignedStudentIds.indexOf(pickedUpStudentId);
+		}
+
+		keyboardController.actions.drop(currentContainer, currentIndex);
 	}
 
 	function handleKeyboardCancel() {
-		if (!pickedUpStudentId || !pickedUpFromContainer) return;
-
-		const student = studentsById[pickedUpStudentId];
-		const studentName = student
-			? `${student.firstName} ${student.lastName ?? ''}`.trim()
-			: pickedUpStudentId;
-		keyboardAnnouncement = `Move cancelled. ${studentName} returned to original position.`;
-
-		pickedUpStudentId = null;
-		pickedUpFromContainer = null;
-		pickedUpFromIndex = 0;
+		keyboardController.actions.cancel();
 	}
 
 	function handleKeyboardMove(direction: 'up' | 'down' | 'left' | 'right') {
@@ -758,20 +749,7 @@
 
 			if (result?.success) {
 				flashStudent(pickedUpStudentId);
-
-				// Announce the move
-				const student = studentsById[pickedUpStudentId];
-				const studentName = student
-					? `${student.firstName} ${student.lastName ?? ''}`.trim()
-					: pickedUpStudentId;
-
-				if (targetContainer === 'unassigned') {
-					keyboardAnnouncement = `${studentName} moved to unassigned.`;
-				} else {
-					const group = view.groups.find((g) => g.id === targetContainer);
-					const groupName = group?.name ?? targetContainer;
-					keyboardAnnouncement = `${studentName} moved to ${groupName}, position ${targetIndex + 1}.`;
-				}
+				keyboardController.actions.announceMove(targetContainer ?? 'unassigned', targetIndex);
 
 				// After moving to a different container, the DOM element is remounted.
 				// We need to restore focus to the new element after the DOM updates.
@@ -791,7 +769,7 @@
 	// Clear tooltip when any drag starts
 	$effect(() => {
 		if (draggingId) {
-			tooltipStudentId = null;
+			tooltipController.actions.hide();
 		}
 	});
 </script>
@@ -979,7 +957,7 @@
 				student={sidebarStudent}
 				preferences={sidebarPreferences}
 				recentGroupmates={sidebarRecentGroupmates}
-				onClose={() => (sidebarStudentId = null)}
+				onClose={() => sidebarController.actions.close()}
 			/>
 		{/if}
 
@@ -1101,8 +1079,8 @@
 			student={tooltipStudent}
 			preferences={tooltipPreferences}
 			recentGroupmates={tooltipRecentGroupmates}
-			x={tooltipX}
-			y={tooltipY}
+			x={tooltipController.state.x}
+			y={tooltipController.state.y}
 			visible={true}
 			showProfileLink={true}
 		/>

@@ -7,9 +7,9 @@
 export { SyncManager, type SyncManagerDeps } from './syncManager';
 export {
 	GoogleSheetsSyncManager,
-	type GoogleSheetsSyncManagerDeps,
-	type GoogleSheetsSyncConfig
+	type GoogleSheetsSyncManagerDeps
 } from './googleSheetsSyncManager';
+export type { GoogleSheetsSyncConfig } from '$lib/application/ports';
 export {
 	getBrowserGoogleSheetsSyncManager,
 	clearBrowserGoogleSheetsSyncManager,

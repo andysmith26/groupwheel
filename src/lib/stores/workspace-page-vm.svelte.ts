@@ -28,6 +28,18 @@ import {
 	type SaveStatus,
 	type ScenarioEditingView
 } from '$lib/stores/scenarioEditingStore';
+import {
+	createWorkspaceKeyboardController,
+	type WorkspaceKeyboardController
+} from '$lib/stores/workspace-keyboard-controller.svelte';
+import {
+	createWorkspaceTooltipController,
+	type WorkspaceTooltipController
+} from '$lib/stores/workspace-tooltip-controller.svelte';
+import {
+	createWorkspaceSidebarController,
+	type WorkspaceSidebarController
+} from '$lib/stores/workspace-sidebar-controller.svelte';
 import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
 
@@ -72,6 +84,9 @@ export interface WorkspacePageVmState {
 	avoidRecentGroupmates: boolean;
 
 	lastSaveStatus: SaveStatus | null;
+	keyboardController: WorkspaceKeyboardController;
+	tooltipController: WorkspaceTooltipController;
+	sidebarController: WorkspaceSidebarController;
 }
 
 export type WorkspacePageVm = {
@@ -89,7 +104,9 @@ export type WorkspacePageVm = {
 		closePreferencesModal: () => void;
 		openStartOverConfirm: () => void;
 		closeStartOverConfirm: () => void;
-		importPreferences: (parsedPreferences: ParsedPreference[]) => Promise<Result<number, VmOperationError>>;
+		importPreferences: (
+			parsedPreferences: ParsedPreference[]
+		) => Promise<Result<number, VmOperationError>>;
 		retryGeneration: () => Promise<Result<Scenario, string>>;
 		publishToClass: (hasEditsSincePublish: boolean) => Promise<Result<PublishState, string>>;
 		moveStudent: (payload: {
@@ -112,7 +129,9 @@ export type WorkspacePageVm = {
 			groupId: string,
 			changes: Partial<Pick<Group, 'name' | 'capacity'>>
 		) => Result<void, string>;
-		requestDeleteGroup: (groupId: string) => Result<'confirm' | 'deleted', 'missing_context' | 'not_found' | 'delete_failed'>;
+		requestDeleteGroup: (
+			groupId: string
+		) => Result<'confirm' | 'deleted', 'missing_context' | 'not_found' | 'delete_failed'>;
 		confirmDeleteGroup: () => Result<void, 'delete_failed' | 'missing_context'>;
 		cancelDeleteGroup: () => void;
 		requestAlphabetize: (groupId: string) => void;
@@ -123,7 +142,10 @@ export type WorkspacePageVm = {
 		alphabetizeUnassigned: (
 			studentsById: Record<string, Student>
 		) => Result<void, 'alphabetize_unassigned_failed' | 'missing_context'>;
-		handleSaveStatusEffects: (onFailed: (message: string) => void, onError: (error: string) => void) => void;
+		handleSaveStatusEffects: (
+			onFailed: (message: string) => void,
+			onError: (error: string) => void
+		) => void;
 		detectEditsSincePublish: () => boolean;
 	};
 };
@@ -132,13 +154,13 @@ type VmOperationError = 'missing_context' | 'internal_error';
 
 type PublishState =
 	| {
-		status: 'already_published';
-		programId: string;
-	}
+			status: 'already_published';
+			programId: string;
+	  }
 	| {
-		status: 'published';
-		programId: string;
-	};
+			status: 'published';
+			programId: string;
+	  };
 
 class WorkspacePageVmStore {
 	readonly state = $state<WorkspacePageVmState>({
@@ -173,7 +195,10 @@ class WorkspacePageVmStore {
 		isTryingAnother: false,
 		savedCurrentGroups: null,
 		avoidRecentGroupmates: false,
-		lastSaveStatus: null
+		lastSaveStatus: null,
+		keyboardController: createWorkspaceKeyboardController(),
+		tooltipController: createWorkspaceTooltipController(),
+		sidebarController: createWorkspaceSidebarController()
 	});
 
 	readonly actions: WorkspacePageVm['actions'];
@@ -229,6 +254,8 @@ class WorkspacePageVmStore {
 	private readonly dispose = () => {
 		this.keyboardCleanup?.();
 		this.keyboardCleanup = null;
+
+		this.state.tooltipController.actions.dispose();
 
 		this.unsubscribeEditingStore?.();
 		this.unsubscribeEditingStore = null;
@@ -309,7 +336,9 @@ class WorkspacePageVmStore {
 				await this.state.env.preferenceRepo.save(preference);
 			}
 
-			this.state.preferences = await this.state.env.preferenceRepo.listByProgramId(this.state.program.id);
+			this.state.preferences = await this.state.env.preferenceRepo.listByProgramId(
+				this.state.program.id
+			);
 			return ok(parsedPreferences.length);
 		} catch {
 			return err('internal_error');
@@ -453,8 +482,7 @@ class WorkspacePageVmStore {
 		this.state.showStartOverConfirm = false;
 		this.state.isRegenerating = true;
 
-		const existingConfig =
-			(this.state.scenario.algorithmConfig as Record<string, unknown>) ?? {};
+		const existingConfig = (this.state.scenario.algorithmConfig as Record<string, unknown>) ?? {};
 		const result = await this.state.env.groupingAlgorithm.generateGroups({
 			programId: this.state.scenario.programId,
 			studentIds: this.state.scenario.participantSnapshot,
@@ -558,19 +586,14 @@ class WorkspacePageVmStore {
 			});
 		}
 
-		if (
-			this.state.currentHistoryIndex === -1 &&
-			currentGroups.length > 0 &&
-			currentAnalytics
-		) {
+		if (this.state.currentHistoryIndex === -1 && currentGroups.length > 0 && currentAnalytics) {
 			this.addToHistory(currentGroups, currentAnalytics);
 		}
 
 		this.state.savedCurrentGroups = null;
 		this.state.isTryingAnother = true;
 
-		const existingConfig =
-			(this.state.scenario.algorithmConfig as Record<string, unknown>) ?? {};
+		const existingConfig = (this.state.scenario.algorithmConfig as Record<string, unknown>) ?? {};
 		const result = await this.state.env.groupingAlgorithm.generateGroups({
 			programId: this.state.scenario.programId,
 			studentIds: this.state.scenario.participantSnapshot,
@@ -675,7 +698,9 @@ class WorkspacePageVmStore {
 			return err('missing_context');
 		}
 
-		const group = this.state.view.groups.find((item) => item.id === this.state.groupToAlphabetize?.id);
+		const group = this.state.view.groups.find(
+			(item) => item.id === this.state.groupToAlphabetize?.id
+		);
 		if (!group) {
 			this.state.showAlphabetizeConfirm = false;
 			this.state.groupToAlphabetize = null;
@@ -716,7 +741,11 @@ class WorkspacePageVmStore {
 	private readonly alphabetizeUnassigned = (
 		studentsById: Record<string, Student>
 	): Result<void, 'alphabetize_unassigned_failed' | 'missing_context'> => {
-		if (!this.state.editingStore || !this.state.view || this.state.view.unassignedStudentIds.length < 2) {
+		if (
+			!this.state.editingStore ||
+			!this.state.view ||
+			this.state.view.unassignedStudentIds.length < 2
+		) {
 			return err('missing_context');
 		}
 
@@ -809,7 +838,8 @@ class WorkspacePageVmStore {
 				return;
 			}
 
-			const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC');
+			const isMac =
+				typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC');
 			const modKey = isMac ? event.metaKey : event.ctrlKey;
 
 			if (modKey && event.key === 'z') {

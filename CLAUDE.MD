@@ -171,7 +171,7 @@ pnpm format           # Format code
 
 - Don't mix framework code into domain layer
 - Don't add external dependencies without justification
-- Don't create server-side code (this is client-only)
+- Don't add new server-side features by default; only minimal SvelteKit endpoints required for optional auth/sync integrations (e.g., `/auth/*`, `/api/sync/*`) are allowed
 - Don't add telemetry or analytics (privacy-first)
 - Don't bypass the layer architecture
 

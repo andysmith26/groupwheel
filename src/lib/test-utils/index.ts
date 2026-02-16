@@ -1,5 +1,5 @@
 /**
- * Test utilities for Friend Hat.
+ * Test utilities for Groupwheel.
  *
  * This module provides fixtures, helpers, and mocks for testing.
  *

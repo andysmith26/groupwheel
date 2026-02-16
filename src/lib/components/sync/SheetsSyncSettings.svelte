@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
-	import type { SyncStatus } from '$lib/application/ports';
-	import type { GoogleSheetsSyncManager, GoogleSheetsSyncConfig } from '$lib/infrastructure/sync';
+	import type { SyncStatus, GoogleSheetsSyncConfig } from '$lib/application/ports';
 	import {
 		configureSheetsSyncStorage,
 		disconnectSheetsSyncStorage,
@@ -162,7 +161,13 @@
 		</div>
 	{:else}
 		<!-- Not connected state -->
-		<form onsubmit={(e) => { e.preventDefault(); handleConnect(); }} class="space-y-3">
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				handleConnect();
+			}}
+			class="space-y-3"
+		>
 			<div>
 				<label for="sheet-url" class="block text-sm text-gray-700">
 					Enter a Google Sheets URL to use as storage:
