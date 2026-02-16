@@ -1,7 +1,7 @@
 # Plan: Migrate `scenarioEditingStore` to Svelte 5 Runes
 
 - Date: 2026-02-16
-- Status: Proposed
+- Status: In Progress (Phase 1 Complete)
 - Scope: `src/lib/stores/scenarioEditingStore.ts` (+ adjacent call sites/tests only as needed)
 
 ## Goal
@@ -36,6 +36,7 @@ Replace legacy Svelte 4 store primitives (`writable`, `derived`, `get`) in `Scen
    - `subscribe`, `initialize`, `dispatch`, `undo`, `redo`, `regenerate`, `destroy`, etc.
 
 Exit criteria:
+
 - All baseline tests pass before touching implementation.
 
 ### Phase 2 — Introduce Runes-backed State (Internal)
@@ -46,6 +47,7 @@ Exit criteria:
 4. Preserve timeout/cleanup behavior for save debounce, analytics debounce, and saved-idle transitions.
 
 Exit criteria:
+
 - Public API remains backward-compatible for existing consumers.
 - Tests still pass without call-site rewrites.
 
@@ -56,6 +58,7 @@ Exit criteria:
 3. Keep compatibility for tests that may still read via helper patterns (adapt tests if needed, not production API semantics).
 
 Exit criteria:
+
 - No `writable/derived/get` imports in `scenarioEditingStore.ts`.
 - Lint/typecheck pass for touched files.
 
@@ -65,6 +68,7 @@ Exit criteria:
 2. Only proceed if all call sites are migrated and no external contract depends on `Readable`.
 
 Exit criteria:
+
 - Deferred unless explicitly prioritized.
 
 ## Risks and Mitigations
@@ -88,3 +92,16 @@ Exit criteria:
 1. Small preparatory PR: add/solidify characterization tests.
 2. Migration PR: internal state + derived view conversion.
 3. Cleanup PR: remove legacy imports and tighten lint guard.
+
+## Progress Update (2026-02-16)
+
+- ✅ Phase 1 complete
+  - `scenarioEditingStore.spec.ts` green with characterization coverage for:
+    - debounce/save status transitions
+    - undo/redo behavior
+    - drag/reorder + unassigned ordering
+    - retry/failure terminal state
+    - public API surface used by call sites (`subscribe`, `initialize`, `dispatch`, `undo`, `redo`, `regenerate`, `destroy`, plus editing operations)
+- ⏳ Phase 2 not started
+- ⏳ Phase 3 not started
+- ⏳ Phase 4 deferred (unchanged)

@@ -44,6 +44,33 @@ afterEach(() => {
 });
 
 describe('ScenarioEditingStore', () => {
+	it('exposes the expected public API surface used by callers', () => {
+		const repo = new InMemoryScenarioRepository([createScenario()]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+
+		expect(typeof store.subscribe).toBe('function');
+		expect(typeof store.initialize).toBe('function');
+		expect(typeof store.updateAlgorithmConfig).toBe('function');
+		expect(typeof store.dispatch).toBe('function');
+		expect(typeof store.createGroup).toBe('function');
+		expect(typeof store.updateGroup).toBe('function');
+		expect(typeof store.deleteGroup).toBe('function');
+		expect(typeof store.reorderGroup).toBe('function');
+		expect(typeof store.reorderUnassigned).toBe('function');
+		expect(typeof store.undo).toBe('function');
+		expect(typeof store.redo).toBe('function');
+		expect(typeof store.regenerate).toBe('function');
+		expect(typeof store.retrySave).toBe('function');
+		expect(typeof store.adopt).toBe('function');
+		expect(typeof store.flushPendingSaves).toBe('function');
+		expect(typeof store.exportState).toBe('function');
+		expect(typeof store.destroy).toBe('function');
+	});
+
 	it('moves students, tracks history, and supports undo/redo', () => {
 		const repo = new InMemoryScenarioRepository([createScenario()]);
 		const store = new ScenarioEditingStore({
@@ -237,6 +264,99 @@ describe('ScenarioEditingStore', () => {
 		expect(view.historyIndex).toBe(-1);
 		expect(view.baseline?.percentAssignedTopChoice).toBeGreaterThanOrEqual(0);
 		expect(view.groups.find((g) => g.id === 'g1')?.memberIds).toEqual(['s1']);
+	});
+
+	it('reorders group members and supports undo/redo', () => {
+		const scenario = createScenario();
+		scenario.groups = [
+			{ id: 'g1', name: 'Group 1', capacity: 3, memberIds: ['s1', 's2', 's3'] },
+			{ id: 'g2', name: 'Group 2', capacity: 2, memberIds: [] }
+		];
+		scenario.participantSnapshot = ['s1', 's2', 's3'];
+
+		const repo = new InMemoryScenarioRepository([scenario]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(scenario, preferences);
+
+		const result = store.reorderGroup('g1', ['s3', 's1', 's2']);
+		expect(result.success).toBe(true);
+		let view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.memberIds).toEqual(['s3', 's1', 's2']);
+
+		expect(store.undo()).toBe(true);
+		view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.memberIds).toEqual(['s1', 's2', 's3']);
+
+		expect(store.redo()).toBe(true);
+		view = get(store);
+		expect(view.groups.find((g) => g.id === 'g1')?.memberIds).toEqual(['s3', 's1', 's2']);
+	});
+
+	it('reorders unassigned students and preserves custom order after moves', () => {
+		const scenario = createScenario();
+		scenario.groups = [
+			{ id: 'g1', name: 'Group 1', capacity: 2, memberIds: ['s1'] },
+			{ id: 'g2', name: 'Group 2', capacity: 2, memberIds: [] }
+		];
+		scenario.participantSnapshot = ['s1', 's2', 's3', 's4'];
+
+		const repo = new InMemoryScenarioRepository([scenario]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(scenario, preferences);
+
+		let view = get(store);
+		expect(view.unassignedStudentIds).toEqual(['s2', 's3', 's4']);
+
+		const reorderResult = store.reorderUnassigned(['s4', 's2', 's3']);
+		expect(reorderResult.success).toBe(true);
+		view = get(store);
+		expect(view.unassignedStudentIds).toEqual(['s4', 's2', 's3']);
+
+		// Move one unassigned student into a group; custom ordering should be preserved
+		const moveResult = store.dispatch({
+			type: 'MOVE_STUDENT',
+			studentId: 's2',
+			source: 'unassigned',
+			target: 'g2'
+		});
+		expect(moveResult.success).toBe(true);
+		view = get(store);
+		expect(view.unassignedStudentIds).toEqual(['s4', 's3']);
+
+		// Undo should restore the same custom unassigned order
+		expect(store.undo()).toBe(true);
+		view = get(store);
+		expect(view.unassignedStudentIds).toEqual(['s4', 's2', 's3']);
+	});
+
+	it('rejects invalid reorder operations', () => {
+		const scenario = createScenario();
+		scenario.groups = [{ id: 'g1', name: 'Group 1', capacity: 3, memberIds: ['s1', 's2', 's3'] }];
+		scenario.participantSnapshot = ['s1', 's2', 's3', 's4'];
+
+		const repo = new InMemoryScenarioRepository([scenario]);
+		const store = new ScenarioEditingStore({
+			scenarioRepo: repo,
+			idGenerator: new MockIdGenerator(),
+			debounceMs: 10
+		});
+		store.initialize(scenario, preferences);
+
+		const badGroupOrder = store.reorderGroup('g1', ['s1', 's2']);
+		expect(badGroupOrder.success).toBe(false);
+		expect(badGroupOrder.reason).toBe('invalid_order');
+
+		const badUnassignedOrder = store.reorderUnassigned(['s4', 's5']);
+		expect(badUnassignedOrder.success).toBe(false);
+		expect(badUnassignedOrder.reason).toBe('invalid_order');
 	});
 });
 
