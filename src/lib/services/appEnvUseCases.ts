@@ -1259,6 +1259,92 @@ export async function listStudentStats(
 	);
 }
 
+// =============================================================================
+// Workspace View Business Rules (Pure Use Cases)
+// =============================================================================
+
+import {
+	normalizeWorkspaceRowLayoutFromConfig as normalizeWorkspaceRowLayoutUseCase,
+	type NormalizeWorkspaceRowLayoutInput,
+	type NormalizeWorkspaceRowLayoutOutput,
+	type WorkspaceRowLayout
+} from '$lib/application/useCases/normalize-workspace-row-layout';
+import {
+	createWorkspaceHistoryEntry as createWorkspaceHistoryEntryUseCase,
+	insertWorkspaceHistoryEntry as insertWorkspaceHistoryEntryUseCase,
+	selectWorkspaceHistoryEntry as selectWorkspaceHistoryEntryUseCase,
+	type CreateWorkspaceHistoryEntryInput,
+	type InsertWorkspaceHistoryEntryInput,
+	type SelectWorkspaceHistoryEntryInput,
+	type SelectWorkspaceHistoryEntryOutput,
+	type WorkspaceHistoryEntry,
+	type WorkspaceHistoryState
+} from '$lib/application/useCases/manage-workspace-history';
+import {
+	detectWorkspaceEditsSincePublish as detectWorkspaceEditsSincePublishUseCase,
+	type DetectWorkspaceEditsSincePublishInput,
+	type DetectWorkspaceEditsSincePublishOutput
+} from '$lib/application/useCases/detect-workspace-edits-since-publish';
+import {
+	getWorkspaceGroupsDisplayOrder as getWorkspaceGroupsDisplayOrderUseCase,
+	type GetWorkspaceGroupsDisplayOrderInput,
+	type GetWorkspaceGroupsDisplayOrderOutput
+} from '$lib/application/useCases/get-workspace-groups-display-order';
+
+/**
+ * Normalize, repair, and persist-shape workspace row layout config.
+ */
+export function normalizeWorkspaceRowLayout(
+	input: NormalizeWorkspaceRowLayoutInput
+): Result<NormalizeWorkspaceRowLayoutOutput, never> {
+	return normalizeWorkspaceRowLayoutUseCase(input);
+}
+
+/**
+ * Create a workspace history entry snapshot.
+ */
+export function createWorkspaceHistoryEntry(
+	input: CreateWorkspaceHistoryEntryInput
+): Result<WorkspaceHistoryEntry, never> {
+	return createWorkspaceHistoryEntryUseCase(input);
+}
+
+/**
+ * Insert a history entry with bounded size.
+ */
+export function insertWorkspaceHistoryEntry(
+	input: InsertWorkspaceHistoryEntryInput
+): Result<WorkspaceHistoryState, never> {
+	return insertWorkspaceHistoryEntryUseCase(input);
+}
+
+/**
+ * Move the history cursor and resolve which groups to apply.
+ */
+export function selectWorkspaceHistoryEntry(
+	input: SelectWorkspaceHistoryEntryInput
+): Result<SelectWorkspaceHistoryEntryOutput, never> {
+	return selectWorkspaceHistoryEntryUseCase(input);
+}
+
+/**
+ * Detect whether workspace has edits after latest publish.
+ */
+export function detectWorkspaceEditsSincePublish(
+	input: DetectWorkspaceEditsSincePublishInput
+): Result<DetectWorkspaceEditsSincePublishOutput, never> {
+	return detectWorkspaceEditsSincePublishUseCase(input);
+}
+
+/**
+ * Return groups in workspace display order (top row, then bottom row).
+ */
+export function getWorkspaceGroupsDisplayOrder(
+	input: GetWorkspaceGroupsDisplayOrderInput
+): Result<GetWorkspaceGroupsDisplayOrderOutput, never> {
+	return getWorkspaceGroupsDisplayOrderUseCase(input);
+}
+
 // Re-export analytics types
 export type {
 	GetProgramPairingStatsInput,
@@ -1267,7 +1353,20 @@ export type {
 	GetObservationSummaryInput,
 	ObservationSummaryResult,
 	ListStudentStatsInput,
-	ListStudentStatsResult
+	ListStudentStatsResult,
+	WorkspaceRowLayout,
+	NormalizeWorkspaceRowLayoutInput,
+	NormalizeWorkspaceRowLayoutOutput,
+	WorkspaceHistoryEntry,
+	WorkspaceHistoryState,
+	CreateWorkspaceHistoryEntryInput,
+	InsertWorkspaceHistoryEntryInput,
+	SelectWorkspaceHistoryEntryInput,
+	SelectWorkspaceHistoryEntryOutput,
+	DetectWorkspaceEditsSincePublishInput,
+	DetectWorkspaceEditsSincePublishOutput,
+	GetWorkspaceGroupsDisplayOrderInput,
+	GetWorkspaceGroupsDisplayOrderOutput
 };
 
 // =============================================================================

@@ -33,9 +33,20 @@
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
 	import StudentInfoTooltip from '$lib/components/editing/StudentInfoTooltip.svelte';
 	import {
+		createWorkspaceHistoryEntry,
+		detectWorkspaceEditsSincePublish,
 		generateScenario,
+		getProgramPairingStats,
+		type PairingStat,
+		getWorkspaceGroupsDisplayOrder,
+		insertWorkspaceHistoryEntry,
 		getActivityData,
-		showToClass
+		normalizeWorkspaceRowLayout,
+		selectWorkspaceHistoryEntry,
+		showToClass,
+		type WorkspaceHistoryEntry,
+		type WorkspaceHistoryState,
+		type WorkspaceRowLayout
 	} from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
 	import type { Session } from '$lib/domain';
@@ -65,7 +76,6 @@
 	import SatisfactionSummary from '$lib/components/workspace/SatisfactionSummary.svelte';
 	import CardSizeToggle from '$lib/components/workspace/CardSizeToggle.svelte';
 	import GroupLayoutToggle from '$lib/components/workspace/GroupLayoutToggle.svelte';
-	import { getProgramPairingStats, type PairingStat } from '$lib/services/appEnvUseCases';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 	import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
 
@@ -141,15 +151,8 @@
 	let layoutMode = $derived<LayoutMode>(uiSettings.groupLayout === 'wrap' ? 'masonry' : 'row');
 
 	// --- Result history state (session-only) ---
-	interface HistoryEntry {
-		id: string;
-		groups: Group[];
-		generatedAt: Date;
-		analytics: ScenarioSatisfaction;
-	}
-
 	const MAX_HISTORY = 3;
-	let resultHistory = $state<HistoryEntry[]>([]);
+	let resultHistory = $state<WorkspaceHistoryEntry[]>([]);
 	let currentHistoryIndex = $state<number>(-1);
 	let isTryingAnother = $state(false);
 	let savedCurrentGroups = $state<Group[] | null>(null);
@@ -210,14 +213,18 @@
 		});
 	});
 
-	type RowLayoutConfig = { top: string[]; bottom: string[] };
-
 	// Detect if scenario has been edited since last publish
 	let hasEditsSincePublish = $derived.by(() => {
-		if (!view?.lastModifiedAt || !latestPublishedSession?.publishedAt) {
-			return true; // No publish yet or no scenario, so treat as "has edits"
+		const result = detectWorkspaceEditsSincePublish({
+			scenarioLastModifiedAt: view?.lastModifiedAt,
+			latestPublishedAt: latestPublishedSession?.publishedAt
+		});
+
+		if (result.status === 'ok') {
+			return result.value.hasEditsSincePublish;
 		}
-		return view.lastModifiedAt > latestPublishedSession.publishedAt;
+
+		return true;
 	});
 
 	let sizeStyle = $derived(cardSizeStyle(uiSettings.cardSize));
@@ -238,9 +245,9 @@
 	});
 
 	// --- Tooltip student data ---
-	let tooltipStudent = $derived(tooltipStudentId ? studentsById[tooltipStudentId] ?? null : null);
+	let tooltipStudent = $derived(tooltipStudentId ? (studentsById[tooltipStudentId] ?? null) : null);
 	let tooltipPreferences = $derived(
-		tooltipStudentId ? preferenceMap[tooltipStudentId] ?? null : null
+		tooltipStudentId ? (preferenceMap[tooltipStudentId] ?? null) : null
 	);
 
 	// --- Compute preference ranks for all students ---
@@ -300,7 +307,7 @@
 
 	// --- Tooltip recent groupmates (must be after studentRecentGroupmates) ---
 	let tooltipRecentGroupmates = $derived(
-		tooltipStudentId ? studentRecentGroupmates.get(tooltipStudentId) ?? [] : []
+		tooltipStudentId ? (studentRecentGroupmates.get(tooltipStudentId) ?? []) : []
 	);
 
 	// --- Group names for preferences modal ---
@@ -311,140 +318,38 @@
 	 * This ensures exports match what users see on screen.
 	 */
 	function getGroupsInDisplayOrder(): Group[] {
-		if (!view || !resolvedRowLayout) return view?.groups ?? [];
+		if (!view) return [];
+		const result = getWorkspaceGroupsDisplayOrder({
+			groups: view.groups,
+			rowLayout: resolvedRowLayout
+		});
 
-		const groupsById = new Map(view.groups.map((g) => [g.id, g]));
-		const orderedGroups: Group[] = [];
-
-		// Add groups in display order: top row first, then bottom row
-		for (const id of resolvedRowLayout.top) {
-			const group = groupsById.get(id);
-			if (group) orderedGroups.push(group);
-		}
-		for (const id of resolvedRowLayout.bottom) {
-			const group = groupsById.get(id);
-			if (group) orderedGroups.push(group);
+		if (result.status === 'ok') {
+			return result.value.groups;
 		}
 
-		// Add any remaining groups not in the layout (shouldn't happen, but be safe)
-		for (const group of view.groups) {
-			if (!orderedGroups.some((g) => g.id === group.id)) {
-				orderedGroups.push(group);
-			}
-		}
-
-		return orderedGroups;
+		return view.groups;
 	}
-
-	function isStringArray(value: unknown): value is string[] {
-		return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
-	}
-
-	function getRowLayoutConfig(config: unknown): RowLayoutConfig | null {
-		if (!config || typeof config !== 'object' || Array.isArray(config)) return null;
-		const workspace = (config as Record<string, unknown>).workspace;
-		if (!workspace || typeof workspace !== 'object' || Array.isArray(workspace)) return null;
-		const rowLayout = (workspace as Record<string, unknown>).rowLayout;
-		if (!rowLayout || typeof rowLayout !== 'object' || Array.isArray(rowLayout)) return null;
-		const top = (rowLayout as Record<string, unknown>).top;
-		const bottom = (rowLayout as Record<string, unknown>).bottom;
-		if (!isStringArray(top) || !isStringArray(bottom)) return null;
-		return { top: [...top], bottom: [...bottom] };
-	}
-
-	function dedupeRowLayoutEntries(ids: string[], seen: Set<string>): string[] {
-		const sanitized: string[] = [];
-		for (const id of ids) {
-			if (seen.has(id)) continue;
-			seen.add(id);
-			sanitized.push(id);
-		}
-		return sanitized;
-	}
-
-	function computeInitialRowLayout(groups: Group[]): RowLayoutConfig {
-		if (groups.length === 0) return { top: [], bottom: [] };
-		const sortedBySize = [...groups].sort(
-			(a, b) => b.memberIds.length - a.memberIds.length
-		);
-		const bottomCount = Math.ceil(sortedBySize.length / 2);
-		const bottomIds = new Set(sortedBySize.slice(0, bottomCount).map((group) => group.id));
-		return {
-			top: groups.filter((group) => !bottomIds.has(group.id)).map((group) => group.id),
-			bottom: groups.filter((group) => bottomIds.has(group.id)).map((group) => group.id)
-		};
-	}
-
-	function normalizeRowLayout(layout: RowLayoutConfig, groups: Group[]): RowLayoutConfig {
-		const groupIds = new Set(groups.map((group) => group.id));
-		const seen = new Set<string>();
-		const top = dedupeRowLayoutEntries(
-			layout.top.filter((id) => groupIds.has(id)),
-			seen
-		);
-		const bottom = dedupeRowLayoutEntries(
-			layout.bottom.filter((id) => groupIds.has(id)),
-			seen
-		);
-		const missing = groups
-			.filter((group) => !seen.has(group.id))
-			.map((group) => group.id);
-		const nextTop = top;
-		const nextBottom = missing.length > 0 ? [...bottom, ...missing] : bottom;
-
-		if (nextTop.length === 0 && nextBottom.length === groups.length) {
-			return computeInitialRowLayout(groups);
-		}
-		if (nextBottom.length === 0 && nextTop.length === groups.length) {
-			return computeInitialRowLayout(groups);
-		}
-
-		return {
-			top: nextTop,
-			bottom: nextBottom
-		};
-	}
-
-	function rowLayoutEquals(a: RowLayoutConfig, b: RowLayoutConfig): boolean {
-		const same = (left: string[], right: string[]) =>
-			left.length === right.length && left.every((value, index) => value === right[index]);
-		return same(a.top, b.top) && same(a.bottom, b.bottom);
-	}
-
-	function setRowLayoutConfig(config: unknown, rowLayout: RowLayoutConfig): unknown {
-		const base =
-			config && typeof config === 'object' && !Array.isArray(config)
-				? { ...(config as Record<string, unknown>) }
-				: {};
-		const workspace =
-			base.workspace && typeof base.workspace === 'object' && !Array.isArray(base.workspace)
-				? { ...(base.workspace as Record<string, unknown>) }
-				: {};
-		return {
-			...base,
-			workspace: {
-				...workspace,
-				rowLayout: {
-					top: [...rowLayout.top],
-					bottom: [...rowLayout.bottom]
-				}
-			}
-		};
-	}
-
-	let resolvedRowLayout = $derived.by(() => {
+	let rowLayoutState = $derived.by(() => {
 		if (!view) return null;
-		const stored = getRowLayoutConfig(scenario?.algorithmConfig);
-		const base = stored ?? computeInitialRowLayout(view.groups);
-		return normalizeRowLayout(base, view.groups);
+		const result = normalizeWorkspaceRowLayout({
+			groups: view.groups,
+			algorithmConfig: scenario?.algorithmConfig
+		});
+
+		if (result.status === 'ok') {
+			return result.value;
+		}
+
+		return null;
 	});
 
-	$effect(() => {
-		if (!scenario || !editingStore || !resolvedRowLayout) return;
-		const stored = getRowLayoutConfig(scenario.algorithmConfig);
-		if (stored && rowLayoutEquals(stored, resolvedRowLayout)) return;
+	let resolvedRowLayout = $derived<WorkspaceRowLayout | null>(rowLayoutState?.rowLayout ?? null);
 
-		const nextConfig = setRowLayoutConfig(scenario.algorithmConfig, resolvedRowLayout);
+	$effect(() => {
+		if (!scenario || !editingStore || !rowLayoutState?.shouldPersistConfig) return;
+
+		const nextConfig = rowLayoutState.nextAlgorithmConfig;
 		editingStore.updateAlgorithmConfig(nextConfig);
 		scenario = { ...scenario, algorithmConfig: nextConfig };
 	});
@@ -577,7 +482,9 @@
 		latestPublishedSession = data.latestPublishedSession;
 
 		// Load pairing stats if there are 2+ sessions with placements (meaningful history)
-		const publishedSessions = sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED');
+		const publishedSessions = sessions.filter(
+			(s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED'
+		);
 		if (publishedSessions.length >= 2) {
 			const statsResult = await getProgramPairingStats(env, { programId });
 			if (!isErr(statsResult)) {
@@ -629,7 +536,12 @@
 		isRetryingGeneration = false;
 	}
 
-	function handleDrop(payload: { studentId: string; source: string; target: string; targetIndex?: number }) {
+	function handleDrop(payload: {
+		studentId: string;
+		source: string;
+		target: string;
+		targetIndex?: number;
+	}) {
 		if (!editingStore) return;
 
 		const currentSourceGroup = view?.groups.find((g) => g.memberIds.includes(payload.studentId));
@@ -656,19 +568,27 @@
 
 			// Build student name and group transition for toast
 			const student = studentsById[payload.studentId];
-			const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : 'Student';
-			const sourceGroup = view?.groups.find(g => g.id === normalizedSource);
-			const targetGroup = view?.groups.find(g => g.id === payload.target);
-			const sourceName = normalizedSource === 'unassigned' ? 'Unassigned' : (sourceGroup?.name ?? 'Unknown');
-			const targetName = payload.target === 'unassigned' ? 'Unassigned' : (targetGroup?.name ?? 'Unknown');
+			const studentName = student
+				? `${student.firstName} ${student.lastName ?? ''}`.trim()
+				: 'Student';
+			const sourceGroup = view?.groups.find((g) => g.id === normalizedSource);
+			const targetGroup = view?.groups.find((g) => g.id === payload.target);
+			const sourceName =
+				normalizedSource === 'unassigned' ? 'Unassigned' : (sourceGroup?.name ?? 'Unknown');
+			const targetName =
+				payload.target === 'unassigned' ? 'Unassigned' : (targetGroup?.name ?? 'Unknown');
 
-			showToast(`${studentName} moved.`, {
-				label: 'Undo',
-				callback: () => {
-					editingStore?.undo();
-					toast = null;
-				}
-			}, `${sourceName} → ${targetName}`);
+			showToast(
+				`${studentName} moved.`,
+				{
+					label: 'Undo',
+					callback: () => {
+						editingStore?.undo();
+						toast = null;
+					}
+				},
+				`${sourceName} → ${targetName}`
+			);
 		}
 	}
 
@@ -688,7 +608,9 @@
 			if (result.success) {
 				flashStudent(payload.studentId);
 				const student = studentsById[payload.studentId];
-				const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : 'Student';
+				const studentName = student
+					? `${student.firstName} ${student.lastName ?? ''}`.trim()
+					: 'Student';
 				showToast(`${studentName} reordered.`, {
 					label: 'Undo',
 					callback: () => {
@@ -717,7 +639,9 @@
 		if (result.success) {
 			flashStudent(payload.studentId);
 			const student = studentsById[payload.studentId];
-			const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : 'Student';
+			const studentName = student
+				? `${student.firstName} ${student.lastName ?? ''}`.trim()
+				: 'Student';
 			showToast(`${studentName} reordered.`, {
 				label: 'Undo',
 				callback: () => {
@@ -767,38 +691,58 @@
 	function addToHistory(groups: Group[], analytics: ScenarioSatisfaction) {
 		if (!env) return;
 
-		const entry: HistoryEntry = {
+		const entryResult = createWorkspaceHistoryEntry({
 			id: env.idGenerator.generateId(),
-			groups: structuredClone(groups),
+			groups,
 			generatedAt: new Date(),
 			analytics
+		});
+
+		if (entryResult.status !== 'ok') return;
+
+		const state: WorkspaceHistoryState = {
+			entries: resultHistory,
+			currentIndex: currentHistoryIndex,
+			savedCurrentGroups
 		};
 
-		resultHistory = [entry, ...resultHistory].slice(0, MAX_HISTORY);
-		currentHistoryIndex = -1;
+		const nextState = insertWorkspaceHistoryEntry({
+			state,
+			entry: entryResult.value,
+			maxEntries: MAX_HISTORY
+		});
+
+		if (nextState.status !== 'ok') return;
+
+		resultHistory = nextState.value.entries;
+		currentHistoryIndex = nextState.value.currentIndex;
+		savedCurrentGroups = nextState.value.savedCurrentGroups;
 	}
 
 	function switchToHistoryEntry(index: number) {
 		if (!editingStore) return;
 
-		if (index === -1) {
-			if (savedCurrentGroups && currentHistoryIndex !== -1) {
-				editingStore.regenerate(savedCurrentGroups);
-				savedCurrentGroups = null;
-			}
-			currentHistoryIndex = -1;
-			return;
+		const state: WorkspaceHistoryState = {
+			entries: resultHistory,
+			currentIndex: currentHistoryIndex,
+			savedCurrentGroups
+		};
+
+		const selection = selectWorkspaceHistoryEntry({
+			state,
+			index,
+			currentGroups: view?.groups ?? null
+		});
+
+		if (selection.status !== 'ok') return;
+
+		resultHistory = selection.value.state.entries;
+		currentHistoryIndex = selection.value.state.currentIndex;
+		savedCurrentGroups = selection.value.state.savedCurrentGroups;
+
+		if (selection.value.groupsToApply) {
+			editingStore.regenerate(selection.value.groupsToApply);
 		}
-
-		if (index < 0 || index >= resultHistory.length) return;
-
-		if (currentHistoryIndex === -1 && view?.groups) {
-			savedCurrentGroups = structuredClone(view.groups);
-		}
-
-		currentHistoryIndex = index;
-		const entry = resultHistory[index];
-		editingStore.regenerate(entry.groups);
 	}
 
 	async function handleTryAnother() {
@@ -1160,9 +1104,10 @@
 		});
 
 		if (isErr(result)) {
-			const message = result.error.type === 'INTERNAL_ERROR'
-				? result.error.message
-				: `Failed: ${result.error.type}`;
+			const message =
+				result.error.type === 'INTERNAL_ERROR'
+					? result.error.message
+					: `Failed: ${result.error.type}`;
 			showToast(message);
 			return;
 		}
@@ -1201,12 +1146,12 @@
 		tooltipStudentId = null; // hide tooltip when opening sidebar
 	}
 
-	let sidebarStudent = $derived(sidebarStudentId ? studentsById[sidebarStudentId] ?? null : null);
+	let sidebarStudent = $derived(sidebarStudentId ? (studentsById[sidebarStudentId] ?? null) : null);
 	let sidebarPreferences = $derived(
-		sidebarStudentId ? preferenceMap[sidebarStudentId] ?? null : null
+		sidebarStudentId ? (preferenceMap[sidebarStudentId] ?? null) : null
 	);
 	let sidebarRecentGroupmates = $derived(
-		sidebarStudentId ? studentRecentGroupmates.get(sidebarStudentId) ?? [] : []
+		sidebarStudentId ? (studentRecentGroupmates.get(sidebarStudentId) ?? []) : []
 	);
 
 	// --- Keyboard navigation handlers ---
@@ -1216,7 +1161,9 @@
 		pickedUpFromIndex = index;
 
 		const student = studentsById[studentId];
-		const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : studentId;
+		const studentName = student
+			? `${student.firstName} ${student.lastName ?? ''}`.trim()
+			: studentId;
 		keyboardAnnouncement = `${studentName} picked up. Use arrow keys to move, Enter to drop, Escape to cancel.`;
 	}
 
@@ -1226,7 +1173,9 @@
 		// The student is already in position (we move them as arrow keys are pressed)
 		// So just clear the state
 		const student = studentsById[pickedUpStudentId];
-		const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : pickedUpStudentId;
+		const studentName = student
+			? `${student.firstName} ${student.lastName ?? ''}`.trim()
+			: pickedUpStudentId;
 		keyboardAnnouncement = `${studentName} dropped.`;
 
 		pickedUpStudentId = null;
@@ -1238,7 +1187,9 @@
 		if (!pickedUpStudentId || !pickedUpFromContainer) return;
 
 		const student = studentsById[pickedUpStudentId];
-		const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : pickedUpStudentId;
+		const studentName = student
+			? `${student.firstName} ${student.lastName ?? ''}`.trim()
+			: pickedUpStudentId;
 		keyboardAnnouncement = `Move cancelled. ${studentName} returned to original position.`;
 
 		pickedUpStudentId = null;
@@ -1271,7 +1222,7 @@
 		// Build list of all containers in visual order (unassigned, then top row L→R, then bottom row L→R)
 		const visualGroupOrder = resolvedRowLayout
 			? [...resolvedRowLayout.top, ...resolvedRowLayout.bottom]
-			: view.groups.map(g => g.id);
+			: view.groups.map((g) => g.id);
 		const containers = ['unassigned', ...visualGroupOrder];
 		const currentContainerIndex = containers.indexOf(currentContainer ?? 'unassigned');
 
@@ -1280,13 +1231,13 @@
 
 		if (direction === 'up' && currentContainer !== 'unassigned') {
 			// Move up within group (decrease index)
-			const group = view.groups.find(g => g.id === currentContainer);
+			const group = view.groups.find((g) => g.id === currentContainer);
 			if (group && currentIndex > 0) {
 				targetIndex = currentIndex - 1;
 			}
 		} else if (direction === 'down' && currentContainer !== 'unassigned') {
 			// Move down within group (increase index)
-			const group = view.groups.find(g => g.id === currentContainer);
+			const group = view.groups.find((g) => g.id === currentContainer);
 			if (group && currentIndex < group.memberIds.length - 1) {
 				targetIndex = currentIndex + 1;
 			}
@@ -1319,12 +1270,14 @@
 
 				// Announce the move
 				const student = studentsById[pickedUpStudentId];
-				const studentName = student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : pickedUpStudentId;
+				const studentName = student
+					? `${student.firstName} ${student.lastName ?? ''}`.trim()
+					: pickedUpStudentId;
 
 				if (targetContainer === 'unassigned') {
 					keyboardAnnouncement = `${studentName} moved to unassigned.`;
 				} else {
-					const group = view.groups.find(g => g.id === targetContainer);
+					const group = view.groups.find((g) => g.id === targetContainer);
 					const groupName = group?.name ?? targetContainer;
 					keyboardAnnouncement = `${studentName} moved to ${groupName}, position ${targetIndex + 1}.`;
 				}
@@ -1334,7 +1287,9 @@
 				if (targetContainer !== currentContainer) {
 					const studentIdToFocus = pickedUpStudentId;
 					requestAnimationFrame(() => {
-						const newElement = document.querySelector(`[data-student-id="${studentIdToFocus}"]`) as HTMLElement | null;
+						const newElement = document.querySelector(
+							`[data-student-id="${studentIdToFocus}"]`
+						) as HTMLElement | null;
 						newElement?.focus();
 					});
 				}
@@ -1369,7 +1324,7 @@
 				</div>
 			</div>
 			<!-- Main area: Group columns skeleton -->
-			<div class="flex-1 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			<div class="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{#each Array(6) as _}
 					<GroupColumnSkeleton studentCount={4} />
 				{/each}
@@ -1386,12 +1341,12 @@
 		</div>
 	{:else if program}
 		<!-- Main content area -->
-		<div class="flex flex-1 min-h-0 overflow-hidden">
+		<div class="flex min-h-0 flex-1 overflow-hidden">
 			<!-- Workspace (main area) -->
 			<main class="flex-1 overflow-y-auto p-4">
 				<!-- Post-creation guided stepper -->
 				{#if showGuidanceBanner && !bannerDismissed && scenario && view}
-					<div class="mx-auto max-w-6xl mb-4">
+					<div class="mx-auto mb-4 max-w-6xl">
 						<GuidedStepper
 							currentStep={guidedStep}
 							onAdvance={() => (guidedStep = 2)}
@@ -1403,10 +1358,10 @@
 
 				<!-- Preferences prompt banner (only shown when no preferences and groups exist) -->
 				{#if scenario && view && preferencesCount === 0 && program}
-					<div class="mx-auto max-w-6xl mb-4">
+					<div class="mx-auto mb-4 max-w-6xl">
 						<PreferencesPromptBanner
 							activityId={program.id}
-							onImportClick={() => showPreferencesModal = true}
+							onImportClick={() => (showPreferencesModal = true)}
 						/>
 					</div>
 				{/if}
@@ -1450,7 +1405,7 @@
 									<RepeatedGroupingHint
 										activityId={program.id}
 										checked={avoidRecentGroupmates}
-										onToggle={(checked) => avoidRecentGroupmates = checked}
+										onToggle={(checked) => (avoidRecentGroupmates = checked)}
 									/>
 								{/if}
 							</div>
@@ -1466,7 +1421,7 @@
 						{/if}
 					</div>
 
-					<div class="flex gap-3 mt-4" style={sizeStyle}>
+					<div class="mt-4 flex gap-3" style={sizeStyle}>
 						<!-- Left sidebar: Unassigned students -->
 						<div style="width: var(--sidebar-width, 148px);" class="flex-shrink-0 self-stretch">
 							<UnassignedArea
@@ -1493,7 +1448,7 @@
 						</div>
 
 						<!-- Main area: Group columns -->
-						<div class="flex-1 min-w-0">
+						<div class="min-w-0 flex-1">
 							<GroupEditingLayout
 								groups={view.groups}
 								{studentsById}
@@ -1554,8 +1509,19 @@
 								{#if isTryingAnother}
 									<span class="inline-flex items-center gap-2">
 										<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-											<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-											<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+											<circle
+												class="opacity-25"
+												cx="12"
+												cy="12"
+												r="10"
+												stroke="currentColor"
+												stroke-width="4"
+											></circle>
+											<path
+												class="opacity-75"
+												fill="currentColor"
+												d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+											></path>
 										</svg>
 										Generating...
 									</span>
@@ -1578,7 +1544,12 @@
 							onclick={handleShowToClassClick}
 						>
 							<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+								/>
 							</svg>
 							Show to Class
 						</button>
@@ -1631,7 +1602,7 @@
 			programId={program?.id ?? ''}
 			sheetConnection={null}
 			onSuccess={handlePreferencesImport}
-			onCancel={() => showPreferencesModal = false}
+			onCancel={() => (showPreferencesModal = false)}
 		/>
 
 		<!-- Student Info Tooltip -->
@@ -1670,7 +1641,7 @@
 							onclick={() => {
 								toast?.action?.callback();
 							}}
-							class="font-medium underline hover:no-underline whitespace-nowrap"
+							class="font-medium whitespace-nowrap underline hover:no-underline"
 						>
 							{toast.action.label}
 						</button>
