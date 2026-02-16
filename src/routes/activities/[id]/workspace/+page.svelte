@@ -48,7 +48,7 @@
 		type WorkspaceHistoryState,
 		type WorkspaceRowLayout
 	} from '$lib/services/appEnvUseCases';
-	import { isErr } from '$lib/types/result';
+	import { err, isErr, ok } from '$lib/types/result';
 	import type { Session } from '$lib/domain';
 	import PreferencesPromptBanner from '$lib/components/workspace/PreferencesPromptBanner.svelte';
 	import PreferencesImportModal from '$lib/components/workspace/PreferencesImportModal.svelte';
@@ -78,6 +78,10 @@
 	import GroupLayoutToggle from '$lib/components/workspace/GroupLayoutToggle.svelte';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 	import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
+	import {
+		WorkspaceCommandRunner,
+		type WorkspaceToastAction
+	} from '$lib/stores/workspace-command-runner.svelte';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -143,6 +147,11 @@
 	let pickedUpFromContainer = $state<string | null>(null);
 	let pickedUpFromIndex = $state<number>(0);
 	let keyboardAnnouncement = $state<string>('');
+	const commandRunner = new WorkspaceCommandRunner({
+		onAnnounce: (message) => {
+			keyboardAnnouncement = message;
+		}
+	});
 
 	// --- Keyboard handler cleanup ---
 	let keyboardCleanup: (() => void) | null = null;
@@ -165,19 +174,6 @@
 	});
 
 	// --- Toast ---
-	interface ToastAction {
-		label: string;
-		callback: () => void;
-	}
-
-	interface ToastState {
-		message: string;
-		subtitle?: string;
-		action?: ToastAction;
-	}
-
-	let toast = $state<ToastState | null>(null);
-	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 	let lastSaveStatus = $state<SaveStatus | null>(null);
 
 	// --- Derived ---
@@ -446,6 +442,7 @@
 
 	onDestroy(() => {
 		keyboardCleanup?.();
+		commandRunner.dispose();
 		activityHeader.clear();
 		workspaceHeader.clear();
 	});
@@ -515,24 +512,48 @@
 		initializeEditingStore(newScenario);
 	}
 
+	function getStudentDisplayName(studentId: string): string {
+		const student = studentsById[studentId];
+		return student ? `${student.firstName} ${student.lastName ?? ''}`.trim() : 'Student';
+	}
+
+	function getContainerDisplayName(containerId: string): string {
+		if (containerId === 'unassigned') {
+			return 'Unassigned';
+		}
+
+		const group = view?.groups.find((item) => item.id === containerId);
+		return group?.name ?? 'Unknown';
+	}
+
 	async function handleRetryGeneration() {
 		if (!env || !program) return;
+		const programId = program.id;
 
 		isRetryingGeneration = true;
 
-		const result = await generateScenario(env, {
-			programId: program.id
+		await commandRunner.run({
+			run: async () => {
+				const result = await generateScenario(env!, {
+					programId
+				});
+
+				if (isErr(result)) {
+					return err(result.error.type);
+				}
+
+				return ok(result.value);
+			},
+			onSuccess: (nextScenario) => {
+				scenario = nextScenario;
+				generationError = null;
+				initializeEditingStore(nextScenario);
+			},
+			onError: (errorType) => {
+				generationError = errorType;
+			}
 		});
 
-		if (isErr(result)) {
-			generationError = result.error.type;
-			isRetryingGeneration = false;
-			return;
-		}
-
-		scenario = result.value;
-		generationError = null;
-		initializeEditingStore(result.value);
 		isRetryingGeneration = false;
 	}
 
@@ -547,49 +568,44 @@
 		const currentSourceGroup = view?.groups.find((g) => g.memberIds.includes(payload.studentId));
 		const normalizedSource = currentSourceGroup ? currentSourceGroup.id : 'unassigned';
 
-		const result = editingStore.dispatch({
-			type: 'MOVE_STUDENT',
-			studentId: payload.studentId,
-			source: normalizedSource,
-			target: payload.target,
-			targetIndex: payload.targetIndex
+		void commandRunner.run({
+			run: () => {
+				const result = editingStore!.dispatch({
+					type: 'MOVE_STUDENT',
+					studentId: payload.studentId,
+					source: normalizedSource,
+					target: payload.target,
+					targetIndex: payload.targetIndex
+				});
+
+				if (!result.success) {
+					return err(result.reason ?? 'move_not_allowed');
+				}
+
+				return ok({
+					studentId: payload.studentId,
+					source: normalizedSource,
+					target: payload.target
+				});
+			},
+			onSuccess: ({ studentId }) => {
+				flashStudent(studentId);
+			},
+			undo: () => {
+				editingStore?.undo();
+			},
+			successMessage: ({ studentId }) => `${getStudentDisplayName(studentId)} moved.`,
+			successSubtitle: ({ source, target }) =>
+				`${getContainerDisplayName(source)} → ${getContainerDisplayName(target)}`,
+			errorMessage: (reason) => {
+				if (reason === 'target_full') return 'Group is at capacity';
+				if (reason === 'save_failed')
+					return 'Save failed. Retry the save, then move students again.';
+				return 'Move not allowed';
+			},
+			announceMessage: ({ studentId, target }) =>
+				`${getStudentDisplayName(studentId)} moved to ${getContainerDisplayName(target)}.`
 		});
-
-		if (!result.success) {
-			if (result.reason === 'target_full') {
-				showToast('Group is at capacity');
-			} else if (result.reason === 'save_failed') {
-				showToast('Save failed. Retry the save, then move students again.');
-			} else {
-				showToast('Move not allowed');
-			}
-		} else {
-			flashStudent(payload.studentId);
-
-			// Build student name and group transition for toast
-			const student = studentsById[payload.studentId];
-			const studentName = student
-				? `${student.firstName} ${student.lastName ?? ''}`.trim()
-				: 'Student';
-			const sourceGroup = view?.groups.find((g) => g.id === normalizedSource);
-			const targetGroup = view?.groups.find((g) => g.id === payload.target);
-			const sourceName =
-				normalizedSource === 'unassigned' ? 'Unassigned' : (sourceGroup?.name ?? 'Unknown');
-			const targetName =
-				payload.target === 'unassigned' ? 'Unassigned' : (targetGroup?.name ?? 'Unknown');
-
-			showToast(
-				`${studentName} moved.`,
-				{
-					label: 'Undo',
-					callback: () => {
-						editingStore?.undo();
-						toast = null;
-					}
-				},
-				`${sourceName} → ${targetName}`
-			);
-		}
 	}
 
 	function handleReorder(payload: { groupId: string; studentId: string; newIndex: number }) {
@@ -604,21 +620,19 @@
 			newOrder.splice(currentIndex, 1);
 			newOrder.splice(payload.newIndex, 0, payload.studentId);
 
-			const result = editingStore.reorderUnassigned(newOrder);
-			if (result.success) {
-				flashStudent(payload.studentId);
-				const student = studentsById[payload.studentId];
-				const studentName = student
-					? `${student.firstName} ${student.lastName ?? ''}`.trim()
-					: 'Student';
-				showToast(`${studentName} reordered.`, {
-					label: 'Undo',
-					callback: () => {
-						editingStore?.undo();
-						toast = null;
-					}
-				});
-			}
+			void commandRunner.run({
+				run: () => {
+					const result = editingStore!.reorderUnassigned(newOrder);
+					return result.success ? ok(payload.studentId) : err('reorder_failed');
+				},
+				onSuccess: (studentId) => {
+					flashStudent(studentId);
+				},
+				undo: () => {
+					editingStore?.undo();
+				},
+				successMessage: (studentId) => `${getStudentDisplayName(studentId)} reordered.`
+			});
 			return;
 		}
 
@@ -635,21 +649,19 @@
 		// Insert at new position
 		newOrder.splice(payload.newIndex, 0, payload.studentId);
 
-		const result = editingStore.reorderGroup(payload.groupId, newOrder);
-		if (result.success) {
-			flashStudent(payload.studentId);
-			const student = studentsById[payload.studentId];
-			const studentName = student
-				? `${student.firstName} ${student.lastName ?? ''}`.trim()
-				: 'Student';
-			showToast(`${studentName} reordered.`, {
-				label: 'Undo',
-				callback: () => {
-					editingStore?.undo();
-					toast = null;
-				}
-			});
-		}
+		void commandRunner.run({
+			run: () => {
+				const result = editingStore!.reorderGroup(payload.groupId, newOrder);
+				return result.success ? ok(payload.studentId) : err('reorder_failed');
+			},
+			onSuccess: (studentId) => {
+				flashStudent(studentId);
+			},
+			undo: () => {
+				editingStore?.undo();
+			},
+			successMessage: (studentId) => `${getStudentDisplayName(studentId)} reordered.`
+		});
 	}
 
 	async function handleStartOver() {
@@ -657,34 +669,39 @@
 		showStartOverConfirm = false;
 		isRegenerating = true;
 
-		const existingConfig = (scenario.algorithmConfig as Record<string, unknown>) ?? {};
-		const result = await env.groupingAlgorithm.generateGroups({
-			programId: scenario.programId,
-			studentIds: scenario.participantSnapshot,
-			algorithmConfig: {
-				...existingConfig,
-				avoidRecentGroupmates
-			}
+		await commandRunner.run({
+			run: async () => {
+				const existingConfig = (scenario!.algorithmConfig as Record<string, unknown>) ?? {};
+				const result = await env!.groupingAlgorithm.generateGroups({
+					programId: scenario!.programId,
+					studentIds: scenario!.participantSnapshot,
+					algorithmConfig: {
+						...existingConfig,
+						avoidRecentGroupmates
+					}
+				});
+
+				if (!result.success) {
+					return err('regeneration_failed');
+				}
+
+				const groups: Group[] = result.groups.map((g) => ({
+					id: g.id,
+					name: g.name,
+					capacity: g.capacity,
+					memberIds: g.memberIds
+				}));
+
+				resultHistory = [];
+				currentHistoryIndex = -1;
+				savedCurrentGroups = null;
+
+				await editingStore!.regenerate(groups);
+				return ok(undefined);
+			},
+			errorMessage: 'Regeneration failed'
 		});
 
-		if (!result.success) {
-			showToast('Regeneration failed');
-			isRegenerating = false;
-			return;
-		}
-
-		const groups: Group[] = result.groups.map((g) => ({
-			id: g.id,
-			name: g.name,
-			capacity: g.capacity,
-			memberIds: g.memberIds
-		}));
-
-		resultHistory = [];
-		currentHistoryIndex = -1;
-		savedCurrentGroups = null;
-
-		await editingStore.regenerate(groups);
 		isRegenerating = false;
 	}
 
@@ -765,31 +782,36 @@
 		savedCurrentGroups = null;
 		isTryingAnother = true;
 
-		const existingConfig = (scenario.algorithmConfig as Record<string, unknown>) ?? {};
-		const result = await env.groupingAlgorithm.generateGroups({
-			programId: scenario.programId,
-			studentIds: scenario.participantSnapshot,
-			algorithmConfig: {
-				...existingConfig,
-				seed: Date.now(),
-				avoidRecentGroupmates
-			}
+		await commandRunner.run({
+			run: async () => {
+				const existingConfig = (scenario!.algorithmConfig as Record<string, unknown>) ?? {};
+				const result = await env!.groupingAlgorithm.generateGroups({
+					programId: scenario!.programId,
+					studentIds: scenario!.participantSnapshot,
+					algorithmConfig: {
+						...existingConfig,
+						seed: Date.now(),
+						avoidRecentGroupmates
+					}
+				});
+
+				if (!result.success) {
+					return err('generation_failed');
+				}
+
+				const groups: Group[] = result.groups.map((g) => ({
+					id: g.id,
+					name: g.name,
+					capacity: g.capacity,
+					memberIds: g.memberIds
+				}));
+
+				await editingStore!.regenerate(groups);
+				return ok(undefined);
+			},
+			errorMessage: 'Generation failed'
 		});
 
-		if (!result.success) {
-			showToast('Generation failed');
-			isTryingAnother = false;
-			return;
-		}
-
-		const groups: Group[] = result.groups.map((g) => ({
-			id: g.id,
-			name: g.name,
-			capacity: g.capacity,
-			memberIds: g.memberIds
-		}));
-
-		await editingStore.regenerate(groups);
 		isTryingAnother = false;
 	}
 
@@ -800,15 +822,8 @@
 		}, 900);
 	}
 
-	function showToast(message: string, action?: ToastAction, subtitle?: string) {
-		toast = { message, action, subtitle };
-		if (toastTimeout) clearTimeout(toastTimeout);
-		// Longer timeout (5s) when there's an action button, otherwise 2s
-		const duration = action ? 5000 : 2000;
-		toastTimeout = setTimeout(() => {
-			toast = null;
-			toastTimeout = null;
-		}, duration);
+	function showToast(message: string, action?: WorkspaceToastAction, subtitle?: string) {
+		commandRunner.showToast(message, action, subtitle);
 	}
 
 	$effect(() => {
@@ -830,26 +845,32 @@
 	function handleAddGroup() {
 		if (!editingStore) return;
 
-		const result = editingStore.createGroup();
-		if (result.success && result.groupId) {
-			newGroupId = result.groupId;
-			setTimeout(() => {
-				newGroupId = null;
-			}, 100);
-		} else {
-			showToast('Failed to create group');
-		}
+		void commandRunner.run({
+			run: () => {
+				const result = editingStore!.createGroup();
+				return result.success && result.groupId ? ok(result.groupId) : err('create_failed');
+			},
+			onSuccess: (groupId) => {
+				newGroupId = groupId;
+				setTimeout(() => {
+					newGroupId = null;
+				}, 100);
+			},
+			errorMessage: 'Failed to create group'
+		});
 	}
 
 	function handleUpdateGroup(groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) {
 		if (!editingStore) return;
 
-		const result = editingStore.updateGroup(groupId, changes);
-		if (!result.success) {
-			if (result.reason === 'duplicate_name') {
-				showToast('A group with this name already exists');
-			}
-		}
+		void commandRunner.run({
+			run: () => {
+				const result = editingStore!.updateGroup(groupId, changes);
+				return result.success ? ok(undefined) : err(result.reason ?? 'update_failed');
+			},
+			errorMessage: (reason) =>
+				reason === 'duplicate_name' ? 'A group with this name already exists' : null
+		});
 	}
 
 	function handleDeleteGroup(groupId: string) {
@@ -866,20 +887,26 @@
 			};
 			showDeleteGroupConfirm = true;
 		} else {
-			const result = editingStore.deleteGroup(groupId);
-			if (!result.success) {
-				showToast('Failed to delete group');
-			}
+			void commandRunner.run({
+				run: () => {
+					const result = editingStore!.deleteGroup(groupId);
+					return result.success ? ok(undefined) : err('delete_failed');
+				},
+				errorMessage: 'Failed to delete group'
+			});
 		}
 	}
 
 	function confirmDeleteGroup() {
 		if (!editingStore || !groupToDelete) return;
 
-		const result = editingStore.deleteGroup(groupToDelete.id);
-		if (!result.success) {
-			showToast('Failed to delete group');
-		}
+		void commandRunner.run({
+			run: () => {
+				const result = editingStore!.deleteGroup(groupToDelete!.id);
+				return result.success ? ok(undefined) : err('delete_failed');
+			},
+			errorMessage: 'Failed to delete group'
+		});
 
 		showDeleteGroupConfirm = false;
 		groupToDelete = null;
@@ -937,12 +964,14 @@
 			return left.id.localeCompare(right.id);
 		});
 
-		const result = editingStore.reorderGroup(group.id, sortedMemberIds);
-		if (!result.success) {
-			showToast('Failed to alphabetize group');
-		} else {
-			showToast(`"${group.name}" sorted alphabetically`);
-		}
+		void commandRunner.run({
+			run: () => {
+				const result = editingStore!.reorderGroup(group.id, sortedMemberIds);
+				return result.success ? ok(group.name) : err('alphabetize_failed');
+			},
+			successMessage: (groupName) => `"${groupName}" sorted alphabetically`,
+			errorMessage: 'Failed to alphabetize group'
+		});
 
 		showAlphabetizeConfirm = false;
 		groupToAlphabetize = null;
@@ -977,18 +1006,28 @@
 			return left.id.localeCompare(right.id);
 		});
 
-		const result = editingStore.reorderUnassigned(sortedIds);
-		if (!result.success) {
-			showToast('Failed to sort unassigned students');
-		} else {
-			showToast('Unassigned students sorted alphabetically', {
-				label: 'Undo',
-				callback: () => {
-					editingStore?.undo();
-					toast = null;
-				}
-			});
-		}
+		void commandRunner.run({
+			run: () => {
+				const result = editingStore!.reorderUnassigned(sortedIds);
+				return result.success ? ok(undefined) : err('alphabetize_unassigned_failed');
+			},
+			undo: () => {
+				editingStore?.undo();
+			},
+			successMessage: 'Unassigned students sorted alphabetically',
+			errorMessage: 'Failed to sort unassigned students'
+		});
+	}
+
+	async function runClipboardCommand(content: string, successMessage: string) {
+		await commandRunner.run({
+			run: async () => {
+				const success = await env?.clipboard?.writeText(content);
+				return success ? ok(undefined) : err('copy_failed');
+			},
+			successMessage,
+			errorMessage: 'Failed to copy'
+		});
 	}
 
 	async function handleExportCSV() {
@@ -997,8 +1036,7 @@
 		const orderedGroups = getGroupsInDisplayOrder();
 		const assignments = buildAssignmentList(orderedGroups, studentsMap);
 		const csv = exportToCSV(assignments);
-		const success = await env?.clipboard?.writeText(csv);
-		showToast(success ? 'CSV copied to clipboard!' : 'Failed to copy');
+		await runClipboardCommand(csv, 'CSV copied to clipboard!');
 	}
 
 	async function handleExportTSV() {
@@ -1007,8 +1045,7 @@
 		const orderedGroups = getGroupsInDisplayOrder();
 		const assignments = buildAssignmentList(orderedGroups, studentsMap);
 		const tsv = exportToTSV(assignments);
-		const success = await env?.clipboard?.writeText(tsv);
-		showToast(success ? 'Copied! Paste directly into Google Sheets' : 'Failed to copy');
+		await runClipboardCommand(tsv, 'Copied! Paste directly into Google Sheets');
 	}
 
 	async function handleExportGroupsSummary() {
@@ -1016,8 +1053,7 @@
 		const studentsMap = new Map(Object.entries(studentsById));
 		const orderedGroups = getGroupsInDisplayOrder();
 		const csv = exportGroupsToCSV(orderedGroups, studentsMap);
-		const success = await env?.clipboard?.writeText(csv);
-		showToast(success ? 'Groups summary copied!' : 'Failed to copy');
+		await runClipboardCommand(csv, 'Groups summary copied!');
 	}
 
 	async function handleExportGroupsColumns() {
@@ -1025,8 +1061,7 @@
 		const studentsMap = new Map(Object.entries(studentsById));
 		const orderedGroups = getGroupsInDisplayOrder();
 		const tsv = exportGroupsToColumnsTSV(orderedGroups, studentsMap);
-		const success = await env?.clipboard?.writeText(tsv);
-		showToast(success ? 'Groups copied for Sheets!' : 'Failed to copy');
+		await runClipboardCommand(tsv, 'Groups copied for Sheets!');
 	}
 
 	function buildActivityExportData(): ActivityExportData | null {
@@ -1075,16 +1110,29 @@
 		const exportData = buildActivityExportData();
 		if (!exportData) return;
 		const filename = generateExportFilename(program.name);
-		downloadActivityFile(exportData, filename);
-		showToast('Schema downloaded');
+
+		await commandRunner.run({
+			run: () => {
+				downloadActivityFile(exportData, filename);
+				return ok(undefined);
+			},
+			successMessage: 'Schema downloaded'
+		});
 	}
 
 	async function handleExportActivityScreenshot() {
 		if (!program) return;
 		const filename = generateExportFilename(program.name);
 		const screenshotName = filename.replace(/\.json$/i, '.png');
-		const screenshotSuccess = await downloadActivityScreenshot(screenshotName);
-		showToast(screenshotSuccess ? 'Screenshot downloaded' : 'Screenshot failed');
+
+		await commandRunner.run({
+			run: async () => {
+				const screenshotSuccess = await downloadActivityScreenshot(screenshotName);
+				return screenshotSuccess ? ok(undefined) : err('screenshot_failed');
+			},
+			successMessage: 'Screenshot downloaded',
+			errorMessage: 'Screenshot failed'
+		});
 	}
 
 	// --- Show to class handler ---
@@ -1624,26 +1672,26 @@
 		</div>
 
 		<!-- Toast -->
-		{#if toast}
+		{#if commandRunner.toast}
 			<div
 				class="fixed right-4 bottom-4 z-50 rounded-lg bg-gray-900/90 px-4 py-3 text-sm text-white shadow-lg"
 				role="alert"
 			>
 				<div class="flex items-center gap-4">
 					<div>
-						<span class="font-medium">{toast.message}</span>
-						{#if toast.subtitle}
-							<span class="block text-xs text-gray-400">{toast.subtitle}</span>
+						<span class="font-medium">{commandRunner.toast.message}</span>
+						{#if commandRunner.toast.subtitle}
+							<span class="block text-xs text-gray-400">{commandRunner.toast.subtitle}</span>
 						{/if}
 					</div>
-					{#if toast.action}
+					{#if commandRunner.toast.action}
 						<button
 							onclick={() => {
-								toast?.action?.callback();
+								void commandRunner.toast?.action?.callback();
 							}}
 							class="font-medium whitespace-nowrap underline hover:no-underline"
 						>
-							{toast.action.label}
+							{commandRunner.toast.action.label}
 						</button>
 					{/if}
 				</div>
