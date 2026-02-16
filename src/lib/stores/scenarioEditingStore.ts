@@ -1,4 +1,3 @@
-import type { Readable } from 'svelte/store';
 import type {
 	Group,
 	Preference,
@@ -195,7 +194,7 @@ function extractErrorMessage(error: unknown): string {
 	}
 }
 
-export class ScenarioEditingStore implements Readable<ScenarioEditingView> {
+export class ScenarioEditingStore {
 	private state: InternalState = {
 		groups: [],
 		history: [],
