@@ -93,7 +93,7 @@ export async function createScenarioFromGroups(
 	let scenario: Scenario;
 	try {
 		scenario = createScenario({
-			id: existingScenario?.id ?? deps.idGenerator.generateId(),
+			id: deps.idGenerator.generateId(),
 			programId: program.id,
 			groups: input.groups.map((group) => ({
 				id: group.id,
@@ -116,10 +116,9 @@ export async function createScenarioFromGroups(
 
 	try {
 		if (existingScenario) {
-			await deps.scenarioRepo.update(scenario);
-		} else {
-			await deps.scenarioRepo.save(scenario);
+			await deps.scenarioRepo.delete(existingScenario.id);
 		}
+		await deps.scenarioRepo.save(scenario);
 	} catch (e) {
 		const message = e instanceof Error ? e.message : 'Unknown persistence error';
 		return err({

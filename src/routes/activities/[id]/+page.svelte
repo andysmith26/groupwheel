@@ -336,12 +336,31 @@
 		if (!env) return null;
 
 		const session = sessions.find((s) => s.id === sessionId);
-		if (!session?.scenarioId) return null;
+		if (!session) return null;
 
-		const scenario = await env.scenarioRepo.getById(session.scenarioId);
-		if (!scenario) return null;
+		// Reconstruct groups from placements (which snapshot group names at creation time)
+		// rather than loading the mutable scenario
+		const placements = await env.placementRepo.listBySessionId(sessionId);
+		if (placements.length === 0) return null;
 
-		return { session, groups: scenario.groups };
+		const groupMap = new Map<string, { id: string; name: string; memberIds: string[] }>();
+		for (const p of placements) {
+			let group = groupMap.get(p.groupId);
+			if (!group) {
+				group = { id: p.groupId, name: p.groupName, memberIds: [] };
+				groupMap.set(p.groupId, group);
+			}
+			group.memberIds.push(p.studentId);
+		}
+
+		const groups = Array.from(groupMap.values()).map((g) => ({
+			id: g.id,
+			name: g.name,
+			capacity: null,
+			memberIds: g.memberIds
+		}));
+
+		return { session, groups };
 	}
 
 	// --- Generate groups (unified) ---

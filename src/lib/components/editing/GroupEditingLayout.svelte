@@ -4,26 +4,22 @@
 	import EditableGroupColumn from './EditableGroupColumn.svelte';
 	import HorizontalScrollContainer from '$lib/components/ui/HorizontalScrollContainer.svelte';
 	import type { KeyboardMoveDirection } from './DraggableStudentCard.svelte';
+	import { uiSettings } from '$lib/stores/uiSettings.svelte';
+	import { getGroupColWidthPx } from '$lib/utils/cardSizeTokens';
 
 	export type LayoutMode = 'masonry' | 'row';
 
 	// =============================================================================
-	// ROW MODE CONFIGURATION - Centralized magic numbers
+	// ROW MODE CONFIGURATION - Reactive based on card size setting
 	// =============================================================================
-	const ROW_CONFIG = {
-		/** Width of each group card in pixels */
-		itemWidth: 136,
-		/** Gap between cards in pixels */
+	const rowConfig = $derived({
+		itemWidth: getGroupColWidthPx(uiSettings.cardSize),
 		itemGap: 12,
-		/** Number of cards to scroll per button click */
 		scrollItemCount: 3,
-		/** Width of edge fade gradients in pixels */
 		fadeWidth: 48,
-		/** Debounce delay for scroll events in ms */
 		scrollDebounceMs: 50,
-		/** Threshold to consider "at edge" in pixels */
 		edgeThreshold: 5
-	} as const;
+	});
 
 	const {
 		groups = [],
@@ -142,7 +138,7 @@
 {#if layout === 'row'}
 	<HorizontalScrollContainer
 		totalItems={rowColumnCount + (onAddGroup ? 1 : 0)}
-		config={ROW_CONFIG}
+		config={rowConfig}
 		showProgress={false}
 		ariaLabel="Group cards"
 	>
@@ -250,10 +246,10 @@
 	}
 
 	.group-row > :global(*) {
-		width: 136px;
+		width: var(--group-col-width, 136px);
 	}
 
 	.group-spacer {
-		width: 136px;
+		width: var(--group-col-width, 136px);
 	}
 </style>

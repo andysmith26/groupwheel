@@ -186,7 +186,8 @@
 	aria-label="{fullName}. {isPickedUp ? 'Press arrow keys to move, Enter to drop, Escape to cancel.' : 'Press Enter to pick up.'}"
 	aria-pressed={isPickedUp}
 	data-student-id={student.id}
-	class={`group mx-auto flex items-center rounded-md border bg-white p-0.5 text-sm shadow-sm transition duration-150 ease-out cursor-grab w-[112px] ${
+	style="width: var(--card-width, 112px); padding: var(--card-padding, 2px);"
+	class={`group mx-auto flex items-center rounded-md border bg-white text-sm shadow-sm transition duration-150 ease-out cursor-grab ${
 		isPickedUp
 			? 'border-blue-500 ring-2 ring-blue-500 ring-offset-1 shadow-md'
 			: 'border-gray-200'
@@ -198,7 +199,8 @@
 >
 	<!-- Drag handle grip icon -->
 	<svg
-		class="h-2.5 w-2.5 flex-shrink-0 text-gray-300 transition-colors group-hover:text-gray-400"
+		style="width: var(--grip-size, 10px); height: var(--grip-size, 10px);"
+		class="flex-shrink-0 text-gray-300 transition-colors group-hover:text-gray-400"
 		viewBox="0 0 10 10"
 		fill="currentColor"
 		aria-hidden="true"
@@ -208,10 +210,10 @@
 		<circle cx="7.5" cy="2.5" r="1" />
 		<circle cx="7.5" cy="7.5" r="1" />
 	</svg>
-	<div class={`relative flex min-w-0 flex-1 items-center justify-center overflow-hidden rounded-md bg-white px-0.5 py-0.5 text-[15px] font-semibold ${textTone}`}>
+	<div style="font-size: var(--card-font-size, 15px);" class={`relative flex min-w-0 flex-1 items-center justify-center overflow-hidden rounded-md bg-white px-0.5 py-0.5 font-semibold ${textTone}`}>
 		<span class="truncate leading-none" title={fullName}>{compactLabel}</span>
 		{#if dotClass()}
-			<span class={`absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full ${dotClass()}`} aria-hidden="true"></span>
+			<span style="width: var(--dot-size, 6px); height: var(--dot-size, 6px);" class={`absolute right-0.5 top-0.5 rounded-full ${dotClass()}`} aria-hidden="true"></span>
 		{/if}
 	</div>
 </div>

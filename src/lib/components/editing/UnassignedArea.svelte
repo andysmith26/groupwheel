@@ -139,48 +139,69 @@
 	<div
 		use:droppable={{ container: 'unassigned', callbacks: { onDrop: handleContainerDrop } }}
 		class={vertical
-			? `grid flex-1 content-start place-items-center gap-0.5 overflow-y-auto overflow-x-hidden rounded-lg px-1 py-1 ${
+			? `grid flex-1 content-start place-items-center overflow-y-auto overflow-x-hidden rounded-lg px-1 py-1 ${
 					draggingId ? 'bg-white' : ''
 				}`
-			: `grid content-start justify-items-center gap-0.5 rounded-lg px-1 py-1 ${
+			: `grid content-start justify-items-center rounded-lg px-1 py-1 ${
 					draggingId ? 'bg-white' : ''
 				}`}
-		style={vertical ? 'grid-template-columns: 1fr;' : 'grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));'}
+		style={vertical ? 'grid-template-columns: 1fr; gap: var(--card-gap, 4px);' : 'grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--card-gap, 4px);'}
 	>
 		{#if unassignedIds.length === 0}
 			<p class={vertical ? 'py-4 text-center text-xs text-gray-500' : 'col-span-full py-4 text-center text-xs text-gray-500'}>All students are assigned</p>
 		{:else}
 			{#each unassignedIds as studentId, index (studentId)}
 				{#if studentsById[studentId]}
-					<!-- Drop indicator before this item (vertical mode only) -->
 					{#if vertical}
-						<DropIndicator visible={hoveredItemId === studentId && hoveredEdge === 'top' && draggingId !== studentId} />
-					{/if}
+						<div class="relative">
+							<DropIndicator edge="top" visible={hoveredItemId === studentId && hoveredEdge === 'top' && draggingId !== studentId} />
 
-					<DraggableStudentCard
-						student={studentsById[studentId]}
-						container="unassigned"
-						{index}
-						isDragging={draggingId === studentId}
-						onDragStart={() => onDragStart?.(studentId)}
-						{onDragEnd}
-						flash={flashingIds.has(studentId)}
-						hasPreferences={studentHasPreferences.get(studentId) ?? false}
-						onHoverStart={onStudentHoverStart}
-						onHoverEnd={onStudentHoverEnd}
-						onEdgeChange={(edge) => handleEdgeChange(studentId, edge)}
-						onItemDrop={handleItemDrop}
-						isPickedUp={pickedUpStudentId === studentId}
-						{onKeyboardPickUp}
-						{onKeyboardDrop}
-						{onKeyboardCancel}
-						{onKeyboardMove}
-						{onStudentClick}
-					/>
+							<DraggableStudentCard
+								student={studentsById[studentId]}
+								container="unassigned"
+								{index}
+								isDragging={draggingId === studentId}
+								onDragStart={() => onDragStart?.(studentId)}
+								{onDragEnd}
+								flash={flashingIds.has(studentId)}
+								hasPreferences={studentHasPreferences.get(studentId) ?? false}
+								onHoverStart={onStudentHoverStart}
+								onHoverEnd={onStudentHoverEnd}
+								onEdgeChange={(edge) => handleEdgeChange(studentId, edge)}
+								onItemDrop={handleItemDrop}
+								isPickedUp={pickedUpStudentId === studentId}
+								{onKeyboardPickUp}
+								{onKeyboardDrop}
+								{onKeyboardCancel}
+								{onKeyboardMove}
+								{onStudentClick}
+							/>
 
-					<!-- Drop indicator after this item (only for last item, vertical mode only) -->
-					{#if vertical && index === unassignedIds.length - 1}
-						<DropIndicator visible={hoveredItemId === studentId && hoveredEdge === 'bottom' && draggingId !== studentId} />
+							{#if index === unassignedIds.length - 1}
+								<DropIndicator edge="bottom" visible={hoveredItemId === studentId && hoveredEdge === 'bottom' && draggingId !== studentId} />
+							{/if}
+						</div>
+					{:else}
+						<DraggableStudentCard
+							student={studentsById[studentId]}
+							container="unassigned"
+							{index}
+							isDragging={draggingId === studentId}
+							onDragStart={() => onDragStart?.(studentId)}
+							{onDragEnd}
+							flash={flashingIds.has(studentId)}
+							hasPreferences={studentHasPreferences.get(studentId) ?? false}
+							onHoverStart={onStudentHoverStart}
+							onHoverEnd={onStudentHoverEnd}
+							onEdgeChange={(edge) => handleEdgeChange(studentId, edge)}
+							onItemDrop={handleItemDrop}
+							isPickedUp={pickedUpStudentId === studentId}
+							{onKeyboardPickUp}
+							{onKeyboardDrop}
+							{onKeyboardCancel}
+							{onKeyboardMove}
+							{onStudentClick}
+						/>
 					{/if}
 				{/if}
 			{/each}

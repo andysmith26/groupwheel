@@ -20,6 +20,18 @@ import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 
 const isBrowser = typeof window !== 'undefined';
 
+/** CSS custom properties to copy onto drag preview clones */
+const CARD_SIZE_VARS = ['--card-width', '--card-font-size', '--card-padding', '--grip-size', '--dot-size'];
+
+/** Copy card size CSS variables from a source element onto a clone for drag preview */
+function copyCardSizeVars(source: HTMLElement, clone: HTMLElement) {
+	const computed = getComputedStyle(source);
+	for (const prop of CARD_SIZE_VARS) {
+		const val = computed.getPropertyValue(prop);
+		if (val) clone.style.setProperty(prop, val);
+	}
+}
+
 export type { Edge };
 export { extractClosestEdge };
 
@@ -93,15 +105,14 @@ export function draggable(element: HTMLElement, config: DraggableConfig) {
 					// Clone the element for the preview
 					const clone = element.cloneNode(true) as HTMLElement;
 					clone.style.width = `${element.offsetWidth}px`;
+					copyCardSizeVars(element, clone);
 
 					// Find the preference dot and update it to grey (floating state)
 					const dot = clone.querySelector('span.rounded-full');
 					if (dot) {
-						// Remove color classes and set to grey for students with preferences
-						// or keep hollow for students without preferences
 						const isHollow = dot.classList.contains('bg-transparent');
 						if (!isHollow) {
-							dot.className = 'absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-gray-400';
+							dot.className = 'absolute right-0.5 top-0.5 rounded-full bg-gray-400';
 						}
 					}
 
@@ -242,12 +253,13 @@ export function sortableItem(element: HTMLElement, config: SortableItemConfig) {
 				render: ({ container }) => {
 					const clone = element.cloneNode(true) as HTMLElement;
 					clone.style.width = `${element.offsetWidth}px`;
+					copyCardSizeVars(element, clone);
 
 					const dot = clone.querySelector('span.rounded-full');
 					if (dot) {
 						const isHollow = dot.classList.contains('bg-transparent');
 						if (!isHollow) {
-							dot.className = 'absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-gray-400';
+							dot.className = 'absolute right-0.5 top-0.5 rounded-full bg-gray-400';
 						}
 					}
 

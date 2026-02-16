@@ -63,7 +63,10 @@
 	import GuidedStepper from '$lib/components/workspace/GuidedStepper.svelte';
 	import StudentDetailSidebar from '$lib/components/workspace/StudentDetailSidebar.svelte';
 	import SatisfactionSummary from '$lib/components/workspace/SatisfactionSummary.svelte';
+	import CardSizeToggle from '$lib/components/workspace/CardSizeToggle.svelte';
 	import { getProgramPairingStats, type PairingStat } from '$lib/services/appEnvUseCases';
+	import { uiSettings } from '$lib/stores/uiSettings.svelte';
+	import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -215,6 +218,8 @@
 		}
 		return view.lastModifiedAt > latestPublishedSession.publishedAt;
 	});
+
+	let sizeStyle = $derived(cardSizeStyle(uiSettings.cardSize));
 
 	let activeStudentId = $derived(draggingId ?? tooltipStudentId);
 
@@ -1435,14 +1440,18 @@
 								onSelect={switchToHistoryEntry}
 							/>
 
-							<!-- Repeated grouping hint with avoid recent toggle -->
-							{#if sessions.length > 0 && program}
-								<RepeatedGroupingHint
-									activityId={program.id}
-									checked={avoidRecentGroupmates}
-									onToggle={(checked) => avoidRecentGroupmates = checked}
-								/>
-							{/if}
+							<div class="flex items-center gap-3">
+								<CardSizeToggle />
+
+								<!-- Repeated grouping hint with avoid recent toggle -->
+								{#if sessions.length > 0 && program}
+									<RepeatedGroupingHint
+										activityId={program.id}
+										checked={avoidRecentGroupmates}
+										onToggle={(checked) => avoidRecentGroupmates = checked}
+									/>
+								{/if}
+							</div>
 						</div>
 
 						<!-- Satisfaction summary (when preferences exist) -->
@@ -1455,9 +1464,9 @@
 						{/if}
 					</div>
 
-					<div class="flex gap-3 mt-4">
+					<div class="flex gap-3 mt-4" style={sizeStyle}>
 						<!-- Left sidebar: Unassigned students -->
-						<div class="w-[148px] flex-shrink-0 self-stretch">
+						<div style="width: var(--sidebar-width, 148px);" class="flex-shrink-0 self-stretch">
 							<UnassignedArea
 								{studentsById}
 								unassignedIds={view.unassignedStudentIds}

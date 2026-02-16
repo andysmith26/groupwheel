@@ -10,6 +10,8 @@
  * - commandStore is for business logic with undo/redo
  */
 
+export type CardSize = 'sm' | 'md' | 'lg';
+
 /**
  * Store implementation that keeps each preference in a $state rune.
  *
@@ -19,6 +21,7 @@
 export class UiSettingsStore {
 	showGender = $state(true);
 	highlightUnhappy = $state(false);
+	cardSize = $state<CardSize>('sm');
 
 	setShowGender(value: boolean) {
 		this.showGender = value;
@@ -36,9 +39,20 @@ export class UiSettingsStore {
 		this.highlightUnhappy = !this.highlightUnhappy;
 	}
 
+	setCardSize(value: CardSize) {
+		this.cardSize = value;
+	}
+
+	cycleCardSize() {
+		const sizes: CardSize[] = ['sm', 'md', 'lg'];
+		const idx = sizes.indexOf(this.cardSize);
+		this.cardSize = sizes[(idx + 1) % sizes.length];
+	}
+
 	reset() {
 		this.showGender = true;
 		this.highlightUnhappy = false;
+		this.cardSize = 'sm';
 	}
 }
 

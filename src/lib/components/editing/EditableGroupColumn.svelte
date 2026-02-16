@@ -233,53 +233,54 @@
 
 	<div
 		use:droppable={{ container: group.id, callbacks: { onDrop: handleContainerDrop } }}
-		class={`grid flex-1 content-start place-items-center gap-0.5 px-1 py-1 ${
+		class={`grid flex-1 content-start place-items-center px-1 py-1 ${
 			draggingId ? 'bg-white' : ''
 		}`}
-		style="grid-template-columns: 1fr;"
+		style="grid-template-columns: 1fr; gap: var(--card-gap, 4px);"
 	>
 		{#if memberIds.length === 0}
 			<p class="col-span-full py-6 text-center text-xs text-gray-500">Drop students here</p>
 		{:else}
 			{#each memberIds as memberId, index (memberId)}
 				{#if studentsById[memberId]}
-					<!-- Drop indicator before this item -->
-					<DropIndicator visible={hoveredItemId === memberId && hoveredEdge === 'top' && draggingId !== memberId} />
+					<div class="relative">
+						<DropIndicator edge="top" visible={hoveredItemId === memberId && hoveredEdge === 'top' && draggingId !== memberId} />
 
-					<DraggableStudentCard
-						student={studentsById[memberId]}
-						container={group.id}
-						{index}
-						isDragging={draggingId === memberId}
-						onDragStart={() => onDragStart?.(memberId)}
-						{onDragEnd}
-						flash={flashingIds.has(memberId)}
-						preferenceRank={studentPreferenceRanks.get(memberId) ?? null}
-						hasPreferences={studentHasPreferences.get(memberId) ?? false}
-						onHoverStart={onStudentHoverStart}
-						onHoverEnd={onStudentHoverEnd}
-						onEdgeChange={(edge) => handleEdgeChange(memberId, edge)}
-						onItemDrop={handleItemDrop}
-						isPickedUp={pickedUpStudentId === memberId}
-						{onKeyboardPickUp}
-						{onKeyboardDrop}
-						{onKeyboardCancel}
-						{onKeyboardMove}
-						{onStudentClick}
-					/>
+						<DraggableStudentCard
+							student={studentsById[memberId]}
+							container={group.id}
+							{index}
+							isDragging={draggingId === memberId}
+							onDragStart={() => onDragStart?.(memberId)}
+							{onDragEnd}
+							flash={flashingIds.has(memberId)}
+							preferenceRank={studentPreferenceRanks.get(memberId) ?? null}
+							hasPreferences={studentHasPreferences.get(memberId) ?? false}
+							onHoverStart={onStudentHoverStart}
+							onHoverEnd={onStudentHoverEnd}
+							onEdgeChange={(edge) => handleEdgeChange(memberId, edge)}
+							onItemDrop={handleItemDrop}
+							isPickedUp={pickedUpStudentId === memberId}
+							{onKeyboardPickUp}
+							{onKeyboardDrop}
+							{onKeyboardCancel}
+							{onKeyboardMove}
+							{onStudentClick}
+						/>
 
-					<!-- Drop indicator after this item (only for last item) -->
-					{#if index === memberIds.length - 1}
-						<DropIndicator visible={hoveredItemId === memberId && hoveredEdge === 'bottom' && draggingId !== memberId} />
-					{/if}
+						{#if index === memberIds.length - 1}
+							<DropIndicator edge="bottom" visible={hoveredItemId === memberId && hoveredEdge === 'bottom' && draggingId !== memberId} />
+						{/if}
+					</div>
 				{/if}
 			{/each}
 		{/if}
 		<div
-			class="mx-auto w-[112px] p-0.5 opacity-0 pointer-events-none select-none"
+			style="width: var(--card-width, 112px);"
+			class="mx-auto p-0.5 opacity-0 pointer-events-none select-none"
 			aria-hidden="true"
 		>
-			<div class="px-0.5 py-0.5 text-[15px] font-semibold">&nbsp;</div>
+			<div style="font-size: var(--card-font-size, 15px);" class="px-0.5 py-0.5 font-semibold">&nbsp;</div>
 		</div>
 	</div>
 </div>

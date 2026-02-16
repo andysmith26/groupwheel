@@ -2,28 +2,46 @@
 	/**
 	 * Visual indicator showing where a dragged item will be inserted.
 	 * Renders as a thin horizontal line with a circle at the left end.
+	 * Uses absolute positioning so it never displaces surrounding items.
 	 */
 	const {
-		visible = false
+		visible = false,
+		edge = 'top'
 	} = $props<{
 		visible?: boolean;
+		edge?: 'top' | 'bottom';
 	}>();
 </script>
 
-{#if visible}
-	<div class="drop-indicator">
-		<div class="drop-indicator-circle"></div>
-		<div class="drop-indicator-line"></div>
-	</div>
-{/if}
+<div class="drop-indicator" class:drop-indicator--visible={visible} class:drop-indicator--top={edge === 'top'} class:drop-indicator--bottom={edge === 'bottom'}>
+	<div class="drop-indicator-circle"></div>
+	<div class="drop-indicator-line"></div>
+</div>
 
 <style>
 	.drop-indicator {
+		position: absolute;
+		left: 0;
+		right: 0;
 		display: flex;
 		align-items: center;
 		height: 4px;
 		width: 100%;
 		pointer-events: none;
+		opacity: 0;
+		z-index: 10;
+	}
+
+	.drop-indicator--visible {
+		opacity: 1;
+	}
+
+	.drop-indicator--top {
+		top: -3px;
+	}
+
+	.drop-indicator--bottom {
+		bottom: -3px;
 	}
 
 	.drop-indicator-circle {
