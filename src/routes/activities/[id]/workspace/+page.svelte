@@ -12,15 +12,11 @@
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
+	import { createWorkspacePageVm } from '$lib/stores/workspace-page-vm.svelte';
 	import { activityHeader } from '$lib/stores/activityHeader.svelte';
 	import { workspaceHeader } from '$lib/stores/workspaceHeader.svelte';
-	import {
-		ScenarioEditingStore,
-		type ScenarioEditingView,
-		type SaveStatus
-	} from '$lib/stores/scenarioEditingStore';
 	import { buildPreferenceMap } from '$lib/utils/preferenceAdapter';
-	import type { Program, Pool, Scenario, Student, Preference, Group } from '$lib/domain';
+	import type { Scenario, Student, Group } from '$lib/domain';
 
 	import UnassignedArea from '$lib/components/editing/UnassignedArea.svelte';
 	import GroupEditingLayout, {
@@ -29,27 +25,14 @@
 	import ConfirmDialog from '$lib/components/editing/ConfirmDialog.svelte';
 	import InlineGroupGenerator from '$lib/components/workspace/InlineGroupGenerator.svelte';
 	import HistorySelector from '$lib/components/editing/HistorySelector.svelte';
-	import type { ScenarioSatisfaction } from '$lib/domain';
 	import GenerationErrorBanner from '$lib/components/workspace/GenerationErrorBanner.svelte';
 	import StudentInfoTooltip from '$lib/components/editing/StudentInfoTooltip.svelte';
 	import {
-		createWorkspaceHistoryEntry,
-		detectWorkspaceEditsSincePublish,
-		generateScenario,
-		getProgramPairingStats,
-		type PairingStat,
 		getWorkspaceGroupsDisplayOrder,
-		insertWorkspaceHistoryEntry,
-		getActivityData,
 		normalizeWorkspaceRowLayout,
-		selectWorkspaceHistoryEntry,
-		showToClass,
-		type WorkspaceHistoryEntry,
-		type WorkspaceHistoryState,
 		type WorkspaceRowLayout
 	} from '$lib/services/appEnvUseCases';
-	import { err, isErr, ok } from '$lib/types/result';
-	import type { Session } from '$lib/domain';
+	import { err, ok } from '$lib/types/result';
 	import PreferencesPromptBanner from '$lib/components/workspace/PreferencesPromptBanner.svelte';
 	import PreferencesImportModal from '$lib/components/workspace/PreferencesImportModal.svelte';
 	import {
@@ -66,7 +49,6 @@
 		type ActivityExportData
 	} from '$lib/utils/activityFile';
 	import { extractStudentPreference } from '$lib/domain/preference';
-	import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
 	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import GroupColumnSkeleton from '$lib/components/ui/GroupColumnSkeleton.svelte';
@@ -83,55 +65,43 @@
 		type WorkspaceToastAction
 	} from '$lib/stores/workspace-command-runner.svelte';
 
-	// --- Environment ---
-	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
+	const workspaceVm = createWorkspacePageVm(getAppEnvContext());
 
-	// --- Data (loaded on mount) ---
-	let program = $state<Program | null>(null);
-	let pool = $state<Pool | null>(null);
-	let students = $state<Student[]>([]);
-	let preferences = $state<Preference[]>([]);
-	let scenario = $state<Scenario | null>(null);
-	let sessions = $state<Session[]>([]);
-	let latestPublishedSession = $state<Session | null>(null);
-
-	// --- Preferences modal state ---
-	let showPreferencesModal = $state(false);
-
-	// --- Loading states ---
-	let loading = $state(true);
-	let loadError = $state<string | null>(null);
-
-	// --- Editing store (initialized when scenario exists) ---
-	let editingStore: ScenarioEditingStore | null = $state(null);
-	let view = $state<ScenarioEditingView | null>(null);
+	let vmState = $derived(workspaceVm.state);
+	let env = $derived(vmState.env);
+	let program = $derived(vmState.program);
+	let pool = $derived(vmState.pool);
+	let students = $derived(vmState.students);
+	let preferences = $derived(vmState.preferences);
+	let scenario = $derived(vmState.scenario);
+	let sessions = $derived(vmState.sessions);
+	let latestPublishedSession = $derived(vmState.latestPublishedSession);
+	let loading = $derived(vmState.loading);
+	let loadError = $derived(vmState.loadError);
+	let editingStore = $derived(vmState.editingStore);
+	let view = $derived(vmState.view);
+	let showPreferencesModal = $derived(vmState.showPreferencesModal);
+	let showStartOverConfirm = $derived(vmState.showStartOverConfirm);
+	let isRegenerating = $derived(vmState.isRegenerating);
+	let generationError = $derived(vmState.generationError);
+	let isRetryingGeneration = $derived(vmState.isRetryingGeneration);
+	let showGuidanceBanner = $derived(vmState.showGuidanceBanner);
+	let bannerDismissed = $derived(vmState.bannerDismissed);
+	let guidedStep = $derived(vmState.guidedStep);
+	let newGroupId = $derived(vmState.newGroupId);
+	let showDeleteGroupConfirm = $derived(vmState.showDeleteGroupConfirm);
+	let groupToDelete = $derived(vmState.groupToDelete);
+	let pairingStats = $derived(vmState.pairingStats);
+	let showAlphabetizeConfirm = $derived(vmState.showAlphabetizeConfirm);
+	let groupToAlphabetize = $derived(vmState.groupToAlphabetize);
+	let resultHistory = $derived(vmState.resultHistory);
+	let currentHistoryIndex = $derived(vmState.currentHistoryIndex);
+	let isTryingAnother = $derived(vmState.isTryingAnother);
+	let avoidRecentGroupmates = $derived(vmState.avoidRecentGroupmates);
 
 	// --- UI state ---
 	let draggingId = $state<string | null>(null);
 	let flashingIds = $state<Set<string>>(new Set());
-	let showStartOverConfirm = $state(false);
-	let isRegenerating = $state(false);
-
-	// --- Generation error state (from wizard redirect) ---
-	let generationError = $state<string | null>(null);
-	let isRetryingGeneration = $state(false);
-
-	// --- Post-creation guidance (from wizard redirect) ---
-	let showGuidanceBanner = $state(false);
-	let bannerDismissed = $state(false);
-	let guidedStep = $state<1 | 2>(1);
-
-	// --- Group shell editing state ---
-	let newGroupId = $state<string | null>(null);
-	let showDeleteGroupConfirm = $state(false);
-	let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
-
-	// --- Pairing stats for tooltip (loaded when 2+ published sessions) ---
-	let pairingStats = $state<PairingStat[]>([]);
-
-	// --- Alphabetize confirmation state ---
-	let showAlphabetizeConfirm = $state(false);
-	let groupToAlphabetize = $state<{ id: string; name: string; memberCount: number } | null>(null);
 
 	// --- Student detail sidebar state ---
 	let sidebarStudentId = $state<string | null>(null);
@@ -153,28 +123,12 @@
 		}
 	});
 
-	// --- Keyboard handler cleanup ---
-	let keyboardCleanup: (() => void) | null = null;
-
 	// --- Layout mode (derived from UI settings) ---
 	let layoutMode = $derived<LayoutMode>(uiSettings.groupLayout === 'wrap' ? 'masonry' : 'row');
-
-	// --- Result history state (session-only) ---
-	const MAX_HISTORY = 3;
-	let resultHistory = $state<WorkspaceHistoryEntry[]>([]);
-	let currentHistoryIndex = $state<number>(-1);
-	let isTryingAnother = $state(false);
-	let savedCurrentGroups = $state<Group[] | null>(null);
-
-	// --- Generation settings ---
-	let avoidRecentGroupmates = $state(false);
 
 	$effect(() => {
 		activityHeader.setName(program?.name ?? null);
 	});
-
-	// --- Toast ---
-	let lastSaveStatus = $state<SaveStatus | null>(null);
 
 	// --- Derived ---
 	let studentsById = $derived<Record<string, Student>>(
@@ -209,19 +163,7 @@
 		});
 	});
 
-	// Detect if scenario has been edited since last publish
-	let hasEditsSincePublish = $derived.by(() => {
-		const result = detectWorkspaceEditsSincePublish({
-			scenarioLastModifiedAt: view?.lastModifiedAt,
-			latestPublishedAt: latestPublishedSession?.publishedAt
-		});
-
-		if (result.status === 'ok') {
-			return result.value.hasEditsSincePublish;
-		}
-
-		return true;
-	});
+	let hasEditsSincePublish = $derived(workspaceVm.actions.detectEditsSincePublish());
 
 	let sizeStyle = $derived(cardSizeStyle(uiSettings.cardSize));
 
@@ -346,8 +288,7 @@
 		if (!scenario || !editingStore || !rowLayoutState?.shouldPersistConfig) return;
 
 		const nextConfig = rowLayoutState.nextAlgorithmConfig;
-		editingStore.updateAlgorithmConfig(nextConfig);
-		scenario = { ...scenario, algorithmConfig: nextConfig };
+		workspaceVm.actions.syncScenarioAlgorithmConfig(nextConfig);
 	});
 
 	// --- Handle preferences import ---
@@ -355,159 +296,27 @@
 		parsedPreferences: ParsedPreference[],
 		_warnings: string[]
 	) {
-		if (!env || !program) return;
-
-		try {
-			// Save preferences to repository for persistence
-			const prefRepo = env.preferenceRepo;
-			const generateId = () => `pref-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-			// Save each preference
-			for (const parsed of parsedPreferences) {
-				const pref: Preference = {
-					id: generateId(),
-					programId: program.id,
-					studentId: parsed.studentId,
-					payload: {
-						studentId: parsed.studentId,
-						likeGroupIds: parsed.likeGroupIds ?? [],
-						avoidGroupIds: [],
-						avoidStudentIds: parsed.avoidStudentIds ?? []
-					}
-				};
-				await prefRepo.save(pref);
-			}
-
-			// Reload preferences from repository to update local state
-			preferences = await prefRepo.listByProgramId(program.id);
-
-			showPreferencesModal = false;
-			showToast(`Imported ${parsedPreferences.length} preferences. Regenerate to apply.`);
-		} catch (e) {
-			console.error('Error saving preferences:', e);
-			showToast('Error saving preferences');
+		const result = await workspaceVm.actions.importPreferences(parsedPreferences);
+		if (result.status === 'ok') {
+			workspaceVm.actions.closePreferencesModal();
+			showToast(`Imported ${result.value} preferences. Regenerate to apply.`);
+			return;
 		}
+
+		showToast('Error saving preferences');
 	}
 
 	onMount(async () => {
-		env = getAppEnvContext();
-
-		// Check for generation error flag
-		const errorParam = $page.url.searchParams.get('genError');
-		if (errorParam) {
-			generationError = errorParam;
-			const cleanUrl = new URL($page.url);
-			cleanUrl.searchParams.delete('genError');
-			history.replaceState({}, '', cleanUrl.pathname);
-		}
-
-		// Check for post-creation banner flag
-		const bannerParam = $page.url.searchParams.get('showBanner');
-		if (bannerParam === 'true') {
-			showGuidanceBanner = true;
-			const cleanUrl = new URL($page.url);
-			cleanUrl.searchParams.delete('showBanner');
-			history.replaceState({}, '', cleanUrl.pathname);
-		}
-
-		// Set up keyboard shortcuts for undo/redo
-		function handleKeydown(event: KeyboardEvent) {
-			// Skip if user is typing in an input field
-			const target = event.target as HTMLElement;
-			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-				return;
-			}
-
-			const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-			const modKey = isMac ? event.metaKey : event.ctrlKey;
-
-			if (modKey && event.key === 'z') {
-				if (event.shiftKey) {
-					// Redo: Cmd/Ctrl+Shift+Z
-					event.preventDefault();
-					editingStore?.redo();
-				} else {
-					// Undo: Cmd/Ctrl+Z
-					event.preventDefault();
-					editingStore?.undo();
-				}
-			}
-		}
-
-		document.addEventListener('keydown', handleKeydown);
-		keyboardCleanup = () => document.removeEventListener('keydown', handleKeydown);
-
-		await loadActivityData();
+		await workspaceVm.actions.init($page.params.id, $page.url.searchParams);
 	});
 
 	onDestroy(() => {
-		keyboardCleanup?.();
+		workspaceVm.actions.dispose();
 		commandRunner.dispose();
 	});
 
-	async function loadActivityData() {
-		if (!env) return;
-
-		const programId = $page.params.id;
-		if (!programId) {
-			loadError = 'No activity ID provided.';
-			loading = false;
-			return;
-		}
-
-		const result = await getActivityData(env, { programId });
-
-		if (isErr(result)) {
-			if (result.error.type === 'PROGRAM_NOT_FOUND') {
-				loadError = `Activity not found: ${programId}`;
-			} else {
-				loadError = result.error.message;
-			}
-			loading = false;
-			return;
-		}
-
-		const data = result.value;
-		program = data.program;
-		pool = data.pool;
-		students = data.students;
-		preferences = data.preferences;
-		scenario = data.scenario;
-		sessions = data.sessions;
-		latestPublishedSession = data.latestPublishedSession;
-
-		// Load pairing stats if there are 2+ sessions with placements (meaningful history)
-		const publishedSessions = sessions.filter(
-			(s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED'
-		);
-		if (publishedSessions.length >= 2) {
-			const statsResult = await getProgramPairingStats(env, { programId });
-			if (!isErr(statsResult)) {
-				pairingStats = statsResult.value.pairs;
-			}
-		}
-
-		if (scenario) {
-			initializeEditingStore(scenario);
-		}
-		loading = false;
-	}
-
-	function initializeEditingStore(s: Scenario) {
-		editingStore = new ScenarioEditingStore({
-			scenarioRepo: env!.scenarioRepo,
-			idGenerator: env!.idGenerator
-		});
-		editingStore.initialize(s, preferences);
-		editingStore.subscribe((value) => {
-			view = value;
-		});
-	}
-
 	function handleInlineGenerated(newScenario: Scenario) {
-		scenario = newScenario;
-		generationError = null;
-		initializeEditingStore(newScenario);
+		workspaceVm.actions.handleInlineGenerated(newScenario);
 	}
 
 	function getStudentDisplayName(studentId: string): string {
@@ -525,34 +334,7 @@
 	}
 
 	async function handleRetryGeneration() {
-		if (!env || !program) return;
-		const programId = program.id;
-
-		isRetryingGeneration = true;
-
-		await commandRunner.run({
-			run: async () => {
-				const result = await generateScenario(env!, {
-					programId
-				});
-
-				if (isErr(result)) {
-					return err(result.error.type);
-				}
-
-				return ok(result.value);
-			},
-			onSuccess: (nextScenario) => {
-				scenario = nextScenario;
-				generationError = null;
-				initializeEditingStore(nextScenario);
-			},
-			onError: (errorType) => {
-				generationError = errorType;
-			}
-		});
-
-		isRetryingGeneration = false;
+		await workspaceVm.actions.retryGeneration();
 	}
 
 	function handleDrop(payload: {
@@ -563,29 +345,8 @@
 	}) {
 		if (!editingStore) return;
 
-		const currentSourceGroup = view?.groups.find((g) => g.memberIds.includes(payload.studentId));
-		const normalizedSource = currentSourceGroup ? currentSourceGroup.id : 'unassigned';
-
 		void commandRunner.run({
-			run: () => {
-				const result = editingStore!.dispatch({
-					type: 'MOVE_STUDENT',
-					studentId: payload.studentId,
-					source: normalizedSource,
-					target: payload.target,
-					targetIndex: payload.targetIndex
-				});
-
-				if (!result.success) {
-					return err(result.reason ?? 'move_not_allowed');
-				}
-
-				return ok({
-					studentId: payload.studentId,
-					source: normalizedSource,
-					target: payload.target
-				});
-			},
+			run: () => workspaceVm.actions.moveStudent(payload),
 			onSuccess: ({ studentId }) => {
 				flashStudent(studentId);
 			},
@@ -609,49 +370,8 @@
 	function handleReorder(payload: { groupId: string; studentId: string; newIndex: number }) {
 		if (!editingStore || !view) return;
 
-		// Handle unassigned area reordering
-		if (payload.groupId === 'unassigned') {
-			const currentIndex = view.unassignedStudentIds.indexOf(payload.studentId);
-			if (currentIndex === -1) return;
-
-			const newOrder = [...view.unassignedStudentIds];
-			newOrder.splice(currentIndex, 1);
-			newOrder.splice(payload.newIndex, 0, payload.studentId);
-
-			void commandRunner.run({
-				run: () => {
-					const result = editingStore!.reorderUnassigned(newOrder);
-					return result.success ? ok(payload.studentId) : err('reorder_failed');
-				},
-				onSuccess: (studentId) => {
-					flashStudent(studentId);
-				},
-				undo: () => {
-					editingStore?.undo();
-				},
-				successMessage: (studentId) => `${getStudentDisplayName(studentId)} reordered.`
-			});
-			return;
-		}
-
-		const group = view.groups.find((g) => g.id === payload.groupId);
-		if (!group) return;
-
-		// Compute the new order by moving the student to newIndex
-		const currentIndex = group.memberIds.indexOf(payload.studentId);
-		if (currentIndex === -1) return;
-
-		const newOrder = [...group.memberIds];
-		// Remove from current position
-		newOrder.splice(currentIndex, 1);
-		// Insert at new position
-		newOrder.splice(payload.newIndex, 0, payload.studentId);
-
 		void commandRunner.run({
-			run: () => {
-				const result = editingStore!.reorderGroup(payload.groupId, newOrder);
-				return result.success ? ok(payload.studentId) : err('reorder_failed');
-			},
+			run: () => workspaceVm.actions.reorderStudent(payload),
 			onSuccess: (studentId) => {
 				flashStudent(studentId);
 			},
@@ -663,154 +383,21 @@
 	}
 
 	async function handleStartOver() {
-		if (!env || !scenario || !editingStore) return;
-		showStartOverConfirm = false;
-		isRegenerating = true;
-
 		await commandRunner.run({
-			run: async () => {
-				const existingConfig = (scenario!.algorithmConfig as Record<string, unknown>) ?? {};
-				const result = await env!.groupingAlgorithm.generateGroups({
-					programId: scenario!.programId,
-					studentIds: scenario!.participantSnapshot,
-					algorithmConfig: {
-						...existingConfig,
-						avoidRecentGroupmates
-					}
-				});
-
-				if (!result.success) {
-					return err('regeneration_failed');
-				}
-
-				const groups: Group[] = result.groups.map((g) => ({
-					id: g.id,
-					name: g.name,
-					capacity: g.capacity,
-					memberIds: g.memberIds
-				}));
-
-				resultHistory = [];
-				currentHistoryIndex = -1;
-				savedCurrentGroups = null;
-
-				await editingStore!.regenerate(groups);
-				return ok(undefined);
-			},
+			run: () => workspaceVm.actions.handleStartOver(),
 			errorMessage: 'Regeneration failed'
 		});
-
-		isRegenerating = false;
-	}
-
-	function addToHistory(groups: Group[], analytics: ScenarioSatisfaction) {
-		if (!env) return;
-
-		const entryResult = createWorkspaceHistoryEntry({
-			id: env.idGenerator.generateId(),
-			groups,
-			generatedAt: new Date(),
-			analytics
-		});
-
-		if (entryResult.status !== 'ok') return;
-
-		const state: WorkspaceHistoryState = {
-			entries: resultHistory,
-			currentIndex: currentHistoryIndex,
-			savedCurrentGroups
-		};
-
-		const nextState = insertWorkspaceHistoryEntry({
-			state,
-			entry: entryResult.value,
-			maxEntries: MAX_HISTORY
-		});
-
-		if (nextState.status !== 'ok') return;
-
-		resultHistory = nextState.value.entries;
-		currentHistoryIndex = nextState.value.currentIndex;
-		savedCurrentGroups = nextState.value.savedCurrentGroups;
 	}
 
 	function switchToHistoryEntry(index: number) {
-		if (!editingStore) return;
-
-		const state: WorkspaceHistoryState = {
-			entries: resultHistory,
-			currentIndex: currentHistoryIndex,
-			savedCurrentGroups
-		};
-
-		const selection = selectWorkspaceHistoryEntry({
-			state,
-			index,
-			currentGroups: view?.groups ?? null
-		});
-
-		if (selection.status !== 'ok') return;
-
-		resultHistory = selection.value.state.entries;
-		currentHistoryIndex = selection.value.state.currentIndex;
-		savedCurrentGroups = selection.value.state.savedCurrentGroups;
-
-		if (selection.value.groupsToApply) {
-			editingStore.regenerate(selection.value.groupsToApply);
-		}
+		workspaceVm.actions.switchToHistoryEntry(index);
 	}
 
 	async function handleTryAnother() {
-		if (!env || !scenario || !editingStore) return;
-
-		const currentGroups = view?.groups ?? scenario.groups ?? [];
-		let currentAnalytics = view?.currentAnalytics ?? view?.baseline;
-		if (!currentAnalytics && scenario) {
-			currentAnalytics = computeAnalyticsSync({
-				groups: currentGroups,
-				preferences,
-				participantSnapshot: scenario.participantSnapshot,
-				programId: scenario.programId
-			});
-		}
-		if (currentHistoryIndex === -1 && currentGroups.length > 0 && currentAnalytics) {
-			addToHistory(currentGroups, currentAnalytics);
-		}
-
-		savedCurrentGroups = null;
-		isTryingAnother = true;
-
 		await commandRunner.run({
-			run: async () => {
-				const existingConfig = (scenario!.algorithmConfig as Record<string, unknown>) ?? {};
-				const result = await env!.groupingAlgorithm.generateGroups({
-					programId: scenario!.programId,
-					studentIds: scenario!.participantSnapshot,
-					algorithmConfig: {
-						...existingConfig,
-						seed: Date.now(),
-						avoidRecentGroupmates
-					}
-				});
-
-				if (!result.success) {
-					return err('generation_failed');
-				}
-
-				const groups: Group[] = result.groups.map((g) => ({
-					id: g.id,
-					name: g.name,
-					capacity: g.capacity,
-					memberIds: g.memberIds
-				}));
-
-				await editingStore!.regenerate(groups);
-				return ok(undefined);
-			},
+			run: () => workspaceVm.actions.handleTryAnother(),
 			errorMessage: 'Generation failed'
 		});
-
-		isTryingAnother = false;
 	}
 
 	function flashStudent(id: string) {
@@ -825,190 +412,67 @@
 	}
 
 	$effect(() => {
-		const status = view?.saveStatus ?? null;
-		const error = view?.saveError ?? null;
-
-		if (status && status !== lastSaveStatus) {
-			if (status === 'failed') {
-				showToast(error ? `Save failed: ${error}` : 'Save failed. Please retry.');
-				console.error('Scenario save failed', { error });
-			} else if (status === 'error' && error) {
-				console.warn('Scenario auto-save retrying after error', { error });
-			}
-		}
-
-		lastSaveStatus = status;
+		workspaceVm.actions.handleSaveStatusEffects(
+			(message) => showToast(message),
+			(error) => console.warn('Scenario auto-save retrying after error', { error })
+		);
 	});
 
 	function handleAddGroup() {
-		if (!editingStore) return;
-
 		void commandRunner.run({
-			run: () => {
-				const result = editingStore!.createGroup();
-				return result.success && result.groupId ? ok(result.groupId) : err('create_failed');
-			},
-			onSuccess: (groupId) => {
-				newGroupId = groupId;
-				setTimeout(() => {
-					newGroupId = null;
-				}, 100);
+			run: () => workspaceVm.actions.createGroup(),
+			onSuccess: () => {
+				workspaceVm.actions.clearNewGroupIdSoon(100);
 			},
 			errorMessage: 'Failed to create group'
 		});
 	}
 
 	function handleUpdateGroup(groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) {
-		if (!editingStore) return;
-
 		void commandRunner.run({
-			run: () => {
-				const result = editingStore!.updateGroup(groupId, changes);
-				return result.success ? ok(undefined) : err(result.reason ?? 'update_failed');
-			},
+			run: () => workspaceVm.actions.updateGroup(groupId, changes),
 			errorMessage: (reason) =>
 				reason === 'duplicate_name' ? 'A group with this name already exists' : null
 		});
 	}
 
 	function handleDeleteGroup(groupId: string) {
-		if (!editingStore || !view) return;
-
-		const group = view.groups.find((g) => g.id === groupId);
-		if (!group) return;
-
-		if (group.memberIds.length > 0) {
-			groupToDelete = {
-				id: groupId,
-				name: group.name,
-				memberCount: group.memberIds.length
-			};
-			showDeleteGroupConfirm = true;
-		} else {
-			void commandRunner.run({
-				run: () => {
-					const result = editingStore!.deleteGroup(groupId);
-					return result.success ? ok(undefined) : err('delete_failed');
-				},
-				errorMessage: 'Failed to delete group'
-			});
-		}
+		void commandRunner.run({
+			run: () => workspaceVm.actions.requestDeleteGroup(groupId),
+			errorMessage: 'Failed to delete group'
+		});
 	}
 
 	function confirmDeleteGroup() {
-		if (!editingStore || !groupToDelete) return;
-
 		void commandRunner.run({
-			run: () => {
-				const result = editingStore!.deleteGroup(groupToDelete!.id);
-				return result.success ? ok(undefined) : err('delete_failed');
-			},
+			run: () => workspaceVm.actions.confirmDeleteGroup(),
 			errorMessage: 'Failed to delete group'
 		});
-
-		showDeleteGroupConfirm = false;
-		groupToDelete = null;
 	}
 
 	function cancelDeleteGroup() {
-		showDeleteGroupConfirm = false;
-		groupToDelete = null;
+		workspaceVm.actions.cancelDeleteGroup();
 	}
 
 	function handleAlphabetize(groupId: string) {
-		if (!editingStore || !view) return;
-
-		const group = view.groups.find((g) => g.id === groupId);
-		if (!group || group.memberIds.length < 2) return;
-
-		// Show confirmation dialog
-		groupToAlphabetize = {
-			id: groupId,
-			name: group.name,
-			memberCount: group.memberIds.length
-		};
-		showAlphabetizeConfirm = true;
+		workspaceVm.actions.requestAlphabetize(groupId);
 	}
 
 	function confirmAlphabetize() {
-		if (!editingStore || !groupToAlphabetize || !view) return;
-
-		const targetId = groupToAlphabetize.id;
-		const group = view.groups.find((g) => g.id === targetId);
-		if (!group) {
-			showAlphabetizeConfirm = false;
-			groupToAlphabetize = null;
-			return;
-		}
-
-		// Sort memberIds alphabetically by last name, then first name
-		const sortedMemberIds = [...group.memberIds].sort((leftId, rightId) => {
-			const left = studentsById[leftId];
-			const right = studentsById[rightId];
-			if (!left && !right) return leftId.localeCompare(rightId);
-			if (!left) return 1;
-			if (!right) return -1;
-
-			const leftLast = (left.lastName ?? '').trim();
-			const rightLast = (right.lastName ?? '').trim();
-			const lastCompare = leftLast.localeCompare(rightLast, undefined, { sensitivity: 'base' });
-			if (lastCompare !== 0) return lastCompare;
-
-			const leftFirst = (left.firstName ?? '').trim();
-			const rightFirst = (right.firstName ?? '').trim();
-			const firstCompare = leftFirst.localeCompare(rightFirst, undefined, { sensitivity: 'base' });
-			if (firstCompare !== 0) return firstCompare;
-
-			return left.id.localeCompare(right.id);
-		});
-
 		void commandRunner.run({
-			run: () => {
-				const result = editingStore!.reorderGroup(group.id, sortedMemberIds);
-				return result.success ? ok(group.name) : err('alphabetize_failed');
-			},
+			run: () => workspaceVm.actions.confirmAlphabetize(studentsById),
 			successMessage: (groupName) => `"${groupName}" sorted alphabetically`,
 			errorMessage: 'Failed to alphabetize group'
 		});
-
-		showAlphabetizeConfirm = false;
-		groupToAlphabetize = null;
 	}
 
 	function cancelAlphabetize() {
-		showAlphabetizeConfirm = false;
-		groupToAlphabetize = null;
+		workspaceVm.actions.cancelAlphabetize();
 	}
 
 	function handleAlphabetizeUnassigned() {
-		if (!editingStore || !view || view.unassignedStudentIds.length < 2) return;
-
-		// Sort unassigned students alphabetically by last name, then first name
-		const sortedIds = [...view.unassignedStudentIds].sort((leftId, rightId) => {
-			const left = studentsById[leftId];
-			const right = studentsById[rightId];
-			if (!left && !right) return leftId.localeCompare(rightId);
-			if (!left) return 1;
-			if (!right) return -1;
-
-			const leftLast = (left.lastName ?? '').trim();
-			const rightLast = (right.lastName ?? '').trim();
-			const lastCompare = leftLast.localeCompare(rightLast, undefined, { sensitivity: 'base' });
-			if (lastCompare !== 0) return lastCompare;
-
-			const leftFirst = (left.firstName ?? '').trim();
-			const rightFirst = (right.firstName ?? '').trim();
-			const firstCompare = leftFirst.localeCompare(rightFirst, undefined, { sensitivity: 'base' });
-			if (firstCompare !== 0) return firstCompare;
-
-			return left.id.localeCompare(right.id);
-		});
-
 		void commandRunner.run({
-			run: () => {
-				const result = editingStore!.reorderUnassigned(sortedIds);
-				return result.success ? ok(undefined) : err('alphabetize_unassigned_failed');
-			},
+			run: () => workspaceVm.actions.alphabetizeUnassigned(studentsById),
 			undo: () => {
 				editingStore?.undo();
 			},
@@ -1135,32 +599,13 @@
 
 	// --- Show to class handler ---
 	async function handleShowToClassClick() {
-		if (!env || !program || !scenario) return;
-
-		if (latestPublishedSession && !hasEditsSincePublish) {
-			// Already published and no edits since → go directly to live
-			goto(`/activities/${program.id}/live`);
+		const result = await workspaceVm.actions.publishToClass(hasEditsSincePublish);
+		if (result.status === 'err') {
+			showToast(result.error);
 			return;
 		}
 
-		// Publish and navigate to live view
-		const result = await showToClass(env, {
-			programId: program.id,
-			scenarioId: scenario.id
-		});
-
-		if (isErr(result)) {
-			const message =
-				result.error.type === 'INTERNAL_ERROR'
-					? result.error.message
-					: `Failed: ${result.error.type}`;
-			showToast(message);
-			return;
-		}
-
-		latestPublishedSession = result.value;
-		sessions = [...sessions, result.value];
-		goto(`/activities/${program.id}/live`);
+		goto(`/activities/${result.value.programId}/live`);
 	}
 
 	// --- Tooltip handlers ---
@@ -1394,9 +839,9 @@
 				<div class="mx-auto mb-4 max-w-6xl">
 					<GuidedStepper
 						currentStep={guidedStep}
-						onAdvance={() => (guidedStep = 2)}
+						onAdvance={() => workspaceVm.actions.advanceGuidanceStep()}
 						onShowToClass={handleShowToClassClick}
-						onDismiss={() => (bannerDismissed = true)}
+						onDismiss={() => workspaceVm.actions.dismissGuidanceBanner()}
 					/>
 				</div>
 			{/if}
@@ -1406,7 +851,7 @@
 				<div class="mx-auto mb-4 max-w-6xl">
 					<PreferencesPromptBanner
 						activityId={program.id}
-						onImportClick={() => (showPreferencesModal = true)}
+						onImportClick={() => workspaceVm.actions.openPreferencesModal()}
 					/>
 				</div>
 			{/if}
@@ -1428,7 +873,7 @@
 						studentCount={students.length}
 						{sessions}
 						onGenerated={handleInlineGenerated}
-						onError={(msg) => (generationError = msg)}
+						onError={(msg) => workspaceVm.actions.setGenerationError(msg)}
 					/>
 				</div>
 			{:else}
@@ -1450,7 +895,7 @@
 								<RepeatedGroupingHint
 									activityId={program.id}
 									checked={avoidRecentGroupmates}
-									onToggle={(checked) => (avoidRecentGroupmates = checked)}
+									onToggle={(checked) => workspaceVm.actions.setAvoidRecentGroupmates(checked)}
 								/>
 							{/if}
 						</div>
@@ -1577,7 +1022,7 @@
 						<button
 							type="button"
 							class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-							onclick={() => (showStartOverConfirm = true)}
+							onclick={() => workspaceVm.actions.openStartOverConfirm()}
 							disabled={isTryingAnother || isRegenerating}
 						>
 							Start Over
@@ -1611,7 +1056,7 @@
 		confirmLabel="Start Over"
 		onConfirm={handleStartOver}
 		onCancel={() => {
-			showStartOverConfirm = false;
+			workspaceVm.actions.closeStartOverConfirm();
 		}}
 	/>
 
@@ -1647,7 +1092,7 @@
 		programId={program?.id ?? ''}
 		sheetConnection={null}
 		onSuccess={handlePreferencesImport}
-		onCancel={() => (showPreferencesModal = false)}
+		onCancel={() => workspaceVm.actions.closePreferencesModal()}
 	/>
 
 	<!-- Student Info Tooltip -->

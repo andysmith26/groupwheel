@@ -1,6 +1,8 @@
 import { getContext, setContext } from 'svelte';
 import type { InMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
 
+export type AppEnvContext = InMemoryEnvironment;
+
 const APP_ENV_CONTEXT_KEY = Symbol('app-env-context');
 
 export function setAppEnvContext(env: InMemoryEnvironment): void {
