@@ -7,6 +7,7 @@ const {
 	mockGetProgramPairingStats,
 	mockGenerateScenario,
 	mockShowToClass,
+	mockImportWorkspacePreferences,
 	mockInitialize,
 	mockDestroy,
 	mockUndo,
@@ -17,6 +18,7 @@ const {
 	mockGetProgramPairingStats: vi.fn(),
 	mockGenerateScenario: vi.fn(),
 	mockShowToClass: vi.fn(),
+	mockImportWorkspacePreferences: vi.fn(),
 	mockInitialize: vi.fn(),
 	mockDestroy: vi.fn(),
 	mockUndo: vi.fn(),
@@ -28,7 +30,8 @@ vi.mock('$lib/services/appEnvUseCases', () => ({
 	getActivityData: mockGetActivityData,
 	getProgramPairingStats: mockGetProgramPairingStats,
 	generateScenario: mockGenerateScenario,
-	showToClass: mockShowToClass
+	showToClass: mockShowToClass,
+	importWorkspacePreferences: mockImportWorkspacePreferences
 }));
 
 vi.mock('$lib/stores/scenarioEditingStore', () => ({
@@ -145,19 +148,25 @@ describe('WorkspacePageVm', () => {
 		expect(vm.state.editingStore).toBeNull();
 	});
 
-	it('imports preferences using environment id generator', async () => {
+	it('imports preferences through facade helper', async () => {
 		const vm = createWorkspacePageVm(createEnv());
-		const save = vi.fn();
-		const listByProgramId = vi.fn().mockResolvedValue([{ id: 'pref-1', studentId: 's1' }]);
+		mockImportWorkspacePreferences.mockResolvedValue(
+			ok({
+				importedCount: 1,
+				skippedCount: 0,
+				preferences: [{ id: 'pref-1', studentId: 's1' }]
+			})
+		);
 
 		vm.state.program = {
 			id: 'program-1',
 			name: 'Program',
 			type: 'GROUPING'
 		} as never;
+		vm.state.students = [{ id: 's1', firstName: 'Ada' }] as never;
 		vm.state.env = {
 			idGenerator: { generateId: vi.fn(() => 'pref-1') },
-			preferenceRepo: { save, listByProgramId }
+			preferenceRepo: {}
 		} as never;
 
 		const result = await vm.actions.importPreferences([
@@ -165,8 +174,7 @@ describe('WorkspacePageVm', () => {
 		] as never);
 
 		expect(result.status).toBe('ok');
-		expect(save).toHaveBeenCalledTimes(1);
-		expect(listByProgramId).toHaveBeenCalledWith('program-1');
+		expect(mockImportWorkspacePreferences).toHaveBeenCalledTimes(1);
 		expect(vm.state.preferences).toEqual([{ id: 'pref-1', studentId: 's1' }]);
 	});
 

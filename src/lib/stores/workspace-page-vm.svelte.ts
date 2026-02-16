@@ -16,6 +16,7 @@ import {
 	createWorkspaceHistoryEntry,
 	detectWorkspaceEditsSincePublish,
 	insertWorkspaceHistoryEntry,
+	importWorkspacePreferences,
 	selectWorkspaceHistoryEntry,
 	showToClass,
 	type PairingStat,
@@ -319,30 +320,18 @@ class WorkspacePageVmStore {
 			return err('missing_context');
 		}
 
-		try {
-			for (const parsedPreference of parsedPreferences) {
-				const preference: Preference = {
-					id: this.state.env.idGenerator.generateId(),
-					programId: this.state.program.id,
-					studentId: parsedPreference.studentId,
-					payload: {
-						studentId: parsedPreference.studentId,
-						likeGroupIds: parsedPreference.likeGroupIds ?? [],
-						avoidGroupIds: [],
-						avoidStudentIds: parsedPreference.avoidStudentIds ?? []
-					}
-				};
+		const result = await importWorkspacePreferences(this.state.env, {
+			programId: this.state.program.id,
+			parsedPreferences,
+			validStudentIds: this.state.students.map((student) => student.id)
+		});
 
-				await this.state.env.preferenceRepo.save(preference);
-			}
-
-			this.state.preferences = await this.state.env.preferenceRepo.listByProgramId(
-				this.state.program.id
-			);
-			return ok(parsedPreferences.length);
-		} catch {
+		if (result.status === 'err') {
 			return err('internal_error');
 		}
+
+		this.state.preferences = result.value.preferences;
+		return ok(result.value.importedCount);
 	};
 
 	private readonly retryGeneration = async (): Promise<Result<Scenario, string>> => {

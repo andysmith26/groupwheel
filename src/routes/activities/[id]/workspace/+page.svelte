@@ -30,6 +30,7 @@
 	import {
 		getWorkspaceGroupsDisplayOrder,
 		normalizeWorkspaceRowLayout,
+		prepareWorkspaceExport,
 		type WorkspaceRowLayout
 	} from '$lib/services/appEnvUseCases';
 	import { err, ok } from '$lib/types/result';
@@ -39,16 +40,13 @@
 		buildAssignmentList,
 		exportToCSV,
 		exportToTSV,
-		exportGroupsToCSV,
-		exportGroupsToColumnsTSV
+		exportGroupsToCSV
 	} from '$lib/utils/csvExport';
 	import {
 		downloadActivityFile,
 		downloadActivityScreenshot,
-		generateExportFilename,
-		type ActivityExportData
+		generateExportFilename
 	} from '$lib/utils/activityFile';
-	import { extractStudentPreference } from '$lib/domain/preference';
 	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import GroupColumnSkeleton from '$lib/components/ui/GroupColumnSkeleton.svelte';
@@ -519,63 +517,47 @@
 	}
 
 	async function handleExportGroupsColumns() {
-		if (!view) return;
-		const studentsMap = new Map(Object.entries(studentsById));
-		const orderedGroups = getGroupsInDisplayOrder();
-		const tsv = exportGroupsToColumnsTSV(orderedGroups, studentsMap);
-		await runClipboardCommand(tsv, 'Groups copied for Sheets!');
-	}
+		if (!program || !view) return;
 
-	function buildActivityExportData(): ActivityExportData | null {
-		if (!program || !view) return null;
-		const orderedGroups = getGroupsInDisplayOrder();
-		return {
-			version: 1,
-			exportedAt: new Date().toISOString(),
-			activity: {
-				name: program.name,
-				type: program.type
-			},
-			roster: {
-				students: students.map((s) => ({
-					id: s.id,
-					firstName: s.firstName,
-					lastName: s.lastName,
-					gradeLevel: s.gradeLevel,
-					gender: s.gender,
-					meta: s.meta
-				}))
-			},
-			preferences: preferences.map((p) => {
-				const payload = extractStudentPreference(p);
-				return {
-					studentId: p.studentId,
-					likeGroupIds: payload.likeGroupIds,
-					avoidStudentIds: payload.avoidStudentIds,
-					avoidGroupIds: payload.avoidGroupIds
-				};
-			}),
-			scenario: {
-				groups: orderedGroups.map((g) => ({
-					id: g.id,
-					name: g.name,
-					capacity: g.capacity,
-					memberIds: [...g.memberIds]
-				})),
-				algorithmConfig: scenario?.algorithmConfig
-			}
-		};
+		const result = prepareWorkspaceExport(env, {
+			program,
+			students,
+			preferences,
+			groups: view.groups,
+			algorithmConfig: scenario?.algorithmConfig,
+			rowLayout: resolvedRowLayout
+		});
+
+		if (result.status === 'err') {
+			showToast('Failed to prepare export');
+			return;
+		}
+
+		await runClipboardCommand(result.value.columnsTsv, 'Groups copied for Sheets!');
 	}
 
 	async function handleExportActivitySchema() {
-		if (!program) return;
-		const exportData = buildActivityExportData();
-		if (!exportData) return;
+		if (!program || !view) return;
+
+		const exportResult = prepareWorkspaceExport(env, {
+			program,
+			students,
+			preferences,
+			groups: view.groups,
+			algorithmConfig: scenario?.algorithmConfig,
+			rowLayout: resolvedRowLayout
+		});
+
+		if (exportResult.status === 'err') {
+			showToast('Failed to prepare export');
+			return;
+		}
+
 		const filename = generateExportFilename(program.name);
 
 		await commandRunner.run({
 			run: () => {
-				downloadActivityFile(exportData, filename);
+				downloadActivityFile(exportResult.value.activityExportData, filename);
 				return ok(undefined);
 			},
 			successMessage: 'Schema downloaded'

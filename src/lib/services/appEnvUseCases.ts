@@ -67,7 +67,8 @@ import {
 	createGroupingActivity as createGroupingActivityUseCase,
 	type CreateGroupingActivityInput,
 	type CreateGroupingActivityResult,
-	type CreateGroupingActivityError
+	type CreateGroupingActivityError,
+	type ParsedPreference
 } from '$lib/application/useCases/createGroupingActivity';
 import {
 	importActivity as importActivityUseCase,
@@ -1290,6 +1291,17 @@ import {
 	type GetWorkspaceGroupsDisplayOrderInput,
 	type GetWorkspaceGroupsDisplayOrderOutput
 } from '$lib/application/useCases/get-workspace-groups-display-order';
+import {
+	prepareWorkspaceExport as prepareWorkspaceExportUseCase,
+	type PrepareWorkspaceExportInput,
+	type PrepareWorkspaceExportSuccess,
+	type PrepareWorkspaceExportError
+} from '$lib/application/useCases/prepare-workspace-export';
+import {
+	importWorkspacePreferences as importWorkspacePreferencesUseCase,
+	type ImportWorkspacePreferencesError,
+	type ImportWorkspacePreferencesSuccess
+} from '$lib/application/useCases/import-workspace-preferences';
 
 /**
  * Normalize, repair, and persist-shape workspace row layout config.
@@ -1345,6 +1357,80 @@ export function getWorkspaceGroupsDisplayOrder(
 	return getWorkspaceGroupsDisplayOrderUseCase(input);
 }
 
+/**
+ * Prepare workspace export payloads (columns TSV + activity schema JSON data).
+ */
+export function prepareWorkspaceExport(
+	_env: InMemoryEnvironment,
+	input: PrepareWorkspaceExportInput
+): Result<PrepareWorkspaceExportSuccess, PrepareWorkspaceExportError> {
+	return prepareWorkspaceExportUseCase(input);
+}
+
+export type ImportWorkspacePreferencesInput = {
+	programId: string;
+	parsedPreferences: ParsedPreference[];
+	validStudentIds: string[];
+};
+
+export type ImportWorkspacePreferencesResult = {
+	importedCount: number;
+	skippedCount: number;
+	preferences: ImportWorkspacePreferencesSuccess['preferences'];
+};
+
+export type ImportWorkspacePreferencesFacadeError =
+	| ImportWorkspacePreferencesError
+	| { type: 'internal_error'; message: string };
+
+/**
+ * Import parsed workspace preferences and persist normalized preference entities.
+ */
+export async function importWorkspacePreferences(
+	env: InMemoryEnvironment,
+	input: ImportWorkspacePreferencesInput
+): Promise<Result<ImportWorkspacePreferencesResult, ImportWorkspacePreferencesFacadeError>> {
+	try {
+		const existingPreferences = await env.preferenceRepo.listByProgramId(input.programId);
+		const normalized = importWorkspacePreferencesUseCase(
+			{
+				idGenerator: env.idGenerator
+			},
+			{
+				programId: input.programId,
+				parsedPreferences: input.parsedPreferences,
+				existingPreferences,
+				validStudentIds: input.validStudentIds
+			}
+		);
+
+		if (normalized.status === 'err') {
+			return normalized;
+		}
+
+		if (typeof env.preferenceRepo.setForProgram === 'function') {
+			await env.preferenceRepo.setForProgram(input.programId, normalized.value.preferences);
+		} else {
+			for (const preference of normalized.value.preferences) {
+				await env.preferenceRepo.save(preference);
+			}
+		}
+
+		const persistedPreferences = await env.preferenceRepo.listByProgramId(input.programId);
+
+		return ok({
+			importedCount: normalized.value.importedCount,
+			skippedCount: normalized.value.skippedCount,
+			preferences: persistedPreferences
+		});
+	} catch {
+		return err({
+			type: 'internal_error',
+			message: 'Failed to import workspace preferences.'
+		});
+	}
+}
+
 // Re-export analytics types
 export type {
 	GetProgramPairingStatsInput,
@@ -1366,7 +1452,10 @@ export type {
 	DetectWorkspaceEditsSincePublishInput,
 	DetectWorkspaceEditsSincePublishOutput,
 	GetWorkspaceGroupsDisplayOrderInput,
-	GetWorkspaceGroupsDisplayOrderOutput
+	GetWorkspaceGroupsDisplayOrderOutput,
+	PrepareWorkspaceExportInput,
+	PrepareWorkspaceExportSuccess,
+	PrepareWorkspaceExportError
 };
 
 // =============================================================================
