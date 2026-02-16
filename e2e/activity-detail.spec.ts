@@ -3,10 +3,7 @@ import { expect, test } from '@playwright/test';
 /**
  * Helper to create an activity via the wizard and return its ID.
  */
-async function createActivityAndGetId(
-	page: import('@playwright/test').Page,
-	activityName: string
-) {
+async function createActivityAndGetId(page: import('@playwright/test').Page, activityName: string) {
 	const rosterData = `name\tid\tgrade
 Alice Smith\talice@example.com\t5
 Bob Jones\tbob@example.com\t5
@@ -56,10 +53,8 @@ test.describe('Activity Detail Page', () => {
 		// Should show the activity name
 		await expect(page.getByRole('heading', { name: activityName })).toBeVisible();
 
-		// Should show student and group counts in the stats row
-		const statsRow = page.locator('.flex.items-center.gap-4.text-sm');
-		await expect(statsRow.getByText(/4/)).toBeVisible();
-		await expect(statsRow.getByText(/students/)).toBeVisible();
+		// Should show student count in header
+		await expect(page.locator('span.ml-4.mt-1.text-sm.text-gray-500')).toHaveText('4 students');
 	});
 
 	test('can navigate to workspace from detail page', async ({ page }) => {
@@ -68,10 +63,11 @@ test.describe('Activity Detail Page', () => {
 
 		await page.goto(`/activities/${activityId}`);
 
-		// Click "Edit Groups" link
-		await page.getByRole('link', { name: /Edit Groups/ }).click();
+		// Click "Edit current groups" action
+		await page.getByRole('button', { name: /Edit current groups/i }).click();
 
 		await expect(page).toHaveURL(`/activities/${activityId}/workspace`);
+		await expect(page.getByTestId('workspace-shell')).toBeVisible();
 	});
 
 	test('shows error for invalid activity ID', async ({ page }) => {

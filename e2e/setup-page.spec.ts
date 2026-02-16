@@ -4,7 +4,10 @@ import { expect, test } from '@playwright/test';
  * Helper to create an activity via the wizard and navigate to setup page.
  * The setup page redirects to /activities/[id] which serves as the hub.
  */
-async function createActivityAndGoToSetup(page: import('@playwright/test').Page, activityName: string) {
+async function createActivityAndGoToSetup(
+	page: import('@playwright/test').Page,
+	activityName: string
+) {
 	const rosterData = `name\tid\tgrade
 Alice Smith\talice@example.com\t5
 Bob Jones\tbob@example.com\t5
@@ -107,12 +110,16 @@ test.describe('Setup Page', () => {
 		const activityName = `Setup Groups ${Date.now()}`;
 		await createActivityAndGoToSetup(page, activityName);
 
-		// Groups section should be expanded by default
-		const groupsSectionToggle = page.getByRole('button', { name: /^Groups/ });
-		await expect(groupsSectionToggle).toHaveAttribute('aria-expanded', 'true');
+		// Expand the GroupCard to customize shells (if currently in compact mode)
+		const customizeButton = page.getByRole('button', {
+			name: /Customize group names & caps/i
+		});
+		if (await customizeButton.isVisible().catch(() => false)) {
+			await customizeButton.click();
+		}
 
 		// Find group name input and change it
-		const groupNameInput = page.locator('[data-name-input="0"]');
+		const groupNameInput = page.locator('[data-gc-name="0"]');
 		await groupNameInput.clear();
 		await groupNameInput.fill('Team Alpha');
 
@@ -120,7 +127,7 @@ test.describe('Setup Page', () => {
 		await expect(groupNameInput).toHaveValue('Team Alpha');
 
 		// Add capacity
-		const capacityInput = page.locator('[data-capacity-input="0"]');
+		const capacityInput = page.locator('[data-gc-capacity="0"]');
 		await capacityInput.fill('3');
 		await expect(capacityInput).toHaveValue('3');
 	});
@@ -129,11 +136,12 @@ test.describe('Setup Page', () => {
 		const activityName = `Setup Nav ${Date.now()}`;
 		const activityId = await createActivityAndGoToSetup(page, activityName);
 
-		// Click the "Edit Groups" link (visible when groups exist)
-		await page.getByRole('link', { name: /Edit Groups/ }).click();
+		// Click the "Edit current groups" action
+		await page.getByRole('button', { name: /Edit current groups/i }).click();
 
 		// Should navigate to workspace
 		await expect(page).toHaveURL(`/activities/${activityId}/workspace`);
+		await expect(page.getByTestId('workspace-shell')).toBeVisible();
 	});
 
 	test('shows error for invalid activity ID', async ({ page }) => {

@@ -443,8 +443,6 @@
 	onDestroy(() => {
 		keyboardCleanup?.();
 		commandRunner.dispose();
-		activityHeader.clear();
-		workspaceHeader.clear();
 	});
 
 	async function loadActivityData() {
@@ -1357,345 +1355,343 @@
 	<title>{program?.name ?? 'Workspace'} | Groupwheel</title>
 </svelte:head>
 
-<div class="flex h-full min-h-0 flex-col">
-	{#if loading}
-		<div class="flex gap-3 p-4">
-			<!-- Left sidebar: Unassigned area skeleton -->
-			<div class="w-[148px] flex-shrink-0">
-				<div class="h-full rounded-xl bg-gray-50 p-3">
-					<Skeleton width="100%" height="1rem" class="mb-3" />
-					<div class="flex flex-col gap-2">
-						{#each Array(6) as _}
-							<Skeleton width="100%" height="2rem" rounded="md" />
-						{/each}
-					</div>
+{#if loading}
+	<div class="flex gap-3 p-4">
+		<!-- Left sidebar: Unassigned area skeleton -->
+		<div class="w-[148px] flex-shrink-0">
+			<div class="h-full rounded-xl bg-gray-50 p-3">
+				<Skeleton width="100%" height="1rem" class="mb-3" />
+				<div class="flex flex-col gap-2">
+					{#each Array(6) as _}
+						<Skeleton width="100%" height="2rem" rounded="md" />
+					{/each}
 				</div>
 			</div>
-			<!-- Main area: Group columns skeleton -->
-			<div class="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				{#each Array(6) as _}
-					<GroupColumnSkeleton studentCount={4} />
-				{/each}
-			</div>
 		</div>
-	{:else if loadError}
-		<div class="p-4">
-			<div class="rounded-lg border border-red-200 bg-red-50 p-4">
-				<p class="text-red-700">{loadError}</p>
-				<a href="/activities" class="mt-2 inline-block text-sm text-blue-600 underline">
-					← Back to activities
-				</a>
-			</div>
+		<!-- Main area: Group columns skeleton -->
+		<div class="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			{#each Array(6) as _}
+				<GroupColumnSkeleton studentCount={4} />
+			{/each}
 		</div>
-	{:else if program}
-		<!-- Main content area -->
-		<div class="flex min-h-0 flex-1 overflow-hidden">
-			<!-- Workspace (main area) -->
-			<main class="flex-1 overflow-y-auto p-4">
-				<!-- Post-creation guided stepper -->
-				{#if showGuidanceBanner && !bannerDismissed && scenario && view}
-					<div class="mx-auto mb-4 max-w-6xl">
-						<GuidedStepper
-							currentStep={guidedStep}
-							onAdvance={() => (guidedStep = 2)}
-							onShowToClass={handleShowToClassClick}
-							onDismiss={() => (bannerDismissed = true)}
-						/>
-					</div>
-				{/if}
-
-				<!-- Preferences prompt banner (only shown when no preferences and groups exist) -->
-				{#if scenario && view && preferencesCount === 0 && program}
-					<div class="mx-auto mb-4 max-w-6xl">
-						<PreferencesPromptBanner
-							activityId={program.id}
-							onImportClick={() => (showPreferencesModal = true)}
-						/>
-					</div>
-				{/if}
-
-				{#if generationError && (!scenario || !view)}
-					<div class="mx-auto max-w-2xl py-8">
-						<GenerationErrorBanner
-							errorType={generationError}
-							isRetrying={isRetryingGeneration}
-							onRetry={handleRetryGeneration}
-							programId={program.id}
-						/>
-					</div>
-				{:else if !scenario || !view}
-					<div class="mx-auto max-w-lg py-8">
-						<InlineGroupGenerator
-							programId={program.id}
-							programName={program.name}
-							studentCount={students.length}
-							{sessions}
-							onGenerated={handleInlineGenerated}
-							onError={(msg) => (generationError = msg)}
-						/>
-					</div>
-				{:else}
-					<div class="mx-auto max-w-6xl space-y-4">
-						<!-- Generation settings and history -->
-						<div class="flex items-center justify-between gap-4">
-							<HistorySelector
-								historyLength={resultHistory.length}
-								currentIndex={currentHistoryIndex}
-								onSelect={switchToHistoryEntry}
-							/>
-
-							<div class="flex items-center gap-3">
-								<GroupLayoutToggle />
-								<CardSizeToggle />
-
-								<!-- Repeated grouping hint with avoid recent toggle -->
-								{#if sessions.length > 0 && program}
-									<RepeatedGroupingHint
-										activityId={program.id}
-										checked={avoidRecentGroupmates}
-										onToggle={(checked) => (avoidRecentGroupmates = checked)}
-									/>
-								{/if}
-							</div>
-						</div>
-
-						<!-- Satisfaction summary (when preferences exist) -->
-						{#if preferencesCount > 0 && view?.currentAnalytics}
-							<SatisfactionSummary
-								analytics={view.currentAnalytics}
-								studentsWithPreferences={preferencesCount}
-								totalStudents={students.length}
-							/>
-						{/if}
-					</div>
-
-					<div class="mt-4 flex gap-3" style={sizeStyle}>
-						<!-- Left sidebar: Unassigned students -->
-						<div style="width: var(--sidebar-width, 148px);" class="flex-shrink-0 self-stretch">
-							<UnassignedArea
-								{studentsById}
-								unassignedIds={view.unassignedStudentIds}
-								{draggingId}
-								onDrop={handleDrop}
-								onReorder={handleReorder}
-								onDragStart={(id) => (draggingId = id)}
-								onDragEnd={handleDragEnd}
-								{flashingIds}
-								{studentHasPreferences}
-								onStudentHoverStart={handleTooltipShow}
-								onStudentHoverEnd={handleTooltipHide}
-								{pickedUpStudentId}
-								onKeyboardPickUp={handleKeyboardPickUp}
-								onKeyboardDrop={handleKeyboardDrop}
-								onKeyboardCancel={handleKeyboardCancel}
-								onKeyboardMove={handleKeyboardMove}
-								onAlphabetize={handleAlphabetizeUnassigned}
-								onStudentClick={handleStudentClick}
-								vertical={true}
-							/>
-						</div>
-
-						<!-- Main area: Group columns -->
-						<div class="min-w-0 flex-1">
-							<GroupEditingLayout
-								groups={view.groups}
-								{studentsById}
-								{draggingId}
-								onDrop={handleDrop}
-								onReorder={handleReorder}
-								onDragStart={(id) => (draggingId = id)}
-								onDragEnd={handleDragEnd}
-								{flashingIds}
-								onUpdateGroup={handleUpdateGroup}
-								onDeleteGroup={handleDeleteGroup}
-								onAddGroup={handleAddGroup}
-								onAlphabetize={handleAlphabetize}
-								{newGroupId}
-								selectedStudentPreferences={activeStudentPreferences}
-								layout={layoutMode}
-								rowOrderTop={resolvedRowLayout?.top ?? []}
-								rowOrderBottom={resolvedRowLayout?.bottom ?? []}
-								{studentPreferenceRanks}
-								{studentHasPreferences}
-								onStudentHoverStart={handleTooltipShow}
-								onStudentHoverEnd={handleTooltipHide}
-								{pickedUpStudentId}
-								onKeyboardPickUp={handleKeyboardPickUp}
-								onKeyboardDrop={handleKeyboardDrop}
-								onKeyboardCancel={handleKeyboardCancel}
-								onKeyboardMove={handleKeyboardMove}
-								onStudentClick={handleStudentClick}
-							/>
-						</div>
-					</div>
-				{/if}
-			</main>
-
-			<!-- Student Detail Sidebar -->
-			{#if sidebarStudent && scenario && view}
-				<StudentDetailSidebar
-					student={sidebarStudent}
-					preferences={sidebarPreferences}
-					recentGroupmates={sidebarRecentGroupmates}
-					onClose={() => (sidebarStudentId = null)}
-				/>
+	</div>
+{:else if loadError}
+	<div class="p-4">
+		<div class="rounded-lg border border-red-200 bg-red-50 p-4">
+			<p class="text-red-700">{loadError}</p>
+			<a href="/activities" class="mt-2 inline-block text-sm text-blue-600 underline">
+				← Back to activities
+			</a>
+		</div>
+	</div>
+{:else if program}
+	<!-- Main content area -->
+	<div class="flex min-h-0 flex-1 overflow-hidden">
+		<!-- Workspace (main area) -->
+		<main class="flex-1 overflow-y-auto p-4">
+			<!-- Post-creation guided stepper -->
+			{#if showGuidanceBanner && !bannerDismissed && scenario && view}
+				<div class="mx-auto mb-4 max-w-6xl">
+					<GuidedStepper
+						currentStep={guidedStep}
+						onAdvance={() => (guidedStep = 2)}
+						onShowToClass={handleShowToClassClick}
+						onDismiss={() => (bannerDismissed = true)}
+					/>
+				</div>
 			{/if}
 
-			<!-- Workspace Action Bar -->
-			{#if scenario && view}
-				<div
-					class="sticky bottom-0 z-10 border-t border-gray-200/70 bg-white px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]"
-				>
-					<div class="mx-auto flex max-w-6xl items-center justify-between">
+			<!-- Preferences prompt banner (only shown when no preferences and groups exist) -->
+			{#if scenario && view && preferencesCount === 0 && program}
+				<div class="mx-auto mb-4 max-w-6xl">
+					<PreferencesPromptBanner
+						activityId={program.id}
+						onImportClick={() => (showPreferencesModal = true)}
+					/>
+				</div>
+			{/if}
+
+			{#if generationError && (!scenario || !view)}
+				<div class="mx-auto max-w-2xl py-8">
+					<GenerationErrorBanner
+						errorType={generationError}
+						isRetrying={isRetryingGeneration}
+						onRetry={handleRetryGeneration}
+						programId={program.id}
+					/>
+				</div>
+			{:else if !scenario || !view}
+				<div class="mx-auto max-w-lg py-8">
+					<InlineGroupGenerator
+						programId={program.id}
+						programName={program.name}
+						studentCount={students.length}
+						{sessions}
+						onGenerated={handleInlineGenerated}
+						onError={(msg) => (generationError = msg)}
+					/>
+				</div>
+			{:else}
+				<div class="mx-auto max-w-6xl space-y-4">
+					<!-- Generation settings and history -->
+					<div class="flex items-center justify-between gap-4">
+						<HistorySelector
+							historyLength={resultHistory.length}
+							currentIndex={currentHistoryIndex}
+							onSelect={switchToHistoryEntry}
+						/>
+
 						<div class="flex items-center gap-3">
-							<button
-								type="button"
-								class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-								onclick={handleTryAnother}
-								disabled={isTryingAnother || isRegenerating}
-							>
-								{#if isTryingAnother}
-									<span class="inline-flex items-center gap-2">
-										<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-											<circle
-												class="opacity-25"
-												cx="12"
-												cy="12"
-												r="10"
-												stroke="currentColor"
-												stroke-width="4"
-											></circle>
-											<path
-												class="opacity-75"
-												fill="currentColor"
-												d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-											></path>
-										</svg>
-										Generating...
-									</span>
-								{:else}
-									Try Another
-								{/if}
-							</button>
-							<button
-								type="button"
-								class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-								onclick={() => (showStartOverConfirm = true)}
-								disabled={isTryingAnother || isRegenerating}
-							>
-								Start Over
-							</button>
-						</div>
-						<button
-							type="button"
-							class="flex items-center gap-2 rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark"
-							onclick={handleShowToClassClick}
-						>
-							<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+							<GroupLayoutToggle />
+							<CardSizeToggle />
+
+							<!-- Repeated grouping hint with avoid recent toggle -->
+							{#if sessions.length > 0 && program}
+								<RepeatedGroupingHint
+									activityId={program.id}
+									checked={avoidRecentGroupmates}
+									onToggle={(checked) => (avoidRecentGroupmates = checked)}
 								/>
-							</svg>
-							Show to Class
-						</button>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Satisfaction summary (when preferences exist) -->
+					{#if preferencesCount > 0 && view?.currentAnalytics}
+						<SatisfactionSummary
+							analytics={view.currentAnalytics}
+							studentsWithPreferences={preferencesCount}
+							totalStudents={students.length}
+						/>
+					{/if}
+				</div>
+
+				<div class="mt-4 flex gap-3" style={sizeStyle}>
+					<!-- Left sidebar: Unassigned students -->
+					<div style="width: var(--sidebar-width, 148px);" class="flex-shrink-0 self-stretch">
+						<UnassignedArea
+							{studentsById}
+							unassignedIds={view.unassignedStudentIds}
+							{draggingId}
+							onDrop={handleDrop}
+							onReorder={handleReorder}
+							onDragStart={(id) => (draggingId = id)}
+							onDragEnd={handleDragEnd}
+							{flashingIds}
+							{studentHasPreferences}
+							onStudentHoverStart={handleTooltipShow}
+							onStudentHoverEnd={handleTooltipHide}
+							{pickedUpStudentId}
+							onKeyboardPickUp={handleKeyboardPickUp}
+							onKeyboardDrop={handleKeyboardDrop}
+							onKeyboardCancel={handleKeyboardCancel}
+							onKeyboardMove={handleKeyboardMove}
+							onAlphabetize={handleAlphabetizeUnassigned}
+							onStudentClick={handleStudentClick}
+							vertical={true}
+						/>
+					</div>
+
+					<!-- Main area: Group columns -->
+					<div class="min-w-0 flex-1">
+						<GroupEditingLayout
+							groups={view.groups}
+							{studentsById}
+							{draggingId}
+							onDrop={handleDrop}
+							onReorder={handleReorder}
+							onDragStart={(id) => (draggingId = id)}
+							onDragEnd={handleDragEnd}
+							{flashingIds}
+							onUpdateGroup={handleUpdateGroup}
+							onDeleteGroup={handleDeleteGroup}
+							onAddGroup={handleAddGroup}
+							onAlphabetize={handleAlphabetize}
+							{newGroupId}
+							selectedStudentPreferences={activeStudentPreferences}
+							layout={layoutMode}
+							rowOrderTop={resolvedRowLayout?.top ?? []}
+							rowOrderBottom={resolvedRowLayout?.bottom ?? []}
+							{studentPreferenceRanks}
+							{studentHasPreferences}
+							onStudentHoverStart={handleTooltipShow}
+							onStudentHoverEnd={handleTooltipHide}
+							{pickedUpStudentId}
+							onKeyboardPickUp={handleKeyboardPickUp}
+							onKeyboardDrop={handleKeyboardDrop}
+							onKeyboardCancel={handleKeyboardCancel}
+							onKeyboardMove={handleKeyboardMove}
+							onStudentClick={handleStudentClick}
+						/>
 					</div>
 				</div>
 			{/if}
-		</div>
+		</main>
 
-		<!-- Start Over confirmation dialog -->
-		<ConfirmDialog
-			open={showStartOverConfirm}
-			title="Start over?"
-			message="This will discard all manual edits and regenerate groups from scratch."
-			confirmLabel="Start Over"
-			onConfirm={handleStartOver}
-			onCancel={() => {
-				showStartOverConfirm = false;
-			}}
-		/>
-
-		<!-- Delete Group confirmation dialog -->
-		<ConfirmDialog
-			open={showDeleteGroupConfirm}
-			title="Delete group?"
-			message={groupToDelete
-				? `"${groupToDelete.name}" has ${groupToDelete.memberCount} student${groupToDelete.memberCount !== 1 ? 's' : ''}. They will be moved to Unassigned.`
-				: ''}
-			confirmLabel="Delete"
-			onConfirm={confirmDeleteGroup}
-			onCancel={cancelDeleteGroup}
-		/>
-
-		<!-- Alphabetize Group confirmation dialog -->
-		<ConfirmDialog
-			open={showAlphabetizeConfirm}
-			title="Sort alphabetically?"
-			message={groupToAlphabetize
-				? `This will rearrange all ${groupToAlphabetize.memberCount} students in "${groupToAlphabetize.name}" by last name. You can undo this change.`
-				: ''}
-			confirmLabel="Sort"
-			onConfirm={confirmAlphabetize}
-			onCancel={cancelAlphabetize}
-		/>
-
-		<!-- Preferences Import Modal -->
-		<PreferencesImportModal
-			isOpen={showPreferencesModal}
-			{students}
-			{groupNames}
-			programId={program?.id ?? ''}
-			sheetConnection={null}
-			onSuccess={handlePreferencesImport}
-			onCancel={() => (showPreferencesModal = false)}
-		/>
-
-		<!-- Student Info Tooltip -->
-		{#if tooltipStudent}
-			<StudentInfoTooltip
-				student={tooltipStudent}
-				preferences={tooltipPreferences}
-				recentGroupmates={tooltipRecentGroupmates}
-				x={tooltipX}
-				y={tooltipY}
-				visible={true}
-				showProfileLink={true}
+		<!-- Student Detail Sidebar -->
+		{#if sidebarStudent && scenario && view}
+			<StudentDetailSidebar
+				student={sidebarStudent}
+				preferences={sidebarPreferences}
+				recentGroupmates={sidebarRecentGroupmates}
+				onClose={() => (sidebarStudentId = null)}
 			/>
 		{/if}
 
-		<!-- Screen reader announcements for keyboard navigation -->
-		<div aria-live="polite" aria-atomic="true" class="sr-only">
-			{keyboardAnnouncement}
-		</div>
-
-		<!-- Toast -->
-		{#if commandRunner.toast}
+		<!-- Workspace Action Bar -->
+		{#if scenario && view}
 			<div
-				class="fixed right-4 bottom-4 z-50 rounded-lg bg-gray-900/90 px-4 py-3 text-sm text-white shadow-lg"
-				role="alert"
+				class="sticky bottom-0 z-10 border-t border-gray-200/70 bg-white px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]"
 			>
-				<div class="flex items-center gap-4">
-					<div>
-						<span class="font-medium">{commandRunner.toast.message}</span>
-						{#if commandRunner.toast.subtitle}
-							<span class="block text-xs text-gray-400">{commandRunner.toast.subtitle}</span>
-						{/if}
-					</div>
-					{#if commandRunner.toast.action}
+				<div class="mx-auto flex max-w-6xl items-center justify-between">
+					<div class="flex items-center gap-3">
 						<button
-							onclick={() => {
-								void commandRunner.toast?.action?.callback();
-							}}
-							class="font-medium whitespace-nowrap underline hover:no-underline"
+							type="button"
+							class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+							onclick={handleTryAnother}
+							disabled={isTryingAnother || isRegenerating}
 						>
-							{commandRunner.toast.action.label}
+							{#if isTryingAnother}
+								<span class="inline-flex items-center gap-2">
+									<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+										<circle
+											class="opacity-25"
+											cx="12"
+											cy="12"
+											r="10"
+											stroke="currentColor"
+											stroke-width="4"
+										></circle>
+										<path
+											class="opacity-75"
+											fill="currentColor"
+											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+										></path>
+									</svg>
+									Generating...
+								</span>
+							{:else}
+								Try Another
+							{/if}
 						</button>
-					{/if}
+						<button
+							type="button"
+							class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+							onclick={() => (showStartOverConfirm = true)}
+							disabled={isTryingAnother || isRegenerating}
+						>
+							Start Over
+						</button>
+					</div>
+					<button
+						type="button"
+						class="flex items-center gap-2 rounded-md bg-teal px-6 py-2 text-sm font-medium text-white hover:bg-teal-dark"
+						onclick={handleShowToClassClick}
+					>
+						<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+							/>
+						</svg>
+						Show to Class
+					</button>
 				</div>
 			</div>
 		{/if}
+	</div>
+
+	<!-- Start Over confirmation dialog -->
+	<ConfirmDialog
+		open={showStartOverConfirm}
+		title="Start over?"
+		message="This will discard all manual edits and regenerate groups from scratch."
+		confirmLabel="Start Over"
+		onConfirm={handleStartOver}
+		onCancel={() => {
+			showStartOverConfirm = false;
+		}}
+	/>
+
+	<!-- Delete Group confirmation dialog -->
+	<ConfirmDialog
+		open={showDeleteGroupConfirm}
+		title="Delete group?"
+		message={groupToDelete
+			? `"${groupToDelete.name}" has ${groupToDelete.memberCount} student${groupToDelete.memberCount !== 1 ? 's' : ''}. They will be moved to Unassigned.`
+			: ''}
+		confirmLabel="Delete"
+		onConfirm={confirmDeleteGroup}
+		onCancel={cancelDeleteGroup}
+	/>
+
+	<!-- Alphabetize Group confirmation dialog -->
+	<ConfirmDialog
+		open={showAlphabetizeConfirm}
+		title="Sort alphabetically?"
+		message={groupToAlphabetize
+			? `This will rearrange all ${groupToAlphabetize.memberCount} students in "${groupToAlphabetize.name}" by last name. You can undo this change.`
+			: ''}
+		confirmLabel="Sort"
+		onConfirm={confirmAlphabetize}
+		onCancel={cancelAlphabetize}
+	/>
+
+	<!-- Preferences Import Modal -->
+	<PreferencesImportModal
+		isOpen={showPreferencesModal}
+		{students}
+		{groupNames}
+		programId={program?.id ?? ''}
+		sheetConnection={null}
+		onSuccess={handlePreferencesImport}
+		onCancel={() => (showPreferencesModal = false)}
+	/>
+
+	<!-- Student Info Tooltip -->
+	{#if tooltipStudent}
+		<StudentInfoTooltip
+			student={tooltipStudent}
+			preferences={tooltipPreferences}
+			recentGroupmates={tooltipRecentGroupmates}
+			x={tooltipX}
+			y={tooltipY}
+			visible={true}
+			showProfileLink={true}
+		/>
 	{/if}
-</div>
+
+	<!-- Screen reader announcements for keyboard navigation -->
+	<div aria-live="polite" aria-atomic="true" class="sr-only">
+		{keyboardAnnouncement}
+	</div>
+
+	<!-- Toast -->
+	{#if commandRunner.toast}
+		<div
+			class="fixed right-4 bottom-4 z-50 rounded-lg bg-gray-900/90 px-4 py-3 text-sm text-white shadow-lg"
+			role="alert"
+		>
+			<div class="flex items-center gap-4">
+				<div>
+					<span class="font-medium">{commandRunner.toast.message}</span>
+					{#if commandRunner.toast.subtitle}
+						<span class="block text-xs text-gray-400">{commandRunner.toast.subtitle}</span>
+					{/if}
+				</div>
+				{#if commandRunner.toast.action}
+					<button
+						onclick={() => {
+							void commandRunner.toast?.action?.callback();
+						}}
+						class="font-medium whitespace-nowrap underline hover:no-underline"
+					>
+						{commandRunner.toast.action.label}
+					</button>
+				{/if}
+			</div>
+		</div>
+	{/if}
+{/if}
