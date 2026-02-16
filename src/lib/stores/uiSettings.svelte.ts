@@ -11,6 +11,7 @@
  */
 
 export type CardSize = 'sm' | 'md' | 'lg';
+export type GroupLayout = 'scroll' | 'wrap';
 
 /**
  * Store implementation that keeps each preference in a $state rune.
@@ -22,6 +23,7 @@ export class UiSettingsStore {
 	showGender = $state(true);
 	highlightUnhappy = $state(false);
 	cardSize = $state<CardSize>('sm');
+	groupLayout = $state<GroupLayout>('scroll');
 
 	setShowGender(value: boolean) {
 		this.showGender = value;
@@ -49,10 +51,19 @@ export class UiSettingsStore {
 		this.cardSize = sizes[(idx + 1) % sizes.length];
 	}
 
+	setGroupLayout(value: GroupLayout) {
+		this.groupLayout = value;
+	}
+
+	toggleGroupLayout() {
+		this.groupLayout = this.groupLayout === 'scroll' ? 'wrap' : 'scroll';
+	}
+
 	reset() {
 		this.showGender = true;
 		this.highlightUnhappy = false;
 		this.cardSize = 'sm';
+		this.groupLayout = 'scroll';
 	}
 }
 

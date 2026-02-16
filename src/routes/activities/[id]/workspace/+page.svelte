@@ -64,6 +64,7 @@
 	import StudentDetailSidebar from '$lib/components/workspace/StudentDetailSidebar.svelte';
 	import SatisfactionSummary from '$lib/components/workspace/SatisfactionSummary.svelte';
 	import CardSizeToggle from '$lib/components/workspace/CardSizeToggle.svelte';
+	import GroupLayoutToggle from '$lib/components/workspace/GroupLayoutToggle.svelte';
 	import { getProgramPairingStats, type PairingStat } from '$lib/services/appEnvUseCases';
 	import { uiSettings } from '$lib/stores/uiSettings.svelte';
 	import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
@@ -136,8 +137,8 @@
 	// --- Keyboard handler cleanup ---
 	let keyboardCleanup: (() => void) | null = null;
 
-	// --- Layout mode ---
-	let layoutMode = $state<LayoutMode>('row');
+	// --- Layout mode (derived from UI settings) ---
+	let layoutMode = $derived<LayoutMode>(uiSettings.groupLayout === 'wrap' ? 'masonry' : 'row');
 
 	// --- Result history state (session-only) ---
 	interface HistoryEntry {
@@ -1441,6 +1442,7 @@
 							/>
 
 							<div class="flex items-center gap-3">
+								<GroupLayoutToggle />
 								<CardSizeToggle />
 
 								<!-- Repeated grouping hint with avoid recent toggle -->

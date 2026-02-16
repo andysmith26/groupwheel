@@ -206,6 +206,7 @@
 				{onKeyboardDrop}
 				{onKeyboardCancel}
 				{onKeyboardMove}
+				{onStudentClick}
 			/>
 		{/each}
 
