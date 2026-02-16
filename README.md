@@ -55,6 +55,14 @@ No accounts required. All data stays in your browser.
 
 This is currently a solo learning project. If you're interested in contributing, open an issue to discuss.
 
+### Fixing Boundary Lint Errors
+
+- Run `pnpm lint:boundaries` to check architectural import boundaries.
+- If `no-restricted-imports` fails, move business logic into `src/lib/application/useCases` or `src/lib/domain` instead of importing across layers.
+- In routes/components, prefer `src/lib/services/appEnvUseCases.ts` facades for runtime operations.
+- Domain files must stay framework-agnostic: no `svelte` or `@sveltejs/*` imports.
+- See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the layer rules and expected dependency direction.
+
 ## License
 
 MIT

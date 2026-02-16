@@ -253,6 +253,7 @@ auth.setUser(InMemoryAuthAdapter.createTestUser(), 'test-token');
 **Configuration:**
 
 Set these environment variables:
+
 - `PUBLIC_GOOGLE_CLIENT_ID` — Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET` — Google OAuth client secret (server-only)
 
@@ -621,4 +622,16 @@ The following can be enforced via ESLint rules or code review:
 | No infrastructure imports in use cases                  | ESLint import boundaries       |
 | Consistent naming (no `UseCase` suffix)                 | Code review / custom rule      |
 
-Current ESLint configuration enforces basic import boundaries. Consider extending for stricter layer enforcement as the codebase grows.
+Boundary enforcement is defined in [eslint.config.js](../eslint.config.js), including:
+
+- Layer restrictions for `domain`, `application/ports`, `application/useCases`, `components`, and `routes`
+- Alias and relative import patterns (e.g. `$lib/infrastructure/**` and relative equivalents)
+- A minimal temporary exception: direct use-case imports are currently tolerated in routes/components while runtime operations are migrated to facades
+
+Regression fixtures are validated with:
+
+```bash
+pnpm lint:boundaries
+```
+
+This command runs virtual import fixtures and verifies both expected failures and expected allowed imports for major layer boundaries.

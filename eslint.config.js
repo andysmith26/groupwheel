@@ -39,7 +39,7 @@ export default ts.config(
 	},
 	{
 		files: ['src/**/*.{ts,js,svelte}'],
-		excludedFiles: ['**/*.spec.*', '**/*.test.*', 'src/lib/test-utils/**', 'e2e/**'],
+		ignores: ['**/*.spec.*', '**/*.test.*', 'src/lib/test-utils/**', 'e2e/**'],
 		rules: {
 			'no-restricted-imports': [
 				'error',
@@ -60,12 +60,16 @@ export default ts.config(
 	},
 	{
 		files: ['src/lib/domain/**'],
-		excludedFiles: ['**/*.spec.*', '**/*.test.*'],
+		ignores: ['**/*.spec.*', '**/*.test.*'],
 		rules: {
 			'no-restricted-imports': [
 				'error',
 				{
 					paths: [
+						{
+							name: 'svelte',
+							message: 'Domain layer must remain framework-agnostic and must not import Svelte.'
+						},
 						{
 							name: '$lib/test-utils',
 							message: 'Production code must not import $lib/test-utils.'
@@ -78,6 +82,25 @@ export default ts.config(
 					patterns: [
 						{
 							group: [
+								'@sveltejs/*',
+								'@sveltejs/**',
+								'svelte/*',
+								'$lib/components',
+								'$lib/components/*',
+								'$lib/components/**',
+								'$lib/stores',
+								'$lib/stores/*',
+								'$lib/stores/**',
+								'$lib/application',
+								'$lib/application/*',
+								'$lib/application/**',
+								'$lib/infrastructure',
+								'$lib/infrastructure/*',
+								'$lib/infrastructure/**',
+								'../components/*',
+								'../components/**',
+								'../stores/*',
+								'../stores/**',
 								'../application/*',
 								'../application/**',
 								'../infrastructure/*',
@@ -94,7 +117,7 @@ export default ts.config(
 	},
 	{
 		files: ['src/lib/application/useCases/**'],
-		excludedFiles: ['**/*.spec.*', '**/*.test.*'],
+		ignores: ['**/*.spec.*', '**/*.test.*'],
 		rules: {
 			'no-restricted-imports': [
 				'error',
@@ -112,10 +135,28 @@ export default ts.config(
 					patterns: [
 						{
 							group: [
+								'$lib/components',
+								'$lib/components/*',
+								'$lib/components/**',
+								'$lib/stores',
+								'$lib/stores/*',
+								'$lib/stores/**',
+								'$lib/contexts',
+								'$lib/contexts/*',
+								'$lib/contexts/**',
+								'$lib/infrastructure',
+								'$lib/infrastructure/*',
+								'$lib/infrastructure/**',
+								'../../components/*',
+								'../../components/**',
+								'../../stores/*',
+								'../../stores/**',
+								'../../contexts/*',
+								'../../contexts/**',
 								'../infrastructure/*',
 								'../infrastructure/**',
-								'../../routes/*',
-								'../../routes/**'
+								'../../../routes/*',
+								'../../../routes/**'
 							],
 							message: 'Use cases must depend only on domain, ports, and utilities.'
 						}
@@ -125,8 +166,8 @@ export default ts.config(
 		}
 	},
 	{
-		files: ['src/routes/**'],
-		excludedFiles: ['**/*.spec.*', '**/*.test.*'],
+		files: ['src/lib/application/ports/**'],
+		ignores: ['**/*.spec.*', '**/*.test.*'],
 		rules: {
 			'no-restricted-imports': [
 				'error',
@@ -144,13 +185,98 @@ export default ts.config(
 					patterns: [
 						{
 							group: [
-								'../lib/infrastructure/*',
-								'../lib/infrastructure/**',
-								'../lib/application/useCases/*',
-								'../lib/application/useCases/**'
+								'$lib/components',
+								'$lib/components/*',
+								'$lib/components/**',
+								'$lib/stores',
+								'$lib/stores/*',
+								'$lib/stores/**',
+								'$lib/contexts',
+								'$lib/contexts/*',
+								'$lib/contexts/**',
+								'$lib/infrastructure',
+								'$lib/infrastructure/*',
+								'$lib/infrastructure/**',
+								'../../components/*',
+								'../../components/**',
+								'../../stores/*',
+								'../../stores/**',
+								'../../contexts/*',
+								'../../contexts/**',
+								'../../infrastructure/*',
+								'../../infrastructure/**',
+								'../../../routes/*',
+								'../../../routes/**'
+							],
+							message: 'Application ports must not depend on infrastructure, routes, or UI modules.'
+						}
+					]
+				}
+			]
+		}
+	},
+	{
+		files: ['src/lib/components/**'],
+		ignores: ['**/*.spec.*', '**/*.test.*'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					paths: [
+						{
+							name: '$lib/test-utils',
+							message: 'Production code must not import $lib/test-utils.'
+						},
+						{
+							name: '$lib/types',
+							message: 'Import domain types from $lib/domain (utilities stay under $lib/types/*).'
+						}
+					],
+					patterns: [
+						{
+							group: [
+								'$lib/infrastructure',
+								'$lib/infrastructure/*',
+								'$lib/infrastructure/**',
+								'../../infrastructure/*',
+								'../../infrastructure/**'
 							],
 							message:
-								'Routes should use appEnvUseCases and context, not infrastructure or use cases directly.'
+								'Components should use application facades/context, not infrastructure modules directly.'
+						}
+					]
+				}
+			]
+		}
+	},
+	{
+		files: ['src/routes/**'],
+		ignores: ['**/*.spec.*', '**/*.test.*', 'src/routes/+layout.svelte'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					paths: [
+						{
+							name: '$lib/test-utils',
+							message: 'Production code must not import $lib/test-utils.'
+						},
+						{
+							name: '$lib/types',
+							message: 'Import domain types from $lib/domain (utilities stay under $lib/types/*).'
+						}
+					],
+					patterns: [
+						{
+							group: [
+								'$lib/infrastructure',
+								'$lib/infrastructure/*',
+								'$lib/infrastructure/**',
+								'../lib/infrastructure/*',
+								'../lib/infrastructure/**'
+							],
+							message:
+								'Routes should use appEnvUseCases/context and avoid direct infrastructure imports.'
 						}
 					]
 				}
