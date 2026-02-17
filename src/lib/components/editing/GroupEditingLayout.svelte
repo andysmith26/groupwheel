@@ -79,51 +79,6 @@
 		onStudentClick?: (studentId: string) => void;
 	}>();
 
-	type RowLayoutItem = { type: 'group'; group: Group } | { type: 'spacer'; key: string };
-
-	const rowLayoutItems = $derived.by((): RowLayoutItem[] => {
-		if (layout !== 'row') return [];
-		if (groups.length === 0) return [];
-
-		const groupsById = new Map(groups.map((group: Group) => [group.id, group] as const));
-		const hasCustomRowLayout = rowOrderTop.length > 0 || rowOrderBottom.length > 0;
-		const topRow = hasCustomRowLayout
-			? (rowOrderTop.map((id: string) => groupsById.get(id)).filter(Boolean) as Group[])
-			: groups;
-		const bottomRow = hasCustomRowLayout
-			? (rowOrderBottom.map((id: string) => groupsById.get(id)).filter(Boolean) as Group[])
-			: [];
-
-		const columns = Math.max(topRow.length, bottomRow.length);
-		const items: RowLayoutItem[] = [];
-
-		for (let i = 0; i < columns; i += 1) {
-			if (topRow[i]) {
-				items.push({
-					type: 'group',
-					group: topRow[i]
-				});
-			} else {
-				items.push({ type: 'spacer', key: `spacer-top-${i}` });
-			}
-
-			if (bottomRow[i]) {
-				items.push({
-					type: 'group',
-					group: bottomRow[i]
-				});
-			}
-		}
-
-		return items;
-	});
-
-	const rowColumnCount = $derived.by(() => {
-		if (layout !== 'row') return groups.length;
-		const count = Math.max(rowOrderTop.length, rowOrderBottom.length);
-		return count > 0 ? count : groups.length;
-	});
-
 	// Helper to get preference rank for a group
 	function getPreferenceRank(groupId: string): number | null {
 		if (!selectedStudentPreferences || selectedStudentPreferences.length === 0) {
@@ -137,46 +92,40 @@
 
 {#if layout === 'row'}
 	<HorizontalScrollContainer
-		totalItems={rowColumnCount + (onAddGroup ? 1 : 0)}
+		totalItems={groups.length + (onAddGroup ? 1 : 0)}
 		config={rowConfig}
 		showProgress={false}
 		ariaLabel="Group cards"
 	>
 		<div class="group-row">
-			{#each rowLayoutItems as item, i (item.type === 'group' ? `${item.group.id}-${i}` : item.key)}
-				{#if item.type === 'group'}
-					<EditableGroupColumn
-						group={item.group}
-						{studentsById}
-						{draggingId}
-						rowSpan={1}
-						{onDrop}
-						{onReorder}
-						{onDragStart}
-						{onDragEnd}
-						{flashingIds}
-						{onUpdateGroup}
-						{onDeleteGroup}
-						{onAlphabetize}
-						focusNameOnMount={item.group.id === newGroupId}
-						preferenceRank={getPreferenceRank(item.group.id)}
-						{studentPreferenceRanks}
-						{studentHasPreferences}
-						{onStudentHoverStart}
-						{onStudentHoverEnd}
-						{pickedUpStudentId}
-						{onKeyboardPickUp}
-						{onKeyboardDrop}
-						{onKeyboardCancel}
-						{onKeyboardMove}
-						{onStudentClick}
-					/>
-				{:else}
-					<div class="group-spacer" aria-hidden="true"></div>
-				{/if}
+			{#each groups as group, i (`${group.id}-${i}`)}
+				<EditableGroupColumn
+					{group}
+					{studentsById}
+					{draggingId}
+					rowSpan={1}
+					{onDrop}
+					{onReorder}
+					{onDragStart}
+					{onDragEnd}
+					{flashingIds}
+					{onUpdateGroup}
+					{onDeleteGroup}
+					{onAlphabetize}
+					focusNameOnMount={group.id === newGroupId}
+					preferenceRank={getPreferenceRank(group.id)}
+					{studentPreferenceRanks}
+					{studentHasPreferences}
+					{onStudentHoverStart}
+					{onStudentHoverEnd}
+					{pickedUpStudentId}
+					{onKeyboardPickUp}
+					{onKeyboardDrop}
+					{onKeyboardCancel}
+					{onKeyboardMove}
+					{onStudentClick}
+				/>
 			{/each}
-
-			<!-- Add Group card removed for compact view -->
 		</div>
 	</HorizontalScrollContainer>
 {:else}
@@ -216,29 +165,20 @@
 
 <style>
 	.group-grid {
-		display: grid;
-		grid-template-columns: repeat(1, 1fr);
-		grid-auto-rows: min-content;
-		grid-auto-flow: dense;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
 		gap: 16px;
 	}
 
-	@media (min-width: 768px) {
-		.group-grid {
-			grid-template-columns: repeat(2, 1fr);
-		}
-	}
-
-	@media (min-width: 1280px) {
-		.group-grid {
-			grid-template-columns: repeat(3, 1fr);
-		}
+	.group-grid > :global(*) {
+		width: var(--group-col-width, 136px);
+		flex-shrink: 0;
 	}
 
 	.group-row {
-		display: grid;
-		grid-auto-flow: column;
-		grid-template-rows: repeat(2, auto);
+		display: flex;
+		flex-wrap: nowrap;
 		align-items: stretch;
 		justify-content: center;
 		gap: 12px;
@@ -248,9 +188,6 @@
 
 	.group-row > :global(*) {
 		width: var(--group-col-width, 136px);
-	}
-
-	.group-spacer {
-		width: var(--group-col-width, 136px);
+		flex-shrink: 0;
 	}
 </style>
