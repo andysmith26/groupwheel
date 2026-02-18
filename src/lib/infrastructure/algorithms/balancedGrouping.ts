@@ -47,6 +47,12 @@ export interface BalancedGroupingConfig {
 	 * Default: false
 	 */
 	avoidRecentGroupmates?: boolean;
+
+	/**
+	 * Number of most recent sessions to consider when avoiding recent groupmates.
+	 * Default: 1
+	 */
+	lookbackSessions?: number;
 }
 
 /**
@@ -273,7 +279,7 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
 				constraints.recentGroupmates = buildRecentGroupmatesMap(
 					flatPlacements,
 					studentIds,
-					true // Only consider most recent session
+					config.lookbackSessions ?? 1
 				);
 				constraints.avoidRecentGroupmates = true;
 			}

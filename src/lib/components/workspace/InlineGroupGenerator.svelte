@@ -29,6 +29,7 @@
 	// --- Configuration ---
 	let groupSize = $state(4);
 	let avoidRecentGroupmates = $state(true);
+	let lookbackSessions = $state(3);
 	let generating = $state(false);
 	let generateError = $state<string | null>(null);
 
@@ -59,17 +60,25 @@
 		if (groupSize < maxGroupSize) groupSize++;
 	}
 
+	function handleLookbackChange(e: Event) {
+		const val = parseInt((e.target as HTMLSelectElement).value, 10);
+		if (Number.isFinite(val) && val >= 1 && val <= 10) {
+			lookbackSessions = val;
+		}
+	}
+
 	async function handleGenerate() {
 		generating = true;
 		generateError = null;
 
-		saveGenerationSettings(programId, { groupSize, avoidRecentGroupmates });
+		saveGenerationSettings(programId, { groupSize, avoidRecentGroupmates, lookbackSessions });
 
 		const result = await quickGenerateGroups(env, {
 			programId,
 			groupSize,
 			groupNamePrefix: 'Group',
-			avoidRecentGroupmates
+			avoidRecentGroupmates,
+			lookbackSessions
 		});
 
 		if (isErr(result)) {
@@ -137,21 +146,33 @@
 		</p>
 	</div>
 
-	<!-- Avoid recent groupmates toggle -->
+	<!-- Avoid recent groupmates toggle + lookback -->
 	{#if hasPreviousSessions}
-		<label
-			class="mt-4 flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white px-5 py-4 shadow-sm"
-		>
-			<input
-				type="checkbox"
-				bind:checked={avoidRecentGroupmates}
-				class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-			/>
-			<div>
+		<div class="mt-4 rounded-lg border border-gray-200 bg-white px-5 py-4 shadow-sm space-y-2">
+			<label class="flex cursor-pointer items-center gap-3">
+				<input
+					type="checkbox"
+					bind:checked={avoidRecentGroupmates}
+					class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+				/>
 				<span class="text-sm font-medium text-gray-700">Avoid recent groupmates</span>
-				<p class="text-xs text-gray-500">Try to mix students into different groups than last time</p>
-			</div>
-		</label>
+			</label>
+			{#if avoidRecentGroupmates}
+				<div class="ml-7 flex items-center gap-2 text-sm text-gray-500">
+					<span>Students won't repeat from last</span>
+					<select
+						value={lookbackSessions}
+						onchange={handleLookbackChange}
+						class="rounded border border-gray-300 px-1 py-0.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+					>
+						{#each Array.from({ length: 10 }, (_, i) => i + 1) as n}
+							<option value={n}>{n}</option>
+						{/each}
+					</select>
+					<span>group{lookbackSessions !== 1 ? 's' : ''}</span>
+				</div>
+			{/if}
+		</div>
 	{/if}
 
 	<!-- Generate error -->

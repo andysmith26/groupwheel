@@ -12,6 +12,8 @@ import type { GroupShell } from '$lib/utils/groupShellValidation';
 export interface GenerationSettings {
 	groupSize: number;
 	avoidRecentGroupmates: boolean;
+	/** Number of most recent sessions to consider when avoiding recent groupmates. Default: 3, range: 1–10. */
+	lookbackSessions: number;
 	/** Custom group shells. Non-null when user has customized group names/caps. */
 	customShells?: GroupShell[];
 }
@@ -20,7 +22,8 @@ const STORAGE_KEY_PREFIX = 'gw-gen-settings-';
 
 const DEFAULTS: GenerationSettings = {
 	groupSize: 4,
-	avoidRecentGroupmates: true
+	avoidRecentGroupmates: true,
+	lookbackSessions: 3
 };
 
 export function getGenerationSettings(programId: string): GenerationSettings {
@@ -28,6 +31,11 @@ export function getGenerationSettings(programId: string): GenerationSettings {
 		const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${programId}`);
 		if (raw) {
 			const parsed = JSON.parse(raw);
+			const rawLookback = parsed.lookbackSessions;
+			const lookbackSessions =
+				typeof rawLookback === 'number' && Number.isFinite(rawLookback)
+					? Math.min(10, Math.max(1, Math.round(rawLookback)))
+					: DEFAULTS.lookbackSessions;
 			const settings: GenerationSettings = {
 				groupSize:
 					typeof parsed.groupSize === 'number' && parsed.groupSize >= 2
@@ -36,7 +44,8 @@ export function getGenerationSettings(programId: string): GenerationSettings {
 				avoidRecentGroupmates:
 					typeof parsed.avoidRecentGroupmates === 'boolean'
 						? parsed.avoidRecentGroupmates
-						: DEFAULTS.avoidRecentGroupmates
+						: DEFAULTS.avoidRecentGroupmates,
+				lookbackSessions
 			};
 			if (Array.isArray(parsed.customShells) && parsed.customShells.length > 0) {
 				settings.customShells = parsed.customShells;

@@ -8,6 +8,8 @@
 
 	import { onMount } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { getAppEnvContext } from '$lib/contexts/appEnv';
 	import {
 		listActivities,
@@ -71,6 +73,13 @@
 			error = result.error.message;
 		} else {
 			activities = result.value;
+
+			// Auto-redirect when exactly one activity and no explicit dashboard visit
+			const explicitDashboardVisit = $page.url.searchParams.has('dashboard');
+			if (activities.length === 1 && !explicitDashboardVisit) {
+				goto(`/activities/${activities[0].program.id}`, { replaceState: true });
+				return;
+			}
 		}
 
 		loading = false;

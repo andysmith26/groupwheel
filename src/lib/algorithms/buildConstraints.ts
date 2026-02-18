@@ -39,12 +39,12 @@ export function buildAvoidPairsFromPreferences(preferences: Preference[]): Avoid
  *
  * @param placements - All placements to consider
  * @param studentIds - The students to build the map for
- * @param limitToMostRecent - If true, only consider the most recent session per student
+ * @param lookbackSessions - Number of most recent sessions to consider (default: 1). Use 0 to return empty sets.
  */
 export function buildRecentGroupmatesMap(
 	placements: Placement[],
 	studentIds: string[],
-	limitToMostRecent: boolean = true
+	lookbackSessions: number = 1
 ): Map<string, Set<string>> {
 	const result = new Map<string, Set<string>>();
 
@@ -53,7 +53,7 @@ export function buildRecentGroupmatesMap(
 		result.set(studentId, new Set());
 	}
 
-	if (placements.length === 0) {
+	if (placements.length === 0 || lookbackSessions <= 0) {
 		return result;
 	}
 
@@ -65,23 +65,18 @@ export function buildRecentGroupmatesMap(
 		placementsBySession.set(placement.sessionId, sessionPlacements);
 	}
 
-	// Find the most recent session (by start date from placements)
-	let mostRecentSessionId: string | null = null;
-	let mostRecentDate: Date | null = null;
+	// Sort sessions by most recent placement date, descending
+	const sessionsByRecency = [...placementsBySession.entries()]
+		.map(([sessionId, sessionPlacements]) => ({
+			sessionId,
+			latestDate: Math.max(...sessionPlacements.map((p) => p.startDate.getTime()))
+		}))
+		.sort((a, b) => b.latestDate - a.latestDate);
 
-	if (limitToMostRecent) {
-		for (const placement of placements) {
-			if (!mostRecentDate || placement.startDate > mostRecentDate) {
-				mostRecentDate = placement.startDate;
-				mostRecentSessionId = placement.sessionId;
-			}
-		}
-	}
-
-	// Build groupmates map
-	const sessionsToProcess = limitToMostRecent && mostRecentSessionId
-		? [mostRecentSessionId]
-		: [...placementsBySession.keys()];
+	// Take top N sessions
+	const sessionsToProcess = sessionsByRecency
+		.slice(0, Math.max(0, lookbackSessions))
+		.map((s) => s.sessionId);
 
 	for (const sessionId of sessionsToProcess) {
 		const sessionPlacements = placementsBySession.get(sessionId) ?? [];
@@ -121,10 +116,11 @@ export function buildGroupingConstraints(options: {
 	placements: Placement[];
 	studentIds: string[];
 	avoidRecentGroupmates: boolean;
+	lookbackSessions?: number;
 }): GroupingConstraints {
 	const avoidPairs = buildAvoidPairsFromPreferences(options.preferences);
 	const recentGroupmates = options.avoidRecentGroupmates
-		? buildRecentGroupmatesMap(options.placements, options.studentIds, true)
+		? buildRecentGroupmatesMap(options.placements, options.studentIds, options.lookbackSessions ?? 1)
 		: undefined;
 
 	return {

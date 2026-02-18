@@ -107,7 +107,7 @@ describe('buildRecentGroupmatesMap', () => {
 		expect(result.get('carol')?.has('alice')).toBe(false);
 	});
 
-	it('should only consider most recent session when limitToMostRecent is true', () => {
+	it('lookbackSessions=1 considers only the most recent session', () => {
 		const older = new Date('2024-01-01');
 		const newer = new Date('2024-09-01');
 
@@ -118,28 +118,69 @@ describe('buildRecentGroupmatesMap', () => {
 			makePlacement('carol', 'g2', 'session-new', newer)
 		];
 
-		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol'], true);
+		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol'], 1);
 
-		// Only session-new should be considered
+		// Only session-new (the most recent) should be considered
 		expect(result.get('alice')?.has('carol')).toBe(true);
 		expect(result.get('alice')?.has('bob')).toBe(false);
 	});
 
-	it('should consider all sessions when limitToMostRecent is false', () => {
-		const older = new Date('2024-01-01');
-		const newer = new Date('2024-09-01');
+	it('lookbackSessions=2 considers the two most recent sessions', () => {
+		const oldest = new Date('2024-01-01');
+		const middle = new Date('2024-06-01');
+		const newest = new Date('2024-09-01');
 
 		const placements = [
-			makePlacement('alice', 'g1', 'session-old', older),
-			makePlacement('bob', 'g1', 'session-old', older),
-			makePlacement('alice', 'g2', 'session-new', newer),
-			makePlacement('carol', 'g2', 'session-new', newer)
+			makePlacement('alice', 'g1', 'session-1', oldest),
+			makePlacement('bob', 'g1', 'session-1', oldest),
+			makePlacement('alice', 'g2', 'session-2', middle),
+			makePlacement('carol', 'g2', 'session-2', middle),
+			makePlacement('alice', 'g3', 'session-3', newest),
+			makePlacement('dave', 'g3', 'session-3', newest)
 		];
 
-		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol'], false);
+		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol', 'dave'], 2);
 
+		// session-1 (oldest) should NOT be considered
+		expect(result.get('alice')?.has('bob')).toBe(false);
+		// session-2 and session-3 SHOULD be considered
+		expect(result.get('alice')?.has('carol')).toBe(true);
+		expect(result.get('alice')?.has('dave')).toBe(true);
+	});
+
+	it('lookbackSessions=10 with only 3 sessions considers all 3', () => {
+		const d1 = new Date('2024-01-01');
+		const d2 = new Date('2024-06-01');
+		const d3 = new Date('2024-09-01');
+
+		const placements = [
+			makePlacement('alice', 'g1', 'session-1', d1),
+			makePlacement('bob', 'g1', 'session-1', d1),
+			makePlacement('alice', 'g2', 'session-2', d2),
+			makePlacement('carol', 'g2', 'session-2', d2),
+			makePlacement('alice', 'g3', 'session-3', d3),
+			makePlacement('dave', 'g3', 'session-3', d3)
+		];
+
+		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol', 'dave'], 10);
+
+		// All 3 sessions considered
 		expect(result.get('alice')?.has('bob')).toBe(true);
 		expect(result.get('alice')?.has('carol')).toBe(true);
+		expect(result.get('alice')?.has('dave')).toBe(true);
+	});
+
+	it('lookbackSessions=0 returns empty groupmate sets', () => {
+		const date = new Date('2024-09-01');
+		const placements = [
+			makePlacement('alice', 'g1', 'session-1', date),
+			makePlacement('bob', 'g1', 'session-1', date)
+		];
+
+		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob'], 0);
+
+		expect(result.get('alice')?.size).toBe(0);
+		expect(result.get('bob')?.size).toBe(0);
 	});
 });
 

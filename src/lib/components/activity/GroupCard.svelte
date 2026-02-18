@@ -12,10 +12,12 @@
 	import type { GenerationSettings } from '$lib/utils/generationSettings';
 
 	interface Props {
+		programId: string;
 		studentCount: number;
 		groupShells: GroupShell[];
 		generationSettings: GenerationSettings;
 		hasPublishedSessions: boolean;
+		publishedSessionCount: number;
 		hasExistingGroups: boolean;
 		existingGroupCount?: number;
 		isGenerating: boolean;
@@ -23,16 +25,19 @@
 		onGroupShellsChange: (shells: GroupShell[]) => void;
 		onSettingsChange: (settings: GenerationSettings) => void;
 		onGenerate: () => void;
+		onGenerateAndShow?: () => void;
 		onEditCurrentGroups?: () => void;
 		onUseTemplate: () => void;
 		onSaveAsTemplate: () => void;
 	}
 
 	let {
+		programId,
 		studentCount,
 		groupShells,
 		generationSettings,
 		hasPublishedSessions,
+		publishedSessionCount,
 		hasExistingGroups,
 		existingGroupCount,
 		isGenerating,
@@ -40,6 +45,7 @@
 		onGroupShellsChange,
 		onSettingsChange,
 		onGenerate,
+		onGenerateAndShow,
 		onEditCurrentGroups,
 		onUseTemplate,
 		onSaveAsTemplate
@@ -49,6 +55,33 @@
 
 	/** Whether the card shows the expanded shell editor */
 	let expanded = $state(false);
+
+	/** Contextual hint dismissed state */
+	const hintKey = $derived(`gw-avoid-hint-dismissed-${programId}`);
+	let hintDismissed = $state(false);
+
+	$effect(() => {
+		try {
+			hintDismissed = localStorage.getItem(hintKey) === 'true';
+		} catch {
+			hintDismissed = false;
+		}
+	});
+
+	function dismissHint() {
+		hintDismissed = true;
+		try {
+			localStorage.setItem(hintKey, 'true');
+		} catch {
+			// ignore
+		}
+	}
+
+	let showHint = $derived(
+		publishedSessionCount >= 2 &&
+		!generationSettings.avoidRecentGroupmates &&
+		!hintDismissed
+	);
 
 	// Auto-expand when shells have non-default names (e.g. loaded from scenario or template)
 	let hasNonDefaultNames = $derived(
@@ -103,6 +136,13 @@
 			...generationSettings,
 			avoidRecentGroupmates: !generationSettings.avoidRecentGroupmates
 		});
+	}
+
+	function handleLookbackChange(e: Event) {
+		const val = parseInt((e.target as HTMLSelectElement).value, 10);
+		if (Number.isFinite(val) && val >= 1 && val <= 10) {
+			onSettingsChange({ ...generationSettings, lookbackSessions: val });
+		}
 	}
 
 	// --- Expand/collapse ---
@@ -197,10 +237,6 @@
 		}
 	}
 
-	function handleGenerate() {
-		onGenerate();
-	}
-
 	let generateButtonLabel = $derived(hasExistingGroups ? 'New Groups' : 'Generate Groups');
 </script>
 
@@ -243,38 +279,101 @@
 			</div>
 		</div>
 
-		<!-- Avoid recent toggle -->
+		<!-- Avoid recent toggle + lookback -->
 		{#if hasPublishedSessions}
-			<label class="mt-4 flex cursor-pointer items-center gap-3">
-				<input
-					type="checkbox"
-					checked={generationSettings.avoidRecentGroupmates}
-					onchange={toggleAvoidRecent}
-					class="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
-				/>
-				<span class="text-sm text-gray-700">Avoid recent groupmates</span>
-			</label>
+			<div class="mt-4 space-y-1">
+				<label class="flex cursor-pointer items-center gap-3">
+					<input
+						type="checkbox"
+						checked={generationSettings.avoidRecentGroupmates}
+						onchange={toggleAvoidRecent}
+						class="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
+					/>
+					<span class="text-sm font-medium text-gray-700">Avoid recent groupmates</span>
+				</label>
+				{#if generationSettings.avoidRecentGroupmates}
+					<div class="ml-7 flex items-center gap-2 text-sm text-gray-500">
+						<span>Students won't repeat from last</span>
+						<select
+							value={generationSettings.lookbackSessions}
+							onchange={handleLookbackChange}
+							class="rounded border border-gray-300 px-1 py-0.5 text-sm text-gray-700 focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+						>
+							{#each Array.from({ length: 10 }, (_, i) => i + 1) as n}
+								<option value={n}>{n}</option>
+							{/each}
+						</select>
+						<span>group{generationSettings.lookbackSessions !== 1 ? 's' : ''}</span>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Contextual hint -->
+			{#if showHint}
+				<div class="mt-3 flex items-start justify-between gap-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+					<span>💡 Turn on "Avoid Recent Groupmates" so students work with new people each time.</span>
+					<button
+						type="button"
+						class="shrink-0 font-medium text-amber-700 hover:text-amber-900"
+						onclick={dismissHint}
+					>
+						Got it
+					</button>
+				</div>
+			{/if}
 		{/if}
 
-		<!-- Generate button -->
-		<button
-			type="button"
-			class="mt-6 w-full rounded-lg bg-teal px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-dark focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-			onclick={handleGenerate}
-			disabled={isGenerating}
-		>
-			{#if isGenerating}
-				<span class="inline-flex items-center gap-2">
-					<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-					</svg>
-					Generating...
-				</span>
-			{:else}
-				{generateButtonLabel}
-			{/if}
-		</button>
+		<!-- Action buttons -->
+		{#if onGenerateAndShow}
+			<div class="mt-6 space-y-2">
+				<button
+					type="button"
+					class="w-full rounded-lg bg-teal px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-dark focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+					onclick={onGenerateAndShow}
+					disabled={isGenerating}
+				>
+					{#if isGenerating}
+						<span class="inline-flex items-center justify-center gap-2">
+							<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+							</svg>
+							Generating...
+						</span>
+					{:else}
+						Generate &amp; Show
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="w-full text-center text-sm text-gray-500 hover:text-teal transition-colors disabled:opacity-40"
+					onclick={() => onGenerate()}
+					disabled={isGenerating}
+				>
+					Generate Only →
+				</button>
+			</div>
+		{:else}
+			<!-- Generate button (no generate-and-show) -->
+			<button
+				type="button"
+				class="mt-6 w-full rounded-lg bg-teal px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-dark focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+				onclick={() => onGenerate()}
+				disabled={isGenerating}
+			>
+				{#if isGenerating}
+					<span class="inline-flex items-center gap-2">
+						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+						</svg>
+						Generating...
+					</span>
+				{:else}
+					{generateButtonLabel}
+				{/if}
+			</button>
+		{/if}
 
 		<!-- Customize link -->
 		<button
@@ -363,38 +462,101 @@
 			Cap blank = unlimited
 		</p>
 
-		<!-- Avoid recent toggle -->
+		<!-- Avoid recent toggle + lookback -->
 		{#if hasPublishedSessions}
-			<label class="mt-4 flex cursor-pointer items-center gap-3">
-				<input
-					type="checkbox"
-					checked={generationSettings.avoidRecentGroupmates}
-					onchange={toggleAvoidRecent}
-					class="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
-				/>
-				<span class="text-sm text-gray-700">Avoid recent groupmates</span>
-			</label>
+			<div class="mt-4 space-y-1">
+				<label class="flex cursor-pointer items-center gap-3">
+					<input
+						type="checkbox"
+						checked={generationSettings.avoidRecentGroupmates}
+						onchange={toggleAvoidRecent}
+						class="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
+					/>
+					<span class="text-sm font-medium text-gray-700">Avoid recent groupmates</span>
+				</label>
+				{#if generationSettings.avoidRecentGroupmates}
+					<div class="ml-7 flex items-center gap-2 text-sm text-gray-500">
+						<span>Students won't repeat from last</span>
+						<select
+							value={generationSettings.lookbackSessions}
+							onchange={handleLookbackChange}
+							class="rounded border border-gray-300 px-1 py-0.5 text-sm text-gray-700 focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+						>
+							{#each Array.from({ length: 10 }, (_, i) => i + 1) as n}
+								<option value={n}>{n}</option>
+							{/each}
+						</select>
+						<span>group{generationSettings.lookbackSessions !== 1 ? 's' : ''}</span>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Contextual hint -->
+			{#if showHint}
+				<div class="mt-3 flex items-start justify-between gap-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+					<span>💡 Turn on "Avoid Recent Groupmates" so students work with new people each time.</span>
+					<button
+						type="button"
+						class="shrink-0 font-medium text-amber-700 hover:text-amber-900"
+						onclick={dismissHint}
+					>
+						Got it
+					</button>
+				</div>
+			{/if}
 		{/if}
 
-		<!-- Generate button -->
-		<button
-			type="button"
-			class="mt-6 w-full rounded-lg bg-teal px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-dark focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-			onclick={handleGenerate}
-			disabled={isGenerating || !isValid}
-		>
-			{#if isGenerating}
-				<span class="inline-flex items-center gap-2">
-					<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-					</svg>
-					Generating...
-				</span>
-			{:else}
-				{generateButtonLabel}
-			{/if}
-		</button>
+		<!-- Action buttons -->
+		{#if onGenerateAndShow}
+			<div class="mt-6 space-y-2">
+				<button
+					type="button"
+					class="w-full rounded-lg bg-teal px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-dark focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+					onclick={onGenerateAndShow}
+					disabled={isGenerating || !isValid}
+				>
+					{#if isGenerating}
+						<span class="inline-flex items-center justify-center gap-2">
+							<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+							</svg>
+							Generating...
+						</span>
+					{:else}
+						Generate &amp; Show
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="w-full text-center text-sm text-gray-500 hover:text-teal transition-colors disabled:opacity-40"
+					onclick={() => onGenerate()}
+					disabled={isGenerating || !isValid}
+				>
+					Generate Only →
+				</button>
+			</div>
+		{:else}
+			<!-- Generate button (no generate-and-show) -->
+			<button
+				type="button"
+				class="mt-6 w-full rounded-lg bg-teal px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-dark focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+				onclick={() => onGenerate()}
+				disabled={isGenerating || !isValid}
+			>
+				{#if isGenerating}
+					<span class="inline-flex items-center gap-2">
+						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+						</svg>
+						Generating...
+					</span>
+				{:else}
+					{generateButtonLabel}
+				{/if}
+			</button>
+		{/if}
 
 		<!-- Template buttons + collapse link -->
 		<div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">

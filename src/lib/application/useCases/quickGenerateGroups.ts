@@ -27,6 +27,8 @@ export interface QuickGenerateGroupsInput {
 	groupNamePrefix?: string;
 	/** Whether to avoid placing students with recent groupmates. */
 	avoidRecentGroupmates?: boolean;
+	/** Number of most recent sessions to consider when avoiding recent groupmates. */
+	lookbackSessions?: number;
 	/** Explicit group definitions. When provided, groupSize/groupNamePrefix are ignored. */
 	groups?: Array<{ name: string; capacity: number | null }>;
 }
@@ -61,7 +63,7 @@ export async function quickGenerateGroups(
 	deps: QuickGenerateGroupsDeps,
 	input: QuickGenerateGroupsInput
 ): Promise<Result<Scenario, QuickGenerateGroupsError>> {
-	const { programId, groupSize, groupNamePrefix = 'Group', avoidRecentGroupmates = false } = input;
+	const { programId, groupSize, groupNamePrefix = 'Group', avoidRecentGroupmates = false, lookbackSessions } = input;
 
 	// Load program to determine pool size for group count calculation
 	const program = await deps.programRepo.getById(programId);
@@ -109,7 +111,8 @@ export async function quickGenerateGroups(
 			algorithmId: 'balanced',
 			algorithmConfig: {
 				groups,
-				avoidRecentGroupmates
+				avoidRecentGroupmates,
+				lookbackSessions: lookbackSessions ?? 3
 			},
 			seed: Date.now()
 		}

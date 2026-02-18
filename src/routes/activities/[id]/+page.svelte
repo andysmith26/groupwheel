@@ -3,7 +3,7 @@
 	 * /activities/[id]/+page.svelte
 	 *
 	 * Smart Activity Entry Point — serves both personas:
-	 * - Math teacher (daily): one tap "New Groups" → generates + opens workspace
+	 * - Math teacher (daily): one tap "Generate & Show" → generates + shows to class
 	 * - Clubs admin (semester): "Edit Current Groups" → full workspace
 	 *
 	 * Setup (students, groups, preferences) and History are accessible
@@ -21,7 +21,8 @@
 		listGroupTemplates,
 		createGroupTemplate,
 		renameActivity,
-		quickGenerateGroups
+		quickGenerateGroups,
+		showToClass
 	} from '$lib/services/appEnvUseCases';
 	import { isErr, isOk } from '$lib/types/result';
 	import type { Program, Pool, Scenario, Student, Preference, Session, GroupTemplate } from '$lib/domain';
@@ -60,9 +61,10 @@
 	// --- Generation states ---
 	let isGeneratingNew = $state(false);
 	let generateError = $state<string | null>(null);
+	let generateAndShowError = $state<string | null>(null);
 
 	// --- Generation settings ---
-	let generationSettings = $state<GenerationSettings>({ groupSize: 4, avoidRecentGroupmates: true });
+	let generationSettings = $state<GenerationSettings>({ groupSize: 4, avoidRecentGroupmates: true, lookbackSessions: 3 });
 
 	// --- Setup section expand states ---
 	let expandedSection = $state<'students' | 'history' | null>(null);
@@ -363,12 +365,19 @@
 		return { session, groups };
 	}
 
-	// --- Generate groups (unified) ---
+	function mapGenerateError(error: { type: string; message?: string }): string {
+		return error.type === 'GROUPING_ALGORITHM_FAILED' && error.message
+			? error.message
+			: `Failed to generate groups: ${error.type}`;
+	}
+
+	// --- Generate groups (workspace flow) ---
 	async function handleGenerate() {
 		if (!env || !program) return;
 
 		isGeneratingNew = true;
 		generateError = null;
+		generateAndShowError = null;
 
 		saveGenerationSettings(program.id, generationSettings);
 
@@ -376,19 +385,62 @@
 			programId: program.id,
 			groupSize: generationSettings.groupSize,
 			groups: generationSettings.customShells,
-			avoidRecentGroupmates: generationSettings.avoidRecentGroupmates
+			avoidRecentGroupmates: generationSettings.avoidRecentGroupmates,
+			lookbackSessions: generationSettings.lookbackSessions
 		});
 
 		if (isErr(result)) {
-			generateError =
-				result.error.type === 'GROUPING_ALGORITHM_FAILED'
-					? result.error.message
-					: `Failed to generate groups: ${result.error.type}`;
+			generateError = mapGenerateError(result.error);
 			isGeneratingNew = false;
 			return;
 		}
 
 		await goto(`/activities/${program.id}/workspace`);
+	}
+
+	// --- Generate & Show (fast path: generates + publishes in one tap) ---
+	async function handleGenerateAndShow() {
+		if (!env || !program) return;
+
+		isGeneratingNew = true;
+		generateError = null;
+		generateAndShowError = null;
+
+		saveGenerationSettings(program.id, generationSettings);
+
+		// Step 1: Generate groups
+		const genResult = await quickGenerateGroups(env, {
+			programId: program.id,
+			groupSize: generationSettings.groupSize,
+			groupNamePrefix: 'Group',
+			avoidRecentGroupmates: generationSettings.avoidRecentGroupmates,
+			lookbackSessions: generationSettings.lookbackSessions
+		});
+
+		if (isErr(genResult)) {
+			generateAndShowError = mapGenerateError(genResult.error);
+			isGeneratingNew = false;
+			return;
+		}
+
+		const newScenario = genResult.value;
+
+		// Step 2: Show to class (creates session + placements)
+		const showResult = await showToClass(env, {
+			programId: program.id,
+			scenarioId: newScenario.id
+		});
+
+		if (isErr(showResult)) {
+			generateAndShowError = `Groups generated but failed to show: ${showResult.error.type}`;
+			// Fall back to workspace — groups exist, just couldn't publish
+			goto(`/activities/${program.id}/workspace`);
+			return;
+		}
+
+		// Step 3: Navigate to live view
+		isGeneratingNew = false;
+		goto(`/activities/${program.id}/live`);
 	}
 </script>
 
@@ -418,7 +470,7 @@
 	{:else if loadError}
 		<div class="rounded-lg border border-red-200 bg-red-50 p-6">
 			<p class="text-red-700">{loadError}</p>
-			<a href="/activities" class="mt-4 inline-block text-sm text-blue-600 hover:underline">
+			<a href="/activities?dashboard=true" class="mt-4 inline-block text-sm text-blue-600 hover:underline">
 				Back to activities
 			</a>
 		</div>
@@ -427,7 +479,7 @@
 		<div class="mb-6">
 			<!-- Back link -->
 			<a
-				href="/activities"
+				href="/activities?dashboard=true"
 				class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
 			>
 				<svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -480,6 +532,13 @@
 			{/if}
 		</div>
 
+		<!-- Generate & Show error (inline on card) -->
+		{#if generateAndShowError}
+			<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+				{generateAndShowError}
+			</div>
+		{/if}
+
 		<!-- Generate error -->
 		{#if generateError}
 			<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -500,10 +559,12 @@
 			</div>
 		{:else}
 			<GroupCard
+				programId={program.id}
 				{studentCount}
 				{groupShells}
 				{generationSettings}
 				hasPublishedSessions={publishedSessions.length > 0}
+				publishedSessionCount={publishedSessions.length}
 				hasExistingGroups={hasGroups}
 				existingGroupCount={scenario?.groups.length ?? 0}
 				isGenerating={isGeneratingNew}
@@ -511,6 +572,7 @@
 				onGroupShellsChange={handleGroupsChange}
 				onSettingsChange={handleSettingsChange}
 				onGenerate={handleGenerate}
+				onGenerateAndShow={handleGenerateAndShow}
 				onEditCurrentGroups={() => goto(`/activities/${program!.id}/workspace`)}
 				onUseTemplate={handleUseTemplate}
 				onSaveAsTemplate={handleSaveAsTemplate}
