@@ -12,11 +12,13 @@
 	const {
 		groupedAssignments,
 		membersByGroup,
-		allAssignments
+		allAssignments,
+		projectionMode = false
 	}: {
 		groupedAssignments: [string, ExportableAssignment[]][];
 		membersByGroup: Map<string, string[]>;
 		allAssignments: ExportableAssignment[];
+		projectionMode?: boolean;
 	} = $props();
 
 	// --- Search state ---
@@ -27,6 +29,7 @@
 
 	// --- View mode ---
 	let viewMode = $state<'search' | 'all'>('search');
+	let effectiveViewMode = $derived(projectionMode ? 'all' : viewMode);
 
 	// --- Debounce effect ---
 	$effect(() => {
@@ -58,7 +61,8 @@
 	});
 </script>
 
-<!-- View mode sub-tabs -->
+<!-- View mode sub-tabs (hidden in projection mode) -->
+{#if !projectionMode}
 <div class="mb-6 flex gap-2">
 	<button
 		type="button"
@@ -79,8 +83,9 @@
 		All Groups
 	</button>
 </div>
+{/if}
 
-{#if viewMode === 'search'}
+{#if effectiveViewMode === 'search'}
 	<!-- Search mode -->
 	<div class="space-y-8">
 		<div class="mx-auto max-w-2xl">
@@ -137,19 +142,37 @@
 	</div>
 {:else}
 	<!-- All groups mode -->
-	<div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+	<div
+		class={projectionMode
+			? 'projection-grid grid gap-6'
+			: 'grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}
+	>
 		{#each groupedAssignments as [groupName, members] (groupName)}
 			<div class="rounded-xl border-2 border-gray-200 bg-white shadow-md">
 				<div class="border-b-2 border-gray-100 {getGroupColor(groupName)} px-5 py-4">
-					<h3 class="text-2xl font-bold text-white">{groupName}</h3>
-					<p class="mt-1 text-base text-white/80">{members.length} students</p>
+					<h3
+						class={projectionMode
+							? 'text-5xl font-bold text-white'
+							: 'text-2xl font-bold text-white'}
+					>
+						{groupName}
+					</h3>
+					<p class={projectionMode ? 'mt-2 text-xl text-white/80' : 'mt-1 text-base text-white/80'}>
+						{members.length} students
+					</p>
 				</div>
 				<ul class="divide-y divide-gray-100">
 					{#each members as member (member.studentId)}
-						<li class="px-5 py-3">
-							<p class="text-lg font-medium text-gray-900">{member.studentName}</p>
+						<li class={projectionMode ? 'px-6 py-4' : 'px-5 py-3'}>
+							<p
+								class={projectionMode
+									? 'text-2xl font-medium text-gray-900'
+									: 'text-lg font-medium text-gray-900'}
+							>
+								{member.studentName}
+							</p>
 							{#if member.grade}
-								<p class="text-base text-gray-600">Grade {member.grade}</p>
+								<p class={projectionMode ? 'text-lg text-gray-600' : 'text-base text-gray-600'}>Grade {member.grade}</p>
 							{/if}
 						</li>
 					{/each}
@@ -158,3 +181,9 @@
 		{/each}
 	</div>
 {/if}
+
+<style>
+	.projection-grid {
+		grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+	}
+</style>

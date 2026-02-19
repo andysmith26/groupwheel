@@ -22,7 +22,8 @@
 		createGroupTemplate,
 		renameActivity,
 		quickGenerateGroups,
-		showToClass
+		showToClass,
+		getProgramPairingStats
 	} from '$lib/services/appEnvUseCases';
 	import { isErr, isOk } from '$lib/types/result';
 	import type { Program, Pool, Scenario, Student, Preference, Session, GroupTemplate } from '$lib/domain';
@@ -41,6 +42,9 @@
 	import SaveTemplateModal from '$lib/components/setup/SaveTemplateModal.svelte';
 	import GroupCard from '$lib/components/activity/GroupCard.svelte';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
+	import RotationCoverageCard from '$lib/components/analytics/RotationCoverageCard.svelte';
+	import UniquePartnersTable from '$lib/components/analytics/UniquePartnersTable.svelte';
+	import type { PairingStat } from '$lib/application/useCases/getProgramPairingStats';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -66,8 +70,13 @@
 	// --- Generation settings ---
 	let generationSettings = $state<GenerationSettings>({ groupSize: 4, avoidRecentGroupmates: true, lookbackSessions: 3 });
 
+	// --- Pairing stats ---
+	let pairingPairs = $state<PairingStat[]>([]);
+	let pairingSessionCount = $state(0);
+	let pairingLoaded = $state(false);
+
 	// --- Setup section expand states ---
-	let expandedSection = $state<'students' | 'history' | null>(null);
+	let expandedSection = $state<'students' | 'history' | 'rotation' | null>(null);
 
 	// --- Group configuration state ---
 	let groupShells = $state<GroupShell[]>([]);
@@ -96,6 +105,38 @@
 		sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED')
 	);
 
+	// --- Rotation coverage computations ---
+	let totalPossiblePairs = $derived(
+		studentCount > 1 ? (studentCount * (studentCount - 1)) / 2 : 0
+	);
+
+	let coveragePercent = $derived(
+		totalPossiblePairs === 0 ? 0 : Math.round((pairingPairs.length / totalPossiblePairs) * 100)
+	);
+
+	let uniquePartnersData = $derived.by(() => {
+		const partnerCounts = new Map<string, { name: string; count: number }>();
+
+		for (const pair of pairingPairs) {
+			const a = partnerCounts.get(pair.studentAId) ?? { name: pair.studentAName, count: 0 };
+			a.count++;
+			partnerCounts.set(pair.studentAId, a);
+
+			const b = partnerCounts.get(pair.studentBId) ?? { name: pair.studentBName, count: 0 };
+			b.count++;
+			partnerCounts.set(pair.studentBId, b);
+		}
+
+		const maxPossible = studentCount - 1;
+		return Array.from(partnerCounts.values()).map(({ name, count }) => ({
+			name,
+			uniquePartners: count,
+			maxPossible
+		}));
+	});
+
+	let showRotationSection = $derived(publishedSessions.length >= 2 && pairingLoaded);
+
 	function formatTimeSpanLabel(timeSpan: Program['timeSpan']): string {
 		if ('termLabel' in timeSpan) {
 			const parsed = new Date(timeSpan.termLabel);
@@ -119,6 +160,8 @@
 	onMount(async () => {
 		env = getAppEnvContext();
 		await Promise.all([loadActivityData(), loadTemplates()]);
+		// Load pairing stats after activity data is available (Option A: always load on mount)
+		await loadPairingStats();
 	});
 
 	async function loadActivityData() {
@@ -188,6 +231,16 @@
 		}
 	}
 
+	async function loadPairingStats() {
+		if (!env || !program) return;
+		const result = await getProgramPairingStats(env, { programId: program.id });
+		if (isOk(result)) {
+			pairingPairs = result.value.pairs;
+			pairingSessionCount = result.value.totalSessions;
+		}
+		pairingLoaded = true;
+	}
+
 	// --- Name editing ---
 	function startEditingName() {
 		if (program) {
@@ -235,7 +288,7 @@
 	}
 
 	// --- Section toggle handlers ---
-	function handleSectionToggle(section: 'students' | 'history') {
+	function handleSectionToggle(section: 'students' | 'history' | 'rotation') {
 		return (isExpanded: boolean) => {
 			expandedSection = isExpanded ? section : null;
 		};
@@ -577,6 +630,53 @@
 				onUseTemplate={handleUseTemplate}
 				onSaveAsTemplate={handleSaveAsTemplate}
 			/>
+		{/if}
+
+		<!-- Rotation Coverage section (visible when >= 2 published sessions) -->
+		{#if showRotationSection}
+			<div class="mt-6">
+				<button
+					type="button"
+					class="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-left hover:bg-gray-50"
+					onclick={() => handleSectionToggle('rotation')(expandedSection !== 'rotation')}
+				>
+					<div>
+						<span class="text-sm font-medium text-gray-900">Rotation Coverage</span>
+						<span class="ml-2 text-sm text-gray-500">
+							{coveragePercent}% of pairings covered · {pairingSessionCount} {pairingSessionCount === 1 ? 'session' : 'sessions'}
+						</span>
+					</div>
+					<svg
+						class="h-5 w-5 text-gray-400 transition-transform {expandedSection === 'rotation' ? 'rotate-90' : ''}"
+						fill="none" stroke="currentColor" viewBox="0 0 24 24"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+					</svg>
+				</button>
+
+				{#if expandedSection === 'rotation'}
+					<div class="mt-3 space-y-4">
+						<RotationCoverageCard
+							{coveragePercent}
+							coveredPairs={pairingPairs.length}
+							{totalPossiblePairs}
+							sessionCount={pairingSessionCount}
+							{studentCount}
+						/>
+
+						{#if uniquePartnersData.length > 0}
+							<UniquePartnersTable students={uniquePartnersData} />
+						{/if}
+
+						<a
+							href="/activities/{program.id}/analytics"
+							class="inline-block text-sm text-blue-600 hover:underline"
+						>
+							View full analytics →
+						</a>
+					</div>
+				{/if}
+			</div>
 		{/if}
 
 		<!-- Divider -->

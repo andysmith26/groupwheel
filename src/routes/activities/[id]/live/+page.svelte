@@ -48,6 +48,32 @@
 	// --- Tab state (default to Student View for projection-first) ---
 	let activeTab = $state<'student' | 'teacher'>('student');
 
+	// --- Projection mode ---
+	let isProjecting = $state(false);
+
+	async function enterProjectionMode() {
+		try {
+			await document.documentElement.requestFullscreen();
+			isProjecting = true;
+		} catch {
+			// Fullscreen denied (e.g., iframe restriction, user denied) — fall back to CSS-only mode
+			isProjecting = true;
+		}
+	}
+
+	function exitProjectionMode() {
+		if (document.fullscreenElement) {
+			document.exitFullscreen();
+		}
+		isProjecting = false;
+	}
+
+	function handleFullscreenChange() {
+		if (!document.fullscreenElement && isProjecting) {
+			isProjecting = false;
+		}
+	}
+
 	// --- Keyboard handler cleanup ---
 	let keyboardCleanup: (() => void) | null = null;
 
@@ -84,14 +110,22 @@
 	onMount(async () => {
 		env = getAppEnvContext();
 
-		// ESC key returns to workspace
+		// ESC key returns to workspace (unless projecting — browser handles ESC → exitFullscreen)
 		function handleKeydown(event: KeyboardEvent) {
 			if (event.key === 'Escape') {
+				if (isProjecting) {
+					// Browser already exits fullscreen on ESC; fullscreenchange listener updates state
+					return;
+				}
 				handleDone();
 			}
 		}
 		document.addEventListener('keydown', handleKeydown);
-		keyboardCleanup = () => document.removeEventListener('keydown', handleKeydown);
+		document.addEventListener('fullscreenchange', handleFullscreenChange);
+		keyboardCleanup = () => {
+			document.removeEventListener('keydown', handleKeydown);
+			document.removeEventListener('fullscreenchange', handleFullscreenChange);
+		};
 
 		await loadData();
 	});
@@ -256,7 +290,7 @@
 				</div>
 
 				<!-- Tabs -->
-				<div class="mt-4 flex gap-2">
+				<div class="mt-4 flex items-center gap-2">
 					<button
 						type="button"
 						class="rounded-lg px-6 py-3 text-xl font-semibold transition-colors {activeTab === 'student'
@@ -275,6 +309,20 @@
 					>
 						Teacher View
 					</button>
+
+					{#if activeTab === 'student'}
+						<button
+							type="button"
+							class="ml-auto flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+							onclick={enterProjectionMode}
+							title="Full-screen projection mode"
+						>
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+							</svg>
+							Project
+						</button>
+					{/if}
 				</div>
 			</div>
 		</header>
@@ -297,5 +345,32 @@
 				/>
 			{/if}
 		</main>
+
+		<!-- Projection mode overlay -->
+		{#if isProjecting}
+			<div class="fixed inset-0 z-50 overflow-auto bg-white">
+				<!-- Exit button (invisible by default, appears on hover) -->
+				<button
+					type="button"
+					class="fixed top-4 right-4 z-50 rounded-full bg-black/10 p-2 text-gray-500 opacity-0 transition-opacity hover:opacity-100"
+					onclick={exitProjectionMode}
+					title="Exit projection mode (ESC)"
+				>
+					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+
+				<!-- Activity name header -->
+				<div class="px-8 pt-6 pb-4">
+					<h1 class="text-4xl font-bold text-gray-900">{program?.name}</h1>
+				</div>
+
+				<!-- Projected StudentView -->
+				<div class="px-8 pb-8">
+					<StudentView {groupedAssignments} {membersByGroup} allAssignments={assignments} projectionMode={true} />
+				</div>
+			</div>
+		{/if}
 	{/if}
 </div>
