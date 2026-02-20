@@ -29,7 +29,8 @@
 		onKeyboardDrop,
 		onKeyboardCancel,
 		onKeyboardMove,
-		onStudentClick
+		onStudentClick,
+		draggedStudentPreferences = null
 	} = $props<{
 		group: Group;
 		studentsById: Record<string, Student>;
@@ -55,10 +56,34 @@
 		onKeyboardCancel?: () => void;
 		onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
 		onStudentClick?: (studentId: string) => void;
+		draggedStudentPreferences?: string[] | null;
 	}>();
 
 
 	const capacityStatus = $derived(getCapacityStatus(group));
+
+	// Drag destination rank preview
+	const previewRank = $derived.by(() => {
+		if (!draggingId || !draggedStudentPreferences) return null;
+		const rank = draggedStudentPreferences.indexOf(group.id);
+		return rank >= 0 ? rank + 1 : null;
+	});
+
+	const previewBadgeText = $derived.by(() => {
+		if (previewRank === null) return 'Not preferred';
+		if (previewRank === 1) return 'Would be 1st';
+		if (previewRank === 2) return 'Would be 2nd';
+		if (previewRank === 3) return 'Would be 3rd';
+		return `Would be ${previewRank}th`;
+	});
+
+	const previewBadgeClass = $derived.by(() => {
+		if (previewRank === null) return 'bg-gray-100 text-gray-500';
+		if (previewRank === 1) return 'bg-green-100 text-green-700';
+		if (previewRank === 2) return 'bg-yellow-100 text-yellow-700';
+		if (previewRank === 3) return 'bg-orange-100 text-orange-700';
+		return 'bg-red-100 text-red-700';
+	});
 
 	// Configuration: only highlight top N choices with border/background (future: make this user-configurable)
 	const MAX_HIGHLIGHTED_RANK = 1;
@@ -208,26 +233,34 @@
 			{editingName}
 		</span>
 		<div class="flex items-center gap-1">
-			{#if group.memberIds.length > 1 && onAlphabetize}
-				<button
-					type="button"
-					onclick={() => onAlphabetize?.(group.id)}
-					class="p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors"
-					title="Sort alphabetically"
-					aria-label="Sort alphabetically"
+			{#if draggingId && draggedStudentPreferences}
+				<span
+					class={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${previewBadgeClass}`}
 				>
-					<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-					</svg>
-				</button>
+					{previewBadgeText}
+				</span>
+			{:else}
+				{#if group.memberIds.length > 1 && onAlphabetize}
+					<button
+						type="button"
+						onclick={() => onAlphabetize?.(group.id)}
+						class="p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors"
+						title="Sort alphabetically"
+						aria-label="Sort alphabetically"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+						</svg>
+					</button>
+				{/if}
+				<span
+					class={`text-xs font-medium ${
+						capacityStatus.isOverEnrolled ? 'text-violet-600' : 'text-gray-600'
+					}`}
+				>
+					{capacityLabel()}
+				</span>
 			{/if}
-			<span
-				class={`text-xs font-medium ${
-					capacityStatus.isOverEnrolled ? 'text-violet-600' : 'text-gray-600'
-				}`}
-			>
-				{capacityLabel()}
-			</span>
 		</div>
 	</div>
 

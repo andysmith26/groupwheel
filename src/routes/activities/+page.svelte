@@ -15,9 +15,12 @@
 		listActivities,
 		renameActivity,
 		deleteActivity,
+		quickStartActivity,
+		createDemoActivity,
+		deleteDemoActivity,
 		type ActivityDisplay
 	} from '$lib/services/appEnvUseCases';
-	import { isErr } from '$lib/types/result';
+	import { isErr, isOk } from '$lib/types/result';
 	import { Button, Alert } from '$lib/components/ui';
 	import ActivityCardSkeleton from '$lib/components/ui/ActivityCardSkeleton.svelte';
 	import type { Program } from '$lib/domain';
@@ -39,6 +42,50 @@
 	let deleteTarget = $state<ActivityDisplay | null>(null);
 	let isDeleting = $state(false);
 	let now = $state(new Date());
+
+	// Quick Start state
+	let qsStudentCount = $state<string>('');
+	let qsGroupSize = $state<string>('');
+	let qsError = $state<string | null>(null);
+	let qsCreating = $state(false);
+
+	// Demo state
+	let demoCreating = $state(false);
+	let demoError = $state<string | null>(null);
+
+	let qsStudentCountNum = $derived(parseInt(qsStudentCount, 10));
+	let qsGroupSizeNum = $derived(parseInt(qsGroupSize, 10));
+	let qsStudentCountValid = $derived(!isNaN(qsStudentCountNum) && qsStudentCountNum >= 2 && qsStudentCountNum <= 200);
+	let qsGroupSizeValid = $derived(!isNaN(qsGroupSizeNum) && qsGroupSizeNum >= 2 && qsGroupSizeNum <= 20);
+	let qsCanCreate = $derived(qsStudentCountValid && qsGroupSizeValid && qsGroupSizeNum <= qsStudentCountNum);
+
+	let qsGroupCount = $derived.by(() => {
+		if (!qsStudentCountValid || !qsGroupSizeValid || qsGroupSizeNum > qsStudentCountNum) return null;
+		return Math.ceil(qsStudentCountNum / qsGroupSizeNum);
+	});
+
+	let qsPreviewText = $derived.by(() => {
+		if (qsGroupCount === null) return '';
+		const remainder = qsStudentCountNum % qsGroupSizeNum;
+		if (remainder === 0) {
+			return `${qsGroupCount} groups of ${qsGroupSizeNum}`;
+		}
+		const fullGroups = qsGroupCount - 1;
+		const lastGroupSize = qsStudentCountNum - fullGroups * qsGroupSizeNum;
+		if (fullGroups === 0) {
+			return `1 group of ${lastGroupSize}`;
+		}
+		return `${qsGroupCount} groups (${fullGroups} of ${qsGroupSizeNum}, 1 of ${lastGroupSize})`;
+	});
+
+	let qsValidationError = $derived.by(() => {
+		if (qsStudentCount && !qsStudentCountValid) return 'Needs 2–200 students';
+		if (qsGroupSize && !qsGroupSizeValid) return 'Group size must be 2–20';
+		if (qsStudentCountValid && qsGroupSizeValid && qsGroupSizeNum > qsStudentCountNum) {
+			return 'Group size cannot exceed student count';
+		}
+		return null;
+	});
 
 	onMount(() => {
 		env = getAppEnvContext();
@@ -83,6 +130,54 @@
 		}
 
 		loading = false;
+	}
+
+	async function handleQuickStart() {
+		if (!env || !qsCanCreate) return;
+
+		qsCreating = true;
+		qsError = null;
+
+		const result = await quickStartActivity(env, {
+			studentCount: qsStudentCountNum,
+			groupSize: qsGroupSizeNum
+		});
+
+		if (isErr(result)) {
+			qsError = result.error.message;
+			qsCreating = false;
+			return;
+		}
+
+		goto(`/activities/${result.value.programId}`);
+	}
+
+	async function handleTryDemo() {
+		if (!env) return;
+
+		demoCreating = true;
+		demoError = null;
+
+		const result = await createDemoActivity(env);
+
+		if (isErr(result)) {
+			demoError = result.error.message;
+			demoCreating = false;
+			return;
+		}
+
+		goto(`/activities/${result.value.programId}/live`);
+	}
+
+	async function handleDeleteDemo(programId: string) {
+		if (!env) return;
+
+		await deleteDemoActivity(env, programId);
+		activities = activities.filter((a) => a.program.id !== programId);
+	}
+
+	function isDemoActivity(activity: ActivityDisplay): boolean {
+		return activity.program.name.startsWith('Demo: ');
 	}
 
 	function formatRelativeDate(date: Date, reference: Date): string {
@@ -306,30 +401,103 @@
 	{:else if error}
 		<Alert variant="error">{error}</Alert>
 	{:else if activities.length === 0}
-		<!-- Empty state -->
-		<div class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
-			<div
-				class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-teal-light"
-			>
-				<svg class="h-6 w-6 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-					></path>
-				</svg>
+		<!-- Empty state with Quick Start -->
+		<div class="space-y-4">
+			<!-- Quick Start card -->
+			<div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+				<h3 class="text-lg font-semibold text-gray-900">Quick Start</h3>
+				<p class="mt-1 text-sm text-gray-500">
+					Just need groups? Enter two numbers and go. Add real names later.
+				</p>
+
+				<div class="mt-4 flex flex-wrap items-end gap-4">
+					<div>
+						<label for="qs-students" class="block text-sm font-medium text-gray-700">
+							How many students?
+						</label>
+						<input
+							id="qs-students"
+							type="number"
+							min="2"
+							max="200"
+							inputmode="numeric"
+							class="mt-1 block w-28 rounded-md border border-gray-300 px-3 py-2 text-center shadow-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+							bind:value={qsStudentCount}
+							disabled={qsCreating}
+						/>
+					</div>
+					<div>
+						<label for="qs-group-size" class="block text-sm font-medium text-gray-700">
+							Students per group?
+						</label>
+						<input
+							id="qs-group-size"
+							type="number"
+							min="2"
+							max="20"
+							inputmode="numeric"
+							class="mt-1 block w-28 rounded-md border border-gray-300 px-3 py-2 text-center shadow-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+							bind:value={qsGroupSize}
+							disabled={qsCreating}
+						/>
+					</div>
+					<div class="flex flex-col gap-1">
+						<button
+							type="button"
+							class="rounded-md bg-teal px-5 py-2 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
+							disabled={!qsCanCreate || qsCreating}
+							onclick={handleQuickStart}
+						>
+							{qsCreating ? 'Creating...' : 'Create & Start Grouping'}
+						</button>
+					</div>
+				</div>
+
+				{#if qsPreviewText}
+					<p class="mt-3 text-sm text-gray-600">
+						&rarr; {qsPreviewText}
+					</p>
+				{/if}
+
+				{#if qsValidationError}
+					<p class="mt-2 text-sm text-red-600">{qsValidationError}</p>
+				{/if}
+
+				{#if qsError}
+					<p class="mt-2 text-sm text-red-600">{qsError}</p>
+				{/if}
 			</div>
-			<h3 class="text-lg font-medium text-gray-900">No activities yet</h3>
-			<p class="mt-1 text-sm text-gray-500">Create your first grouping activity to get started.</p>
-			<div class="mt-4 flex items-center justify-center gap-3">
-				<Button href={newActivityHref} variant="primary">
+
+			<!-- Demo + full wizard links -->
+			<div class="flex flex-col items-center gap-3">
+				<div class="flex items-center gap-3 text-sm text-gray-500">
+					<span class="h-px flex-1 bg-gray-200"></span>
+					<span>or</span>
+					<span class="h-px flex-1 bg-gray-200"></span>
+				</div>
+
+				<button
+					type="button"
+					class="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+					disabled={demoCreating}
+					onclick={handleTryDemo}
+				>
+					<svg class="h-4 w-4 text-teal" fill="currentColor" viewBox="0 0 20 20">
+						<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+					</svg>
+					{demoCreating ? 'Creating demo...' : 'Try GroupWheel'}
+				</button>
+				<p class="text-xs text-gray-400">See it in action with sample data</p>
+
+				{#if demoError}
+					<p class="text-sm text-red-600">{demoError}</p>
+				{/if}
+
+				<a href={newActivityHref} class="text-sm font-medium text-teal hover:text-teal-dark">
 					+ New Activity
-				</Button>
+				</a>
+				<p class="text-xs text-gray-400">Full setup with your roster</p>
 			</div>
-			<p class="mt-4 text-sm text-gray-500">
-				or <a href="/activities/import" class="text-teal hover:text-teal-dark underline">import from a file</a>
-			</p>
 		</div>
 	{:else}
 		<!-- Activity cards -->
@@ -343,9 +511,16 @@
 					<a href="/activities/{activity.program.id}" class="block">
 						<div class="flex items-start justify-between">
 							<div class="min-w-0 flex-1">
-								<h3 class="truncate font-medium text-gray-900 group-hover:text-teal">
-									{activity.program.name}
-								</h3>
+								<div class="flex items-center gap-2">
+									{#if isDemoActivity(activity)}
+										<span class="flex-shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+											Demo
+										</span>
+									{/if}
+									<h3 class="truncate font-medium text-gray-900 group-hover:text-teal">
+										{isDemoActivity(activity) ? activity.program.name.replace(/^Demo: /, '') : activity.program.name}
+									</h3>
+								</div>
 								<p class="mt-1 text-sm text-gray-500">
 									{getStudentCountLabel(activity.studentCount)}
 								</p>
@@ -390,6 +565,15 @@
 								<div
 									class="absolute right-0 z-10 mt-1 w-40 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
 								>
+									{#if isDemoActivity(activity)}
+									<button
+										type="button"
+										class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+										onclick={() => { openMenuId = null; handleDeleteDemo(activity.program.id); }}
+									>
+										Delete Demo
+									</button>
+								{:else}
 									<button
 										type="button"
 										class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
@@ -405,6 +589,7 @@
 									>
 										Delete
 									</button>
+								{/if}
 								</div>
 							{/if}
 						</div>

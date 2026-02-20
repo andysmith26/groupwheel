@@ -236,6 +236,11 @@
 										Redo →
 									</button>
 									<span class="hidden md:inline text-gray-300">/</span>
+									{#if workspaceHeaderState.qualityLabel}
+										<span class="hidden md:inline whitespace-nowrap font-medium text-gray-700">
+											{workspaceHeaderState.qualityLabel} ·
+										</span>
+									{/if}
 									<span class="hidden md:inline whitespace-nowrap text-gray-700">
 										Top 1: {formatPercent(workspaceHeaderState.topChoicePercent)}
 									</span>
@@ -244,6 +249,16 @@
 									</span>
 								</div>
 								<div class="flex items-center gap-2">
+									{#if workspaceHeaderState.onCompare}
+										<button
+											type="button"
+											onclick={workspaceHeaderState.onCompare}
+											disabled={!workspaceHeaderState.hasPreferences || workspaceHeaderState.isComparing}
+											class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+										>
+											{workspaceHeaderState.isComparing ? 'Generating...' : 'Compare'}
+										</button>
+									{/if}
 									<Button href="/activities/import" variant="secondary" size="sm">
 										Import
 									</Button>

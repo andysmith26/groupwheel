@@ -29,8 +29,11 @@
 	import StudentInfoTooltip from '$lib/components/editing/StudentInfoTooltip.svelte';
 	import {
 		normalizeWorkspaceRowLayout,
+		generateComparisonScenario,
 		type WorkspaceRowLayout
 	} from '$lib/services/appEnvUseCases';
+	import { isOk } from '$lib/types/result';
+	import ScenarioComparison from '$lib/components/editing/ScenarioComparison.svelte';
 	import PreferencesPromptBanner from '$lib/components/workspace/PreferencesPromptBanner.svelte';
 	import PreferencesImportModal from '$lib/components/workspace/PreferencesImportModal.svelte';
 	import type { ParsedPreference } from '$lib/application/useCases/createGroupingActivity';
@@ -53,6 +56,7 @@
 	import { createWorkspaceStudentAnalytics } from '$lib/stores/workspace-student-analytics.svelte';
 	import { createWorkspaceKeyboardMoveHandlers } from '$lib/stores/workspace-keyboard-move.svelte';
 	import { createWorkspaceStudentLookup } from '$lib/stores/workspace-student-lookup.svelte';
+	import { interpretAnalytics } from '$lib/utils/analyticsInterpretation';
 
 	const workspaceVm = createWorkspacePageVm(getAppEnvContext());
 
@@ -94,6 +98,8 @@
 	// --- UI state ---
 	let draggingId = $state<string | null>(null);
 	let flashingIds = $state<Set<string>>(new Set());
+	let isComparing = $state(false);
+	let comparisonCandidate = $state<import('$lib/services/appEnvUseCases').ComparisonCandidate | null>(null);
 	let pickedUpStudentId = $derived(keyboardController.state.pickedUpStudentId);
 	let keyboardAnnouncement = $derived(keyboardController.state.announcement);
 	const commandRunner = new WorkspaceCommandRunner({
@@ -119,6 +125,16 @@
 	);
 	let topChoicePercent = $derived(view?.currentAnalytics?.percentAssignedTopChoice ?? null);
 	let topTwoPercent = $derived(view?.currentAnalytics?.percentAssignedTop2 ?? null);
+	let groupCount = $derived(view?.groups.length ?? 0);
+	let qualityLabel = $derived.by(() => {
+		if (!view?.currentAnalytics || groupCount === 0 || preferencesCount === 0) return null;
+		return interpretAnalytics({
+			current: view.currentAnalytics,
+			baseline: view.baseline,
+			studentCount: students.length,
+			groupCount
+		}).topChoiceLabel;
+	});
 
 	// --- Composable modules ---
 	const analytics = createWorkspaceStudentAnalytics({
@@ -192,6 +208,10 @@
 			canRedo: view.canRedo,
 			topChoicePercent,
 			topTwoPercent,
+			qualityLabel,
+			hasPreferences: preferencesCount > 0,
+			isComparing,
+			onCompare: preferencesCount > 0 ? handleCompare : null,
 			onUndo: () => editingStore?.undo(),
 			onRedo: () => editingStore?.redo(),
 			onExportCSV: exportHandlers.handleExportCSV,
@@ -412,6 +432,35 @@
 		goto(`/activities/${result.value.programId}/live`);
 	}
 
+	// --- Comparison handlers ---
+	async function handleCompare() {
+		if (!env || !program || !scenario || !view) return;
+		isComparing = true;
+
+		const result = await generateComparisonScenario(env, {
+			programId: program.id,
+			groups: view.groups.map((g) => ({ name: g.name, capacity: g.capacity }))
+		});
+
+		isComparing = false;
+
+		if (isOk(result)) {
+			comparisonCandidate = result.value;
+		} else {
+			showToast('Failed to generate comparison');
+		}
+	}
+
+	function handleKeepCurrent() {
+		comparisonCandidate = null;
+	}
+
+	async function handleUseAlternative() {
+		if (!comparisonCandidate || !editingStore) return;
+		editingStore.regenerate(comparisonCandidate.groups);
+		comparisonCandidate = null;
+	}
+
 	function handleDragEnd() {
 		draggingId = null;
 		studentLookup.handleDragEnd();
@@ -536,6 +585,8 @@
 							analytics={view.currentAnalytics}
 							studentsWithPreferences={preferencesCount}
 							totalStudents={students.length}
+							baseline={view.baseline}
+							{groupCount}
 						/>
 					{/if}
 				</div>
@@ -623,6 +674,22 @@
 			/>
 		{/if}
 	</div>
+
+	<!-- Scenario Comparison -->
+	{#if comparisonCandidate && view && view.currentAnalytics}
+		<ScenarioComparison
+			currentGroups={view.groups}
+			currentAnalytics={view.currentAnalytics}
+			alternativeGroups={comparisonCandidate.groups}
+			alternativeAnalytics={comparisonCandidate.analytics}
+			studentCount={students.length}
+			{groupCount}
+			{studentsById}
+			onKeepCurrent={handleKeepCurrent}
+			onUseAlternative={handleUseAlternative}
+			onClose={handleKeepCurrent}
+		/>
+	{/if}
 
 	<!-- Start Over confirmation dialog -->
 	<ConfirmDialog

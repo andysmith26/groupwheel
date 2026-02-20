@@ -124,6 +124,7 @@
 					{onKeyboardCancel}
 					{onKeyboardMove}
 					{onStudentClick}
+				draggedStudentPreferences={selectedStudentPreferences}
 				/>
 			{/each}
 		</div>
@@ -156,6 +157,7 @@
 				{onKeyboardCancel}
 				{onKeyboardMove}
 				{onStudentClick}
+			draggedStudentPreferences={selectedStudentPreferences}
 			/>
 		{/each}
 

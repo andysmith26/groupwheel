@@ -3,6 +3,10 @@ export type WorkspaceHeaderState = {
 	canRedo: boolean;
 	topChoicePercent: number | null;
 	topTwoPercent: number | null;
+	qualityLabel: string | null;
+	hasPreferences: boolean;
+	isComparing: boolean;
+	onCompare: (() => void) | null;
 	onUndo: () => void;
 	onRedo: () => void;
 	onExportCSV: () => void;

@@ -23,7 +23,10 @@
 		renameActivity,
 		quickGenerateGroups,
 		showToClass,
-		getProgramPairingStats
+		getProgramPairingStats,
+		getObservationTrends,
+		listObservationsBySession,
+		deleteDemoActivity
 	} from '$lib/services/appEnvUseCases';
 	import { isErr, isOk } from '$lib/types/result';
 	import type { Program, Pool, Scenario, Student, Preference, Session, GroupTemplate } from '$lib/domain';
@@ -45,6 +48,9 @@
 	import RotationCoverageCard from '$lib/components/analytics/RotationCoverageCard.svelte';
 	import UniquePartnersTable from '$lib/components/analytics/UniquePartnersTable.svelte';
 	import type { PairingStat } from '$lib/application/useCases/getProgramPairingStats';
+	import type { ObservationTrendsResult } from '$lib/application/useCases/getObservationTrends';
+	import type { Observation } from '$lib/domain';
+	import ObservationTrendsSection from '$lib/components/analytics/ObservationTrendsSection.svelte';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -75,8 +81,12 @@
 	let pairingSessionCount = $state(0);
 	let pairingLoaded = $state(false);
 
+	// --- Observation trends ---
+	let observationTrends = $state<ObservationTrendsResult | null>(null);
+	let trendsLoading = $state(false);
+
 	// --- Setup section expand states ---
-	let expandedSection = $state<'students' | 'history' | 'rotation' | null>(null);
+	let expandedSection = $state<'students' | 'history' | 'rotation' | 'observations' | null>(null);
 
 	// --- Group configuration state ---
 	let groupShells = $state<GroupShell[]>([]);
@@ -104,6 +114,37 @@
 	let publishedSessions = $derived(
 		sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED')
 	);
+
+	// --- Placeholder student detection ---
+	let hasPlaceholderStudents = $derived(
+		students.length > 0 &&
+		students.every((s) => /^Student$/.test(s.firstName) && /^\d+$/.test(s.lastName ?? ''))
+	);
+	let placeholderBannerDismissed = $state(false);
+
+	// Check localStorage for banner dismissal on load
+	$effect(() => {
+		if (program) {
+			const key = `gw-placeholder-banner-dismissed-${program.id}`;
+			placeholderBannerDismissed = localStorage.getItem(key) === 'true';
+		}
+	});
+
+	function dismissPlaceholderBanner() {
+		if (program) {
+			localStorage.setItem(`gw-placeholder-banner-dismissed-${program.id}`, 'true');
+		}
+		placeholderBannerDismissed = true;
+	}
+
+	// --- Demo detection ---
+	let isDemoActivity = $derived(program !== null && program.name.startsWith('Demo: '));
+
+	async function handleDeleteDemo() {
+		if (!env || !program) return;
+		await deleteDemoActivity(env, program.id);
+		goto('/activities?dashboard');
+	}
 
 	// --- Rotation coverage computations ---
 	let totalPossiblePairs = $derived(
@@ -160,8 +201,8 @@
 	onMount(async () => {
 		env = getAppEnvContext();
 		await Promise.all([loadActivityData(), loadTemplates()]);
-		// Load pairing stats after activity data is available (Option A: always load on mount)
-		await loadPairingStats();
+		// Load pairing stats and observation trends after activity data is available (non-blocking)
+		await Promise.all([loadPairingStats(), loadObservationTrends()]);
 	});
 
 	async function loadActivityData() {
@@ -241,6 +282,25 @@
 		pairingLoaded = true;
 	}
 
+	async function loadObservationTrends() {
+		if (!env || !program) return;
+		trendsLoading = true;
+		const result = await getObservationTrends(env, { programId: program.id });
+		if (isOk(result)) {
+			observationTrends = result.value;
+		}
+		trendsLoading = false;
+	}
+
+	async function loadSessionObservations(sessionId: string): Promise<Observation[]> {
+		if (!env) return [];
+		const result = await listObservationsBySession(env, { sessionId });
+		if (isOk(result)) {
+			return result.value.observations;
+		}
+		return [];
+	}
+
 	// --- Name editing ---
 	function startEditingName() {
 		if (program) {
@@ -288,7 +348,7 @@
 	}
 
 	// --- Section toggle handlers ---
-	function handleSectionToggle(section: 'students' | 'history' | 'rotation') {
+	function handleSectionToggle(section: 'students' | 'history' | 'rotation' | 'observations') {
 		return (isExpanded: boolean) => {
 			expandedSection = isExpanded ? section : null;
 		};
@@ -564,15 +624,22 @@
 							onclick={startEditingName}
 							title="Click to rename"
 						>
-							<h1 class="text-2xl font-semibold text-gray-900">{program.name}</h1>
-							<svg
-								class="h-4 w-4 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-							</svg>
+							{#if isDemoActivity}
+								<span class="flex-shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+									Demo
+								</span>
+							{/if}
+							<h1 class="text-2xl font-semibold text-gray-900">{isDemoActivity ? program.name.replace(/^Demo: /, '') : program.name}</h1>
+							{#if !isDemoActivity}
+								<svg
+									class="h-4 w-4 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+								</svg>
+							{/if}
 						</button>
 					{/if}
 				</div>
@@ -584,6 +651,51 @@
 				<p class="mt-1 text-sm text-gray-400">{formatTimeSpanLabel(program.timeSpan)}</p>
 			{/if}
 		</div>
+
+		<!-- Placeholder names banner -->
+		{#if hasPlaceholderStudents && !placeholderBannerDismissed}
+			<div class="mb-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+				<div>
+					Using placeholder names. Paste your roster anytime from Setup to add real student names.
+					<button
+						type="button"
+						class="ml-2 font-medium text-blue-700 underline hover:text-blue-900"
+						onclick={() => { if (expandedSection !== 'students') handleSectionToggle('students')(true); }}
+					>
+						Setup &rarr;
+					</button>
+				</div>
+				<button
+					type="button"
+					class="ml-3 flex-shrink-0 text-blue-400 hover:text-blue-600"
+					aria-label="Dismiss"
+					onclick={dismissPlaceholderBanner}
+				>
+					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+		{/if}
+
+		<!-- Demo activity banner -->
+		{#if isDemoActivity}
+			<div class="mb-4 flex items-center justify-between rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
+				<span>This is a demo activity with sample data.</span>
+				<div class="flex items-center gap-3">
+					<a href="/activities/new" class="font-medium text-purple-700 hover:text-purple-900">
+						Create Your Own &rarr;
+					</a>
+					<button
+						type="button"
+						class="font-medium text-red-600 hover:text-red-800"
+						onclick={handleDeleteDemo}
+					>
+						Delete Demo
+					</button>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Generate & Show error (inline on card) -->
 		{#if generateAndShowError}
@@ -676,6 +788,17 @@
 						</a>
 					</div>
 				{/if}
+			</div>
+		{/if}
+
+		<!-- Observation Trends section (visible when observations exist) -->
+		{#if observationTrends && observationTrends.totals.total > 0}
+			<div class="mt-6">
+				<ObservationTrendsSection
+					trends={observationTrends}
+					onLoadSessionObservations={loadSessionObservations}
+					isLoading={trendsLoading}
+				/>
 			</div>
 		{/if}
 

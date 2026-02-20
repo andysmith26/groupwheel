@@ -24,11 +24,14 @@
 		createObservation,
 		listObservationsBySession,
 		listObservationsByProgram,
-		endSession
+		endSession,
+		deleteDemoActivity
 	} from '$lib/services/appEnvUseCases';
 	import { isErr, isOk } from '$lib/types/result';
 	import StudentView from '$lib/components/live/StudentView.svelte';
 	import TeacherView from '$lib/components/live/TeacherView.svelte';
+	import SessionTimer from '$lib/components/live/SessionTimer.svelte';
+	import DemoGuidedOverlay from '$lib/components/onboarding/DemoGuidedOverlay.svelte';
 
 	// --- Environment ---
 	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -47,6 +50,10 @@
 
 	// --- Tab state (default to Student View for projection-first) ---
 	let activeTab = $state<'student' | 'teacher'>('student');
+
+	// --- Demo overlay state ---
+	let showDemoOverlay = $state(false);
+	let isDemoActivity = $derived(program !== null && program.name.startsWith('Demo: '));
 
 	// --- Projection mode ---
 	let isProjecting = $state(false);
@@ -177,6 +184,14 @@
 
 		// Load observations
 		await loadObservations();
+
+		// Show demo overlay on first visit
+		if (program && program.name.startsWith('Demo: ')) {
+			const overlayKey = `demo-overlay-completed-${program.id}`;
+			if (localStorage.getItem(overlayKey) !== 'true') {
+				showDemoOverlay = true;
+			}
+		}
 	}
 
 	async function loadObservations() {
@@ -244,6 +259,12 @@
 		}
 
 		goto(`/activities/${program.id}/workspace`);
+	}
+
+	async function handleDeleteDemoFromOverlay() {
+		if (!env || !program) return;
+		await deleteDemoActivity(env, program.id);
+		goto('/activities?dashboard');
 	}
 </script>
 
@@ -327,6 +348,13 @@
 			</div>
 		</header>
 
+		<!-- Timer: rendered outside tab content so it persists across tab switches -->
+		{#if activeSession}
+			<div class="fixed top-24 right-6 z-30">
+				<SessionTimer />
+			</div>
+		{/if}
+
 		<!-- Content -->
 		<main class="mx-auto max-w-6xl px-6 py-8">
 			{#if activeTab === 'student'}
@@ -374,3 +402,12 @@
 		{/if}
 	{/if}
 </div>
+
+<!-- Demo guided overlay -->
+{#if showDemoOverlay && program}
+	<DemoGuidedOverlay
+		programId={program.id}
+		onDismiss={() => { showDemoOverlay = false; }}
+		onDeleteDemo={handleDeleteDemoFromOverlay}
+	/>
+{/if}

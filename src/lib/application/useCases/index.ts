@@ -59,6 +59,7 @@ export * from './getPairingHistory';
 export * from './createObservation';
 export * from './listObservations';
 export * from './getObservationSummary';
+export * from './getObservationTrends';
 
 // Analytics operations
 export * from './getProgramPairingStats';
@@ -71,6 +72,12 @@ export * from './getStudentProfile';
 
 // Quick grouping operations
 export * from './quickGenerateGroups';
+
+// Quick start operations
+export * from './quickStartActivity';
+
+// Demo operations
+export * from './createDemoActivity';
 
 // Sync/Storage operations
 export * from './configureSheetsSyncStorage';

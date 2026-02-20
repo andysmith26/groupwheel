@@ -62,22 +62,31 @@
 
 	const compactLabel = $derived(getCompactLabel(student.firstName, student.lastName ?? null));
 
-	const dotClass = $derived(() => {
-		// Students without preferences always get a hollow dot
-		if (!hasPreferences) return 'border border-gray-400 bg-transparent';
-		// Students with preferences: grey when unassigned, colored when in a group
-		// Note: drag preview handles its own grey dot via pragmatic-dnd custom preview
-		if (container === 'unassigned') return 'bg-gray-400';
-		// Use muted colors for the original card left behind during drag
-		if (isDragging) {
-			if (preferenceRank === 1) return 'bg-green-300';
-			if (preferenceRank === 2) return 'bg-yellow-300';
-			return 'bg-red-300';
-		}
-		if (preferenceRank === 1) return 'bg-green-500';
-		if (preferenceRank === 2) return 'bg-yellow-400';
-		return 'bg-red-400';
+	const badgeText = $derived.by(() => {
+		if (!hasPreferences) return '';
+		if (container === 'unassigned') return '—';
+		if (preferenceRank === null) return '—';
+		if (preferenceRank === 1) return '1st';
+		if (preferenceRank === 2) return '2nd';
+		if (preferenceRank === 3) return '3rd';
+		return `${preferenceRank}th`;
 	});
+
+	const badgeClass = $derived.by(() => {
+		if (!hasPreferences || container === 'unassigned') return 'bg-gray-200 text-gray-500';
+		if (preferenceRank === 1) return 'bg-green-100 text-green-700';
+		if (preferenceRank === 2) return 'bg-yellow-100 text-yellow-700';
+		if (preferenceRank === 3) return 'bg-orange-100 text-orange-700';
+		return 'bg-red-100 text-red-700';
+	});
+
+	const badgeAriaLabel = $derived(
+		preferenceRank !== null
+			? `${preferenceRank === 1 ? '1st' : preferenceRank === 2 ? '2nd' : preferenceRank === 3 ? '3rd' : preferenceRank + 'th'} choice`
+			: hasPreferences
+				? 'Not a preferred group'
+				: 'No preferences'
+	);
 
 	// Hover delay handling (100ms)
 	let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -210,10 +219,15 @@
 		<circle cx="7.5" cy="2.5" r="1" />
 		<circle cx="7.5" cy="7.5" r="1" />
 	</svg>
-	<div style="font-size: var(--card-font-size, 15px);" class={`relative flex min-w-0 flex-1 items-center justify-center overflow-hidden rounded-md bg-white px-0.5 py-0.5 font-semibold ${textTone}`}>
+	<div style="font-size: var(--card-font-size, 15px);" class={`relative flex min-w-0 flex-1 items-center justify-center overflow-visible rounded-md bg-white px-0.5 py-0.5 font-semibold ${textTone}`}>
 		<span class="truncate leading-none" title={fullName}>{compactLabel}</span>
-		{#if dotClass()}
-			<span style="width: var(--dot-size, 6px); height: var(--dot-size, 6px);" class={`absolute right-0.5 top-0.5 rounded-full ${dotClass()}`} aria-hidden="true"></span>
+		{#if hasPreferences && badgeText}
+			<span
+				class={`absolute -top-1 -right-0.5 z-10 rounded px-0.5 text-[9px] leading-tight font-bold ${badgeClass}`}
+				aria-label={badgeAriaLabel}
+			>
+				{badgeText}
+			</span>
 		{/if}
 	</div>
 </div>

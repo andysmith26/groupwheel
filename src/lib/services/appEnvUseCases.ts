@@ -286,6 +286,36 @@ export async function quickGenerateGroups(
 // Re-export quick grouping types
 export type { QuickGenerateGroupsInput, QuickGenerateGroupsError };
 
+import {
+	generateComparisonScenario as generateComparisonScenarioUseCase,
+	type GenerateComparisonInput,
+	type GenerateComparisonError,
+	type ComparisonCandidate
+} from '$lib/application/useCases/generateComparisonScenario';
+
+/**
+ * Generate a comparison scenario without persisting it.
+ * Returns groups + analytics in-memory for side-by-side comparison.
+ */
+export async function generateComparisonScenario(
+	env: InMemoryEnvironment,
+	input: GenerateComparisonInput
+): Promise<Result<ComparisonCandidate, GenerateComparisonError>> {
+	return generateComparisonScenarioUseCase(
+		{
+			programRepo: env.programRepo,
+			poolRepo: env.poolRepo,
+			preferenceRepo: env.preferenceRepo,
+			idGenerator: env.idGenerator,
+			clock: env.clock,
+			groupingAlgorithm: env.groupingAlgorithm
+		},
+		input
+	);
+}
+
+export type { GenerateComparisonInput, GenerateComparisonError, ComparisonCandidate };
+
 export async function createScenarioFromCandidate(
 	env: InMemoryEnvironment,
 	input: CreateScenarioFromGroupsInput
@@ -636,6 +666,99 @@ export async function getPoolWithStudents(
 
 // Re-export types for convenience
 export type { ActivityDisplay, ActivityData, StudentActivityViewData, PoolWithStudents };
+
+// =============================================================================
+// Quick Start Operations
+// =============================================================================
+
+import {
+	quickStartActivity as quickStartActivityUseCase,
+	type QuickStartActivityInput,
+	type QuickStartActivityResult,
+	type QuickStartActivityError
+} from '$lib/application/useCases/quickStartActivity';
+
+/**
+ * Quick-start an activity from just a student count and group size.
+ * Creates placeholder students and a program, ready for "Generate & Show".
+ */
+export async function quickStartActivity(
+	env: InMemoryEnvironment,
+	input: Omit<QuickStartActivityInput, 'staffId'>
+): Promise<Result<QuickStartActivityResult, QuickStartActivityError>> {
+	return quickStartActivityUseCase(
+		{
+			idGenerator: env.idGenerator,
+			studentRepository: env.studentRepo,
+			poolRepository: env.poolRepo,
+			programRepository: env.programRepo
+		},
+		{ ...input, staffId: 'owner-1' }
+	);
+}
+
+// Re-export quick start types
+export type { QuickStartActivityInput, QuickStartActivityResult, QuickStartActivityError };
+
+// =============================================================================
+// Demo Activity Operations
+// =============================================================================
+
+import {
+	createDemoActivity as createDemoActivityUseCase,
+	type CreateDemoActivityResult,
+	type CreateDemoActivityError
+} from '$lib/application/useCases/createDemoActivity';
+
+/**
+ * Create a demo activity with pre-generated groups for onboarding.
+ * The teacher sees 24 students in 6 groups immediately on the live view.
+ */
+export async function createDemoActivity(
+	env: InMemoryEnvironment
+): Promise<Result<CreateDemoActivityResult, CreateDemoActivityError>> {
+	return createDemoActivityUseCase(
+		{
+			idGenerator: env.idGenerator,
+			studentRepository: env.studentRepo,
+			poolRepository: env.poolRepo,
+			programRepository: env.programRepo,
+			scenarioRepository: env.scenarioRepo,
+			sessionRepository: env.sessionRepo,
+			placementRepository: env.placementRepo
+		},
+		{ staffId: 'owner-1' }
+	);
+}
+
+/**
+ * Delete a demo activity and all associated data.
+ * Removes program, scenario, sessions, and placements.
+ * Students and pool are orphaned (ports don't support delete).
+ */
+export async function deleteDemoActivity(
+	env: InMemoryEnvironment,
+	programId: string
+): Promise<void> {
+	// Delete sessions and their placements
+	const sessions = await env.sessionRepo.listByProgramId(programId);
+	for (const session of sessions) {
+		await env.placementRepo.deleteBySessionId(session.id);
+		await env.sessionRepo.delete(session.id);
+	}
+
+	// Delete scenario
+	const scenario = await env.scenarioRepo.getByProgramId(programId);
+	if (scenario) {
+		await env.scenarioRepo.delete(scenario.id);
+	}
+
+	// Delete program
+	await env.programRepo.delete(programId);
+}
+
+// Re-export demo types
+export type { CreateDemoActivityResult, CreateDemoActivityError };
 
 // =============================================================================
 // Activity Management Operations
@@ -1204,6 +1327,11 @@ import {
 	type ObservationSummaryResult
 } from '$lib/application/useCases/getObservationSummary';
 import {
+	getObservationTrends as getObservationTrendsUseCase,
+	type GetObservationTrendsInput,
+	type ObservationTrendsResult
+} from '$lib/application/useCases/getObservationTrends';
+import {
 	listStudentStats as listStudentStatsUseCase,
 	type ListStudentStatsInput,
 	type ListStudentStatsResult
@@ -1240,6 +1368,24 @@ export async function getObservationSummary(
 		input
 	);
 }
+
+/**
+ * Get per-session sentiment trends for a program's observations.
+ */
+export async function getObservationTrends(
+	env: InMemoryEnvironment,
+	input: GetObservationTrendsInput
+): Promise<Result<ObservationTrendsResult, never>> {
+	return getObservationTrendsUseCase(
+		{
+			observationRepo: env.observationRepo,
+			sessionRepo: env.sessionRepo
+		},
+		input
+	);
+}
+
+export type { GetObservationTrendsInput, ObservationTrendsResult };
 
 /**
  * Get aggregated placement statistics for all students in a program.

@@ -22,7 +22,8 @@
 		listPrograms,
 		getPoolWithStudents,
 		isAuthenticated,
-		generateScenario
+		generateScenario,
+		quickStartActivity
 	} from '$lib/services/appEnvUseCases';
 	import type { ParsedStudent } from '$lib/services/appEnvUseCases';
 	import { isErr } from '$lib/types/result';
@@ -164,6 +165,39 @@
 		} finally {
 			loadingRosters = false;
 		}
+	}
+
+	// --- Quick Start state ---
+	let qsStudents = $state<string>('');
+	let qsPerGroup = $state<string>('');
+	let qsCreating = $state(false);
+	let qsError = $state<string | null>(null);
+
+	let qsStudentsNum = $derived(parseInt(qsStudents, 10));
+	let qsPerGroupNum = $derived(parseInt(qsPerGroup, 10));
+	let qsCanGo = $derived(
+		!isNaN(qsStudentsNum) && qsStudentsNum >= 2 && qsStudentsNum <= 200 &&
+		!isNaN(qsPerGroupNum) && qsPerGroupNum >= 2 && qsPerGroupNum <= 20 &&
+		qsPerGroupNum <= qsStudentsNum
+	);
+
+	async function handleQuickStartGo() {
+		if (!env || !qsCanGo) return;
+		qsCreating = true;
+		qsError = null;
+
+		const result = await quickStartActivity(env, {
+			studentCount: qsStudentsNum,
+			groupSize: qsPerGroupNum
+		});
+
+		if (isErr(result)) {
+			qsError = result.error.message;
+			qsCreating = false;
+			return;
+		}
+
+		goto(`/activities/${result.value.programId}`);
 	}
 
 	// --- Wizard state (simplified 3 steps) ---
@@ -453,6 +487,57 @@
 					<p class="text-gray-500">Loading...</p>
 				</div>
 			{:else if activeStepType === 'students'}
+				<!-- Quick Start escape hatch -->
+				<div class="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
+					<h3 class="text-sm font-semibold text-gray-900">Quick Start</h3>
+					<p class="mt-0.5 text-xs text-gray-500">
+						Just need numbers? Enter a count and skip straight to grouping. You can add real names later.
+					</p>
+					<div class="mt-3 flex flex-wrap items-center gap-3">
+						<label class="flex items-center gap-1.5 text-sm text-gray-700">
+							Students:
+							<input
+								type="number"
+								min="2"
+								max="200"
+								inputmode="numeric"
+								class="w-20 rounded-md border border-gray-300 px-2 py-1 text-center text-sm shadow-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+								bind:value={qsStudents}
+								disabled={qsCreating}
+							/>
+						</label>
+						<label class="flex items-center gap-1.5 text-sm text-gray-700">
+							Per group:
+							<input
+								type="number"
+								min="2"
+								max="20"
+								inputmode="numeric"
+								class="w-20 rounded-md border border-gray-300 px-2 py-1 text-center text-sm shadow-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+								bind:value={qsPerGroup}
+								disabled={qsCreating}
+							/>
+						</label>
+						<button
+							type="button"
+							class="rounded-md bg-teal px-3 py-1 text-sm font-medium text-white hover:bg-teal-dark disabled:opacity-50"
+							disabled={!qsCanGo || qsCreating}
+							onclick={handleQuickStartGo}
+						>
+							{qsCreating ? 'Creating...' : 'Go \u2192'}
+						</button>
+					</div>
+					{#if qsError}
+						<p class="mt-2 text-xs text-red-600">{qsError}</p>
+					{/if}
+				</div>
+
+				<div class="mb-4 flex items-center gap-3 text-xs text-gray-400">
+					<div class="flex-1 border-t border-gray-200"></div>
+					<span>or add your roster</span>
+					<div class="flex-1 border-t border-gray-200"></div>
+				</div>
+
 				<StepStudentsUnified
 					{students}
 					{selectedRosterId}
