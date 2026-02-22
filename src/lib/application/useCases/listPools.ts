@@ -12,13 +12,13 @@ export type ListPoolsError = { type: 'POOL_LIST_FAILED'; message: string };
  * Future: Add owner filtering, pagination, search.
  */
 export async function listPools(deps: {
-	poolRepo: PoolRepository;
+  poolRepo: PoolRepository;
 }): Promise<Result<Pool[], ListPoolsError>> {
-	try {
-		const pools = await deps.poolRepo.listAll();
-		return ok(pools);
-	} catch (e) {
-		const message = e instanceof Error ? e.message : 'Unknown error listing pools';
-		return err({ type: 'POOL_LIST_FAILED', message });
-	}
+  try {
+    const pools = await deps.poolRepo.listAll();
+    return ok(pools);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Unknown error listing pools';
+    return err({ type: 'POOL_LIST_FAILED', message });
+  }
 }

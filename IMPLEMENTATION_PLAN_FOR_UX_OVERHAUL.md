@@ -5,6 +5,7 @@
 This plan implements Approach C (Task-Based Architecture) incorporating learnings from the UX evaluation. The goal is to transform Groupwheel from a feature-oriented app into a task-oriented app that teachers can use without training.
 
 **Key Principles:**
+
 1. One Task Per Screen (with progressive disclosure for complex pages)
 2. Linear Paths with Escape Hatches
 3. Teacher Vocabulary Only
@@ -12,6 +13,7 @@ This plan implements Approach C (Task-Based Architecture) incorporating learning
 5. State is Always Obvious
 
 **Critical Gaps Addressed:**
+
 - Activity renaming capability
 - Roster reuse for returning users
 - Explicit publish workflow
@@ -19,6 +21,7 @@ This plan implements Approach C (Task-Based Architecture) incorporating learning
 - Phase sequencing to avoid temporary feature loss
 
 **Stakeholder Decisions:**
+
 - Publish notifications: Not needed for MVP
 - Templates: Per-user (not shared)
 - Session history: View-only (no restore to previous session)
@@ -42,6 +45,7 @@ This plan implements Approach C (Task-Based Architecture) incorporating learning
 **So that** I can see all my grouping projects in one place
 
 **Verification Specs:**
+
 - [ ] `/activities` route exists and renders dashboard
 - [ ] `/activities/new` route exists and renders wizard
 - [ ] `/activities/[id]` route exists (hub page, not redirect)
@@ -51,10 +55,12 @@ This plan implements Approach C (Task-Based Architecture) incorporating learning
 - [ ] All new routes are accessible without errors
 
 **Edge Cases:**
+
 - Invalid activity ID shows 404 or "Activity not found" message
 - Unauthenticated user sees appropriate state (logged-out dashboard)
 
 **Files to Create:**
+
 ```
 src/routes/activities/+page.svelte
 src/routes/activities/+layout.svelte
@@ -75,6 +81,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** nothing breaks during the transition
 
 **Verification Specs:**
+
 - [ ] `/groups` → `/activities`
 - [ ] `/groups/new` → `/activities/new`
 - [ ] `/groups/new/sheets` → `/activities/new` (sheet option inline)
@@ -89,6 +96,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] All redirects use 301 (permanent) status
 
 **Edge Cases:**
+
 - Query parameters are preserved through redirects
 - Hash fragments are preserved
 - Redirect chains don't exceed 2 hops
@@ -102,12 +110,14 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** users don't hit unnecessary redirects
 
 **Verification Specs:**
+
 - [ ] All `href` attributes in components use `/activities/*` paths
 - [ ] All `goto()` calls use `/activities/*` paths
 - [ ] No component references old route paths
 - [ ] Navigation works without console warnings
 
 **Edge Cases:**
+
 - Dynamic route construction handles edge cases (null IDs, etc.)
 
 ---
@@ -115,6 +125,7 @@ src/routes/activities/[id]/present/+page.svelte
 ### TEST GATE 1: Route Structure Verification
 
 **Human Verification Checklist:**
+
 1. [ ] Navigate to `/activities` - see dashboard (may be empty/stub)
 2. [ ] Navigate to `/activities/new` - see wizard start
 3. [ ] Navigate to `/groups` - redirected to `/activities`
@@ -143,6 +154,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I know which ones need attention
 
 **Verification Specs:**
+
 - [ ] Dashboard shows grid/list of activity cards
 - [ ] Each card shows: Activity name, student count, status indicator
 - [ ] Status shows "Editing" (○) or "Published" (●)
@@ -152,6 +164,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Cards sorted by last modified (most recent first)
 
 **Edge Cases:**
+
 - 0 activities: Show empty state with illustration/guidance
 - 1 activity: Single card centered or left-aligned appropriately
 - 50+ activities: Consider pagination (defer if not needed for MVP)
@@ -159,6 +172,7 @@ src/routes/activities/[id]/present/+page.svelte
 - Activity with 0 students: Show "No students yet" instead of "0 students"
 
 **Mockup:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ [Logo] Groupwheel                              [Login/User] │
@@ -187,6 +201,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can fix auto-generated names or update for new semesters
 
 **Verification Specs:**
+
 - [ ] Dashboard card overflow menu includes "Rename" option
 - [ ] Clicking "Rename" opens inline edit or modal with text input
 - [ ] Activity name in Workspace header is clickable to edit
@@ -197,12 +212,14 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Updated name appears immediately in all locations
 
 **Edge Cases:**
+
 - Very long names (100+ chars): Allow but truncate in display
 - Names with special characters: Allow (no restrictions except empty)
 - Duplicate names: Allow (activities identified by ID, not name)
 - Rename while offline: Show error "Cannot rename while offline"
 
 **Auto-Name Generation Logic:**
+
 1. If groups are named: Use first group name + " Groups" (e.g., "Art Groups")
 2. If auto-split: Use "Team Groups" or roster name + " Teams"
 3. If roster from Sheets: Use sheet name + " Groups"
@@ -217,6 +234,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** the card stays clean but I can access less-common actions
 
 **Verification Specs:**
+
 - [ ] "..." button visible on each card
 - [ ] Menu contains: Rename, Go to Setup, Duplicate, Archive, Delete
 - [ ] Delete requires confirmation ("Delete 'Spring Clubs'? This cannot be undone.")
@@ -225,6 +243,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Menu closes on outside click or Escape
 
 **Edge Cases:**
+
 - Menu near screen edge: Position to stay within viewport
 - Touch devices: Menu accessible via tap
 - Keyboard navigation: Arrow keys navigate menu items
@@ -238,6 +257,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can choose where to go next
 
 **Verification Specs:**
+
 - [ ] `/activities/[id]` shows hub page (not auto-redirect)
 - [ ] Hub shows: Activity name (editable), status badge, last modified date
 - [ ] Three clear action buttons:
@@ -251,10 +271,12 @@ src/routes/activities/[id]/present/+page.svelte
 **Rationale:** Hub page preferred over auto-redirect per evaluation feedback—gives teachers explicit choice and reduces confusion.
 
 **Edge Cases:**
+
 - Activity deleted while viewing hub: Show "Activity not found" with link to dashboard
 - Hub accessed via direct URL: Works without prior navigation context
 
 **Mockup:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ ← Back to Activities                                        │
@@ -292,6 +314,7 @@ src/routes/activities/[id]/present/+page.svelte
 | `ARCHIVED` | Hidden from main view | (not shown) |
 
 **Verification Specs:**
+
 - [ ] Status transitions: DRAFT → EDITING (on first generate)
 - [ ] Status transitions: EDITING → PUBLISHED (on publish action)
 - [ ] Status transitions: PUBLISHED → EDITING (on any edit after publish)
@@ -304,6 +327,7 @@ src/routes/activities/[id]/present/+page.svelte
 ### TEST GATE 2: Dashboard & Hub Verification
 
 **Human Verification Checklist:**
+
 1. [ ] Dashboard shows existing activities as cards
 2. [ ] Card shows correct student count
 3. [ ] Card shows correct status (Published vs Editing)
@@ -335,6 +359,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can start creating groups
 
 **Verification Specs:**
+
 - [ ] Step shows "Step 1 of 3: Add Your Students"
 - [ ] Progress bar shows 33% complete
 - [ ] Three options clearly presented:
@@ -349,6 +374,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] "Cancel" returns to dashboard with confirmation if data entered
 
 **Edge Cases:**
+
 - Pasted data with headers: Auto-detect and skip header row
 - Single column paste: Treat as names only
 - Duplicate names: Allow (students identified by generated ID)
@@ -358,6 +384,7 @@ src/routes/activities/[id]/present/+page.svelte
 - Trailing/leading whitespace: Trim automatically
 
 **Mockup:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Create Activity                                   [Cancel]  │
@@ -391,6 +418,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I don't have to re-enter student names
 
 **Verification Specs:**
+
 - [ ] "Use existing roster" section shows only if saved rosters exist
 - [ ] Section expands to show list of saved rosters
 - [ ] Each roster shows: Name, student count, last used date
@@ -401,6 +429,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Clear indication: "Changes to this roster affect all activities using it"
 
 **Edge Cases:**
+
 - Roster with 0 students: Show but indicate "(empty)"
 - Roster used by multiple activities: Expected behavior, warn on edit
 - Very long roster list (10+): Scrollable with search
@@ -415,6 +444,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can use my existing class roster
 
 **Verification Specs:**
+
 - [ ] "Import from Google Sheets" option visible only when logged in
 - [ ] Clicking expands section: URL input field, Connect button
 - [ ] After connecting: Sheet name shown, tab selector dropdown
@@ -424,6 +454,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] "Disconnect" option available
 
 **Edge Cases:**
+
 - Invalid Sheet URL: Clear error "This doesn't look like a Google Sheets URL"
 - Sheet without read permission: "Please grant access to this sheet" with re-auth button
 - Empty sheet: "No data found in this sheet"
@@ -439,6 +470,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** students can be assigned to them
 
 **Verification Specs:**
+
 - [ ] Step shows "Step 2 of 3: Set Up Your Groups"
 - [ ] Progress bar shows 66% complete
 - [ ] Two modes clearly presented:
@@ -457,6 +489,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Continue button proceeds to Step 3
 
 **Edge Cases:**
+
 - 0 groups defined: Continue disabled, show "Add at least one group"
 - More groups than students: Warning "You have more groups than students"
 - Group with capacity 0: Treat as unlimited
@@ -464,6 +497,7 @@ src/routes/activities/[id]/present/+page.svelte
 - Very long group names (50+ chars): Allow but truncate in display
 
 **Mockup:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Create Activity                                   [Cancel]  │
@@ -498,6 +532,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can catch mistakes
 
 **Verification Specs:**
+
 - [ ] Step shows "Step 3 of 3: Review & Create"
 - [ ] Progress bar shows 100%
 - [ ] Summary panel shows:
@@ -511,12 +546,14 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Banner shown in Workspace (see US-2.6)
 
 **Edge Cases:**
+
 - Generation takes >3 seconds: Show progress indicator
 - Generation fails: Show error with "Try again" button
 - User clears name field: Show validation "Activity name required"
 - User navigates away during generation: Warn "Generation in progress"
 
 **Mockup:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Create Activity                                   [Cancel]  │
@@ -549,6 +586,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I discover advanced features when ready
 
 **Verification Specs:**
+
 - [ ] After wizard completion, Workspace shows dismissible banner at top
 - [ ] Banner text: "Groups generated! Drag students to adjust."
 - [ ] If no preferences: Additional text "Have student requests? Import them for smarter placement."
@@ -558,6 +596,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Banner doesn't show if preferences already imported
 
 **Edge Cases:**
+
 - Banner dismissed accidentally: No way to restore (acceptable - info in Setup)
 - Preferences already exist: Banner shows success state instead or is hidden
 - Mobile: Banner takes full width, buttons stack
@@ -567,6 +606,7 @@ src/routes/activities/[id]/present/+page.svelte
 ### TEST GATE 3: Wizard Verification
 
 **Human Verification Checklist:**
+
 1. [ ] Start new activity → 3-step wizard appears
 2. [ ] Paste roster → Preview shows correct student count
 3. [ ] Invalid paste (no recognizable names) → Shows validation error
@@ -600,6 +640,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can focus on arranging students
 
 **Verification Specs:**
+
 - [ ] Header: Back link (to Hub), Activity name (editable), "Show to Class" button
 - [ ] Toolbar: Undo, Redo, Analytics summary, Regenerate dropdown, overflow menu (...)
 - [ ] Main area: Groups displayed as cards in responsive grid
@@ -608,6 +649,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Responsive: Groups reflow/stack on narrow screens
 
 **Mockup:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ ← Spring Clubs ✏️                            [Show to Class] │
@@ -638,6 +680,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can make manual adjustments
 
 **Verification Specs:**
+
 - [ ] Student names are draggable (cursor changes on hover)
 - [ ] Drop zones highlight on drag over (visual feedback)
 - [ ] Dropped student moves to new group immediately
@@ -647,6 +690,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Touch support: Long press initiates drag on mobile/tablet
 
 **Edge Cases:**
+
 - Drop outside any group: Student returns to original position with animation
 - Drag to same group: No-op, no error, no save triggered
 - Rapid multiple drags: Changes queued, saved in order
@@ -662,6 +706,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can fix mistakes quickly
 
 **Verification Specs:**
+
 - [ ] Undo button reverts last drag operation
 - [ ] Redo button re-applies undone operation
 - [ ] Buttons visually disabled when stack is empty
@@ -671,6 +716,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Maximum 50 undo steps (oldest dropped when exceeded)
 
 **Edge Cases:**
+
 - Undo when nothing to undo: Button disabled, no action
 - Undo, then make new change: Redo stack cleared
 - Page refresh: Undo history lost (acceptable)
@@ -684,6 +730,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can try different arrangements
 
 **Verification Specs:**
+
 - [ ] "Regenerate" dropdown button in toolbar
 - [ ] Dropdown options:
   - "Shuffle again" - re-run algorithm with new random seed
@@ -695,6 +742,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Analytics summary updates after regeneration
 
 **Edge Cases:**
+
 - Regenerate produces similar result: Expected (random), user can try again
 - Regenerate with preferences: Algorithm considers preferences
 - Cancel confirmation: No changes made
@@ -708,6 +756,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I know if the arrangement is good
 
 **Verification Specs:**
+
 - [ ] **Inline summary** in toolbar: "72% got 1st choice" or "Groups balanced (±1)"
 - [ ] Clicking summary opens **detail panel/popover**
 - [ ] Detail panel shows:
@@ -723,6 +772,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Detail panel closeable
 
 **Edge Cases:**
+
 - All students got 1st choice: "100% got 1st choice ✓" (success state)
 - No preferences imported: Only show group size balance
 - Students without preferences: Listed separately in breakdown
@@ -736,6 +786,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can make informed decisions
 
 **Verification Specs:**
+
 - [ ] Desktop: Hover on student name shows tooltip after 300ms delay
 - [ ] Mobile: Tap student name shows popover
 - [ ] Info shown:
@@ -746,6 +797,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Popover/tooltip closes on outside click or mouse leave
 
 **Edge Cases:**
+
 - Student with no metadata: Show name only
 - Long preference list: Show first 3 + "and X more"
 - Hover during drag: Tooltip suppressed
@@ -759,6 +811,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** the toolbar stays uncluttered
 
 **Verification Specs:**
+
 - [ ] "..." button in toolbar opens dropdown menu
 - [ ] Menu items:
   - "Export as CSV" → Downloads immediately
@@ -768,6 +821,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Menu closes on selection or outside click
 
 **Edge Cases:**
+
 - Export empty groups: Include group names with no students
 - Print with many groups: Pagination handled by browser
 
@@ -780,6 +834,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** students can find their groups
 
 **Verification Specs:**
+
 - [ ] "Show to Class" button prominent in header (primary button style)
 - [ ] Clicking navigates to Present page
 - [ ] If activity not published, show prompt: "Publish these groups first?"
@@ -791,6 +846,7 @@ src/routes/activities/[id]/present/+page.svelte
 ### TEST GATE 4: Workspace Verification
 
 **Human Verification Checklist:**
+
 1. [ ] Workspace loads with generated groups displayed
 2. [ ] Activity name clickable and editable
 3. [ ] Drag student to different group → Move succeeds, visual feedback
@@ -824,6 +880,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I don't hunt through multiple pages for settings
 
 **Verification Specs:**
+
 - [ ] Page header: Back link (to Hub), Activity name (editable), "Generate Groups" button
 - [ ] Four sections with clear headers and expand/collapse:
   1. **Students** - roster management
@@ -836,6 +893,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Help text on sections explains purpose
 
 **Mockup:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ ← Spring Clubs Setup                       [Generate Groups]│
@@ -873,6 +931,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can add or remove students after initial import
 
 **Verification Specs:**
+
 - [ ] Collapsed: Shows count and preview "32 students: Alice, Bob, Carol..."
 - [ ] Expanded: Scrollable list of all students
 - [ ] Search/filter box if >20 students
@@ -883,6 +942,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Changes save automatically
 
 **Edge Cases:**
+
 - Remove student assigned to group: Also removes from group, group count updates
 - Add student: Added to "Unassigned" pool or prompted to assign
 - Duplicate name on add: Allow with visual note
@@ -897,6 +957,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can add, remove, or adjust groups
 
 **Verification Specs:**
+
 - [ ] Collapsed: Shows group names and count
 - [ ] Expanded: Editable list of groups
 - [ ] Each group: Name input, capacity input (optional), delete button
@@ -908,6 +969,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Note: "Changes to groups require regenerating to take effect"
 
 **Edge Cases:**
+
 - Delete group with students: Show modal "Move 8 students to:" with group picker
 - Reduce capacity below current: Warning only (soft limit)
 - Delete all groups: Show "Add at least one group to generate"
@@ -922,6 +984,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I don't recreate common setups
 
 **Verification Specs:**
+
 - [ ] "Use template" opens modal with template list
 - [ ] Each template shows: Name, group count, group names preview
 - [ ] Selecting template: Confirmation "Replace current groups with this template?"
@@ -932,6 +995,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Empty state: "No templates saved yet"
 
 **Edge Cases:**
+
 - Apply template with more groups than students: Warn, allow
 - Delete template: No effect on activities that used it (config was copied)
 - Template name collision: Allow (or append number)
@@ -945,6 +1009,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** the algorithm can honor their group requests
 
 **Verification Specs:**
+
 - [ ] Section marked "(Optional)" in header
 - [ ] Help text: "Have a form where students ranked their choices? Import it here."
 - [ ] Two import methods:
@@ -964,6 +1029,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] "Clear all preferences" button with confirmation
 
 **Edge Cases:**
+
 - Student name mismatch: Fuzzy match suggestion or skip
 - Group name mismatch: Show warning, can proceed
 - Partial preferences: OK, algorithm handles students without prefs
@@ -978,6 +1044,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can reference previous decisions
 
 **Verification Specs:**
+
 - [ ] Shows list of published sessions in reverse chronological order
 - [ ] Each entry shows: Date/time, student count, group count
 - [ ] Clicking entry expands to show that arrangement (read-only)
@@ -986,6 +1053,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Empty state: "No history yet. Groups appear here after publishing."
 
 **Edge Cases:**
+
 - Many sessions (10+): Scrollable list
 - Session from before roster change: Show as-was, note discrepancies
 - Delete session: Not supported (history is immutable audit log)
@@ -999,6 +1067,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can apply my configuration changes
 
 **Verification Specs:**
+
 - [ ] Button label: "Generate Groups" if none exist, "Regenerate Groups" if exist
 - [ ] Position: Header (sticky) for easy access
 - [ ] Clicking runs algorithm with current config
@@ -1012,6 +1081,7 @@ src/routes/activities/[id]/present/+page.svelte
 ### TEST GATE 5: Setup Page Verification
 
 **Human Verification Checklist:**
+
 1. [ ] Navigate to Setup from Hub or Workspace menu
 2. [ ] Four sections visible with clear labels
 3. [ ] Expand Students → See full roster, search works
@@ -1047,6 +1117,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** students can clearly see their groups
 
 **Verification Specs:**
+
 - [ ] Minimal chrome - focused on content
 - [ ] Header: Activity name only, "Done" button
 - [ ] Two view modes as tabs: "Find My Group" | "All Groups"
@@ -1056,6 +1127,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] URL shareable - students could bookmark
 
 **Mockup:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Spring Clubs                                        [Done]  │
@@ -1083,6 +1155,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can quickly find my assigned group
 
 **Verification Specs:**
+
 - [ ] Large search input, auto-focused when tab selected
 - [ ] As-you-type filtering (no submit button needed)
 - [ ] Case-insensitive, partial match from start of name
@@ -1094,6 +1167,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Optional: Show other group members
 
 **Edge Cases:**
+
 - Common partial name ("Al"): Show all matches
 - Special characters in name: Match works
 - Very fast typing: Debounce 150ms
@@ -1108,6 +1182,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** everyone can see the full arrangement
 
 **Verification Specs:**
+
 - [ ] Grid of group cards
 - [ ] Each card: Group name (large), student list
 - [ ] Cards sized appropriately for projection
@@ -1126,6 +1201,7 @@ src/routes/activities/[id]/present/+page.svelte
 **Implementation: Prompt on "Show to Class"**
 
 **Verification Specs:**
+
 - [ ] When clicking "Show to Class" from Workspace:
   - If status is EDITING: Show publish prompt
   - If status is PUBLISHED: Go directly to Present
@@ -1144,6 +1220,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] Visual indicator in Workspace when published: "Published ✓" badge
 
 **Edge Cases:**
+
 - Edit after publish: Status changes to EDITING, no prompt on subsequent presents
 - Multiple publishes: Each creates new history entry
 - Publish with no changes since last: Allow (creates timestamped entry)
@@ -1157,6 +1234,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can make changes if needed
 
 **Verification Specs:**
+
 - [ ] "Done" button returns to Workspace (not Hub)
 - [ ] Keyboard shortcut: Escape key
 - [ ] No confirmation needed (no data to lose in Present mode)
@@ -1167,6 +1245,7 @@ src/routes/activities/[id]/present/+page.svelte
 ### TEST GATE 6: Present & Publish Verification
 
 **Human Verification Checklist:**
+
 1. [ ] From Workspace, click "Show to Class" → Publish prompt appears
 2. [ ] Select "Just Preview" → Present mode, status unchanged
 3. [ ] Return, click "Show to Class" again → Prompt still appears
@@ -1198,6 +1277,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** the codebase stays maintainable
 
 **Verification Specs:**
+
 - [ ] Delete old route directories (after confirming redirects work):
   ```
   src/routes/groups/         (entire directory)
@@ -1223,6 +1303,7 @@ src/routes/activities/[id]/present/+page.svelte
 - [ ] No dead code warnings
 
 **Safety Check:**
+
 - Run full build before deletion
 - Run full test suite before and after
 - Git commit before deletion for easy rollback
@@ -1236,6 +1317,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** future developers understand the system
 
 **Verification Specs:**
+
 - [ ] `CLAUDE.md` - Update route structure, component locations
 - [ ] `docs/ARCHITECTURE.md` - Update with new flow diagrams
 - [ ] `docs/PRODUCT.md` - Update user flows, remove old references
@@ -1254,6 +1336,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** the app feels professional and trustworthy
 
 **Verification Specs:**
+
 - [ ] Consistent button styles (primary, secondary, danger) across all pages
 - [ ] Consistent spacing and typography scale
 - [ ] Loading states on all async operations (spinners, skeletons)
@@ -1272,6 +1355,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** I can recover or understand what happened
 
 **Verification Specs:**
+
 - [ ] Network errors: "You're offline. Changes will sync when reconnected." (if applicable)
 - [ ] Validation errors: Specific field highlighted with message
 - [ ] 404 pages: "Activity not found" with link to Dashboard
@@ -1288,6 +1372,7 @@ src/routes/activities/[id]/present/+page.svelte
 **So that** regressions are caught
 
 **Verification Specs:**
+
 - [ ] E2E test: Create new activity via wizard
 - [ ] E2E test: Edit groups via drag and drop
 - [ ] E2E test: Publish and present flow
@@ -1303,6 +1388,7 @@ src/routes/activities/[id]/present/+page.svelte
 **Human Verification Checklist:**
 
 **First-Time User Journey (Target: < 5 minutes)**
+
 1. [ ] Land on `/activities` → Empty state with "Create your first activity"
 2. [ ] Click "New Activity" → Wizard Step 1
 3. [ ] Paste roster → Preview correct → Continue
@@ -1313,9 +1399,10 @@ src/routes/activities/[id]/present/+page.svelte
 8. [ ] Click "Show to Class" → Publish prompt → "Publish & Present"
 9. [ ] Present mode → Search works → "Done"
 10. [ ] Back to Workspace → Status shows "Published"
-11. [ ] Total time under 5 minutes? ____
+11. [ ] Total time under 5 minutes? \_\_\_\_
 
 **Returning User Journey**
+
 1. [ ] Dashboard shows previous activity
 2. [ ] Click activity → Hub with 3 options
 3. [ ] Click "Edit Groups" → Workspace loads
@@ -1325,17 +1412,20 @@ src/routes/activities/[id]/present/+page.svelte
 7. [ ] Check History → Previous publish visible
 
 **Error Scenarios**
+
 1. [ ] Paste invalid data → Clear error shown
 2. [ ] Navigate to `/activities/nonexistent` → 404 with Dashboard link
 3. [ ] Rename to empty string → Validation prevents save
 
 **Mobile Testing**
+
 1. [ ] Dashboard: Cards stack, readable
 2. [ ] Wizard: All steps scrollable and usable
 3. [ ] Workspace: Touch drag works
 4. [ ] Present: Search usable with on-screen keyboard
 
 **Accessibility Quick Check**
+
 1. [ ] Tab through wizard → Logical order
 2. [ ] Focus visible on all interactive elements
 3. [ ] Color contrast appears sufficient
@@ -1415,36 +1505,46 @@ Phase 6: Cleanup (1-2 days)
 ## Risk Mitigation Strategies
 
 ### 1. Phase Sequencing
+
 **Risk:** Deleting old code before new code is ready
 **Mitigation:**
+
 - Do NOT delete `StepPreferences.svelte` until `US-4.5: Preferences Section` is complete
 - Old wizard remains functional until Phase 2 test gate passes
 - Phase 6 cleanup only happens after all test gates pass
 
 ### 2. Data Compatibility
+
 **Risk:** Existing activities break with new code
 **Mitigation:**
+
 - Activity data model changes are additive (new fields have defaults)
 - Test with existing IndexedDB data before each test gate
 - Document any migration needs
 
 ### 3. Feature Parity
+
 **Risk:** Losing functionality users depend on
 **Mitigation:**
+
 - Preference import is NOT removed until Setup page version works
 - Export functionality preserved in Workspace menu
 - All current flows traced through new architecture
 
 ### 4. Scope Creep
+
 **Risk:** Adding features during implementation
 **Mitigation:**
+
 - Each phase has defined scope - defer additions to backlog
 - Test gates force completion before moving on
 - "Nice to have" items marked and tracked separately
 
 ### 5. Incremental Delivery
+
 **Risk:** Big-bang release with many bugs
 **Mitigation:**
+
 - Each phase delivers working software
 - Can pause at any test gate boundary
 - Consider deploying behind feature flag after Phase 2
@@ -1454,15 +1554,18 @@ Phase 6: Cleanup (1-2 days)
 ## Dependencies & Prerequisites
 
 ### Technical Prerequisites
+
 - [ ] IndexedDB schema supports new `status` field on activities
 - [ ] Existing roster/pool data structure compatible with reuse feature
 - [ ] Template storage mechanism defined (IndexedDB collection)
 
 ### External Dependencies
+
 - Google Sheets API integration (existing, needs to work in new wizard)
 - No new external dependencies required
 
 ### Team Prerequisites
+
 - Designer review of mockups before Phase 1 (if available)
 - Stakeholder available for test gate reviews
 

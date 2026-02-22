@@ -9,24 +9,24 @@ import type { GroupTemplateRepository } from '$lib/application/ports/GroupTempla
 import { ok, type Result } from '$lib/types/result';
 
 export interface ListGroupTemplatesInput {
-	ownerStaffId?: string;
+  ownerStaffId?: string;
 }
 
 export type ListGroupTemplatesError = never; // Can never fail currently
 
 export async function listGroupTemplates(
-	deps: {
-		groupTemplateRepo: GroupTemplateRepository;
-	},
-	input: ListGroupTemplatesInput = {}
+  deps: {
+    groupTemplateRepo: GroupTemplateRepository;
+  },
+  input: ListGroupTemplatesInput = {}
 ): Promise<Result<GroupTemplate[], ListGroupTemplatesError>> {
-	let templates: GroupTemplate[];
+  let templates: GroupTemplate[];
 
-	if (input.ownerStaffId) {
-		templates = await deps.groupTemplateRepo.listByOwnerId(input.ownerStaffId);
-	} else {
-		templates = await deps.groupTemplateRepo.listAll();
-	}
+  if (input.ownerStaffId) {
+    templates = await deps.groupTemplateRepo.listByOwnerId(input.ownerStaffId);
+  } else {
+    templates = await deps.groupTemplateRepo.listAll();
+  }
 
-	return ok(templates);
+  return ok(templates);
 }

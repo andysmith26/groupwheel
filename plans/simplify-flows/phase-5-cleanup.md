@@ -38,6 +38,7 @@ src/routes/activities/[id]/observe/
 **Search for imports** of each component before deleting. Use `grep -r "ComponentName"` to verify no remaining references.
 
 **Delete if unused:**
+
 - `src/lib/components/editing/PublishSessionModal.svelte`
 - `src/lib/components/workspace/ShowToClassPrompt.svelte`
 - `src/lib/components/workspace/PostPublishPrompt.svelte`
@@ -88,6 +89,7 @@ grep -r "createSession" src/ --include="*.ts" --include="*.svelte" -l
 ```
 
 If only referenced from:
+
 - `src/lib/application/useCases/createSession.ts` (itself)
 - `src/lib/application/useCases/index.ts` (barrel export)
 - `src/lib/services/appEnvUseCases.ts` (wrapper)
@@ -101,6 +103,7 @@ grep -r "publishSession" src/ --include="*.ts" --include="*.svelte" -l
 ```
 
 If unused, remove from:
+
 - `src/lib/application/useCases/publishSession.ts`
 - The barrel export in `src/lib/application/useCases/index.ts`
 - The wrapper in `src/lib/services/appEnvUseCases.ts`
@@ -112,6 +115,7 @@ If unused, remove from:
 **Modify:** `src/lib/domain/session.ts`
 
 The `DRAFT` status is no longer used for new sessions. However:
+
 - **Keep the type** `SessionStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'` for backward compatibility with existing data in IndexedDB
 - **Keep `createSession()`** factory if any code still creates DRAFT sessions
 - Add a comment noting DRAFT is legacy:
@@ -132,6 +136,7 @@ export type SessionStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 - `e2e/dashboard.spec.ts` — Update any navigation links
 
 **For each test file:**
+
 1. Replace `/present` URLs with `/live`
 2. Replace `/observe` URLs with `/live`
 3. Replace `/start` URLs with `/workspace`
@@ -171,25 +176,25 @@ pnpm build        # Production build succeeds
 
 ## Files Changed Summary
 
-| File | Action |
-|------|--------|
-| `src/routes/activities/[id]/start/` | DELETE directory |
-| `src/routes/activities/[id]/present/` | DELETE directory |
-| `src/routes/activities/[id]/observe/` | DELETE directory |
-| `src/lib/components/editing/PublishSessionModal.svelte` | DELETE |
-| `src/lib/components/workspace/ShowToClassPrompt.svelte` | DELETE |
-| `src/lib/components/workspace/PostPublishPrompt.svelte` | DELETE |
-| `src/lib/components/workspace/EmptyWorkspaceState.svelte` | DELETE (if not already) |
-| `src/lib/application/useCases/createSession.ts` | DELETE (if unused) |
-| `src/lib/application/useCases/publishSession.ts` | DELETE (if unused) |
-| `src/lib/application/useCases/index.ts` | MODIFY (remove deleted exports) |
-| `src/lib/services/appEnvUseCases.ts` | MODIFY (remove deleted wrappers) |
-| `src/routes/activities/[id]/workspace/+page.svelte` | MODIFY (remove dead imports/state/handlers/template) |
-| `src/lib/domain/session.ts` | MODIFY (add legacy comment on DRAFT) |
-| `e2e/present-flow.spec.ts` | MODIFY (update routes) |
-| `e2e/wizard-flow.spec.ts` | MODIFY (update routes) |
-| `e2e/setup-page.spec.ts` | MODIFY (update routes) |
-| Various docs | MODIFY (update references) |
+| File                                                      | Action                                               |
+| --------------------------------------------------------- | ---------------------------------------------------- |
+| `src/routes/activities/[id]/start/`                       | DELETE directory                                     |
+| `src/routes/activities/[id]/present/`                     | DELETE directory                                     |
+| `src/routes/activities/[id]/observe/`                     | DELETE directory                                     |
+| `src/lib/components/editing/PublishSessionModal.svelte`   | DELETE                                               |
+| `src/lib/components/workspace/ShowToClassPrompt.svelte`   | DELETE                                               |
+| `src/lib/components/workspace/PostPublishPrompt.svelte`   | DELETE                                               |
+| `src/lib/components/workspace/EmptyWorkspaceState.svelte` | DELETE (if not already)                              |
+| `src/lib/application/useCases/createSession.ts`           | DELETE (if unused)                                   |
+| `src/lib/application/useCases/publishSession.ts`          | DELETE (if unused)                                   |
+| `src/lib/application/useCases/index.ts`                   | MODIFY (remove deleted exports)                      |
+| `src/lib/services/appEnvUseCases.ts`                      | MODIFY (remove deleted wrappers)                     |
+| `src/routes/activities/[id]/workspace/+page.svelte`       | MODIFY (remove dead imports/state/handlers/template) |
+| `src/lib/domain/session.ts`                               | MODIFY (add legacy comment on DRAFT)                 |
+| `e2e/present-flow.spec.ts`                                | MODIFY (update routes)                               |
+| `e2e/wizard-flow.spec.ts`                                 | MODIFY (update routes)                               |
+| `e2e/setup-page.spec.ts`                                  | MODIFY (update routes)                               |
+| Various docs                                              | MODIFY (update references)                           |
 
 ## Verification
 

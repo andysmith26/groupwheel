@@ -8,11 +8,11 @@
  */
 
 import type {
-	GoogleSheetsService,
-	GoogleSheetsError,
-	SyncService,
-	GoogleSheetsSyncConfig,
-	GoogleSheetsConfigurableSyncService
+  GoogleSheetsService,
+  GoogleSheetsError,
+  SyncService,
+  GoogleSheetsSyncConfig,
+  GoogleSheetsConfigurableSyncService
 } from '$lib/application/ports';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
@@ -22,8 +22,8 @@ import { ok, err } from '$lib/types/result';
 // =============================================================================
 
 export interface ConfigureSheetsSyncStorageInput {
-	/** The Google Sheets URL to use for storage */
-	url: string;
+  /** The Google Sheets URL to use for storage */
+  url: string;
 }
 
 // =============================================================================
@@ -31,12 +31,12 @@ export interface ConfigureSheetsSyncStorageInput {
 // =============================================================================
 
 export interface ConfigureSheetsSyncStorageOutput {
-	/** The spreadsheet ID */
-	spreadsheetId: string;
-	/** The spreadsheet title */
-	spreadsheetName: string;
-	/** List of tabs in the spreadsheet */
-	tabs: string[];
+  /** The spreadsheet ID */
+  spreadsheetId: string;
+  /** The spreadsheet title */
+  spreadsheetName: string;
+  /** List of tabs in the spreadsheet */
+  tabs: string[];
 }
 
 // =============================================================================
@@ -44,20 +44,20 @@ export interface ConfigureSheetsSyncStorageOutput {
 // =============================================================================
 
 export type ConfigureSheetsSyncStorageError =
-	| { type: 'INVALID_URL'; message: string }
-	| { type: 'NOT_AUTHENTICATED'; message: string }
-	| { type: 'PERMISSION_DENIED'; message: string }
-	| { type: 'NOT_FOUND'; message: string }
-	| { type: 'SYNC_NOT_AVAILABLE'; message: string }
-	| { type: 'API_ERROR'; message: string };
+  | { type: 'INVALID_URL'; message: string }
+  | { type: 'NOT_AUTHENTICATED'; message: string }
+  | { type: 'PERMISSION_DENIED'; message: string }
+  | { type: 'NOT_FOUND'; message: string }
+  | { type: 'SYNC_NOT_AVAILABLE'; message: string }
+  | { type: 'API_ERROR'; message: string };
 
 // =============================================================================
 // Dependencies
 // =============================================================================
 
 export interface ConfigureSheetsSyncStorageDeps {
-	sheetsService: GoogleSheetsService;
-	sheetsSyncService: SyncService;
+  sheetsService: GoogleSheetsService;
+  sheetsSyncService: SyncService;
 }
 
 // =============================================================================
@@ -65,16 +65,16 @@ export interface ConfigureSheetsSyncStorageDeps {
 // =============================================================================
 
 function isGoogleSheetsSyncService(
-	service: SyncService
+  service: SyncService
 ): service is GoogleSheetsConfigurableSyncService {
-	return (
-		'configure' in service
-		&& typeof service.configure === 'function'
-		&& 'getConfig' in service
-		&& typeof service.getConfig === 'function'
-		&& 'clearConfig' in service
-		&& typeof service.clearConfig === 'function'
-	);
+  return (
+    'configure' in service &&
+    typeof service.configure === 'function' &&
+    'getConfig' in service &&
+    typeof service.getConfig === 'function' &&
+    'clearConfig' in service &&
+    typeof service.clearConfig === 'function'
+  );
 }
 
 // =============================================================================
@@ -92,77 +92,77 @@ function isGoogleSheetsSyncService(
  * @returns Configuration result with sheet info, or an error
  */
 export async function configureSheetsSyncStorage(
-	deps: ConfigureSheetsSyncStorageDeps,
-	input: ConfigureSheetsSyncStorageInput
+  deps: ConfigureSheetsSyncStorageDeps,
+  input: ConfigureSheetsSyncStorageInput
 ): Promise<Result<ConfigureSheetsSyncStorageOutput, ConfigureSheetsSyncStorageError>> {
-	const { sheetsService, sheetsSyncService } = deps;
-	const { url } = input;
+  const { sheetsService, sheetsSyncService } = deps;
+  const { url } = input;
 
-	// Verify we have a Google Sheets configurable sync service
-	if (!isGoogleSheetsSyncService(sheetsSyncService)) {
-		return err({
-			type: 'SYNC_NOT_AVAILABLE',
-			message: 'Google Sheets sync is not available'
-		});
-	}
+  // Verify we have a Google Sheets configurable sync service
+  if (!isGoogleSheetsSyncService(sheetsSyncService)) {
+    return err({
+      type: 'SYNC_NOT_AVAILABLE',
+      message: 'Google Sheets sync is not available'
+    });
+  }
 
-	// Parse URL to get spreadsheet ID
-	const spreadsheetId = sheetsService.parseSpreadsheetUrl(url);
+  // Parse URL to get spreadsheet ID
+  const spreadsheetId = sheetsService.parseSpreadsheetUrl(url);
 
-	if (!spreadsheetId) {
-		return err({
-			type: 'INVALID_URL',
-			message: 'Please enter a valid Google Sheets URL'
-		});
-	}
+  if (!spreadsheetId) {
+    return err({
+      type: 'INVALID_URL',
+      message: 'Please enter a valid Google Sheets URL'
+    });
+  }
 
-	try {
-		// Fetch metadata to validate access
-		const metadata = await sheetsService.getSheetMetadata(spreadsheetId);
+  try {
+    // Fetch metadata to validate access
+    const metadata = await sheetsService.getSheetMetadata(spreadsheetId);
 
-		// Configure the sync manager
-		const config: GoogleSheetsSyncConfig = {
-			spreadsheetId: metadata.spreadsheetId,
-			spreadsheetName: metadata.title
-		};
+    // Configure the sync manager
+    const config: GoogleSheetsSyncConfig = {
+      spreadsheetId: metadata.spreadsheetId,
+      spreadsheetName: metadata.title
+    };
 
-		await sheetsSyncService.configure(config);
+    await sheetsSyncService.configure(config);
 
-		// Enable sync
-		sheetsSyncService.setEnabled(true);
+    // Enable sync
+    sheetsSyncService.setEnabled(true);
 
-		return ok({
-			spreadsheetId: metadata.spreadsheetId,
-			spreadsheetName: metadata.title,
-			tabs: metadata.tabs.map((t) => t.title)
-		});
-	} catch (error) {
-		// Handle GoogleSheetsError
-		const sheetsError = error as GoogleSheetsError;
+    return ok({
+      spreadsheetId: metadata.spreadsheetId,
+      spreadsheetName: metadata.title,
+      tabs: metadata.tabs.map((t) => t.title)
+    });
+  } catch (error) {
+    // Handle GoogleSheetsError
+    const sheetsError = error as GoogleSheetsError;
 
-		switch (sheetsError.type) {
-			case 'NOT_AUTHENTICATED':
-				return err({
-					type: 'NOT_AUTHENTICATED',
-					message: sheetsError.message
-				});
-			case 'PERMISSION_DENIED':
-				return err({
-					type: 'PERMISSION_DENIED',
-					message: sheetsError.message
-				});
-			case 'NOT_FOUND':
-				return err({
-					type: 'NOT_FOUND',
-					message: sheetsError.message
-				});
-			default:
-				return err({
-					type: 'API_ERROR',
-					message: sheetsError.message || 'Failed to configure Google Sheet sync'
-				});
-		}
-	}
+    switch (sheetsError.type) {
+      case 'NOT_AUTHENTICATED':
+        return err({
+          type: 'NOT_AUTHENTICATED',
+          message: sheetsError.message
+        });
+      case 'PERMISSION_DENIED':
+        return err({
+          type: 'PERMISSION_DENIED',
+          message: sheetsError.message
+        });
+      case 'NOT_FOUND':
+        return err({
+          type: 'NOT_FOUND',
+          message: sheetsError.message
+        });
+      default:
+        return err({
+          type: 'API_ERROR',
+          message: sheetsError.message || 'Failed to configure Google Sheet sync'
+        });
+    }
+  }
 }
 
 /**
@@ -170,12 +170,10 @@ export async function configureSheetsSyncStorage(
  *
  * @param sheetsSyncService - The sync service to disconnect
  */
-export async function disconnectSheetsSyncStorage(
-	sheetsSyncService: SyncService
-): Promise<void> {
-	if (isGoogleSheetsSyncService(sheetsSyncService)) {
-		await sheetsSyncService.clearConfig();
-	}
+export async function disconnectSheetsSyncStorage(sheetsSyncService: SyncService): Promise<void> {
+  if (isGoogleSheetsSyncService(sheetsSyncService)) {
+    await sheetsSyncService.clearConfig();
+  }
 }
 
 /**
@@ -184,11 +182,9 @@ export async function disconnectSheetsSyncStorage(
  * @param sheetsSyncService - The sync service to query
  * @returns The current configuration, or null if not configured
  */
-export function getSheetsSyncConfig(
-	sheetsSyncService: SyncService
-): GoogleSheetsSyncConfig | null {
-	if (isGoogleSheetsSyncService(sheetsSyncService)) {
-		return sheetsSyncService.getConfig();
-	}
-	return null;
+export function getSheetsSyncConfig(sheetsSyncService: SyncService): GoogleSheetsSyncConfig | null {
+  if (isGoogleSheetsSyncService(sheetsSyncService)) {
+    return sheetsSyncService.getConfig();
+  }
+  return null;
 }

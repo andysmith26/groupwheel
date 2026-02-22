@@ -15,8 +15,8 @@ import type { GoogleSheetsService, AuthService } from '$lib/application/ports';
 let instance: GoogleSheetsSyncManager | null = null;
 
 export interface BrowserGoogleSheetsSyncManagerOptions {
-	sheetsService: GoogleSheetsService;
-	authService: AuthService;
+  sheetsService: GoogleSheetsService;
+  authService: AuthService;
 }
 
 /**
@@ -28,33 +28,33 @@ export interface BrowserGoogleSheetsSyncManagerOptions {
  * Google Sheets access.
  */
 export function getBrowserGoogleSheetsSyncManager(
-	options?: BrowserGoogleSheetsSyncManagerOptions
+  options?: BrowserGoogleSheetsSyncManagerOptions
 ): GoogleSheetsSyncManager | null {
-	if (typeof window === 'undefined') {
-		return null;
-	}
+  if (typeof window === 'undefined') {
+    return null;
+  }
 
-	// Return existing instance if available
-	if (instance) {
-		return instance;
-	}
+  // Return existing instance if available
+  if (instance) {
+    return instance;
+  }
 
-	// Require options for first-time creation
-	if (!options) {
-		return null;
-	}
+  // Require options for first-time creation
+  if (!options) {
+    return null;
+  }
 
-	instance = new GoogleSheetsSyncManager({
-		storage: new LocalStorageAdapter(),
-		networkStatus: new BrowserNetworkStatusAdapter(),
-		sheetsService: options.sheetsService,
-		getAccessToken: () => options.authService.getAccessToken()
-	});
+  instance = new GoogleSheetsSyncManager({
+    storage: new LocalStorageAdapter(),
+    networkStatus: new BrowserNetworkStatusAdapter(),
+    sheetsService: options.sheetsService,
+    getAccessToken: () => options.authService.getAccessToken()
+  });
 
-	// Initialize asynchronously
-	instance.initialize();
+  // Initialize asynchronously
+  instance.initialize();
 
-	return instance;
+  return instance;
 }
 
 /**
@@ -62,8 +62,8 @@ export function getBrowserGoogleSheetsSyncManager(
  * Used for testing or when user logs out.
  */
 export function clearBrowserGoogleSheetsSyncManager(): void {
-	if (instance) {
-		instance.dispose();
-		instance = null;
-	}
+  if (instance) {
+    instance.dispose();
+    instance = null;
+  }
 }

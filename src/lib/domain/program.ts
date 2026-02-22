@@ -3,37 +3,37 @@ import type { SheetReference } from './sheetConnection';
 export type ProgramType = 'CLUBS' | 'ADVISORY' | 'CABINS' | 'CLASS_ACTIVITY' | 'OTHER';
 
 export type ProgramTimeSpan =
-	| {
-			start: Date;
-			end: Date;
-	  }
-	| {
-			termLabel: string;
-	  };
+  | {
+      start: Date;
+      end: Date;
+    }
+  | {
+      termLabel: string;
+    };
 
 /**
  * MVP Program model — matches docs/domain_model.md.
  */
 export interface Program {
-	id: string;
-	schoolId?: string;
-	name: string;
-	type: ProgramType;
-	timeSpan: ProgramTimeSpan;
-	poolIds: string[];
-	primaryPoolId?: string;
-	ownerStaffIds?: string[];
-	/**
-	 * ID of the authenticated user who owns this program.
-	 * Used for multi-tenant data isolation.
-	 * Undefined for anonymous/local-only data.
-	 */
-	userId?: string;
-	/**
-	 * Reference to the Google Sheet used as the data source for this program.
-	 * Stores spreadsheet ID and URL for re-connection.
-	 */
-	sourceSheet?: SheetReference;
+  id: string;
+  schoolId?: string;
+  name: string;
+  type: ProgramType;
+  timeSpan: ProgramTimeSpan;
+  poolIds: string[];
+  primaryPoolId?: string;
+  ownerStaffIds?: string[];
+  /**
+   * ID of the authenticated user who owns this program.
+   * Used for multi-tenant data isolation.
+   * Undefined for anonymous/local-only data.
+   */
+  userId?: string;
+  /**
+   * Reference to the Google Sheet used as the data source for this program.
+   * Stores spreadsheet ID and URL for re-connection.
+   */
+  sourceSheet?: SheetReference;
 }
 
 /**
@@ -41,40 +41,40 @@ export interface Program {
  * Throws on invalid inputs; use cases will capture and map to Result error variants.
  */
 export function createProgram(params: {
-	id: string;
-	name: string;
-	type: ProgramType;
-	timeSpan: ProgramTimeSpan;
-	poolIds: string[];
-	schoolId?: string;
-	primaryPoolId?: string;
-	ownerStaffIds?: string[];
-	userId?: string;
-	sourceSheet?: SheetReference;
+  id: string;
+  name: string;
+  type: ProgramType;
+  timeSpan: ProgramTimeSpan;
+  poolIds: string[];
+  schoolId?: string;
+  primaryPoolId?: string;
+  ownerStaffIds?: string[];
+  userId?: string;
+  sourceSheet?: SheetReference;
 }): Program {
-	const name = params.name.trim();
-	if (!name) {
-		throw new Error('Program name must not be empty');
-	}
+  const name = params.name.trim();
+  if (!name) {
+    throw new Error('Program name must not be empty');
+  }
 
-	if (!params.poolIds.length) {
-		throw new Error('Program must reference at least one pool (poolIds non-empty)');
-	}
+  if (!params.poolIds.length) {
+    throw new Error('Program must reference at least one pool (poolIds non-empty)');
+  }
 
-	if (params.primaryPoolId && !params.poolIds.includes(params.primaryPoolId)) {
-		throw new Error('primaryPoolId must be included in poolIds');
-	}
+  if (params.primaryPoolId && !params.poolIds.includes(params.primaryPoolId)) {
+    throw new Error('primaryPoolId must be included in poolIds');
+  }
 
-	return {
-		id: params.id,
-		name,
-		type: params.type,
-		timeSpan: params.timeSpan,
-		poolIds: [...params.poolIds],
-		primaryPoolId: params.primaryPoolId,
-		schoolId: params.schoolId,
-		ownerStaffIds: params.ownerStaffIds,
-		userId: params.userId,
-		sourceSheet: params.sourceSheet
-	};
+  return {
+    id: params.id,
+    name,
+    type: params.type,
+    timeSpan: params.timeSpan,
+    poolIds: [...params.poolIds],
+    primaryPoolId: params.primaryPoolId,
+    schoolId: params.schoolId,
+    ownerStaffIds: params.ownerStaffIds,
+    userId: params.userId,
+    sourceSheet: params.sourceSheet
+  };
 }

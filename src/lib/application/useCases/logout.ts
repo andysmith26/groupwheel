@@ -17,12 +17,14 @@ export type LogoutError = { type: 'LOGOUT_FAILED'; message: string };
  *
  * Clears local auth state and invalidates server session.
  */
-export async function logout(deps: { authService: AuthService }): Promise<Result<void, LogoutError>> {
-	try {
-		await deps.authService.logout();
-		return ok(undefined);
-	} catch (e) {
-		const message = e instanceof Error ? e.message : 'Unknown logout error';
-		return err({ type: 'LOGOUT_FAILED', message });
-	}
+export async function logout(deps: {
+  authService: AuthService;
+}): Promise<Result<void, LogoutError>> {
+  try {
+    await deps.authService.logout();
+    return ok(undefined);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Unknown logout error';
+    return err({ type: 'LOGOUT_FAILED', message });
+  }
 }

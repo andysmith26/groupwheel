@@ -12,46 +12,46 @@ No "sessions." No "publishing." No "archiving." Those are invisible plumbing.
 
 ## Personas
 
-| | Math Teacher (daily) | Clubs Admin (semester) |
-|---|---|---|
-| Frequency | Daily | Once/semester |
-| Generation | Random by size, FAST | Preference-balanced, deliberate |
-| Editing | 1-2 swaps | Extensive drag-drop |
-| Observations | Yes, every class | Maybe once |
-| Speed priority | Sub-60-sec to "showing" | Doesn't matter |
+|                | Math Teacher (daily)    | Clubs Admin (semester)          |
+| -------------- | ----------------------- | ------------------------------- |
+| Frequency      | Daily                   | Once/semester                   |
+| Generation     | Random by size, FAST    | Preference-balanced, deliberate |
+| Editing        | 1-2 swaps               | Extensive drag-drop             |
+| Observations   | Yes, every class        | Maybe once                      |
+| Speed priority | Sub-60-sec to "showing" | Doesn't matter                  |
 
 ## Route Changes
 
-| Current Route | Action | Replacement |
-|---------------|--------|-------------|
-| `/activities/[id]/start` | DELETE | Workspace empty state + Activity entry point |
-| `/activities/[id]/workspace` | KEEP (enhanced) | Inline generation when no groups exist |
-| `/activities/[id]/present` | DELETE | Merged into `/live` |
-| `/activities/[id]/observe` | DELETE | Merged into `/live` |
-| `/activities/[id]/live` | CREATE | Student View + Teacher View tabs |
+| Current Route                | Action          | Replacement                                  |
+| ---------------------------- | --------------- | -------------------------------------------- |
+| `/activities/[id]/start`     | DELETE          | Workspace empty state + Activity entry point |
+| `/activities/[id]/workspace` | KEEP (enhanced) | Inline generation when no groups exist       |
+| `/activities/[id]/present`   | DELETE          | Merged into `/live`                          |
+| `/activities/[id]/observe`   | DELETE          | Merged into `/live`                          |
+| `/activities/[id]/live`      | CREATE          | Student View + Teacher View tabs             |
 
 ## Terminology (user-facing)
 
-| Old (confusing) | New (clear) |
-|-----------------|-------------|
-| Start Session | Generate Groups |
-| Publish | *(automatic, invisible)* |
-| Present | Show to Class → Student View |
-| Observe | Show to Class → Teacher View |
-| End Session / Archive | Done |
-| Session | *(never shown to user)* |
+| Old (confusing)       | New (clear)                  |
+| --------------------- | ---------------------------- |
+| Start Session         | Generate Groups              |
+| Publish               | _(automatic, invisible)_     |
+| Present               | Show to Class → Student View |
+| Observe               | Show to Class → Teacher View |
+| End Session / Archive | Done                         |
+| Session               | _(never shown to user)_      |
 
 ## Phase Order
 
 Each phase is self-contained and can be implemented independently. Phases 1-2 have no dependencies. Phases 3-4 build on 1-2.
 
-| Phase | File | What It Does | Depends On |
-|-------|------|-------------|------------|
-| 1 | `phase-1-show-to-class-use-case.md` | New `showToClass` use case (merge create+publish) | Nothing |
-| 2 | `phase-2-live-route.md` | Create `/live` route (merge Present+Observe) | Nothing |
-| 3 | `phase-3-workspace-inline-generation.md` | Fold Start page into workspace empty state | Phase 1 |
-| 4 | `phase-4-activity-entry-point.md` | Smart activity detail page ("New Groups" / "Edit") | Phases 1-3 |
-| 5 | `phase-5-cleanup.md` | Delete old routes, dead code, update tests | Phases 1-4 |
+| Phase | File                                     | What It Does                                       | Depends On |
+| ----- | ---------------------------------------- | -------------------------------------------------- | ---------- |
+| 1     | `phase-1-show-to-class-use-case.md`      | New `showToClass` use case (merge create+publish)  | Nothing    |
+| 2     | `phase-2-live-route.md`                  | Create `/live` route (merge Present+Observe)       | Nothing    |
+| 3     | `phase-3-workspace-inline-generation.md` | Fold Start page into workspace empty state         | Phase 1    |
+| 4     | `phase-4-activity-entry-point.md`        | Smart activity detail page ("New Groups" / "Edit") | Phases 1-3 |
+| 5     | `phase-5-cleanup.md`                     | Delete old routes, dead code, update tests         | Phases 1-4 |
 
 ## Architecture Invariants (Do NOT Change)
 

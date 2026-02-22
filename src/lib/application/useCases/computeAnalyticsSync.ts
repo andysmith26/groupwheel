@@ -8,27 +8,27 @@ import type { Group, Preference, Scenario, ScenarioSatisfaction } from '$lib/dom
  * from the in-memory scenario state.
  */
 export function computeAnalyticsSync(params: {
-	groups: Group[];
-	preferences: Preference[];
-	participantSnapshot: string[];
-	programId?: string;
+  groups: Group[];
+  preferences: Preference[];
+  participantSnapshot: string[];
+  programId?: string;
 }): ScenarioSatisfaction {
-	const scenario: Scenario = {
-		id: 'scenario-analytics-snapshot',
-		programId: params.programId ?? 'unknown-program',
-		status: 'DRAFT',
-		groups: params.groups.map((group) => ({
-			...group,
-			memberIds: [...group.memberIds]
-		})),
-		participantSnapshot: [...params.participantSnapshot],
-		createdAt: new Date(0),
-		lastModifiedAt: new Date(0)
-	};
+  const scenario: Scenario = {
+    id: 'scenario-analytics-snapshot',
+    programId: params.programId ?? 'unknown-program',
+    status: 'DRAFT',
+    groups: params.groups.map((group) => ({
+      ...group,
+      memberIds: [...group.memberIds]
+    })),
+    participantSnapshot: [...params.participantSnapshot],
+    createdAt: new Date(0),
+    lastModifiedAt: new Date(0)
+  };
 
-	return computeScenarioSatisfaction({
-		scenario,
-		preferences: params.preferences,
-		students: []
-	});
+  return computeScenarioSatisfaction({
+    scenario,
+    preferences: params.preferences,
+    students: []
+  });
 }

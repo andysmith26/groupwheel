@@ -17,10 +17,10 @@ import { ok, err } from '$lib/types/result';
 // =============================================================================
 
 export interface ImportFromSheetTabInput {
-	/** The spreadsheet ID */
-	spreadsheetId: string;
-	/** The tab title to fetch data from */
-	tabTitle: string;
+  /** The spreadsheet ID */
+  spreadsheetId: string;
+  /** The tab title to fetch data from */
+  tabTitle: string;
 }
 
 // =============================================================================
@@ -28,18 +28,18 @@ export interface ImportFromSheetTabInput {
 // =============================================================================
 
 export type ImportFromSheetTabError =
-	| { type: 'NOT_AUTHENTICATED'; message: string }
-	| { type: 'PERMISSION_DENIED'; message: string }
-	| { type: 'NOT_FOUND'; message: string }
-	| { type: 'EMPTY_TAB'; message: string }
-	| { type: 'API_ERROR'; message: string };
+  | { type: 'NOT_AUTHENTICATED'; message: string }
+  | { type: 'PERMISSION_DENIED'; message: string }
+  | { type: 'NOT_FOUND'; message: string }
+  | { type: 'EMPTY_TAB'; message: string }
+  | { type: 'API_ERROR'; message: string };
 
 // =============================================================================
 // Dependencies
 // =============================================================================
 
 export interface ImportFromSheetTabDeps {
-	sheetsService: GoogleSheetsService;
+  sheetsService: GoogleSheetsService;
 }
 
 // =============================================================================
@@ -54,48 +54,48 @@ export interface ImportFromSheetTabDeps {
  * @returns RawSheetData ready for column mapping
  */
 export async function importFromSheetTab(
-	deps: ImportFromSheetTabDeps,
-	input: ImportFromSheetTabInput
+  deps: ImportFromSheetTabDeps,
+  input: ImportFromSheetTabInput
 ): Promise<Result<RawSheetData, ImportFromSheetTabError>> {
-	const { sheetsService } = deps;
-	const { spreadsheetId, tabTitle } = input;
+  const { sheetsService } = deps;
+  const { spreadsheetId, tabTitle } = input;
 
-	try {
-		const data = await sheetsService.getTabData(spreadsheetId, tabTitle);
+  try {
+    const data = await sheetsService.getTabData(spreadsheetId, tabTitle);
 
-		// Check if tab has any data
-		if (data.headers.length === 0) {
-			return err({
-				type: 'EMPTY_TAB',
-				message: `The tab "${tabTitle}" appears to be empty`
-			});
-		}
+    // Check if tab has any data
+    if (data.headers.length === 0) {
+      return err({
+        type: 'EMPTY_TAB',
+        message: `The tab "${tabTitle}" appears to be empty`
+      });
+    }
 
-		return ok(data);
-	} catch (error) {
-		const sheetsError = error as GoogleSheetsError;
+    return ok(data);
+  } catch (error) {
+    const sheetsError = error as GoogleSheetsError;
 
-		switch (sheetsError.type) {
-			case 'NOT_AUTHENTICATED':
-				return err({
-					type: 'NOT_AUTHENTICATED',
-					message: sheetsError.message
-				});
-			case 'PERMISSION_DENIED':
-				return err({
-					type: 'PERMISSION_DENIED',
-					message: sheetsError.message
-				});
-			case 'NOT_FOUND':
-				return err({
-					type: 'NOT_FOUND',
-					message: sheetsError.message
-				});
-			default:
-				return err({
-					type: 'API_ERROR',
-					message: sheetsError.message || 'Failed to fetch tab data'
-				});
-		}
-	}
+    switch (sheetsError.type) {
+      case 'NOT_AUTHENTICATED':
+        return err({
+          type: 'NOT_AUTHENTICATED',
+          message: sheetsError.message
+        });
+      case 'PERMISSION_DENIED':
+        return err({
+          type: 'PERMISSION_DENIED',
+          message: sheetsError.message
+        });
+      case 'NOT_FOUND':
+        return err({
+          type: 'NOT_FOUND',
+          message: sheetsError.message
+        });
+      default:
+        return err({
+          type: 'API_ERROR',
+          message: sheetsError.message || 'Failed to fetch tab data'
+        });
+    }
+  }
 }

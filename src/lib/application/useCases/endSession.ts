@@ -6,7 +6,7 @@ import { ok } from '$lib/types/result';
  * Input for ending (archiving) active sessions.
  */
 export interface EndSessionInput {
-	programId: string;
+  programId: string;
 }
 
 /**
@@ -18,20 +18,20 @@ export interface EndSessionInput {
  * Returns the number of sessions archived.
  */
 export async function endSession(
-	deps: {
-		sessionRepo: SessionRepository;
-	},
-	input: EndSessionInput
+  deps: {
+    sessionRepo: SessionRepository;
+  },
+  input: EndSessionInput
 ): Promise<Result<number, never>> {
-	const sessions = await deps.sessionRepo.listByProgramId(input.programId);
-	const published = sessions.filter((s) => s.status === 'PUBLISHED');
+  const sessions = await deps.sessionRepo.listByProgramId(input.programId);
+  const published = sessions.filter((s) => s.status === 'PUBLISHED');
 
-	for (const session of published) {
-		await deps.sessionRepo.update({
-			...session,
-			status: 'ARCHIVED'
-		});
-	}
+  for (const session of published) {
+    await deps.sessionRepo.update({
+      ...session,
+      status: 'ARCHIVED'
+    });
+  }
 
-	return ok(published.length);
+  return ok(published.length);
 }

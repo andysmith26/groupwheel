@@ -15,34 +15,34 @@
  * by the grouping algorithm based on roster size.
  */
 export interface Group {
-	/**
-	 * Unique identifier for this group.
-	 * Referenced by StudentPreference.likeGroupIds and avoidGroupIds.
-	 */
-	id: string;
+  /**
+   * Unique identifier for this group.
+   * Referenced by StudentPreference.likeGroupIds and avoidGroupIds.
+   */
+  id: string;
 
-	/**
-	 * Human-readable label (e.g., "Group 1", "Alpha Team", "Table A").
-	 */
-	name: string;
+  /**
+   * Human-readable label (e.g., "Group 1", "Alpha Team", "Table A").
+   */
+  name: string;
 
-	/**
-	 * Maximum number of students that can be assigned to this group.
-	 * Null indicates no explicit limit.
-	 */
-	capacity: number | null;
+  /**
+   * Maximum number of students that can be assigned to this group.
+   * Null indicates no explicit limit.
+   */
+  capacity: number | null;
 
-	/**
-	 * List of Student.id values currently assigned to this group.
-	 * Maintained by grouping algorithms and manual adjustments.
-	 */
-	memberIds: string[];
+  /**
+   * List of Student.id values currently assigned to this group.
+   * Maintained by grouping algorithms and manual adjustments.
+   */
+  memberIds: string[];
 
-	/**
-	 * Optional staff member who leads this group.
-	 * Used for advisory/homeroom scenarios.
-	 */
-	leaderStaffId?: string;
+  /**
+   * Optional staff member who leads this group.
+   * Used for advisory/homeroom scenarios.
+   */
+  leaderStaffId?: string;
 }
 
 /**
@@ -67,41 +67,41 @@ export type Mode = GroupCreationMode;
  * @throws Error if required fields are missing or invalid.
  */
 export function createGroup(input: {
-	id: string;
-	name: string;
-	capacity?: number | null;
-	memberIds?: string[];
-	leaderStaffId?: string;
+  id: string;
+  name: string;
+  capacity?: number | null;
+  memberIds?: string[];
+  leaderStaffId?: string;
 }): Group {
-	if (!input.id || typeof input.id !== 'string') {
-		throw new Error('Group id is required and must be a string');
-	}
-	if (!input.name || typeof input.name !== 'string' || input.name.trim().length === 0) {
-		throw new Error('Group name must not be empty');
-	}
+  if (!input.id || typeof input.id !== 'string') {
+    throw new Error('Group id is required and must be a string');
+  }
+  if (!input.name || typeof input.name !== 'string' || input.name.trim().length === 0) {
+    throw new Error('Group name must not be empty');
+  }
 
-	let normalizedCapacity: number | null = null;
-	if (input.capacity === undefined || input.capacity === null) {
-		normalizedCapacity = null;
-	} else if (
-		Number.isNaN(input.capacity) ||
-		input.capacity === Infinity ||
-		input.capacity === -Infinity
-	) {
-		normalizedCapacity = null;
-	} else {
-		normalizedCapacity = input.capacity;
-	}
+  let normalizedCapacity: number | null = null;
+  if (input.capacity === undefined || input.capacity === null) {
+    normalizedCapacity = null;
+  } else if (
+    Number.isNaN(input.capacity) ||
+    input.capacity === Infinity ||
+    input.capacity === -Infinity
+  ) {
+    normalizedCapacity = null;
+  } else {
+    normalizedCapacity = input.capacity;
+  }
 
-	const uniqueMemberIds = Array.from(new Set((input.memberIds ?? []).map((id) => id)));
+  const uniqueMemberIds = Array.from(new Set((input.memberIds ?? []).map((id) => id)));
 
-	return {
-		id: input.id,
-		name: input.name.trim(),
-		capacity: normalizedCapacity,
-		memberIds: uniqueMemberIds,
-		leaderStaffId: input.leaderStaffId
-	};
+  return {
+    id: input.id,
+    name: input.name.trim(),
+    capacity: normalizedCapacity,
+    memberIds: uniqueMemberIds,
+    leaderStaffId: input.leaderStaffId
+  };
 }
 
 /**
@@ -109,30 +109,30 @@ export function createGroup(input: {
  * Returns Infinity if the group has no capacity limit.
  */
 export function getRemainingCapacity(group: Group): number {
-	if (group.capacity === null) {
-		return Infinity;
-	}
-	return Math.max(0, group.capacity - group.memberIds.length);
+  if (group.capacity === null) {
+    return Infinity;
+  }
+  return Math.max(0, group.capacity - group.memberIds.length);
 }
 
 /**
  * Check if a group is at capacity.
  */
 export function isGroupFull(group: Group): boolean {
-	if (group.capacity === null) {
-		return false;
-	}
-	return group.memberIds.length >= group.capacity;
+  if (group.capacity === null) {
+    return false;
+  }
+  return group.memberIds.length >= group.capacity;
 }
 
 /**
  * Check if a group is over capacity (more members than capacity allows).
  */
 export function isOverEnrolled(group: Group): boolean {
-	if (group.capacity === null) {
-		return false;
-	}
-	return group.memberIds.length > group.capacity;
+  if (group.capacity === null) {
+    return false;
+  }
+  return group.memberIds.length > group.capacity;
 }
 
 /**
@@ -140,8 +140,8 @@ export function isOverEnrolled(group: Group): boolean {
  * Returns 0 if not over capacity or capacity is unlimited.
  */
 export function getOverEnrollmentCount(group: Group): number {
-	if (group.capacity === null) {
-		return 0;
-	}
-	return Math.max(0, group.memberIds.length - group.capacity);
+  if (group.capacity === null) {
+    return 0;
+  }
+  return Math.max(0, group.memberIds.length - group.capacity);
 }

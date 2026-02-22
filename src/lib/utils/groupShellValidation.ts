@@ -3,8 +3,8 @@
  */
 
 export interface GroupShell {
-	name: string;
-	capacity: number | null;
+  name: string;
+  capacity: number | null;
 }
 
 /**
@@ -20,22 +20,22 @@ export interface GroupShell {
  * @returns true if the groups are valid, false otherwise
  */
 export function validateGroupShells(groups: GroupShell[]): boolean {
-	if (groups.length === 0) return false;
+  if (groups.length === 0) return false;
 
-	const seenNames = new Set<string>();
-	for (const group of groups) {
-		const trimmedName = group.name.trim();
+  const seenNames = new Set<string>();
+  for (const group of groups) {
+    const trimmedName = group.name.trim();
 
-		// Empty name is invalid
-		if (trimmedName.length === 0) return false;
+    // Empty name is invalid
+    if (trimmedName.length === 0) return false;
 
-		// Duplicate names are invalid (case-insensitive)
-		if (seenNames.has(trimmedName.toLowerCase())) return false;
-		seenNames.add(trimmedName.toLowerCase());
+    // Duplicate names are invalid (case-insensitive)
+    if (seenNames.has(trimmedName.toLowerCase())) return false;
+    seenNames.add(trimmedName.toLowerCase());
 
-		// Negative or zero capacity is invalid
-		if (group.capacity !== null && group.capacity <= 0) return false;
-	}
+    // Negative or zero capacity is invalid
+    if (group.capacity !== null && group.capacity <= 0) return false;
+  }
 
-	return true;
+  return true;
 }

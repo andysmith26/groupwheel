@@ -9,27 +9,27 @@
 import type { NetworkStatusPort } from '$lib/application/ports/NetworkStatusPort';
 
 export class BrowserNetworkStatusAdapter implements NetworkStatusPort {
-	isOnline(): boolean {
-		if (typeof navigator === 'undefined') {
-			return true; // SSR fallback
-		}
-		return navigator.onLine;
-	}
+  isOnline(): boolean {
+    if (typeof navigator === 'undefined') {
+      return true; // SSR fallback
+    }
+    return navigator.onLine;
+  }
 
-	onStatusChange(callback: (online: boolean) => void): () => void {
-		if (typeof window === 'undefined') {
-			return () => {}; // SSR fallback
-		}
+  onStatusChange(callback: (online: boolean) => void): () => void {
+    if (typeof window === 'undefined') {
+      return () => {}; // SSR fallback
+    }
 
-		const handleOnline = () => callback(true);
-		const handleOffline = () => callback(false);
+    const handleOnline = () => callback(true);
+    const handleOffline = () => callback(false);
 
-		window.addEventListener('online', handleOnline);
-		window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
-		return () => {
-			window.removeEventListener('online', handleOnline);
-			window.removeEventListener('offline', handleOffline);
-		};
-	}
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }
 }

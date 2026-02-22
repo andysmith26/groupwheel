@@ -10,38 +10,38 @@ import type { SyncService } from '$lib/application/ports';
 import type { Student } from '$lib/domain';
 
 export class SyncedStudentRepository implements StudentRepository {
-	constructor(
-		private readonly local: StudentRepository,
-		private readonly sync: SyncService
-	) {}
+  constructor(
+    private readonly local: StudentRepository,
+    private readonly sync: SyncService
+  ) {}
 
-	async getById(id: string): Promise<Student | null> {
-		return this.local.getById(id);
-	}
+  async getById(id: string): Promise<Student | null> {
+    return this.local.getById(id);
+  }
 
-	async getByIds(ids: string[]): Promise<Student[]> {
-		return this.local.getByIds(ids);
-	}
+  async getByIds(ids: string[]): Promise<Student[]> {
+    return this.local.getByIds(ids);
+  }
 
-	async saveMany(students: Student[]): Promise<void> {
-		await this.local.saveMany(students);
+  async saveMany(students: Student[]): Promise<void> {
+    await this.local.saveMany(students);
 
-		if (this.sync.isEnabled()) {
-			for (const student of students) {
-				await this.sync.queueForSync('students', 'save', student.id);
-			}
-		}
-	}
+    if (this.sync.isEnabled()) {
+      for (const student of students) {
+        await this.sync.queueForSync('students', 'save', student.id);
+      }
+    }
+  }
 
-	async listByCanonicalId(canonicalId: string): Promise<Student[]> {
-		return this.local.listByCanonicalId(canonicalId);
-	}
+  async listByCanonicalId(canonicalId: string): Promise<Student[]> {
+    return this.local.listByCanonicalId(canonicalId);
+  }
 
-	async searchByName(query: StudentSearchQuery): Promise<Student[]> {
-		return this.local.searchByName(query);
-	}
+  async searchByName(query: StudentSearchQuery): Promise<Student[]> {
+    return this.local.searchByName(query);
+  }
 
-	async listAll(): Promise<Student[]> {
-		return this.local.listAll();
-	}
+  async listAll(): Promise<Student[]> {
+    return this.local.listAll();
+  }
 }

@@ -7,13 +7,13 @@ import type { IdGenerator } from '$lib/application/ports/IdGenerator';
  * browsers and in recent Node versions (which Vite uses under the hood).
  */
 export class UuidIdGenerator implements IdGenerator {
-	generateId(): string {
-		if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-			return crypto.randomUUID();
-		}
+  generateId(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
 
-		// Fallback for environments without crypto.randomUUID (should be rare).
-		// This is not cryptographically strong; it's only for non-sensitive IDs.
-		return 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-	}
+    // Fallback for environments without crypto.randomUUID (should be rare).
+    // This is not cryptographically strong; it's only for non-sensitive IDs.
+    return 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
 }

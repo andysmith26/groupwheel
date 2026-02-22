@@ -69,6 +69,7 @@ interface Props {
 ```
 
 **Component contains:**
+
 - Group size selector ([-] number [+]) — range 2 to min(8, floor(studentCount/2))
 - Group count display with "smaller group" note
 - "Avoid recent groupmates" checkbox (only if sessions with PUBLISHED/ARCHIVED exist)
@@ -77,6 +78,7 @@ interface Props {
 - Loading spinner during generation
 
 **On generate:**
+
 1. Call `quickGenerateGroups(env, { programId, groupSize, groupNamePrefix: 'Group', avoidRecentGroupmates })`
 2. On success: call `onGenerated(scenario)` — parent handles transition to editing
 3. On error: display error message inline
@@ -88,12 +90,14 @@ interface Props {
 Replace the `EmptyWorkspaceState` rendering block (around lines 1550-1551):
 
 **Current:**
+
 ```svelte
 {:else if !scenario || !view}
   <EmptyWorkspaceState studentCount={students.length} {preferencesCount} />
 ```
 
 **New:**
+
 ```svelte
 {:else if !scenario || !view}
   <div class="mx-auto max-w-lg py-8">
@@ -109,6 +113,7 @@ Replace the `EmptyWorkspaceState` rendering block (around lines 1550-1551):
 ```
 
 **Add handler:**
+
 ```typescript
 function handleInlineGenerated(newScenario: Scenario) {
   scenario = newScenario;
@@ -118,6 +123,7 @@ function handleInlineGenerated(newScenario: Scenario) {
 ```
 
 **Add import:**
+
 ```typescript
 import InlineGroupGenerator from '$lib/components/workspace/InlineGroupGenerator.svelte';
 ```
@@ -132,7 +138,10 @@ The Start page has a special empty state when studentCount === 0 ("Add students 
 {#if studentCount === 0}
   <div class="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
     <p class="text-gray-600">Add students to get started.</p>
-    <a href="/activities/{programId}" class="mt-3 inline-block text-sm font-medium text-blue-600 hover:text-blue-700">
+    <a
+      href="/activities/{programId}"
+      class="mt-3 inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
+    >
       Go to activity setup
     </a>
   </div>
@@ -161,6 +170,7 @@ This preserves any bookmarks/links to `/start`. Full deletion in Phase 5.
 **Modify:** `src/routes/activities/[id]/+page.svelte`
 
 If there are any links to `/start` on this page, change them to `/workspace`. Look for:
+
 - The "Generate Groups" / "Start" button in the activity detail page
 - Any navigation that goes to `/start`
 
@@ -174,13 +184,13 @@ Since it's fully replaced by `InlineGroupGenerator`. Check for any other imports
 
 ## Files Changed Summary
 
-| File | Action |
-|------|--------|
-| `src/lib/components/workspace/InlineGroupGenerator.svelte` | CREATE |
-| `src/routes/activities/[id]/workspace/+page.svelte` | MODIFY (replace EmptyWorkspaceState with InlineGroupGenerator) |
-| `src/routes/activities/[id]/start/+page.svelte` | MODIFY (add redirect to /workspace) |
-| `src/routes/activities/[id]/+page.svelte` | MODIFY (update /start links to /workspace) |
-| `src/lib/components/workspace/EmptyWorkspaceState.svelte` | DELETE |
+| File                                                       | Action                                                         |
+| ---------------------------------------------------------- | -------------------------------------------------------------- |
+| `src/lib/components/workspace/InlineGroupGenerator.svelte` | CREATE                                                         |
+| `src/routes/activities/[id]/workspace/+page.svelte`        | MODIFY (replace EmptyWorkspaceState with InlineGroupGenerator) |
+| `src/routes/activities/[id]/start/+page.svelte`            | MODIFY (add redirect to /workspace)                            |
+| `src/routes/activities/[id]/+page.svelte`                  | MODIFY (update /start links to /workspace)                     |
+| `src/lib/components/workspace/EmptyWorkspaceState.svelte`  | DELETE                                                         |
 
 ## Do NOT Touch
 

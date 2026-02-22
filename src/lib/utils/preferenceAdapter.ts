@@ -6,11 +6,11 @@ import { extractStudentPreference } from '$lib/domain/preference';
  * Falls back to empty preferences when payloads are malformed.
  */
 export function buildPreferenceMap(preferences: Preference[]): Record<string, StudentPreference> {
-	const map: Record<string, StudentPreference> = {};
+  const map: Record<string, StudentPreference> = {};
 
-	for (const pref of preferences) {
-		map[pref.studentId] = extractStudentPreference(pref);
-	}
+  for (const pref of preferences) {
+    map[pref.studentId] = extractStudentPreference(pref);
+  }
 
-	return map;
+  return map;
 }

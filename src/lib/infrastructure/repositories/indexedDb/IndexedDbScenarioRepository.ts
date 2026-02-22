@@ -9,36 +9,36 @@ const STORE_NAME = 'scenarios';
  * Converts Date objects to ISO strings for storage.
  */
 function serializeScenario(scenario: Scenario): object {
-	const serializable = {
-		...scenario,
-		createdAt: scenario.createdAt.toISOString(),
-		// Ensure algorithmConfig is cloneable; fall back to null if not
-		algorithmConfig: sanitizeConfig(scenario.algorithmConfig)
-	};
+  const serializable = {
+    ...scenario,
+    createdAt: scenario.createdAt.toISOString(),
+    // Ensure algorithmConfig is cloneable; fall back to null if not
+    algorithmConfig: sanitizeConfig(scenario.algorithmConfig)
+  };
 
-	// Ensure the whole payload is structured-cloneable for IndexedDB
-	try {
-		// structuredClone available in modern browsers
-		return structuredClone(serializable);
-	} catch (error) {
-		console.warn('Structured clone failed for scenario; falling back to JSON clone', {
-			scenarioId: scenario.id,
-			error
-		});
-		try {
-			return JSON.parse(JSON.stringify(serializable));
-		} catch (jsonError) {
-			console.error('Failed to serialize scenario for IndexedDB', {
-				scenarioId: scenario.id,
-				error: jsonError
-			});
-			// Last resort: drop algorithmConfig to maximize chance of persistence
-			return {
-				...serializable,
-				algorithmConfig: null
-			};
-		}
-	}
+  // Ensure the whole payload is structured-cloneable for IndexedDB
+  try {
+    // structuredClone available in modern browsers
+    return structuredClone(serializable);
+  } catch (error) {
+    console.warn('Structured clone failed for scenario; falling back to JSON clone', {
+      scenarioId: scenario.id,
+      error
+    });
+    try {
+      return JSON.parse(JSON.stringify(serializable));
+    } catch (jsonError) {
+      console.error('Failed to serialize scenario for IndexedDB', {
+        scenarioId: scenario.id,
+        error: jsonError
+      });
+      // Last resort: drop algorithmConfig to maximize chance of persistence
+      return {
+        ...serializable,
+        algorithmConfig: null
+      };
+    }
+  }
 }
 
 /**
@@ -46,30 +46,30 @@ function serializeScenario(scenario: Scenario): object {
  * Converts ISO string dates back to Date objects.
  */
 function deserializeScenario(data: Record<string, unknown>): Scenario {
-	return {
-		...(data as unknown as Scenario),
-		createdAt: new Date(data.createdAt as string)
-	};
+  return {
+    ...(data as unknown as Scenario),
+    createdAt: new Date(data.createdAt as string)
+  };
 }
 
 /**
  * Attempts to make an arbitrary config value safe for structured cloning / IndexedDB.
  */
 function sanitizeConfig(config: unknown): unknown {
-	if (config === undefined) return undefined;
+  if (config === undefined) return undefined;
 
-	try {
-		return structuredClone(config);
-	} catch {
-		// Ignore and try JSON clone
-	}
+  try {
+    return structuredClone(config);
+  } catch {
+    // Ignore and try JSON clone
+  }
 
-	try {
-		return JSON.parse(JSON.stringify(config));
-	} catch (error) {
-		console.warn('Dropping non-serializable algorithmConfig', { error });
-		return null;
-	}
+  try {
+    return JSON.parse(JSON.stringify(config));
+  } catch (error) {
+    console.warn('Dropping non-serializable algorithmConfig', { error });
+    return null;
+  }
 }
 
 /**
@@ -82,71 +82,71 @@ function sanitizeConfig(config: unknown): unknown {
  * should use InMemoryScenarioRepository as a fallback.
  */
 export class IndexedDbScenarioRepository implements ScenarioRepository {
-	async getById(id: string): Promise<Scenario | null> {
-		if (typeof indexedDB === 'undefined') return null;
+  async getById(id: string): Promise<Scenario | null> {
+    if (typeof indexedDB === 'undefined') return null;
 
-		const db = await openDb();
-		return new Promise((resolve, reject) => {
-			const tx = db.transaction(STORE_NAME, 'readonly');
-			const store = tx.objectStore(STORE_NAME);
-			const request = store.get(id);
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(id);
 
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => {
-				const data = request.result;
-				resolve(data ? deserializeScenario(data) : null);
-			};
-		});
-	}
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const data = request.result;
+        resolve(data ? deserializeScenario(data) : null);
+      };
+    });
+  }
 
-	async getByProgramId(programId: string): Promise<Scenario | null> {
-		if (typeof indexedDB === 'undefined') return null;
+  async getByProgramId(programId: string): Promise<Scenario | null> {
+    if (typeof indexedDB === 'undefined') return null;
 
-		const db = await openDb();
-		return new Promise((resolve, reject) => {
-			const tx = db.transaction(STORE_NAME, 'readonly');
-			const store = tx.objectStore(STORE_NAME);
-			const index = store.index('programId');
-			const request = index.get(programId);
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const index = store.index('programId');
+      const request = index.get(programId);
 
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => {
-				const data = request.result;
-				resolve(data ? deserializeScenario(data) : null);
-			};
-		});
-	}
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const data = request.result;
+        resolve(data ? deserializeScenario(data) : null);
+      };
+    });
+  }
 
-	async save(scenario: Scenario): Promise<void> {
-		if (typeof indexedDB === 'undefined') return;
+  async save(scenario: Scenario): Promise<void> {
+    if (typeof indexedDB === 'undefined') return;
 
-		const db = await openDb();
-		return new Promise((resolve, reject) => {
-			const tx = db.transaction(STORE_NAME, 'readwrite');
-			const store = tx.objectStore(STORE_NAME);
-			const request = store.put(serializeScenario(scenario));
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.put(serializeScenario(scenario));
 
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve();
-		});
-	}
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
 
-	async update(scenario: Scenario): Promise<void> {
-		// In IndexedDB, put() handles both insert and update
-		return this.save(scenario);
-	}
+  async update(scenario: Scenario): Promise<void> {
+    // In IndexedDB, put() handles both insert and update
+    return this.save(scenario);
+  }
 
-	async delete(id: string): Promise<void> {
-		if (typeof indexedDB === 'undefined') return;
+  async delete(id: string): Promise<void> {
+    if (typeof indexedDB === 'undefined') return;
 
-		const db = await openDb();
-		return new Promise((resolve, reject) => {
-			const tx = db.transaction(STORE_NAME, 'readwrite');
-			const store = tx.objectStore(STORE_NAME);
-			const request = store.delete(id);
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.delete(id);
 
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve();
-		});
-	}
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
 }

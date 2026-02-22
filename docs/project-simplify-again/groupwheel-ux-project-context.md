@@ -201,42 +201,42 @@ Add a `handleGenerateAndShow` function that chains `quickGenerateGroups` → `sh
 
 ```typescript
 async function handleGenerateAndShow() {
-	if (!env || !program) return;
-	isGeneratingNew = true;
-	generateAndShowError = null;
+  if (!env || !program) return;
+  isGeneratingNew = true;
+  generateAndShowError = null;
 
-	saveGenerationSettings(program.id, generationSettings);
+  saveGenerationSettings(program.id, generationSettings);
 
-	const genResult = await quickGenerateGroups(env, {
-		programId: program.id,
-		groupSize: generationSettings.groupSize,
-		groupNamePrefix: 'Group',
-		avoidRecentGroupmates: generationSettings.avoidRecentGroupmates,
-		lookbackSessions: generationSettings.lookbackSessions
-	});
+  const genResult = await quickGenerateGroups(env, {
+    programId: program.id,
+    groupSize: generationSettings.groupSize,
+    groupNamePrefix: 'Group',
+    avoidRecentGroupmates: generationSettings.avoidRecentGroupmates,
+    lookbackSessions: generationSettings.lookbackSessions
+  });
 
-	if (isErr(genResult)) {
-		generateAndShowError = mapGenerateError(genResult.error);
-		isGeneratingNew = false;
-		return;
-	}
+  if (isErr(genResult)) {
+    generateAndShowError = mapGenerateError(genResult.error);
+    isGeneratingNew = false;
+    return;
+  }
 
-	const newScenario = genResult.value;
+  const newScenario = genResult.value;
 
-	const showResult = await showToClass(env, {
-		programId: program.id,
-		scenarioId: newScenario.id
-	});
+  const showResult = await showToClass(env, {
+    programId: program.id,
+    scenarioId: newScenario.id
+  });
 
-	if (isErr(showResult)) {
-		// Graceful degradation: groups exist, couldn't publish
-		generateAndShowError = `Groups generated but failed to show: ${showResult.error.type}`;
-		goto(`/activities/${program.id}/workspace`);
-		return;
-	}
+  if (isErr(showResult)) {
+    // Graceful degradation: groups exist, couldn't publish
+    generateAndShowError = `Groups generated but failed to show: ${showResult.error.type}`;
+    goto(`/activities/${program.id}/workspace`);
+    return;
+  }
 
-	isGeneratingNew = false;
-	goto(`/activities/${program.id}/live`);
+  isGeneratingNew = false;
+  goto(`/activities/${program.id}/live`);
 }
 ```
 
@@ -293,8 +293,8 @@ On dashboard mount, if `activities.length === 1` AND no explicit-visit signal, r
 ```typescript
 // After activities load in src/routes/activities/+page.svelte:
 if (activities.length === 1 && !explicitDashboardVisit) {
-	goto(`/activities/${activities[0].program.id}`, { replaceState: true });
-	return;
+  goto(`/activities/${activities[0].program.id}`, { replaceState: true });
+  return;
 }
 ```
 
@@ -350,16 +350,16 @@ Update the "← Activities" breadcrumb on the activity detail page to include th
 ```typescript
 // BEFORE:
 export function buildRecentGroupmatesMap(
-	placements: Placement[],
-	studentIds: string[],
-	limitToMostRecent: boolean = true
+  placements: Placement[],
+  studentIds: string[],
+  limitToMostRecent: boolean = true
 ): Map<string, Set<string>>;
 
 // AFTER:
 export function buildRecentGroupmatesMap(
-	placements: Placement[],
-	studentIds: string[],
-	lookbackSessions: number = 1 // 1 = identical behavior to old limitToMostRecent: true
+  placements: Placement[],
+  studentIds: string[],
+  lookbackSessions: number = 1 // 1 = identical behavior to old limitToMostRecent: true
 ): Map<string, Set<string>>;
 ```
 
@@ -367,15 +367,15 @@ New logic: sort sessions by most-recent placement date descending, take the top 
 
 ```typescript
 const sessionsByRecency = [...placementsBySession.entries()]
-	.map(([sessionId, sessionPlacements]) => ({
-		sessionId,
-		latestDate: Math.max(...sessionPlacements.map((p) => p.startDate.getTime()))
-	}))
-	.sort((a, b) => b.latestDate - a.latestDate);
+  .map(([sessionId, sessionPlacements]) => ({
+    sessionId,
+    latestDate: Math.max(...sessionPlacements.map((p) => p.startDate.getTime()))
+  }))
+  .sort((a, b) => b.latestDate - a.latestDate);
 
 const sessionsToProcess = sessionsByRecency
-	.slice(0, Math.max(0, lookbackSessions))
-	.map((s) => s.sessionId);
+  .slice(0, Math.max(0, lookbackSessions))
+  .map((s) => s.sessionId);
 ```
 
 **This is a backward-incompatible signature change. Update all callers in the same PR:**
@@ -388,10 +388,10 @@ const sessionsToProcess = sessionsByRecency
 
 ```typescript
 export interface GenerationSettings {
-	groupSize: number;
-	avoidRecentGroupmates: boolean;
-	lookbackSessions: number; // NEW — default: 3, valid range: 1–10
-	customShells?: GroupShell[];
+  groupSize: number;
+  avoidRecentGroupmates: boolean;
+  lookbackSessions: number; // NEW — default: 3, valid range: 1–10
+  customShells?: GroupShell[];
 }
 ```
 

@@ -3,6 +3,7 @@
 ## Problem Statement
 
 Teachers need to track the same student across multiple activities. Currently:
+
 - Each import creates new student records with unique UUIDs
 - No matching or deduplication logic exists
 - Student history (preferences, groupings, observations) is fragmented per-activity
@@ -25,7 +26,7 @@ Teachers need to track the same student across multiple activities. Currently:
 
 ```typescript
 interface Student {
-  id: string;           // Currently UUID per import
+  id: string; // Currently UUID per import
   firstName: string;
   lastName?: string;
   gradeLevel?: string;
@@ -46,10 +47,10 @@ interface Student {
 
 ### Existing History Infrastructure
 
-| Entity | Links to Student | File |
-|--------|------------------|------|
-| `Placement` | `studentId` | `src/lib/domain/placement.ts:20-51` |
-| `Preference` | `studentId` | `src/lib/domain/preference.ts:95-111` |
+| Entity        | Links to Student   | File                                  |
+| ------------- | ------------------ | ------------------------------------- |
+| `Placement`   | `studentId`        | `src/lib/domain/placement.ts:20-51`   |
+| `Preference`  | `studentId`        | `src/lib/domain/preference.ts:95-111` |
 | `Observation` | Indirect via group | `src/lib/domain/observation.ts:21-43` |
 
 ### Existing History Use Cases
@@ -66,12 +67,12 @@ interface Student {
 
 ### Layers Affected
 
-| Layer | Impact |
-|-------|--------|
-| **Domain** | New `StudentIdentity` entity or extend `Student` with `canonicalId` |
-| **Application** | New use cases: `findMatchingStudents`, `mergeStudentIdentities`, `getStudentProfile` |
-| **Infrastructure** | Extend `StudentRepository` with search/matching methods |
-| **UI** | New matching UI during import, new student profile page |
+| Layer              | Impact                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| **Domain**         | New `StudentIdentity` entity or extend `Student` with `canonicalId`                  |
+| **Application**    | New use cases: `findMatchingStudents`, `mergeStudentIdentities`, `getStudentProfile` |
+| **Infrastructure** | Extend `StudentRepository` with search/matching methods                              |
+| **UI**             | New matching UI during import, new student profile page                              |
 
 ### Anti-patterns to Avoid
 
@@ -95,25 +96,27 @@ interface Student {
 **What it does differently**: Introduces a separate `StudentIdentity` concept. Each imported `Student` record has a `canonicalId` pointing to the shared identity. History queries use `canonicalId`.
 
 **Domain changes**:
+
 ```typescript
 // New entity
 interface StudentIdentity {
-  id: string;                    // The canonical ID
-  displayName: string;           // Preferred display name
-  knownNames: string[];          // All variants seen
+  id: string; // The canonical ID
+  displayName: string; // Preferred display name
+  knownNames: string[]; // All variants seen
   createdAt: Date;
 }
 
 // Extended Student
 interface Student {
-  id: string;                    // Import-specific ID
-  canonicalId: string;           // Links to StudentIdentity
+  id: string; // Import-specific ID
+  canonicalId: string; // Links to StudentIdentity
   firstName: string;
   // ... rest unchanged
 }
 ```
 
 **Files created/modified**:
+
 - `src/lib/domain/studentIdentity.ts` (NEW)
 - `src/lib/domain/student.ts` (add `canonicalId` field)
 - `src/lib/application/ports/StudentIdentityRepository.ts` (NEW)
@@ -125,6 +128,7 @@ interface Student {
 - `src/routes/students/[id]/+page.svelte` (NEW)
 
 **Trade-offs**:
+
 - Implementation effort: **Significant** - new entity, new repository, schema migration
 - Best-practice alignment: **Canonical** - clean separation of import vs identity
 - Maintenance burden: **Manageable** - clear model but two-entity complexity
@@ -136,12 +140,14 @@ interface Student {
 **What it does differently**: When a match is confirmed, merge student records by rewriting all historical references to point to the canonical student ID. Delete the duplicate record.
 
 **Domain changes**:
+
 ```typescript
 // No new entities. Student unchanged.
 // New use case handles the merge operation.
 ```
 
 **Files created/modified**:
+
 - `src/lib/application/useCases/findMatchingStudents.ts` (NEW)
 - `src/lib/application/useCases/mergeStudents.ts` (NEW) - rewrites Placement.studentId, Preference.studentId, etc.
 - `src/lib/application/useCases/getStudentProfile.ts` (NEW)
@@ -150,6 +156,7 @@ interface Student {
 - `src/routes/students/[id]/+page.svelte` (NEW)
 
 **Trade-offs**:
+
 - Implementation effort: **Moderate** - no new entities, but reference rewriting is complex
 - Best-practice alignment: **Acceptable** - simple model but destructive merge operation
 - Maintenance burden: **Complex** - merge operation must update many tables atomically
@@ -161,16 +168,18 @@ interface Student {
 **What it does differently**: Adds a `linkedStudentIds` field to Student. Teachers explicitly link students as "the same person" via a UI action. History queries aggregate across linked IDs.
 
 **Domain changes**:
+
 ```typescript
 interface Student {
   id: string;
   firstName: string;
-  linkedStudentIds?: string[];   // Other IDs that are "the same person"
+  linkedStudentIds?: string[]; // Other IDs that are "the same person"
   // ... rest unchanged
 }
 ```
 
 **Files created/modified**:
+
 - `src/lib/domain/student.ts` (add `linkedStudentIds`)
 - `src/lib/application/useCases/findMatchingStudents.ts` (NEW)
 - `src/lib/application/useCases/linkStudents.ts` (NEW)
@@ -180,6 +189,7 @@ interface Student {
 - `src/routes/students/[id]/+page.svelte` (NEW)
 
 **Trade-offs**:
+
 - Implementation effort: **Moderate** - simpler than A, cleaner than B
 - Best-practice alignment: **Acceptable** - lightweight but potential for orphaned links
 - Maintenance burden: **Manageable** - queries need to handle linked IDs
@@ -214,6 +224,7 @@ interface Student {
 ### Phase 1: Domain & Infrastructure Foundation
 
 1. **Create `StudentIdentity` entity** (`src/lib/domain/studentIdentity.ts`)
+
    ```typescript
    interface StudentIdentity {
      id: string;
@@ -229,6 +240,7 @@ interface Student {
    - Backward compatible: existing students without `canonicalId` use their own `id`
 
 3. **Create `StudentIdentityRepository` port** (`src/lib/application/ports/StudentIdentityRepository.ts`)
+
    ```typescript
    interface StudentIdentityRepository {
      getById(id: string): Promise<StudentIdentity | null>;
@@ -250,17 +262,18 @@ interface Student {
 ### Phase 2: Matching Use Cases
 
 6. **Create `findMatchingStudents` use case** (`src/lib/application/useCases/findMatchingStudents.ts`)
+
    ```typescript
    interface MatchCandidate {
      identity: StudentIdentity;
-     matchScore: number;  // 0-1 confidence
+     matchScore: number; // 0-1 confidence
      matchReason: string; // "Exact name match", "Similar first name", etc.
    }
 
    async function findMatchingStudents(
-     deps: { studentIdentityRepo, studentRepo },
+     deps: { studentIdentityRepo; studentRepo },
      input: { firstName: string; lastName?: string; limit?: number }
-   ): Promise<MatchCandidate[]>
+   ): Promise<MatchCandidate[]>;
    ```
 
    Matching logic:
@@ -278,7 +291,7 @@ interface Student {
    ```typescript
    interface StudentProfile {
      identity: StudentIdentity;
-     studentRecords: Student[];           // All import instances
+     studentRecords: Student[]; // All import instances
      placementHistory: PlacementWithSession[];
      preferences: Preference[];
      observations: Observation[];
@@ -340,11 +353,12 @@ interface Student {
 ### Database Schema
 
 Add to `db.ts`:
+
 ```typescript
 db.version(7).stores({
   // ... existing stores
   studentIdentities: 'id, userId',
-  students: 'id, canonicalId'  // Add canonicalId index
+  students: 'id, canonicalId' // Add canonicalId index
 });
 ```
 
@@ -417,29 +431,29 @@ db.version(7).stores({
 
 ### New Files
 
-| File | Purpose |
-|------|---------|
-| `src/lib/domain/studentIdentity.ts` | StudentIdentity entity |
-| `src/lib/application/ports/StudentIdentityRepository.ts` | Repository interface |
-| `src/lib/application/useCases/findMatchingStudents.ts` | Name matching logic |
-| `src/lib/application/useCases/createOrLinkStudent.ts` | Identity linking |
-| `src/lib/application/useCases/getStudentProfile.ts` | Aggregated profile data |
-| `src/lib/infrastructure/repositories/indexedDb/IndexedDbStudentIdentityRepository.ts` | Persistence |
-| `src/lib/infrastructure/repositories/inMemory/InMemoryStudentIdentityRepository.ts` | Testing |
-| `src/lib/components/import/StudentMatchingReview.svelte` | Batch matching UI |
-| `src/routes/students/[id]/+page.svelte` | Profile page |
+| File                                                                                  | Purpose                 |
+| ------------------------------------------------------------------------------------- | ----------------------- |
+| `src/lib/domain/studentIdentity.ts`                                                   | StudentIdentity entity  |
+| `src/lib/application/ports/StudentIdentityRepository.ts`                              | Repository interface    |
+| `src/lib/application/useCases/findMatchingStudents.ts`                                | Name matching logic     |
+| `src/lib/application/useCases/createOrLinkStudent.ts`                                 | Identity linking        |
+| `src/lib/application/useCases/getStudentProfile.ts`                                   | Aggregated profile data |
+| `src/lib/infrastructure/repositories/indexedDb/IndexedDbStudentIdentityRepository.ts` | Persistence             |
+| `src/lib/infrastructure/repositories/inMemory/InMemoryStudentIdentityRepository.ts`   | Testing                 |
+| `src/lib/components/import/StudentMatchingReview.svelte`                              | Batch matching UI       |
+| `src/routes/students/[id]/+page.svelte`                                               | Profile page            |
 
 ### Modified Files
 
-| File | Changes |
-|------|---------|
-| `src/lib/domain/student.ts` | Add `canonicalId` field |
-| `src/lib/application/ports/StudentRepository.ts` | Add search methods |
-| `src/lib/application/useCases/importRosterWithMapping.ts` | Integrate matching |
-| `src/lib/infrastructure/repositories/indexedDb/db.ts` | Add new store & indexes |
-| `src/lib/infrastructure/inMemoryEnvironment.ts` | Add StudentIdentityRepository |
-| `src/lib/services/appEnvUseCases.ts` | Add facade methods |
-| `src/lib/components/editing/StudentInfoTooltip.svelte` | Add profile link |
+| File                                                      | Changes                       |
+| --------------------------------------------------------- | ----------------------------- |
+| `src/lib/domain/student.ts`                               | Add `canonicalId` field       |
+| `src/lib/application/ports/StudentRepository.ts`          | Add search methods            |
+| `src/lib/application/useCases/importRosterWithMapping.ts` | Integrate matching            |
+| `src/lib/infrastructure/repositories/indexedDb/db.ts`     | Add new store & indexes       |
+| `src/lib/infrastructure/inMemoryEnvironment.ts`           | Add StudentIdentityRepository |
+| `src/lib/services/appEnvUseCases.ts`                      | Add facade methods            |
+| `src/lib/components/editing/StudentInfoTooltip.svelte`    | Add profile link              |
 
 ---
 
@@ -468,11 +482,13 @@ db.version(7).stores({
 ## Key Scenario: Mid-Year Re-Import
 
 Teacher imports roster at start of year (75 students, all new). Three months later, imports updated roster:
+
 - Some students left (not in new import)
 - Some students joined (new names)
 - Some students have name changes (hyphenated ↔ single, spelling, nicknames, or completely different)
 
 **The system must**:
+
 1. Auto-detect high-confidence matches → present for bulk confirmation
 2. Suggest possible matches for ambiguous cases → teacher confirms or rejects
 3. Flag unmatched imports → teacher selects existing or marks as new
@@ -494,23 +510,23 @@ interface MatchResult {
 
 interface MatchCandidate {
   identity: StudentIdentity;
-  score: number;        // 0-100
-  reasons: string[];    // ["Exact first name", "Similar last name (Smith → Smyth)"]
+  score: number; // 0-100
+  reasons: string[]; // ["Exact first name", "Similar last name (Smith → Smyth)"]
 }
 ```
 
 ### Scoring Rules
 
-| Condition | Score Contribution |
-|-----------|-------------------|
-| Exact first + last name | +100 (HIGH confidence) |
-| Exact first name | +50 |
-| Similar first name (Levenshtein ≤ 2) | +30 |
-| Similar first name (nickname match: "Alex" ↔ "Alexander") | +40 |
-| Exact last name | +30 |
-| Similar last name (Levenshtein ≤ 2) | +20 |
-| Hyphen variation ("Smith-Jones" ↔ "Smith" or "Jones") | +25 |
-| Same grade level | +10 |
+| Condition                                                  | Score Contribution     |
+| ---------------------------------------------------------- | ---------------------- |
+| Exact first + last name                                    | +100 (HIGH confidence) |
+| Exact first name                                           | +50                    |
+| Similar first name (Levenshtein ≤ 2)                       | +30                    |
+| Similar first name (nickname match: "Alex" ↔ "Alexander") | +40                    |
+| Exact last name                                            | +30                    |
+| Similar last name (Levenshtein ≤ 2)                        | +20                    |
+| Hyphen variation ("Smith-Jones" ↔ "Smith" or "Jones")     | +25                    |
+| Same grade level                                           | +10                    |
 
 ### Confidence Thresholds
 
@@ -522,18 +538,19 @@ interface MatchCandidate {
 ### Nickname Database
 
 Common nickname mappings (extensible):
+
 ```typescript
 const NICKNAMES: Record<string, string[]> = {
-  'alexander': ['alex', 'xander', 'lex'],
-  'elizabeth': ['liz', 'lizzy', 'beth', 'eliza'],
-  'william': ['will', 'bill', 'billy', 'liam'],
-  'katherine': ['kate', 'katie', 'kathy', 'kat'],
-  'michael': ['mike', 'mikey'],
-  'jennifer': ['jen', 'jenny'],
-  'christopher': ['chris'],
-  'nicholas': ['nick', 'nicky'],
-  'benjamin': ['ben', 'benji'],
-  'jonathan': ['jon', 'johnny'],
+  alexander: ['alex', 'xander', 'lex'],
+  elizabeth: ['liz', 'lizzy', 'beth', 'eliza'],
+  william: ['will', 'bill', 'billy', 'liam'],
+  katherine: ['kate', 'katie', 'kathy', 'kat'],
+  michael: ['mike', 'mikey'],
+  jennifer: ['jen', 'jenny'],
+  christopher: ['chris'],
+  nicholas: ['nick', 'nicky'],
+  benjamin: ['ben', 'benji'],
+  jonathan: ['jon', 'johnny']
   // ... expand as needed
 };
 ```
@@ -614,7 +631,7 @@ For 75 students, a sequential "one at a time" flow is too slow. Instead, use a t
 2. **Create `matchImportedStudents` use case**
    ```typescript
    async function matchImportedStudents(
-     deps: { studentIdentityRepo, studentRepo },
+     deps: { studentIdentityRepo; studentRepo },
      input: {
        importedStudents: { firstName: string; lastName?: string }[];
        poolId: string; // To check for "missing" students
@@ -624,7 +641,7 @@ For 75 students, a sequential "one at a time" flow is too slow. Instead, use a t
      needsReview: MatchResult[];
      newStudents: MatchResult[];
      missingFromImport: StudentIdentity[];
-   }>
+   }>;
    ```
 
 ### Phase 3: Matching UI

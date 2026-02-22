@@ -1,58 +1,61 @@
 import type {
-	GroupingAlgorithm,
-	StudentRepository,
-	PreferenceRepository,
-	PlacementRepository,
-	IdGenerator
+  GroupingAlgorithm,
+  StudentRepository,
+  PreferenceRepository,
+  PlacementRepository,
+  IdGenerator
 } from '$lib/application/ports';
 import { assignBalanced } from '$lib/algorithms/balanced-assignment';
-import { buildAvoidPairsFromPreferences, buildRecentGroupmatesMap } from '$lib/algorithms/buildConstraints';
+import {
+  buildAvoidPairsFromPreferences,
+  buildRecentGroupmatesMap
+} from '$lib/algorithms/buildConstraints';
 import type { GroupingConstraints } from '$lib/algorithms/types';
 import type { Student, Group, StudentPreference, Preference } from '$lib/domain';
 /**
  * Configuration options for the balanced grouping algorithm.
  */
 export interface BalancedGroupingConfig {
-	/**
-	 * Predefined groups to use. If not provided, groups will be generated automatically.
-	 */
-	groups?: Array<{ id?: string; name: string; capacity?: number | null }>;
+  /**
+   * Predefined groups to use. If not provided, groups will be generated automatically.
+   */
+  groups?: Array<{ id?: string; name: string; capacity?: number | null }>;
 
-	/**
-	 * Desired number of groups when auto-generating.
-	 */
-	targetGroupCount?: number;
+  /**
+   * Desired number of groups when auto-generating.
+   */
+  targetGroupCount?: number;
 
-	/** Minimum allowed group size when auto-generating. */
-	minGroupSize?: number;
+  /** Minimum allowed group size when auto-generating. */
+  minGroupSize?: number;
 
-	/** Maximum allowed group size when auto-generating. */
-	maxGroupSize?: number;
+  /** Maximum allowed group size when auto-generating. */
+  maxGroupSize?: number;
 
-	/**
-	 * Random seed for shuffling student order before assignment.
-	 * Different seeds produce different grouping results.
-	 */
-	seed?: number;
+  /**
+   * Random seed for shuffling student order before assignment.
+   * Different seeds produce different grouping results.
+   */
+  seed?: number;
 
-	/**
-	 * If true, enforce avoidStudentIds from preferences as "never together" constraints.
-	 * Default: true
-	 */
-	enforceAvoidPairs?: boolean;
+  /**
+   * If true, enforce avoidStudentIds from preferences as "never together" constraints.
+   * Default: true
+   */
+  enforceAvoidPairs?: boolean;
 
-	/**
-	 * If true, avoid placing students with the same groupmates from their most recent session.
-	 * Requires placementRepo to be provided.
-	 * Default: false
-	 */
-	avoidRecentGroupmates?: boolean;
+  /**
+   * If true, avoid placing students with the same groupmates from their most recent session.
+   * Requires placementRepo to be provided.
+   * Default: false
+   */
+  avoidRecentGroupmates?: boolean;
 
-	/**
-	 * Number of most recent sessions to consider when avoiding recent groupmates.
-	 * Default: 1
-	 */
-	lookbackSessions?: number;
+  /**
+   * Number of most recent sessions to consider when avoiding recent groupmates.
+   * Default: 1
+   */
+  lookbackSessions?: number;
 }
 
 /**
@@ -66,232 +69,228 @@ export interface BalancedGroupingConfig {
  * - Maps results back to the expected format
  */
 export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
-	constructor(
-		private studentRepo: StudentRepository,
-		private preferenceRepo: PreferenceRepository,
-		private idGenerator: IdGenerator,
-		private placementRepo?: PlacementRepository
-	) {}
+  constructor(
+    private studentRepo: StudentRepository,
+    private preferenceRepo: PreferenceRepository,
+    private idGenerator: IdGenerator,
+    private placementRepo?: PlacementRepository
+  ) {}
 
-	async generateGroups(params: {
-		programId: string;
-		studentIds: string[];
-		algorithmConfig?: unknown;
-	}): Promise<
-		| {
-				success: true;
-				groups: { id: string; name: string; capacity: number | null; memberIds: string[] }[];
-		  }
-		| { success: false; message: string }
-	> {
-		try {
-			// Validate inputs
-			if (!params.studentIds || params.studentIds.length === 0) {
-				return { success: false, message: 'No students provided for grouping' };
-			}
+  async generateGroups(params: {
+    programId: string;
+    studentIds: string[];
+    algorithmConfig?: unknown;
+  }): Promise<
+    | {
+        success: true;
+        groups: { id: string; name: string; capacity: number | null; memberIds: string[] }[];
+      }
+    | { success: false; message: string }
+  > {
+    try {
+      // Validate inputs
+      if (!params.studentIds || params.studentIds.length === 0) {
+        return { success: false, message: 'No students provided for grouping' };
+      }
 
-			// Fetch students
-			const students = await this.studentRepo.getByIds(params.studentIds);
-			if (students.length === 0) {
-				return { success: false, message: 'No students found in repository' };
-			}
+      // Fetch students
+      const students = await this.studentRepo.getByIds(params.studentIds);
+      if (students.length === 0) {
+        return { success: false, message: 'No students found in repository' };
+      }
 
-			// Create studentsById map
-			const studentsById: Record<string, Student> = {};
-			for (const student of students) {
-				studentsById[student.id] = student;
-			}
+      // Create studentsById map
+      const studentsById: Record<string, Student> = {};
+      for (const student of students) {
+        studentsById[student.id] = student;
+      }
 
-			// Fetch preferences for this program
-			const preferences = await this.preferenceRepo.listByProgramId(params.programId);
+      // Fetch preferences for this program
+      const preferences = await this.preferenceRepo.listByProgramId(params.programId);
 
-			// Parse preference payloads and filter to only students in this grouping
-			const preferencesById: Record<string, StudentPreference> = {};
-			for (const pref of preferences) {
-				if (params.studentIds.includes(pref.studentId)) {
-					try {
-						preferencesById[pref.studentId] = parsePreferencePayload(pref.payload, pref.studentId);
-					} catch (error) {
-						// If preference parsing fails, use empty preferences for this student
-						console.warn(`Failed to parse preferences for student ${pref.studentId}:`, error);
-						preferencesById[pref.studentId] = createEmptyPreference(pref.studentId);
-					}
-				}
-			}
+      // Parse preference payloads and filter to only students in this grouping
+      const preferencesById: Record<string, StudentPreference> = {};
+      for (const pref of preferences) {
+        if (params.studentIds.includes(pref.studentId)) {
+          try {
+            preferencesById[pref.studentId] = parsePreferencePayload(pref.payload, pref.studentId);
+          } catch (error) {
+            // If preference parsing fails, use empty preferences for this student
+            console.warn(`Failed to parse preferences for student ${pref.studentId}:`, error);
+            preferencesById[pref.studentId] = createEmptyPreference(pref.studentId);
+          }
+        }
+      }
 
-			// Ensure all students have a preference record (even if empty)
-			for (const studentId of params.studentIds) {
-				if (!preferencesById[studentId]) {
-					preferencesById[studentId] = createEmptyPreference(studentId);
-				}
-			}
+      // Ensure all students have a preference record (even if empty)
+      for (const studentId of params.studentIds) {
+        if (!preferencesById[studentId]) {
+          preferencesById[studentId] = createEmptyPreference(studentId);
+        }
+      }
 
-			// Parse algorithm config
-			const config = (params.algorithmConfig as BalancedGroupingConfig | undefined) ?? {};
+      // Parse algorithm config
+      const config = (params.algorithmConfig as BalancedGroupingConfig | undefined) ?? {};
 
-			// Shuffle student order if seed is provided for variation
-			let studentOrder = params.studentIds;
-			if (config.seed !== undefined) {
-				studentOrder = shuffleWithSeed([...params.studentIds], config.seed);
-			}
+      // Shuffle student order if seed is provided for variation
+      let studentOrder = params.studentIds;
+      if (config.seed !== undefined) {
+        studentOrder = shuffleWithSeed([...params.studentIds], config.seed);
+      }
 
-			// Generate or use provided groups
-			let groups: Group[];
-			if (config.groups && config.groups.length > 0) {
-				// Use provided groups
-				groups = config.groups.map((g) => ({
-					id: g.id ?? this.idGenerator.generateId(),
-					name: g.name,
-					capacity: g.capacity ?? null,
-					memberIds: []
-				}));
-			} else {
-				// Generate default groups
-				groups = this.generateDefaultGroups(params.studentIds.length, config);
-			}
+      // Generate or use provided groups
+      let groups: Group[];
+      if (config.groups && config.groups.length > 0) {
+        // Use provided groups
+        groups = config.groups.map((g) => ({
+          id: g.id ?? this.idGenerator.generateId(),
+          name: g.name,
+          capacity: g.capacity ?? null,
+          memberIds: []
+        }));
+      } else {
+        // Generate default groups
+        groups = this.generateDefaultGroups(params.studentIds.length, config);
+      }
 
-			// Build constraints from preferences and placement history
-			const constraints = await this.buildConstraints(
-				preferences,
-				params.studentIds,
-				config
-			);
+      // Build constraints from preferences and placement history
+      const constraints = await this.buildConstraints(preferences, params.studentIds, config);
 
-			// Call balanced assignment algorithm
-			const result = assignBalanced({
-				groups,
-				studentOrder,
-				preferencesById,
-				studentsById,
-				seed: config.seed,
-				constraints
-			});
+      // Call balanced assignment algorithm
+      const result = assignBalanced({
+        groups,
+        studentOrder,
+        preferencesById,
+        studentsById,
+        seed: config.seed,
+        constraints
+      });
 
-			// Check for unassigned students
-			if (result.unassignedStudentIds.length > 0) {
-				return {
-					success: false,
-					message: `Failed to assign ${result.unassignedStudentIds.length} student(s): ${result.unassignedStudentIds.join(', ')}. All groups may be at capacity.`
-				};
-			}
+      // Check for unassigned students
+      if (result.unassignedStudentIds.length > 0) {
+        return {
+          success: false,
+          message: `Failed to assign ${result.unassignedStudentIds.length} student(s): ${result.unassignedStudentIds.join(', ')}. All groups may be at capacity.`
+        };
+      }
 
-			return {
-				success: true,
-				groups: result.groups
-			};
-		} catch (error) {
-			const message = error instanceof Error ? error.message : 'Unknown error during grouping';
-			return { success: false, message };
-		}
-	}
+      return {
+        success: true,
+        groups: result.groups
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error during grouping';
+      return { success: false, message };
+    }
+  }
 
-	/**
-	 * Generate default groups based on student count.
-	 * Targets 4-6 students per group, with an ideal size of 5.
-	 */
-	private generateDefaultGroups(studentCount: number, config: BalancedGroupingConfig): Group[] {
-		const defaultMin = 4;
-		const defaultMax = 6;
-		let minGroupSize = config.minGroupSize ?? defaultMin;
-		let maxGroupSize = config.maxGroupSize ?? defaultMax;
+  /**
+   * Generate default groups based on student count.
+   * Targets 4-6 students per group, with an ideal size of 5.
+   */
+  private generateDefaultGroups(studentCount: number, config: BalancedGroupingConfig): Group[] {
+    const defaultMin = 4;
+    const defaultMax = 6;
+    let minGroupSize = config.minGroupSize ?? defaultMin;
+    let maxGroupSize = config.maxGroupSize ?? defaultMax;
 
-		if (minGroupSize < 1) minGroupSize = 1;
-		if (maxGroupSize !== undefined && maxGroupSize < minGroupSize) {
-			maxGroupSize = minGroupSize; // Clamp max to min
-		}
+    if (minGroupSize < 1) minGroupSize = 1;
+    if (maxGroupSize !== undefined && maxGroupSize < minGroupSize) {
+      maxGroupSize = minGroupSize; // Clamp max to min
+    }
 
-		const idealGroupSize = Math.min(Math.max(5, minGroupSize), maxGroupSize ?? Infinity);
+    const idealGroupSize = Math.min(Math.max(5, minGroupSize), maxGroupSize ?? Infinity);
 
-		// Calculate number of groups
-		let numGroups = config.targetGroupCount ?? Math.round(studentCount / idealGroupSize);
-		if (numGroups <= 0) numGroups = 1;
+    // Calculate number of groups
+    let numGroups = config.targetGroupCount ?? Math.round(studentCount / idealGroupSize);
+    if (numGroups <= 0) numGroups = 1;
 
-		// Adjust to respect min/max averages
-		let avgGroupSize = studentCount / numGroups;
-		while (avgGroupSize < minGroupSize && numGroups > 1) {
-			numGroups--;
-			avgGroupSize = studentCount / numGroups;
-		}
-		if (maxGroupSize) {
-			while (avgGroupSize > maxGroupSize) {
-				numGroups++;
-				avgGroupSize = studentCount / numGroups;
-			}
-		}
+    // Adjust to respect min/max averages
+    let avgGroupSize = studentCount / numGroups;
+    while (avgGroupSize < minGroupSize && numGroups > 1) {
+      numGroups--;
+      avgGroupSize = studentCount / numGroups;
+    }
+    if (maxGroupSize) {
+      while (avgGroupSize > maxGroupSize) {
+        numGroups++;
+        avgGroupSize = studentCount / numGroups;
+      }
+    }
 
-		// Calculate capacity for each group to ensure balanced distribution
-		const groups: Group[] = [];
-		let remainingStudents = studentCount;
-		for (let i = 1; i <= numGroups; i++) {
-			const remainingGroups = numGroups - i + 1;
-			const baseCapacity = Math.ceil(remainingStudents / remainingGroups);
-			const capped = maxGroupSize ? Math.min(baseCapacity, maxGroupSize) : baseCapacity;
-			const capacity = Math.max(capped, minGroupSize);
+    // Calculate capacity for each group to ensure balanced distribution
+    const groups: Group[] = [];
+    let remainingStudents = studentCount;
+    for (let i = 1; i <= numGroups; i++) {
+      const remainingGroups = numGroups - i + 1;
+      const baseCapacity = Math.ceil(remainingStudents / remainingGroups);
+      const capped = maxGroupSize ? Math.min(baseCapacity, maxGroupSize) : baseCapacity;
+      const capacity = Math.max(capped, minGroupSize);
 
-			groups.push({
-				id: this.idGenerator.generateId(),
-				name: `Group ${i}`,
-				capacity,
-				memberIds: []
-			});
+      groups.push({
+        id: this.idGenerator.generateId(),
+        name: `Group ${i}`,
+        capacity,
+        memberIds: []
+      });
 
-			remainingStudents -= capacity;
-		}
+      remainingStudents -= capacity;
+    }
 
-		return groups;
-	}
+    return groups;
+  }
 
-	/**
-	 * Build grouping constraints from preferences and placement history.
-	 */
-	private async buildConstraints(
-		preferences: Preference[],
-		studentIds: string[],
-		config: BalancedGroupingConfig
-	): Promise<GroupingConstraints | undefined> {
-		const enforceAvoidPairs = config.enforceAvoidPairs !== false; // Default true
-		const avoidRecentGroupmates = config.avoidRecentGroupmates === true; // Default false
+  /**
+   * Build grouping constraints from preferences and placement history.
+   */
+  private async buildConstraints(
+    preferences: Preference[],
+    studentIds: string[],
+    config: BalancedGroupingConfig
+  ): Promise<GroupingConstraints | undefined> {
+    const enforceAvoidPairs = config.enforceAvoidPairs !== false; // Default true
+    const avoidRecentGroupmates = config.avoidRecentGroupmates === true; // Default false
 
-		// If no constraints are enabled, return undefined
-		if (!enforceAvoidPairs && !avoidRecentGroupmates) {
-			return undefined;
-		}
+    // If no constraints are enabled, return undefined
+    if (!enforceAvoidPairs && !avoidRecentGroupmates) {
+      return undefined;
+    }
 
-		const constraints: GroupingConstraints = {};
+    const constraints: GroupingConstraints = {};
 
-		// Build avoid pairs from preferences
-		if (enforceAvoidPairs) {
-			const avoidPairs = buildAvoidPairsFromPreferences(preferences);
-			if (avoidPairs.length > 0) {
-				constraints.avoidPairs = avoidPairs;
-			}
-		}
+    // Build avoid pairs from preferences
+    if (enforceAvoidPairs) {
+      const avoidPairs = buildAvoidPairsFromPreferences(preferences);
+      if (avoidPairs.length > 0) {
+        constraints.avoidPairs = avoidPairs;
+      }
+    }
 
-		// Build recent groupmates map from placement history
-		if (avoidRecentGroupmates && this.placementRepo) {
-			// Fetch all placements for all students
-			const allPlacements = await Promise.all(
-				studentIds.map((id) => this.placementRepo!.listByStudentId(id))
-			);
-			const flatPlacements = allPlacements.flat();
+    // Build recent groupmates map from placement history
+    if (avoidRecentGroupmates && this.placementRepo) {
+      // Fetch all placements for all students
+      const allPlacements = await Promise.all(
+        studentIds.map((id) => this.placementRepo!.listByStudentId(id))
+      );
+      const flatPlacements = allPlacements.flat();
 
-			if (flatPlacements.length > 0) {
-				constraints.recentGroupmates = buildRecentGroupmatesMap(
-					flatPlacements,
-					studentIds,
-					config.lookbackSessions ?? 1
-				);
-				constraints.avoidRecentGroupmates = true;
-			}
-		}
+      if (flatPlacements.length > 0) {
+        constraints.recentGroupmates = buildRecentGroupmatesMap(
+          flatPlacements,
+          studentIds,
+          config.lookbackSessions ?? 1
+        );
+        constraints.avoidRecentGroupmates = true;
+      }
+    }
 
-		// Return constraints only if there's something to enforce
-		if (constraints.avoidPairs || constraints.recentGroupmates) {
-			return constraints;
-		}
+    // Return constraints only if there's something to enforce
+    if (constraints.avoidPairs || constraints.recentGroupmates) {
+      return constraints;
+    }
 
-		return undefined;
-	}
+    return undefined;
+  }
 }
 
 /**
@@ -299,31 +298,31 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
  * The payload is expected to conform to the StudentPreference interface.
  */
 function parsePreferencePayload(payload: unknown, studentId: string): StudentPreference {
-	if (!payload || typeof payload !== 'object') {
-		return createEmptyPreference(studentId);
-	}
+  if (!payload || typeof payload !== 'object') {
+    return createEmptyPreference(studentId);
+  }
 
-	const pref = payload as Partial<StudentPreference>;
+  const pref = payload as Partial<StudentPreference>;
 
-	return {
-		studentId: pref.studentId ?? studentId,
-		avoidStudentIds: Array.isArray(pref.avoidStudentIds) ? pref.avoidStudentIds : [],
-		likeGroupIds: Array.isArray(pref.likeGroupIds) ? pref.likeGroupIds : [],
-		avoidGroupIds: Array.isArray(pref.avoidGroupIds) ? pref.avoidGroupIds : [],
-		meta: pref.meta
-	};
+  return {
+    studentId: pref.studentId ?? studentId,
+    avoidStudentIds: Array.isArray(pref.avoidStudentIds) ? pref.avoidStudentIds : [],
+    likeGroupIds: Array.isArray(pref.likeGroupIds) ? pref.likeGroupIds : [],
+    avoidGroupIds: Array.isArray(pref.avoidGroupIds) ? pref.avoidGroupIds : [],
+    meta: pref.meta
+  };
 }
 
 /**
  * Create an empty preference record for a student with no preferences.
  */
 function createEmptyPreference(studentId: string): StudentPreference {
-	return {
-		studentId,
-		avoidStudentIds: [],
-		likeGroupIds: [],
-		avoidGroupIds: []
-	};
+  return {
+    studentId,
+    avoidStudentIds: [],
+    likeGroupIds: [],
+    avoidGroupIds: []
+  };
 }
 
 /**
@@ -331,19 +330,19 @@ function createEmptyPreference(studentId: string): StudentPreference {
  * Uses a simple mulberry32 PRNG for deterministic results.
  */
 function shuffleWithSeed<T>(array: T[], seed: number): T[] {
-	// Mulberry32 PRNG
-	let t = seed >>> 0;
-	const random = (): number => {
-		t = (t + 0x6d2b79f5) | 0;
-		let r = Math.imul(t ^ (t >>> 15), 1 | t);
-		r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
-		return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-	};
+  // Mulberry32 PRNG
+  let t = seed >>> 0;
+  const random = (): number => {
+    t = (t + 0x6d2b79f5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
 
-	// Fisher-Yates shuffle
-	for (let i = array.length - 1; i > 0; i--) {
-		const j = Math.floor(random() * (i + 1));
-		[array[i], array[j]] = [array[j], array[i]];
-	}
-	return array;
+  // Fisher-Yates shuffle
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
 }

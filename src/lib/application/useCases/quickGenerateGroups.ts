@@ -1,36 +1,36 @@
 import type { Scenario } from '$lib/domain';
 import type {
-	ProgramRepository,
-	PoolRepository,
-	PreferenceRepository,
-	ScenarioRepository,
-	IdGenerator,
-	Clock,
-	GroupingAlgorithm
+  ProgramRepository,
+  PoolRepository,
+  PreferenceRepository,
+  ScenarioRepository,
+  IdGenerator,
+  Clock,
+  GroupingAlgorithm
 } from '$lib/application/ports';
 import type { Result } from '$lib/types/result';
 import { err, isErr } from '$lib/types/result';
 import { generateCandidate, type GenerateCandidateError } from './generateCandidate';
 import {
-	createScenarioFromGroups,
-	type CreateScenarioFromGroupsError
+  createScenarioFromGroups,
+  type CreateScenarioFromGroupsError
 } from './createScenarioFromGroups';
 
 /**
  * Input for quick-generating groups from just a group size.
  */
 export interface QuickGenerateGroupsInput {
-	programId: string;
-	/** Target number of students per group. */
-	groupSize: number;
-	/** Prefix for group names (default: "Group"). */
-	groupNamePrefix?: string;
-	/** Whether to avoid placing students with recent groupmates. */
-	avoidRecentGroupmates?: boolean;
-	/** Number of most recent sessions to consider when avoiding recent groupmates. */
-	lookbackSessions?: number;
-	/** Explicit group definitions. When provided, groupSize/groupNamePrefix are ignored. */
-	groups?: Array<{ name: string; capacity: number | null }>;
+  programId: string;
+  /** Target number of students per group. */
+  groupSize: number;
+  /** Prefix for group names (default: "Group"). */
+  groupNamePrefix?: string;
+  /** Whether to avoid placing students with recent groupmates. */
+  avoidRecentGroupmates?: boolean;
+  /** Number of most recent sessions to consider when avoiding recent groupmates. */
+  lookbackSessions?: number;
+  /** Explicit group definitions. When provided, groupSize/groupNamePrefix are ignored. */
+  groups?: Array<{ name: string; capacity: number | null }>;
 }
 
 /**
@@ -39,13 +39,13 @@ export interface QuickGenerateGroupsInput {
 export type QuickGenerateGroupsError = GenerateCandidateError | CreateScenarioFromGroupsError;
 
 type QuickGenerateGroupsDeps = {
-	programRepo: ProgramRepository;
-	poolRepo: PoolRepository;
-	preferenceRepo: PreferenceRepository;
-	scenarioRepo: ScenarioRepository;
-	idGenerator: IdGenerator;
-	clock: Clock;
-	groupingAlgorithm: GroupingAlgorithm;
+  programRepo: ProgramRepository;
+  poolRepo: PoolRepository;
+  preferenceRepo: PreferenceRepository;
+  scenarioRepo: ScenarioRepository;
+  idGenerator: IdGenerator;
+  clock: Clock;
+  groupingAlgorithm: GroupingAlgorithm;
 };
 
 /**
@@ -60,81 +60,88 @@ type QuickGenerateGroupsDeps = {
  * 4. Persists as a scenario (replacing any existing draft)
  */
 export async function quickGenerateGroups(
-	deps: QuickGenerateGroupsDeps,
-	input: QuickGenerateGroupsInput
+  deps: QuickGenerateGroupsDeps,
+  input: QuickGenerateGroupsInput
 ): Promise<Result<Scenario, QuickGenerateGroupsError>> {
-	const { programId, groupSize, groupNamePrefix = 'Group', avoidRecentGroupmates = false, lookbackSessions } = input;
+  const {
+    programId,
+    groupSize,
+    groupNamePrefix = 'Group',
+    avoidRecentGroupmates = false,
+    lookbackSessions
+  } = input;
 
-	// Load program to determine pool size for group count calculation
-	const program = await deps.programRepo.getById(programId);
-	if (!program) {
-		return err({ type: 'PROGRAM_NOT_FOUND', programId });
-	}
+  // Load program to determine pool size for group count calculation
+  const program = await deps.programRepo.getById(programId);
+  if (!program) {
+    return err({ type: 'PROGRAM_NOT_FOUND', programId });
+  }
 
-	const primaryPoolId = program.primaryPoolId ?? program.poolIds[0];
-	if (!primaryPoolId) {
-		return err({ type: 'POOL_NOT_FOUND', poolId: '(none configured on Program)' });
-	}
+  const primaryPoolId = program.primaryPoolId ?? program.poolIds[0];
+  if (!primaryPoolId) {
+    return err({ type: 'POOL_NOT_FOUND', poolId: '(none configured on Program)' });
+  }
 
-	const pool = await deps.poolRepo.getById(primaryPoolId);
-	if (!pool) {
-		return err({ type: 'POOL_NOT_FOUND', poolId: primaryPoolId });
-	}
-	if (!pool.memberIds.length) {
-		return err({ type: 'POOL_HAS_NO_MEMBERS', poolId: primaryPoolId });
-	}
+  const pool = await deps.poolRepo.getById(primaryPoolId);
+  if (!pool) {
+    return err({ type: 'POOL_NOT_FOUND', poolId: primaryPoolId });
+  }
+  if (!pool.memberIds.length) {
+    return err({ type: 'POOL_HAS_NO_MEMBERS', poolId: primaryPoolId });
+  }
 
-	// Build group definitions from explicit shells or group size
-	const groups = input.groups && input.groups.length > 0
-		? input.groups
-		: (() => {
-			const studentCount = pool.memberIds.length;
-			const groupCount = Math.ceil(studentCount / groupSize);
-			return Array.from({ length: groupCount }, (_, i) => ({
-				name: `${groupNamePrefix} ${i + 1}`,
-				capacity: null as number | null
-			}));
-		})();
+  // Build group definitions from explicit shells or group size
+  const groups =
+    input.groups && input.groups.length > 0
+      ? input.groups
+      : (() => {
+          const studentCount = pool.memberIds.length;
+          const groupCount = Math.ceil(studentCount / groupSize);
+          return Array.from({ length: groupCount }, (_, i) => ({
+            name: `${groupNamePrefix} ${i + 1}`,
+            capacity: null as number | null
+          }));
+        })();
 
-	// Generate candidate via balanced algorithm
-	const candidateResult = await generateCandidate(
-		{
-			programRepo: deps.programRepo,
-			poolRepo: deps.poolRepo,
-			preferenceRepo: deps.preferenceRepo,
-			idGenerator: deps.idGenerator,
-			clock: deps.clock,
-			groupingAlgorithm: deps.groupingAlgorithm
-		},
-		{
-			programId,
-			algorithmId: 'balanced',
-			algorithmConfig: {
-				groups,
-				avoidRecentGroupmates,
-				lookbackSessions: lookbackSessions ?? 3
-			},
-			seed: Date.now()
-		}
-	);
+  // Generate candidate via balanced algorithm
+  const candidateResult = await generateCandidate(
+    {
+      programRepo: deps.programRepo,
+      poolRepo: deps.poolRepo,
+      preferenceRepo: deps.preferenceRepo,
+      idGenerator: deps.idGenerator,
+      clock: deps.clock,
+      groupingAlgorithm: deps.groupingAlgorithm
+    },
+    {
+      programId,
+      algorithmId: 'balanced',
+      algorithmConfig: {
+        groups,
+        avoidRecentGroupmates,
+        lookbackSessions: lookbackSessions ?? 3
+      },
+      seed: Date.now()
+    }
+  );
 
-	if (isErr(candidateResult)) {
-		return candidateResult;
-	}
+  if (isErr(candidateResult)) {
+    return candidateResult;
+  }
 
-	// Persist as scenario, replacing any existing draft
-	return createScenarioFromGroups(
-		{
-			programRepo: deps.programRepo,
-			poolRepo: deps.poolRepo,
-			scenarioRepo: deps.scenarioRepo,
-			idGenerator: deps.idGenerator,
-			clock: deps.clock
-		},
-		{
-			programId,
-			groups: candidateResult.value.groups,
-			replaceExisting: true
-		}
-	);
+  // Persist as scenario, replacing any existing draft
+  return createScenarioFromGroups(
+    {
+      programRepo: deps.programRepo,
+      poolRepo: deps.poolRepo,
+      scenarioRepo: deps.scenarioRepo,
+      idGenerator: deps.idGenerator,
+      clock: deps.clock
+    },
+    {
+      programId,
+      groups: candidateResult.value.groups,
+      replaceExisting: true
+    }
+  );
 }

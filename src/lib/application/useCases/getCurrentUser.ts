@@ -16,17 +16,17 @@ import { ok } from '$lib/types/result';
  * Returns null if no user is authenticated (anonymous mode).
  */
 export async function getCurrentUser(deps: {
-	authService: AuthService;
+  authService: AuthService;
 }): Promise<Result<AuthUser | null, never>> {
-	const user = await deps.authService.getUser();
-	return ok(user);
+  const user = await deps.authService.getUser();
+  return ok(user);
 }
 
 /**
  * Check if a user is currently authenticated.
  */
 export function isAuthenticated(deps: { authService: AuthService }): boolean {
-	return deps.authService.isAuthenticated();
+  return deps.authService.isAuthenticated();
 }
 
 /**
@@ -35,8 +35,8 @@ export function isAuthenticated(deps: { authService: AuthService }): boolean {
  * @returns Unsubscribe function
  */
 export function onAuthStateChange(
-	deps: { authService: AuthService },
-	callback: (user: AuthUser | null) => void
+  deps: { authService: AuthService },
+  callback: (user: AuthUser | null) => void
 ): () => void {
-	return deps.authService.onAuthStateChange(callback);
+  return deps.authService.onAuthStateChange(callback);
 }

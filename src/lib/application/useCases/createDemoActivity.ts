@@ -14,13 +14,13 @@
  */
 
 import type {
-	IdGenerator,
-	StudentRepository,
-	PoolRepository,
-	ProgramRepository,
-	ScenarioRepository,
-	SessionRepository,
-	PlacementRepository
+  IdGenerator,
+  StudentRepository,
+  PoolRepository,
+  ProgramRepository,
+  ScenarioRepository,
+  SessionRepository,
+  PlacementRepository
 } from '$lib/application/ports';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
@@ -31,13 +31,13 @@ import { generateOnboardingDemoData } from '$lib/infrastructure/demo/demoOnboard
 // =============================================================================
 
 export interface CreateDemoActivityInput {
-	staffId: string;
+  staffId: string;
 }
 
 export interface CreateDemoActivityResult {
-	programId: string;
-	scenarioId: string;
-	sessionId: string;
+  programId: string;
+  scenarioId: string;
+  sessionId: string;
 }
 
 export type CreateDemoActivityError = { type: 'PERSISTENCE_ERROR'; message: string };
@@ -47,13 +47,13 @@ export type CreateDemoActivityError = { type: 'PERSISTENCE_ERROR'; message: stri
 // =============================================================================
 
 export interface CreateDemoActivityDeps {
-	idGenerator: IdGenerator;
-	studentRepository: StudentRepository;
-	poolRepository: PoolRepository;
-	programRepository: ProgramRepository;
-	scenarioRepository: ScenarioRepository;
-	sessionRepository: SessionRepository;
-	placementRepository: PlacementRepository;
+  idGenerator: IdGenerator;
+  studentRepository: StudentRepository;
+  poolRepository: PoolRepository;
+  programRepository: ProgramRepository;
+  scenarioRepository: ScenarioRepository;
+  sessionRepository: SessionRepository;
+  placementRepository: PlacementRepository;
 }
 
 // =============================================================================
@@ -61,29 +61,29 @@ export interface CreateDemoActivityDeps {
 // =============================================================================
 
 export async function createDemoActivity(
-	deps: CreateDemoActivityDeps,
-	input: CreateDemoActivityInput
+  deps: CreateDemoActivityDeps,
+  input: CreateDemoActivityInput
 ): Promise<Result<CreateDemoActivityResult, CreateDemoActivityError>> {
-	try {
-		const data = generateOnboardingDemoData(deps.idGenerator, input.staffId);
+  try {
+    const data = generateOnboardingDemoData(deps.idGenerator, input.staffId);
 
-		// Persist all entities
-		await deps.studentRepository.saveMany(data.students);
-		await deps.poolRepository.save(data.pool);
-		await deps.programRepository.save(data.program);
-		await deps.scenarioRepository.save(data.scenario);
-		await deps.sessionRepository.save(data.session);
-		await deps.placementRepository.saveBatch(data.placements);
+    // Persist all entities
+    await deps.studentRepository.saveMany(data.students);
+    await deps.poolRepository.save(data.pool);
+    await deps.programRepository.save(data.program);
+    await deps.scenarioRepository.save(data.scenario);
+    await deps.sessionRepository.save(data.session);
+    await deps.placementRepository.saveBatch(data.placements);
 
-		return ok({
-			programId: data.program.id,
-			scenarioId: data.scenario.id,
-			sessionId: data.session.id
-		});
-	} catch (e) {
-		return err({
-			type: 'PERSISTENCE_ERROR',
-			message: e instanceof Error ? e.message : 'Failed to create demo activity'
-		});
-	}
+    return ok({
+      programId: data.program.id,
+      scenarioId: data.scenario.id,
+      sessionId: data.session.id
+    });
+  } catch (e) {
+    return err({
+      type: 'PERSISTENCE_ERROR',
+      message: e instanceof Error ? e.message : 'Failed to create demo activity'
+    });
+  }
 }

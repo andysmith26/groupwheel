@@ -4,11 +4,11 @@ import type { Group } from '$lib/domain';
  * Capacity status result containing color, warning state, full state, and over-enrollment info
  */
 export interface CapacityStatus {
-	color: string;
-	isWarning: boolean;
-	isFull: boolean;
-	isOverEnrolled: boolean;
-	overEnrollmentCount: number;
+  color: string;
+  isWarning: boolean;
+  isFull: boolean;
+  isOverEnrolled: boolean;
+  overEnrollmentCount: number;
 }
 
 /**
@@ -25,54 +25,54 @@ export interface CapacityStatus {
  * @returns CapacityStatus object with color, isWarning, isFull, and over-enrollment properties
  */
 export function getCapacityStatus(group: Group): CapacityStatus {
-	const currentCount = group.memberIds.length;
+  const currentCount = group.memberIds.length;
 
-	if (group.capacity === null) {
-		return {
-			color: '#6b7280',
-			isWarning: false,
-			isFull: false,
-			isOverEnrolled: false,
-			overEnrollmentCount: 0
-		}; // Gray for unlimited
-	}
+  if (group.capacity === null) {
+    return {
+      color: '#6b7280',
+      isWarning: false,
+      isFull: false,
+      isOverEnrolled: false,
+      overEnrollmentCount: 0
+    }; // Gray for unlimited
+  }
 
-	const percentage = (currentCount / group.capacity) * 100;
-	const overCount = Math.max(0, currentCount - group.capacity);
+  const percentage = (currentCount / group.capacity) * 100;
+  const overCount = Math.max(0, currentCount - group.capacity);
 
-	if (percentage > 100) {
-		return {
-			color: '#7c3aed',
-			isWarning: true,
-			isFull: true,
-			isOverEnrolled: true,
-			overEnrollmentCount: overCount
-		}; // Purple for over capacity
-	} else if (percentage >= 100) {
-		return {
-			color: '#dc2626',
-			isWarning: true,
-			isFull: true,
-			isOverEnrolled: false,
-			overEnrollmentCount: 0
-		}; // Red for at capacity
-	} else if (percentage >= 80) {
-		return {
-			color: '#f59e0b',
-			isWarning: true,
-			isFull: false,
-			isOverEnrolled: false,
-			overEnrollmentCount: 0
-		}; // Amber for 80-99%
-	} else {
-		return {
-			color: '#6b7280',
-			isWarning: false,
-			isFull: false,
-			isOverEnrolled: false,
-			overEnrollmentCount: 0
-		}; // Gray for < 80%
-	}
+  if (percentage > 100) {
+    return {
+      color: '#7c3aed',
+      isWarning: true,
+      isFull: true,
+      isOverEnrolled: true,
+      overEnrollmentCount: overCount
+    }; // Purple for over capacity
+  } else if (percentage >= 100) {
+    return {
+      color: '#dc2626',
+      isWarning: true,
+      isFull: true,
+      isOverEnrolled: false,
+      overEnrollmentCount: 0
+    }; // Red for at capacity
+  } else if (percentage >= 80) {
+    return {
+      color: '#f59e0b',
+      isWarning: true,
+      isFull: false,
+      isOverEnrolled: false,
+      overEnrollmentCount: 0
+    }; // Amber for 80-99%
+  } else {
+    return {
+      color: '#6b7280',
+      isWarning: false,
+      isFull: false,
+      isOverEnrolled: false,
+      overEnrollmentCount: 0
+    }; // Gray for < 80%
+  }
 }
 
 /**
@@ -84,14 +84,14 @@ export function getCapacityStatus(group: Group): CapacityStatus {
  * - Buffer of +2 slots when capacity is unlimited
  */
 export function calculateRowSpan(group: Pick<Group, 'capacity' | 'memberIds'>): number {
-	const HEADER_ROWS = 2;
-	const MIN_CONTENT_ROWS = 1;
-	const UNLIMITED_BUFFER = 2;
+  const HEADER_ROWS = 2;
+  const MIN_CONTENT_ROWS = 1;
+  const UNLIMITED_BUFFER = 2;
 
-	const contentSlots =
-		group.capacity !== null ? group.capacity : group.memberIds.length + UNLIMITED_BUFFER;
+  const contentSlots =
+    group.capacity !== null ? group.capacity : group.memberIds.length + UNLIMITED_BUFFER;
 
-	return HEADER_ROWS + Math.max(MIN_CONTENT_ROWS, contentSlots);
+  return HEADER_ROWS + Math.max(MIN_CONTENT_ROWS, contentSlots);
 }
 
 /**
@@ -100,10 +100,10 @@ export function calculateRowSpan(group: Pick<Group, 'capacity' | 'memberIds'>): 
  * This is intended for layouts that should size themselves to the tallest rendered group.
  */
 export function calculateVisibleRowSpan(group: Pick<Group, 'memberIds'>): number {
-	const HEADER_ROWS = 2;
-	const MIN_CONTENT_ROWS = 1;
-	const DROP_BUFFER = 1;
+  const HEADER_ROWS = 2;
+  const MIN_CONTENT_ROWS = 1;
+  const DROP_BUFFER = 1;
 
-	const contentRows = Math.max(MIN_CONTENT_ROWS, group.memberIds.length + DROP_BUFFER);
-	return HEADER_ROWS + contentRows;
+  const contentRows = Math.max(MIN_CONTENT_ROWS, group.memberIds.length + DROP_BUFFER);
+  return HEADER_ROWS + contentRows;
 }

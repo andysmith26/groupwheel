@@ -89,18 +89,18 @@ Characteristics:
 
   ```ts
   export async function generateScenarioForProgram(
-  	deps: {
-  		programRepo: ProgramRepository;
-  		poolRepo: PoolRepository;
-  		studentRepo: StudentRepository;
-  		preferenceRepo: PreferenceRepository;
-  		scenarioRepo: ScenarioRepository;
-  		groupingAlgorithm: GroupingAlgorithm;
-  		idGenerator: IdGenerator;
-  	},
-  	input: GenerateScenarioInput
+    deps: {
+      programRepo: ProgramRepository;
+      poolRepo: PoolRepository;
+      studentRepo: StudentRepository;
+      preferenceRepo: PreferenceRepository;
+      scenarioRepo: ScenarioRepository;
+      groupingAlgorithm: GroupingAlgorithm;
+      idGenerator: IdGenerator;
+    },
+    input: GenerateScenarioInput
   ): Promise<Result<Scenario, GenerateScenarioError>> {
-  	// ...
+    // ...
   }
   ```
 
@@ -269,17 +269,17 @@ See `.env.example` for template.
 
 ```ts
 export interface InMemoryEnvironment {
-	studentRepo: StudentRepository;
-	staffRepo: StaffRepository;
-	poolRepo: PoolRepository;
-	programRepo: ProgramRepository;
-	scenarioRepo: ScenarioRepository;
-	preferenceRepo: PreferenceRepository;
-	groupTemplateRepo: GroupTemplateRepository;
-	idGenerator: IdGenerator;
-	clock: Clock;
-	groupingAlgorithm: GroupingAlgorithm;
-	syncService?: SyncService; // Optional: enabled when user is authenticated
+  studentRepo: StudentRepository;
+  staffRepo: StaffRepository;
+  poolRepo: PoolRepository;
+  programRepo: ProgramRepository;
+  scenarioRepo: ScenarioRepository;
+  preferenceRepo: PreferenceRepository;
+  groupTemplateRepo: GroupTemplateRepository;
+  idGenerator: IdGenerator;
+  clock: Clock;
+  groupingAlgorithm: GroupingAlgorithm;
+  syncService?: SyncService; // Optional: enabled when user is authenticated
 }
 ```
 
@@ -352,16 +352,16 @@ import { createProgram } from '$lib/services/appEnvUseCases';
 import { isErr } from '$lib/types/result';
 
 onMount(async () => {
-	const env = getAppEnvContext();
-	const result = await createProgram(env, {
-		/* input */
-	});
+  const env = getAppEnvContext();
+  const result = await createProgram(env, {
+    /* input */
+  });
 
-	if (isErr(result)) {
-		// handle error
-	} else {
-		// handle success
-	}
+  if (isErr(result)) {
+    // handle error
+  } else {
+    // handle success
+  }
 });
 ```
 

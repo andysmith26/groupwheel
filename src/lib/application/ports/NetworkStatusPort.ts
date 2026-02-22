@@ -8,15 +8,15 @@
  */
 
 export interface NetworkStatusPort {
-	/**
-	 * Check if currently online.
-	 */
-	isOnline(): boolean;
+  /**
+   * Check if currently online.
+   */
+  isOnline(): boolean;
 
-	/**
-	 * Subscribe to online/offline status changes.
-	 * @param callback Called when status changes (true = online, false = offline)
-	 * @returns Unsubscribe function
-	 */
-	onStatusChange(callback: (online: boolean) => void): () => void;
+  /**
+   * Subscribe to online/offline status changes.
+   * @param callback Called when status changes (true = online, false = offline)
+   * @returns Unsubscribe function
+   */
+  onStatusChange(callback: (online: boolean) => void): () => void;
 }

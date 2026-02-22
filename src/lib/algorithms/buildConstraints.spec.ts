@@ -1,229 +1,229 @@
 import { describe, it, expect } from 'vitest';
 import {
-	buildAvoidPairsFromPreferences,
-	buildRecentGroupmatesMap,
-	buildGroupingConstraints
+  buildAvoidPairsFromPreferences,
+  buildRecentGroupmatesMap,
+  buildGroupingConstraints
 } from './buildConstraints';
 import type { Preference, Placement } from '$lib/domain';
 
 function makePref(
-	studentId: string,
-	avoidStudentIds: string[] = [],
-	likeGroupIds: string[] = []
+  studentId: string,
+  avoidStudentIds: string[] = [],
+  likeGroupIds: string[] = []
 ): Preference {
-	return {
-		id: `pref-${studentId}`,
-		programId: 'program-1',
-		studentId,
-		payload: {
-			studentId,
-			avoidStudentIds,
-			likeGroupIds,
-			avoidGroupIds: []
-		}
-	};
+  return {
+    id: `pref-${studentId}`,
+    programId: 'program-1',
+    studentId,
+    payload: {
+      studentId,
+      avoidStudentIds,
+      likeGroupIds,
+      avoidGroupIds: []
+    }
+  };
 }
 
 function makePlacement(
-	studentId: string,
-	groupId: string,
-	sessionId: string,
-	startDate: Date
+  studentId: string,
+  groupId: string,
+  sessionId: string,
+  startDate: Date
 ): Placement {
-	return {
-		id: `placement-${studentId}-${sessionId}`,
-		sessionId,
-		studentId,
-		groupId,
-		groupName: `Group ${groupId}`,
-		preferenceRank: null,
-		assignedAt: startDate,
-		startDate,
-		type: 'INITIAL'
-	};
+  return {
+    id: `placement-${studentId}-${sessionId}`,
+    sessionId,
+    studentId,
+    groupId,
+    groupName: `Group ${groupId}`,
+    preferenceRank: null,
+    assignedAt: startDate,
+    startDate,
+    type: 'INITIAL'
+  };
 }
 
 describe('buildAvoidPairsFromPreferences', () => {
-	it('should return empty array for no preferences', () => {
-		expect(buildAvoidPairsFromPreferences([])).toEqual([]);
-	});
+  it('should return empty array for no preferences', () => {
+    expect(buildAvoidPairsFromPreferences([])).toEqual([]);
+  });
 
-	it('should extract avoid pairs from preferences', () => {
-		const prefs = [makePref('alice', ['bob'])];
-		const pairs = buildAvoidPairsFromPreferences(prefs);
+  it('should extract avoid pairs from preferences', () => {
+    const prefs = [makePref('alice', ['bob'])];
+    const pairs = buildAvoidPairsFromPreferences(prefs);
 
-		expect(pairs).toHaveLength(1);
-		expect(pairs[0]).toContain('alice');
-		expect(pairs[0]).toContain('bob');
-	});
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]).toContain('alice');
+    expect(pairs[0]).toContain('bob');
+  });
 
-	it('should deduplicate symmetric pairs', () => {
-		const prefs = [makePref('alice', ['bob']), makePref('bob', ['alice'])];
-		const pairs = buildAvoidPairsFromPreferences(prefs);
+  it('should deduplicate symmetric pairs', () => {
+    const prefs = [makePref('alice', ['bob']), makePref('bob', ['alice'])];
+    const pairs = buildAvoidPairsFromPreferences(prefs);
 
-		expect(pairs).toHaveLength(1);
-	});
+    expect(pairs).toHaveLength(1);
+  });
 
-	it('should handle multiple avoid targets from one student', () => {
-		const prefs = [makePref('alice', ['bob', 'carol', 'dave'])];
-		const pairs = buildAvoidPairsFromPreferences(prefs);
+  it('should handle multiple avoid targets from one student', () => {
+    const prefs = [makePref('alice', ['bob', 'carol', 'dave'])];
+    const pairs = buildAvoidPairsFromPreferences(prefs);
 
-		expect(pairs).toHaveLength(3);
-	});
+    expect(pairs).toHaveLength(3);
+  });
 
-	it('should handle preferences with invalid payload gracefully', () => {
-		const pref: Preference = {
-			id: 'pref-1',
-			programId: 'program-1',
-			studentId: 'alice',
-			payload: { invalid: 'data' }
-		};
-		const pairs = buildAvoidPairsFromPreferences([pref]);
-		expect(pairs).toEqual([]);
-	});
+  it('should handle preferences with invalid payload gracefully', () => {
+    const pref: Preference = {
+      id: 'pref-1',
+      programId: 'program-1',
+      studentId: 'alice',
+      payload: { invalid: 'data' }
+    };
+    const pairs = buildAvoidPairsFromPreferences([pref]);
+    expect(pairs).toEqual([]);
+  });
 });
 
 describe('buildRecentGroupmatesMap', () => {
-	it('should return empty sets for no placements', () => {
-		const result = buildRecentGroupmatesMap([], ['alice', 'bob']);
+  it('should return empty sets for no placements', () => {
+    const result = buildRecentGroupmatesMap([], ['alice', 'bob']);
 
-		expect(result.get('alice')?.size).toBe(0);
-		expect(result.get('bob')?.size).toBe(0);
-	});
+    expect(result.get('alice')?.size).toBe(0);
+    expect(result.get('bob')?.size).toBe(0);
+  });
 
-	it('should build groupmates from same group', () => {
-		const date = new Date('2024-09-01');
-		const placements = [
-			makePlacement('alice', 'g1', 'session-1', date),
-			makePlacement('bob', 'g1', 'session-1', date),
-			makePlacement('carol', 'g2', 'session-1', date)
-		];
+  it('should build groupmates from same group', () => {
+    const date = new Date('2024-09-01');
+    const placements = [
+      makePlacement('alice', 'g1', 'session-1', date),
+      makePlacement('bob', 'g1', 'session-1', date),
+      makePlacement('carol', 'g2', 'session-1', date)
+    ];
 
-		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol']);
+    const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol']);
 
-		expect(result.get('alice')?.has('bob')).toBe(true);
-		expect(result.get('bob')?.has('alice')).toBe(true);
-		expect(result.get('alice')?.has('carol')).toBe(false);
-		expect(result.get('carol')?.has('alice')).toBe(false);
-	});
+    expect(result.get('alice')?.has('bob')).toBe(true);
+    expect(result.get('bob')?.has('alice')).toBe(true);
+    expect(result.get('alice')?.has('carol')).toBe(false);
+    expect(result.get('carol')?.has('alice')).toBe(false);
+  });
 
-	it('lookbackSessions=1 considers only the most recent session', () => {
-		const older = new Date('2024-01-01');
-		const newer = new Date('2024-09-01');
+  it('lookbackSessions=1 considers only the most recent session', () => {
+    const older = new Date('2024-01-01');
+    const newer = new Date('2024-09-01');
 
-		const placements = [
-			makePlacement('alice', 'g1', 'session-old', older),
-			makePlacement('bob', 'g1', 'session-old', older),
-			makePlacement('alice', 'g2', 'session-new', newer),
-			makePlacement('carol', 'g2', 'session-new', newer)
-		];
+    const placements = [
+      makePlacement('alice', 'g1', 'session-old', older),
+      makePlacement('bob', 'g1', 'session-old', older),
+      makePlacement('alice', 'g2', 'session-new', newer),
+      makePlacement('carol', 'g2', 'session-new', newer)
+    ];
 
-		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol'], 1);
+    const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol'], 1);
 
-		// Only session-new (the most recent) should be considered
-		expect(result.get('alice')?.has('carol')).toBe(true);
-		expect(result.get('alice')?.has('bob')).toBe(false);
-	});
+    // Only session-new (the most recent) should be considered
+    expect(result.get('alice')?.has('carol')).toBe(true);
+    expect(result.get('alice')?.has('bob')).toBe(false);
+  });
 
-	it('lookbackSessions=2 considers the two most recent sessions', () => {
-		const oldest = new Date('2024-01-01');
-		const middle = new Date('2024-06-01');
-		const newest = new Date('2024-09-01');
+  it('lookbackSessions=2 considers the two most recent sessions', () => {
+    const oldest = new Date('2024-01-01');
+    const middle = new Date('2024-06-01');
+    const newest = new Date('2024-09-01');
 
-		const placements = [
-			makePlacement('alice', 'g1', 'session-1', oldest),
-			makePlacement('bob', 'g1', 'session-1', oldest),
-			makePlacement('alice', 'g2', 'session-2', middle),
-			makePlacement('carol', 'g2', 'session-2', middle),
-			makePlacement('alice', 'g3', 'session-3', newest),
-			makePlacement('dave', 'g3', 'session-3', newest)
-		];
+    const placements = [
+      makePlacement('alice', 'g1', 'session-1', oldest),
+      makePlacement('bob', 'g1', 'session-1', oldest),
+      makePlacement('alice', 'g2', 'session-2', middle),
+      makePlacement('carol', 'g2', 'session-2', middle),
+      makePlacement('alice', 'g3', 'session-3', newest),
+      makePlacement('dave', 'g3', 'session-3', newest)
+    ];
 
-		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol', 'dave'], 2);
+    const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol', 'dave'], 2);
 
-		// session-1 (oldest) should NOT be considered
-		expect(result.get('alice')?.has('bob')).toBe(false);
-		// session-2 and session-3 SHOULD be considered
-		expect(result.get('alice')?.has('carol')).toBe(true);
-		expect(result.get('alice')?.has('dave')).toBe(true);
-	});
+    // session-1 (oldest) should NOT be considered
+    expect(result.get('alice')?.has('bob')).toBe(false);
+    // session-2 and session-3 SHOULD be considered
+    expect(result.get('alice')?.has('carol')).toBe(true);
+    expect(result.get('alice')?.has('dave')).toBe(true);
+  });
 
-	it('lookbackSessions=10 with only 3 sessions considers all 3', () => {
-		const d1 = new Date('2024-01-01');
-		const d2 = new Date('2024-06-01');
-		const d3 = new Date('2024-09-01');
+  it('lookbackSessions=10 with only 3 sessions considers all 3', () => {
+    const d1 = new Date('2024-01-01');
+    const d2 = new Date('2024-06-01');
+    const d3 = new Date('2024-09-01');
 
-		const placements = [
-			makePlacement('alice', 'g1', 'session-1', d1),
-			makePlacement('bob', 'g1', 'session-1', d1),
-			makePlacement('alice', 'g2', 'session-2', d2),
-			makePlacement('carol', 'g2', 'session-2', d2),
-			makePlacement('alice', 'g3', 'session-3', d3),
-			makePlacement('dave', 'g3', 'session-3', d3)
-		];
+    const placements = [
+      makePlacement('alice', 'g1', 'session-1', d1),
+      makePlacement('bob', 'g1', 'session-1', d1),
+      makePlacement('alice', 'g2', 'session-2', d2),
+      makePlacement('carol', 'g2', 'session-2', d2),
+      makePlacement('alice', 'g3', 'session-3', d3),
+      makePlacement('dave', 'g3', 'session-3', d3)
+    ];
 
-		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol', 'dave'], 10);
+    const result = buildRecentGroupmatesMap(placements, ['alice', 'bob', 'carol', 'dave'], 10);
 
-		// All 3 sessions considered
-		expect(result.get('alice')?.has('bob')).toBe(true);
-		expect(result.get('alice')?.has('carol')).toBe(true);
-		expect(result.get('alice')?.has('dave')).toBe(true);
-	});
+    // All 3 sessions considered
+    expect(result.get('alice')?.has('bob')).toBe(true);
+    expect(result.get('alice')?.has('carol')).toBe(true);
+    expect(result.get('alice')?.has('dave')).toBe(true);
+  });
 
-	it('lookbackSessions=0 returns empty groupmate sets', () => {
-		const date = new Date('2024-09-01');
-		const placements = [
-			makePlacement('alice', 'g1', 'session-1', date),
-			makePlacement('bob', 'g1', 'session-1', date)
-		];
+  it('lookbackSessions=0 returns empty groupmate sets', () => {
+    const date = new Date('2024-09-01');
+    const placements = [
+      makePlacement('alice', 'g1', 'session-1', date),
+      makePlacement('bob', 'g1', 'session-1', date)
+    ];
 
-		const result = buildRecentGroupmatesMap(placements, ['alice', 'bob'], 0);
+    const result = buildRecentGroupmatesMap(placements, ['alice', 'bob'], 0);
 
-		expect(result.get('alice')?.size).toBe(0);
-		expect(result.get('bob')?.size).toBe(0);
-	});
+    expect(result.get('alice')?.size).toBe(0);
+    expect(result.get('bob')?.size).toBe(0);
+  });
 });
 
 describe('buildGroupingConstraints', () => {
-	it('should build constraints with avoid pairs', () => {
-		const prefs = [makePref('alice', ['bob'])];
-		const constraints = buildGroupingConstraints({
-			preferences: prefs,
-			placements: [],
-			studentIds: ['alice', 'bob'],
-			avoidRecentGroupmates: false
-		});
+  it('should build constraints with avoid pairs', () => {
+    const prefs = [makePref('alice', ['bob'])];
+    const constraints = buildGroupingConstraints({
+      preferences: prefs,
+      placements: [],
+      studentIds: ['alice', 'bob'],
+      avoidRecentGroupmates: false
+    });
 
-		expect(constraints.avoidPairs).toHaveLength(1);
-		expect(constraints.recentGroupmates).toBeUndefined();
-	});
+    expect(constraints.avoidPairs).toHaveLength(1);
+    expect(constraints.recentGroupmates).toBeUndefined();
+  });
 
-	it('should include recent groupmates when avoidRecentGroupmates is true', () => {
-		const date = new Date('2024-09-01');
-		const placements = [
-			makePlacement('alice', 'g1', 'session-1', date),
-			makePlacement('bob', 'g1', 'session-1', date)
-		];
+  it('should include recent groupmates when avoidRecentGroupmates is true', () => {
+    const date = new Date('2024-09-01');
+    const placements = [
+      makePlacement('alice', 'g1', 'session-1', date),
+      makePlacement('bob', 'g1', 'session-1', date)
+    ];
 
-		const constraints = buildGroupingConstraints({
-			preferences: [],
-			placements,
-			studentIds: ['alice', 'bob'],
-			avoidRecentGroupmates: true
-		});
+    const constraints = buildGroupingConstraints({
+      preferences: [],
+      placements,
+      studentIds: ['alice', 'bob'],
+      avoidRecentGroupmates: true
+    });
 
-		expect(constraints.recentGroupmates).toBeDefined();
-		expect(constraints.recentGroupmates?.get('alice')?.has('bob')).toBe(true);
-	});
+    expect(constraints.recentGroupmates).toBeDefined();
+    expect(constraints.recentGroupmates?.get('alice')?.has('bob')).toBe(true);
+  });
 
-	it('should set avoidPairs to undefined when no avoid preferences exist', () => {
-		const constraints = buildGroupingConstraints({
-			preferences: [],
-			placements: [],
-			studentIds: ['alice', 'bob'],
-			avoidRecentGroupmates: false
-		});
+  it('should set avoidPairs to undefined when no avoid preferences exist', () => {
+    const constraints = buildGroupingConstraints({
+      preferences: [],
+      placements: [],
+      studentIds: ['alice', 'bob'],
+      avoidRecentGroupmates: false
+    });
 
-		expect(constraints.avoidPairs).toBeUndefined();
-	});
+    expect(constraints.avoidPairs).toBeUndefined();
+  });
 });

@@ -54,7 +54,7 @@ export async function showToClass(
     clock: Clock;
   },
   input: ShowToClassInput
-): Promise<Result<Session, ShowToClassError>>
+): Promise<Result<Session, ShowToClassError>>;
 ```
 
 **Logic (in order):**
@@ -133,7 +133,11 @@ export function createPublishedSession(params: CreatePublishedSessionParams): Se
 Add a new exported function:
 
 ```typescript
-import { showToClass as showToClassUseCase, type ShowToClassInput, type ShowToClassError } from '$lib/application/useCases/showToClass';
+import {
+  showToClass as showToClassUseCase,
+  type ShowToClassInput,
+  type ShowToClassError
+} from '$lib/application/useCases/showToClass';
 
 export async function showToClass(
   env: InMemoryEnvironment,
@@ -155,6 +159,7 @@ export async function showToClass(
 ```
 
 Also re-export the types:
+
 ```typescript
 export type { ShowToClassInput, ShowToClassError } from '$lib/application/useCases/showToClass';
 ```
@@ -164,6 +169,7 @@ export type { ShowToClassInput, ShowToClassError } from '$lib/application/useCas
 **Modify:** `src/lib/application/useCases/index.ts`
 
 Add:
+
 ```typescript
 export * from './showToClass';
 ```
@@ -221,6 +227,7 @@ This eliminates `ShowToClassPrompt` — the button just works.
 **Create:** `src/lib/application/useCases/showToClass.spec.ts`
 
 Test cases:
+
 - Returns PROGRAM_NOT_FOUND when program doesn't exist
 - Returns SCENARIO_NOT_FOUND when scenario doesn't exist
 - Creates a PUBLISHED session (not DRAFT)
@@ -236,14 +243,14 @@ Also update `src/lib/domain/session.spec.ts` to add tests for `createPublishedSe
 
 ## Files Changed Summary
 
-| File | Action |
-|------|--------|
-| `src/lib/application/useCases/showToClass.ts` | CREATE |
-| `src/lib/application/useCases/showToClass.spec.ts` | CREATE |
-| `src/lib/domain/session.ts` | MODIFY (add `createPublishedSession`) |
-| `src/lib/domain/session.spec.ts` | MODIFY (add tests for `createPublishedSession`) |
-| `src/lib/application/useCases/index.ts` | MODIFY (add export) |
-| `src/lib/services/appEnvUseCases.ts` | MODIFY (add `showToClass` wrapper) |
+| File                                                | Action                                            |
+| --------------------------------------------------- | ------------------------------------------------- |
+| `src/lib/application/useCases/showToClass.ts`       | CREATE                                            |
+| `src/lib/application/useCases/showToClass.spec.ts`  | CREATE                                            |
+| `src/lib/domain/session.ts`                         | MODIFY (add `createPublishedSession`)             |
+| `src/lib/domain/session.spec.ts`                    | MODIFY (add tests for `createPublishedSession`)   |
+| `src/lib/application/useCases/index.ts`             | MODIFY (add export)                               |
+| `src/lib/services/appEnvUseCases.ts`                | MODIFY (add `showToClass` wrapper)                |
 | `src/routes/activities/[id]/workspace/+page.svelte` | MODIFY (use `showToClass`, simplify publish flow) |
 
 ## Do NOT Touch

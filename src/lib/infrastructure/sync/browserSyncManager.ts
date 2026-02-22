@@ -19,20 +19,20 @@ let instance: SyncManager | null = null;
  * Returns null during SSR.
  */
 export function getBrowserSyncManager(): SyncManager | null {
-	if (typeof window === 'undefined') {
-		return null;
-	}
+  if (typeof window === 'undefined') {
+    return null;
+  }
 
-	if (!instance) {
-		const authAdapter = getBrowserAuthAdapter();
-		instance = new SyncManager({
-			storage: new LocalStorageAdapter(),
-			networkStatus: new BrowserNetworkStatusAdapter(),
-			getAccessToken: () => authAdapter?.getAccessTokenSync() ?? null
-		});
-		// Initialize asynchronously
-		instance.initialize();
-	}
+  if (!instance) {
+    const authAdapter = getBrowserAuthAdapter();
+    instance = new SyncManager({
+      storage: new LocalStorageAdapter(),
+      networkStatus: new BrowserNetworkStatusAdapter(),
+      getAccessToken: () => authAdapter?.getAccessTokenSync() ?? null
+    });
+    // Initialize asynchronously
+    instance.initialize();
+  }
 
-	return instance;
+  return instance;
 }

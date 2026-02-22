@@ -17,15 +17,15 @@ const STORE_NAME = 'programs';
  * Converts Date objects in timeSpan to ISO strings.
  */
 function serialize(program: Program): object {
-	const serializedTimeSpan =
-		'start' in program.timeSpan
-			? { start: program.timeSpan.start.toISOString(), end: program.timeSpan.end.toISOString() }
-			: program.timeSpan;
+  const serializedTimeSpan =
+    'start' in program.timeSpan
+      ? { start: program.timeSpan.start.toISOString(), end: program.timeSpan.end.toISOString() }
+      : program.timeSpan;
 
-	return {
-		...program,
-		timeSpan: serializedTimeSpan
-	};
+  return {
+    ...program,
+    timeSpan: serializedTimeSpan
+  };
 }
 
 /**
@@ -34,94 +34,94 @@ function serialize(program: Program): object {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function deserialize(data: any): Program {
-	let timeSpan: ProgramTimeSpan;
-	if (data.timeSpan && 'start' in data.timeSpan) {
-		timeSpan = {
-			start: new Date(data.timeSpan.start),
-			end: new Date(data.timeSpan.end)
-		};
-	} else {
-		timeSpan = data.timeSpan;
-	}
+  let timeSpan: ProgramTimeSpan;
+  if (data.timeSpan && 'start' in data.timeSpan) {
+    timeSpan = {
+      start: new Date(data.timeSpan.start),
+      end: new Date(data.timeSpan.end)
+    };
+  } else {
+    timeSpan = data.timeSpan;
+  }
 
-	return {
-		...data,
-		timeSpan
-	};
+  return {
+    ...data,
+    timeSpan
+  };
 }
 
 export class IndexedDbProgramRepository implements ProgramRepository {
-	async getById(id: string): Promise<Program | null> {
-		if (typeof indexedDB === 'undefined') return null;
+  async getById(id: string): Promise<Program | null> {
+    if (typeof indexedDB === 'undefined') return null;
 
-		const db = await openDb();
-		return new Promise((resolve, reject) => {
-			const tx = db.transaction(STORE_NAME, 'readonly');
-			const store = tx.objectStore(STORE_NAME);
-			const request = store.get(id);
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(id);
 
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => {
-				const data = request.result;
-				resolve(data ? deserialize(data) : null);
-			};
-		});
-	}
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const data = request.result;
+        resolve(data ? deserialize(data) : null);
+      };
+    });
+  }
 
-	async save(program: Program): Promise<void> {
-		if (typeof indexedDB === 'undefined') return;
+  async save(program: Program): Promise<void> {
+    if (typeof indexedDB === 'undefined') return;
 
-		const db = await openDb();
-		return new Promise((resolve, reject) => {
-			const tx = db.transaction(STORE_NAME, 'readwrite');
-			const store = tx.objectStore(STORE_NAME);
-			const request = store.put(serialize(program));
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.put(serialize(program));
 
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve();
-		});
-	}
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
 
-	async update(program: Program): Promise<void> {
-		return this.save(program);
-	}
+  async update(program: Program): Promise<void> {
+    return this.save(program);
+  }
 
-	async delete(id: string): Promise<void> {
-		if (typeof indexedDB === 'undefined') return;
+  async delete(id: string): Promise<void> {
+    if (typeof indexedDB === 'undefined') return;
 
-		const db = await openDb();
-		return new Promise((resolve, reject) => {
-			const tx = db.transaction(STORE_NAME, 'readwrite');
-			const store = tx.objectStore(STORE_NAME);
-			const request = store.delete(id);
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.delete(id);
 
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve();
-		});
-	}
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
 
-	async listAll(userId?: string): Promise<Program[]> {
-		if (typeof indexedDB === 'undefined') return [];
+  async listAll(userId?: string): Promise<Program[]> {
+    if (typeof indexedDB === 'undefined') return [];
 
-		const db = await openDb();
-		return new Promise((resolve, reject) => {
-			const tx = db.transaction(STORE_NAME, 'readonly');
-			const store = tx.objectStore(STORE_NAME);
-			const request = store.getAll();
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.getAll();
 
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const data = request.result as any[];
-				let programs = data.map(deserialize);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data = request.result as any[];
+        let programs = data.map(deserialize);
 
-				// Filter by userId when provided
-				if (userId !== undefined) {
-					programs = programs.filter((p) => p.userId === userId);
-				}
+        // Filter by userId when provided
+        if (userId !== undefined) {
+          programs = programs.filter((p) => p.userId === userId);
+        }
 
-				resolve(programs);
-			};
-		});
-	}
+        resolve(programs);
+      };
+    });
+  }
 }

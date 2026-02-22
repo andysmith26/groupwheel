@@ -1,355 +1,348 @@
 <script lang="ts">
-	import '../app.css';
-	import logo from '$lib/assets/logo.svg';
+  import '../app.css';
+  import logo from '$lib/assets/logo.svg';
 
-	import { onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { env as publicEnv } from '$env/dynamic/public';
-	import { setAppEnvContext } from '$lib/contexts/appEnv';
-	import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
-	import { getBrowserAuthAdapter } from '$lib/infrastructure/auth/browserAuth';
-	import { getBrowserSyncManager } from '$lib/infrastructure/sync/browserSyncManager';
-	import { getBrowserGoogleSheetsSyncManager } from '$lib/infrastructure/sync';
-	import { BrowserClipboardAdapter } from '$lib/infrastructure/clipboard';
-	import { GoogleSheetsAdapter } from '$lib/infrastructure/sheets';
-	import { syncSettings } from '$lib/stores/syncSettings.svelte';
-	import LoginButton from '$lib/components/auth/LoginButton.svelte';
-	import TrackResponsesNavControls from '$lib/components/track-responses/TrackResponsesNavControls.svelte';
-	import { trackResponsesSession } from '$lib/stores/trackResponsesSession.svelte';
-	import { activityHeader } from '$lib/stores/activityHeader.svelte';
-	import { workspaceHeader } from '$lib/stores/workspaceHeader.svelte';
-	import { Button, OfflineBanner } from '$lib/components/ui';
-	import { devTools } from '$lib/stores/devTools.svelte';
-	import {
-		initializeDemoModeIfRequested,
-		exposeDemoFunctionsToWindow,
-		seedDemoData
-	} from '$lib/infrastructure/demo';
+  import { onDestroy } from 'svelte';
+  import { browser } from '$app/environment';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
+  import { env as publicEnv } from '$env/dynamic/public';
+  import { setAppEnvContext } from '$lib/contexts/appEnv';
+  import { createInMemoryEnvironment } from '$lib/infrastructure/inMemoryEnvironment';
+  import { getBrowserAuthAdapter } from '$lib/infrastructure/auth/browserAuth';
+  import { getBrowserSyncManager } from '$lib/infrastructure/sync/browserSyncManager';
+  import { getBrowserGoogleSheetsSyncManager } from '$lib/infrastructure/sync';
+  import { BrowserClipboardAdapter } from '$lib/infrastructure/clipboard';
+  import { GoogleSheetsAdapter } from '$lib/infrastructure/sheets';
+  import { syncSettings } from '$lib/stores/syncSettings.svelte';
+  import LoginButton from '$lib/components/auth/LoginButton.svelte';
+  import TrackResponsesNavControls from '$lib/components/track-responses/TrackResponsesNavControls.svelte';
+  import { trackResponsesSession } from '$lib/stores/trackResponsesSession.svelte';
+  import { activityHeader } from '$lib/stores/activityHeader.svelte';
+  import { workspaceHeader } from '$lib/stores/workspaceHeader.svelte';
+  import { Button, OfflineBanner } from '$lib/components/ui';
+  import { devTools } from '$lib/stores/devTools.svelte';
+  import {
+    initializeDemoModeIfRequested,
+    exposeDemoFunctionsToWindow,
+    seedDemoData
+  } from '$lib/infrastructure/demo';
 
-	const { children } = $props();
+  const { children } = $props();
 
-	let authAdapter: ReturnType<typeof getBrowserAuthAdapter> | null = null;
-	let syncManager: ReturnType<typeof getBrowserSyncManager> | null = null;
-	let authUnsubscribe: (() => void) | null = null;
-	let isAuthenticated = $state(false);
-	let appEnvRef: ReturnType<typeof createInMemoryEnvironment> | null = null;
+  let authAdapter: ReturnType<typeof getBrowserAuthAdapter> | null = null;
+  let syncManager: ReturnType<typeof getBrowserSyncManager> | null = null;
+  let authUnsubscribe: (() => void) | null = null;
+  let isAuthenticated = $state(false);
+  let appEnvRef: ReturnType<typeof createInMemoryEnvironment> | null = null;
 
-	if (browser) {
-		// Catch unhandled promise rejections to prevent silent failures
-		window.addEventListener('unhandledrejection', (event) => {
-			console.error('Unhandled promise rejection:', event.reason);
-			event.preventDefault();
-		});
+  if (browser) {
+    // Catch unhandled promise rejections to prevent silent failures
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('Unhandled promise rejection:', event.reason);
+      event.preventDefault();
+    });
 
-		authAdapter = getBrowserAuthAdapter({
-			navigate: goto,
-			clientId: publicEnv.PUBLIC_GOOGLE_CLIENT_ID
-		});
-		syncManager = getBrowserSyncManager();
+    authAdapter = getBrowserAuthAdapter({
+      navigate: goto,
+      clientId: publicEnv.PUBLIC_GOOGLE_CLIENT_ID
+    });
+    syncManager = getBrowserSyncManager();
 
-		// Create GoogleSheetsAdapter if auth is available
-		const sheetsAdapter = authAdapter
-			? new GoogleSheetsAdapter({ authService: authAdapter })
-			: undefined;
+    // Create GoogleSheetsAdapter if auth is available
+    const sheetsAdapter = authAdapter
+      ? new GoogleSheetsAdapter({ authService: authAdapter })
+      : undefined;
 
-		// Create GoogleSheetsSyncManager if auth and sheets are available
-		const sheetsSyncManager =
-			authAdapter && sheetsAdapter
-				? getBrowserGoogleSheetsSyncManager({
-						sheetsService: sheetsAdapter,
-						authService: authAdapter
-					})
-				: null;
+    // Create GoogleSheetsSyncManager if auth and sheets are available
+    const sheetsSyncManager =
+      authAdapter && sheetsAdapter
+        ? getBrowserGoogleSheetsSyncManager({
+            sheetsService: sheetsAdapter,
+            authService: authAdapter
+          })
+        : null;
 
-		const appEnv = createInMemoryEnvironment(undefined, {
-			useIndexedDb: true,
-			authService: authAdapter ?? undefined,
-			syncService: syncManager ?? undefined,
-			sheetsSyncService: sheetsSyncManager ?? undefined,
-			clipboard: new BrowserClipboardAdapter(),
-			sheetsService: sheetsAdapter
-		});
-		appEnvRef = appEnv;
-		setAppEnvContext(appEnv);
+    const appEnv = createInMemoryEnvironment(undefined, {
+      useIndexedDb: true,
+      authService: authAdapter ?? undefined,
+      syncService: syncManager ?? undefined,
+      sheetsSyncService: sheetsSyncManager ?? undefined,
+      clipboard: new BrowserClipboardAdapter(),
+      sheetsService: sheetsAdapter
+    });
+    appEnvRef = appEnv;
+    setAppEnvContext(appEnv);
 
-		// Initialize demo mode if requested via URL parameter (?demo=true)
-		initializeDemoModeIfRequested(appEnv).then((result) => {
-			if (result) {
-				console.log('[Demo]', result.message);
-				// Redirect to activities page to see the demo data
-				if (result.success && window.location.pathname === '/') {
-					goto('/activities');
-				}
-			}
-		});
+    // Initialize demo mode if requested via URL parameter (?demo=true)
+    initializeDemoModeIfRequested(appEnv).then((result) => {
+      if (result) {
+        console.log('[Demo]', result.message);
+        // Redirect to activities page to see the demo data
+        if (result.success && window.location.pathname === '/') {
+          goto('/activities');
+        }
+      }
+    });
 
-		// Expose demo functions to window for developer access
-		exposeDemoFunctionsToWindow(appEnv);
+    // Expose demo functions to window for developer access
+    exposeDemoFunctionsToWindow(appEnv);
 
-		// Subscribe to auth state changes; sync enablement is gated by user preference.
-		if (authAdapter) {
-			authUnsubscribe = authAdapter.onAuthStateChange((user) => {
-				isAuthenticated = user !== null;
-			});
-		}
-	}
+    // Subscribe to auth state changes; sync enablement is gated by user preference.
+    if (authAdapter) {
+      authUnsubscribe = authAdapter.onAuthStateChange((user) => {
+        isAuthenticated = user !== null;
+      });
+    }
+  }
 
-	$effect(() => {
-		if (!syncManager) return;
-		syncManager.setEnabled(isAuthenticated && syncSettings.syncEnabled);
-	});
+  $effect(() => {
+    if (!syncManager) return;
+    syncManager.setEnabled(isAuthenticated && syncSettings.syncEnabled);
+  });
 
-	onDestroy(() => {
-		authUnsubscribe?.();
-	});
+  onDestroy(() => {
+    authUnsubscribe?.();
+  });
 
-	// Check if we're on the landing page or auth pages
-	let isLandingPage = $derived($page.url.pathname === '/');
-	let isAuthPage = $derived($page.url.pathname.startsWith('/auth'));
-	let isActivitiesPage = $derived($page.url.pathname === '/activities');
-	let isImportPage = $derived($page.url.pathname === '/activities/import');
-	let isTrackResponses = $derived($page.url.pathname.startsWith('/track-responses'));
-	let isWorkspace = $derived($page.route.id?.startsWith('/activities/[id]/workspace') ?? false);
-	let isActivityDetailPage = $derived(/^\/activities\/[^/]+$/.test($page.url.pathname));
-	let shouldShowHeaderSubtitle = $derived(isTrackResponses || isWorkspace);
-	let isSpaceHeld = $state(false);
-	let shouldShowAccountDropdown = $derived(
-		(!isTrackResponses || isAuthenticated) &&
-			(!isWorkspace || isAuthenticated) &&
-			(!isActivitiesPage || isSpaceHeld) &&
-			!isImportPage &&
-			!isActivityDetailPage
-	);
-	let workspaceHeaderState = $derived(workspaceHeader.state);
-	let showWorkspaceExportMenu = $state(false);
+  // Check if we're on the landing page or auth pages
+  let isLandingPage = $derived($page.url.pathname === '/');
+  let isAuthPage = $derived($page.url.pathname.startsWith('/auth'));
+  let isActivitiesPage = $derived($page.url.pathname === '/activities');
+  let isImportPage = $derived($page.url.pathname === '/activities/import');
+  let isTrackResponses = $derived($page.url.pathname.startsWith('/track-responses'));
+  let isWorkspace = $derived($page.route.id?.startsWith('/activities/[id]/workspace') ?? false);
+  let isActivityDetailPage = $derived(/^\/activities\/[^/]+$/.test($page.url.pathname));
+  let shouldShowHeaderSubtitle = $derived(isTrackResponses || isWorkspace);
+  let isSpaceHeld = $state(false);
+  let shouldShowAccountDropdown = $derived(
+    (!isTrackResponses || isAuthenticated) &&
+      (!isWorkspace || isAuthenticated) &&
+      (!isActivitiesPage || isSpaceHeld) &&
+      !isImportPage &&
+      !isActivityDetailPage
+  );
+  let workspaceHeaderState = $derived(workspaceHeader.state);
+  let showWorkspaceExportMenu = $state(false);
 
-	function isActiveLink(pathname: string, href: string) {
-		if (href === '/') return pathname === '/';
-		return pathname === href || pathname.startsWith(`${href}/`);
-	}
+  function isActiveLink(pathname: string, href: string) {
+    if (href === '/') return pathname === '/';
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
-	function formatPercent(value: number | null): string {
-		if (value === null || Number.isNaN(value)) return '--%';
-		return `${Math.round(value)}%`;
-	}
+  function formatPercent(value: number | null): string {
+    if (value === null || Number.isNaN(value)) return '--%';
+    return `${Math.round(value)}%`;
+  }
 
-	$effect(() => {
-		if (!isWorkspace || !workspaceHeaderState) {
-			showWorkspaceExportMenu = false;
-		}
-	});
+  $effect(() => {
+    if (!isWorkspace || !workspaceHeaderState) {
+      showWorkspaceExportMenu = false;
+    }
+  });
 
-	$effect(() => {
-		if (!isActivitiesPage) {
-			isSpaceHeld = false;
-		}
-	});
+  $effect(() => {
+    if (!isActivitiesPage) {
+      isSpaceHeld = false;
+    }
+  });
 
-	function handleKeydown(event: KeyboardEvent) {
-		// Demo mode shortcut: Ctrl+Shift+D (when devtools enabled)
-		if (devTools.enabled && event.ctrlKey && event.shiftKey && event.code === 'KeyD') {
-			event.preventDefault();
-			if (appEnvRef) {
-				seedDemoData(appEnvRef, true).then((result) => {
-					console.log('[Demo]', result.message);
-					if (result.success) {
-						// Reload the page to see the demo data
-						window.location.href = '/activities';
-					}
-				});
-			}
-			return;
-		}
+  function handleKeydown(event: KeyboardEvent) {
+    // Demo mode shortcut: Ctrl+Shift+D (when devtools enabled)
+    if (devTools.enabled && event.ctrlKey && event.shiftKey && event.code === 'KeyD') {
+      event.preventDefault();
+      if (appEnvRef) {
+        seedDemoData(appEnvRef, true).then((result) => {
+          console.log('[Demo]', result.message);
+          if (result.success) {
+            // Reload the page to see the demo data
+            window.location.href = '/activities';
+          }
+        });
+      }
+      return;
+    }
 
-		if (!isActivitiesPage) return;
-		if (event.code === 'Space') {
-			isSpaceHeld = true;
-		}
-	}
+    if (!isActivitiesPage) return;
+    if (event.code === 'Space') {
+      isSpaceHeld = true;
+    }
+  }
 
-	function handleKeyup(event: KeyboardEvent) {
-		if (!isActivitiesPage) return;
-		if (event.code === 'Space') {
-			isSpaceHeld = false;
-		}
-	}
+  function handleKeyup(event: KeyboardEvent) {
+    if (!isActivitiesPage) return;
+    if (event.code === 'Space') {
+      isSpaceHeld = false;
+    }
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} onkeyup={handleKeyup} />
 
 <div class="flex min-h-screen flex-col bg-gray-50">
-	{#if browser}
-		<OfflineBanner />
-	{/if}
-	<header
-		class={`border-b bg-white shadow-sm ${isTrackResponses ? 'sticky top-0 z-40' : ''}`}
-	>
-		<div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2">
-			<a href="/" class="group flex items-center gap-2">
-				<img src={logo} alt="Groupwheel logo" class="h-8 w-8" />
-				<div>
-					<p
-						class="text-sm font-semibold tracking-wide text-gray-700 group-hover:text-coral"
-					>
-						Groupwheel
-					</p>
-					{#if !isLandingPage && !isAuthPage}
-						{#if shouldShowHeaderSubtitle}
-							{#if isTrackResponses}
-								<p class="text-xs text-gray-500">
-									{trackResponsesSession.sheetTitle ?? 'No sheet connected'}
-								</p>
-							{:else if isWorkspace && activityHeader.name}
-								<p class="text-xs text-gray-500">{activityHeader.name}</p>
-							{/if}
-						{/if}
-					{/if}
-				</div>
-			</a>
+  {#if browser}
+    <OfflineBanner />
+  {/if}
+  <header class={`border-b bg-white shadow-sm ${isTrackResponses ? 'sticky top-0 z-40' : ''}`}>
+    <div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2">
+      <a href="/" class="group flex items-center gap-2">
+        <img src={logo} alt="Groupwheel logo" class="h-8 w-8" />
+        <div>
+          <p class="text-sm font-semibold tracking-wide text-gray-700 group-hover:text-coral">
+            Groupwheel
+          </p>
+          {#if !isLandingPage && !isAuthPage}
+            {#if shouldShowHeaderSubtitle}
+              {#if isTrackResponses}
+                <p class="text-xs text-gray-500">
+                  {trackResponsesSession.sheetTitle ?? 'No sheet connected'}
+                </p>
+              {:else if isWorkspace && activityHeader.name}
+                <p class="text-xs text-gray-500">{activityHeader.name}</p>
+              {/if}
+            {/if}
+          {/if}
+        </div>
+      </a>
 
-			{#if !isLandingPage && !isAuthPage}
-				<nav aria-label="Main navigation" class="flex flex-1 items-center gap-4">
-					{#if isTrackResponses && trackResponsesSession.isConnected}
-						<TrackResponsesNavControls />
-					{/if}
+      {#if !isLandingPage && !isAuthPage}
+        <nav aria-label="Main navigation" class="flex flex-1 items-center gap-4">
+          {#if isTrackResponses && trackResponsesSession.isConnected}
+            <TrackResponsesNavControls />
+          {/if}
 
-					<div class="ml-auto flex items-center gap-3">
-						{#if isWorkspace && workspaceHeaderState}
-							<div class="flex flex-wrap items-center gap-3">
-								<div class="flex items-center gap-2 text-xs text-gray-600">
-									<button
-										type="button"
-										class="text-gray-600 hover:text-gray-900 disabled:text-gray-300"
-										onclick={workspaceHeaderState.onUndo}
-										disabled={!workspaceHeaderState.canUndo}
-									>
-										← Undo
-									</button>
-									<button
-										type="button"
-										class="text-gray-600 hover:text-gray-900 disabled:text-gray-300"
-										onclick={workspaceHeaderState.onRedo}
-										disabled={!workspaceHeaderState.canRedo}
-									>
-										Redo →
-									</button>
-									<span class="hidden md:inline text-gray-300">/</span>
-									{#if workspaceHeaderState.qualityLabel}
-										<span class="hidden md:inline whitespace-nowrap font-medium text-gray-700">
-											{workspaceHeaderState.qualityLabel} ·
-										</span>
-									{/if}
-									<span class="hidden md:inline whitespace-nowrap text-gray-700">
-										Top 1: {formatPercent(workspaceHeaderState.topChoicePercent)}
-									</span>
-									<span class="hidden md:inline whitespace-nowrap text-gray-700">
-										Top 2: {formatPercent(workspaceHeaderState.topTwoPercent)}
-									</span>
-								</div>
-								<div class="flex items-center gap-2">
-									{#if workspaceHeaderState.onCompare}
-										<button
-											type="button"
-											onclick={workspaceHeaderState.onCompare}
-											disabled={!workspaceHeaderState.hasPreferences || workspaceHeaderState.isComparing}
-											class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-										>
-											{workspaceHeaderState.isComparing ? 'Generating...' : 'Compare'}
-										</button>
-									{/if}
-									<Button href="/activities/import" variant="secondary" size="sm">
-										Import
-									</Button>
-									<div class="relative">
-										<button
-											type="button"
-											class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-											onclick={() => (showWorkspaceExportMenu = !showWorkspaceExportMenu)}
-										>
-											Export ▾
-										</button>
-										{#if showWorkspaceExportMenu}
-											<div
-												class="absolute right-0 z-20 mt-1 w-56 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
-												role="menu"
-											>
-												<button
-													type="button"
-													class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-													onclick={() => {
-														workspaceHeaderState.onExportGroupsColumns();
-														showWorkspaceExportMenu = false;
-													}}
-													role="menuitem"
-												>
-													Copy groupings
-													<span class="block text-xs text-gray-500">
-														for pasting into a spreadsheet
-													</span>
-												</button>
-												<hr class="my-1 border-gray-100" />
-												<button
-													type="button"
-													class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-													onclick={() => {
-														workspaceHeaderState.onExportActivitySchema();
-														showWorkspaceExportMenu = false;
-													}}
-													role="menuitem"
-												>
-													Download schema
-													<span class="block text-xs text-gray-500">for emailing</span>
-												</button>
-												<button
-													type="button"
-													class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-													onclick={() => {
-														workspaceHeaderState.onExportActivityScreenshot();
-														showWorkspaceExportMenu = false;
-													}}
-													role="menuitem"
-												>
-													Download screenshot
-													<span class="block text-xs text-gray-500">for reference</span>
-												</button>
-											</div>
-											<button
-												type="button"
-												class="fixed inset-0 z-10"
-												onclick={() => (showWorkspaceExportMenu = false)}
-												aria-label="Close menu"
-											></button>
-										{/if}
-									</div>
-								</div>
-							</div>
-						{/if}
-						{#if browser && shouldShowAccountDropdown}
-							<LoginButton />
-						{/if}
-					</div>
-				</nav>
-			{:else if !isAuthPage}
-				<div class="flex items-center gap-3">
-					{#if browser}
-						<LoginButton />
-					{/if}
-				</div>
-			{/if}
-		</div>
-	</header>
+          <div class="ml-auto flex items-center gap-3">
+            {#if isWorkspace && workspaceHeaderState}
+              <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2 text-xs text-gray-600">
+                  <button
+                    type="button"
+                    class="text-gray-600 hover:text-gray-900 disabled:text-gray-300"
+                    onclick={workspaceHeaderState.onUndo}
+                    disabled={!workspaceHeaderState.canUndo}
+                  >
+                    ← Undo
+                  </button>
+                  <button
+                    type="button"
+                    class="text-gray-600 hover:text-gray-900 disabled:text-gray-300"
+                    onclick={workspaceHeaderState.onRedo}
+                    disabled={!workspaceHeaderState.canRedo}
+                  >
+                    Redo →
+                  </button>
+                  <span class="hidden text-gray-300 md:inline">/</span>
+                  {#if workspaceHeaderState.qualityLabel}
+                    <span class="hidden font-medium whitespace-nowrap text-gray-700 md:inline">
+                      {workspaceHeaderState.qualityLabel} ·
+                    </span>
+                  {/if}
+                  <span class="hidden whitespace-nowrap text-gray-700 md:inline">
+                    Top 1: {formatPercent(workspaceHeaderState.topChoicePercent)}
+                  </span>
+                  <span class="hidden whitespace-nowrap text-gray-700 md:inline">
+                    Top 2: {formatPercent(workspaceHeaderState.topTwoPercent)}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  {#if workspaceHeaderState.onCompare}
+                    <button
+                      type="button"
+                      onclick={workspaceHeaderState.onCompare}
+                      disabled={!workspaceHeaderState.hasPreferences ||
+                        workspaceHeaderState.isComparing}
+                      class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                    >
+                      {workspaceHeaderState.isComparing ? 'Generating...' : 'Compare'}
+                    </button>
+                  {/if}
+                  <Button href="/activities/import" variant="secondary" size="sm">Import</Button>
+                  <div class="relative">
+                    <button
+                      type="button"
+                      class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      onclick={() => (showWorkspaceExportMenu = !showWorkspaceExportMenu)}
+                    >
+                      Export ▾
+                    </button>
+                    {#if showWorkspaceExportMenu}
+                      <div
+                        class="absolute right-0 z-20 mt-1 w-56 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                        role="menu"
+                      >
+                        <button
+                          type="button"
+                          class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                          onclick={() => {
+                            workspaceHeaderState.onExportGroupsColumns();
+                            showWorkspaceExportMenu = false;
+                          }}
+                          role="menuitem"
+                        >
+                          Copy groupings
+                          <span class="block text-xs text-gray-500">
+                            for pasting into a spreadsheet
+                          </span>
+                        </button>
+                        <hr class="my-1 border-gray-100" />
+                        <button
+                          type="button"
+                          class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                          onclick={() => {
+                            workspaceHeaderState.onExportActivitySchema();
+                            showWorkspaceExportMenu = false;
+                          }}
+                          role="menuitem"
+                        >
+                          Download schema
+                          <span class="block text-xs text-gray-500">for emailing</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                          onclick={() => {
+                            workspaceHeaderState.onExportActivityScreenshot();
+                            showWorkspaceExportMenu = false;
+                          }}
+                          role="menuitem"
+                        >
+                          Download screenshot
+                          <span class="block text-xs text-gray-500">for reference</span>
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        class="fixed inset-0 z-10"
+                        onclick={() => (showWorkspaceExportMenu = false)}
+                        aria-label="Close menu"
+                      ></button>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+            {/if}
+            {#if browser && shouldShowAccountDropdown}
+              <LoginButton />
+            {/if}
+          </div>
+        </nav>
+      {:else if !isAuthPage}
+        <div class="flex items-center gap-3">
+          {#if browser}
+            <LoginButton />
+          {/if}
+        </div>
+      {/if}
+    </div>
+  </header>
 
-	<main
-		class={
-			isWorkspace
-				? 'flex-1 overflow-hidden'
-				: $page.route.id?.startsWith('/groups/[id]') || $page.route.id?.startsWith('/activities/[id]')
-					? 'flex-1'
-					: 'flex-1 mx-auto max-w-6xl p-4'
-		}
-	>
-		{@render children()}
-	</main>
+  <main
+    class={isWorkspace
+      ? 'flex-1 overflow-hidden'
+      : $page.route.id?.startsWith('/groups/[id]') || $page.route.id?.startsWith('/activities/[id]')
+        ? 'flex-1'
+        : 'mx-auto max-w-6xl flex-1 p-4'}
+  >
+    {@render children()}
+  </main>
 </div>

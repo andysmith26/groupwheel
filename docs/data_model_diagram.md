@@ -205,13 +205,13 @@ erDiagram
 
 ## Legend
 
-| Symbol | Meaning |
-|--------|---------|
-| `PK` | Primary Key |
-| `FK` | Foreign Key reference |
-| `\|\|--\|{` | one-to-many (required) |
-| `\|\|--o{` | one-to-many (optional) |
-| `}o--\|\|` | many-to-one (optional on many side) |
+| Symbol      | Meaning                             |
+| ----------- | ----------------------------------- |
+| `PK`        | Primary Key                         |
+| `FK`        | Foreign Key reference               |
+| `\|\|--\|{` | one-to-many (required)              |
+| `\|\|--o{`  | one-to-many (optional)              |
+| `}o--\|\|`  | many-to-one (optional on many side) |
 
 ## Notes
 

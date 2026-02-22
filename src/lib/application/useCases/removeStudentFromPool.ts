@@ -14,88 +14,84 @@ import type { ScenarioRepository } from '$lib/application/ports/ScenarioReposito
 import { ok, err, type Result } from '$lib/types/result';
 
 export interface RemoveStudentFromPoolInput {
-	poolId: string;
-	studentId: string;
-	/** Program ID to check for active scenarios */
-	programId?: string;
+  poolId: string;
+  studentId: string;
+  /** Program ID to check for active scenarios */
+  programId?: string;
 }
 
 export type RemoveStudentFromPoolError =
-	| { type: 'POOL_NOT_FOUND'; poolId: string }
-	| { type: 'STUDENT_NOT_IN_POOL'; studentId: string };
+  | { type: 'POOL_NOT_FOUND'; poolId: string }
+  | { type: 'STUDENT_NOT_IN_POOL'; studentId: string };
 
 export interface RemoveStudentFromPoolResult {
-	pool: Pool;
-	/** The scenario that was updated (if student was in a group) */
-	updatedScenario?: Scenario;
-	/** True if the student was removed from a group */
-	removedFromGroup: boolean;
+  pool: Pool;
+  /** The scenario that was updated (if student was in a group) */
+  updatedScenario?: Scenario;
+  /** True if the student was removed from a group */
+  removedFromGroup: boolean;
 }
 
 export async function removeStudentFromPool(
-	deps: {
-		poolRepo: PoolRepository;
-		scenarioRepo: ScenarioRepository;
-	},
-	input: RemoveStudentFromPoolInput
+  deps: {
+    poolRepo: PoolRepository;
+    scenarioRepo: ScenarioRepository;
+  },
+  input: RemoveStudentFromPoolInput
 ): Promise<Result<RemoveStudentFromPoolResult, RemoveStudentFromPoolError>> {
-	// Load the pool
-	const pool = await deps.poolRepo.getById(input.poolId);
-	if (!pool) {
-		return err({ type: 'POOL_NOT_FOUND', poolId: input.poolId });
-	}
+  // Load the pool
+  const pool = await deps.poolRepo.getById(input.poolId);
+  if (!pool) {
+    return err({ type: 'POOL_NOT_FOUND', poolId: input.poolId });
+  }
 
-	// Check if student is in pool
-	if (!pool.memberIds.includes(input.studentId)) {
-		return err({ type: 'STUDENT_NOT_IN_POOL', studentId: input.studentId });
-	}
+  // Check if student is in pool
+  if (!pool.memberIds.includes(input.studentId)) {
+    return err({ type: 'STUDENT_NOT_IN_POOL', studentId: input.studentId });
+  }
 
-	// Remove student from pool
-	const updatedPool: Pool = {
-		...pool,
-		memberIds: pool.memberIds.filter((id) => id !== input.studentId)
-	};
-	await deps.poolRepo.update(updatedPool);
+  // Remove student from pool
+  const updatedPool: Pool = {
+    ...pool,
+    memberIds: pool.memberIds.filter((id) => id !== input.studentId)
+  };
+  await deps.poolRepo.update(updatedPool);
 
-	// If program ID provided, also remove from any active scenario groups
-	let updatedScenario: Scenario | undefined;
-	let removedFromGroup = false;
+  // If program ID provided, also remove from any active scenario groups
+  let updatedScenario: Scenario | undefined;
+  let removedFromGroup = false;
 
-	if (input.programId) {
-		const scenario = await deps.scenarioRepo.getByProgramId(input.programId);
-		if (scenario) {
-			// Check if student is in any group
-			const groupWithStudent = scenario.groups.find((g) =>
-				g.memberIds.includes(input.studentId)
-			);
+  if (input.programId) {
+    const scenario = await deps.scenarioRepo.getByProgramId(input.programId);
+    if (scenario) {
+      // Check if student is in any group
+      const groupWithStudent = scenario.groups.find((g) => g.memberIds.includes(input.studentId));
 
-			if (groupWithStudent) {
-				// Remove student from the group
-				updatedScenario = {
-					...scenario,
-					groups: scenario.groups.map((g) => {
-						if (g.id === groupWithStudent.id) {
-							return {
-								...g,
-								memberIds: g.memberIds.filter((id) => id !== input.studentId)
-							};
-						}
-						return g;
-					}),
-					// Also update participant snapshot
-					participantSnapshot: scenario.participantSnapshot.filter(
-						(id) => id !== input.studentId
-					)
-				};
-				await deps.scenarioRepo.update(updatedScenario);
-				removedFromGroup = true;
-			}
-		}
-	}
+      if (groupWithStudent) {
+        // Remove student from the group
+        updatedScenario = {
+          ...scenario,
+          groups: scenario.groups.map((g) => {
+            if (g.id === groupWithStudent.id) {
+              return {
+                ...g,
+                memberIds: g.memberIds.filter((id) => id !== input.studentId)
+              };
+            }
+            return g;
+          }),
+          // Also update participant snapshot
+          participantSnapshot: scenario.participantSnapshot.filter((id) => id !== input.studentId)
+        };
+        await deps.scenarioRepo.update(updatedScenario);
+        removedFromGroup = true;
+      }
+    }
+  }
 
-	return ok({
-		pool: updatedPool,
-		updatedScenario,
-		removedFromGroup
-	});
+  return ok({
+    pool: updatedPool,
+    updatedScenario,
+    removedFromGroup
+  });
 }

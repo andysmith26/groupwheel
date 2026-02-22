@@ -20,18 +20,18 @@
  */
 
 export {
-	generateDemoData,
-	shouldActivateDemoMode,
-	isDemoDataLoaded,
-	markDemoDataLoaded,
-	clearDemoDataMarker,
-	type DemoDataSet
+  generateDemoData,
+  shouldActivateDemoMode,
+  isDemoDataLoaded,
+  markDemoDataLoaded,
+  clearDemoDataMarker,
+  type DemoDataSet
 } from './demoData';
 
 export {
-	seedDemoData,
-	clearDemoData,
-	initializeDemoModeIfRequested,
-	exposeDemoFunctionsToWindow,
-	type SeedDemoResult
+  seedDemoData,
+  clearDemoData,
+  initializeDemoModeIfRequested,
+  exposeDemoFunctionsToWindow,
+  type SeedDemoResult
 } from './demoSeeder';

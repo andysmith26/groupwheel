@@ -8,11 +8,11 @@
  */
 
 import type {
-	GoogleSheetsService,
-	SheetMetadata,
-	SheetTab,
-	SheetWriteData,
-	GoogleSheetsError
+  GoogleSheetsService,
+  SheetMetadata,
+  SheetTab,
+  SheetWriteData,
+  GoogleSheetsError
 } from '$lib/application/ports/GoogleSheetsService';
 import type { AuthService } from '$lib/application/ports/AuthService';
 import type { RawSheetData, RawSheetRow } from '$lib/domain/import';
@@ -23,318 +23,318 @@ const SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
  * Google Sheets API response types
  */
 interface SheetsApiSpreadsheet {
-	spreadsheetId: string;
-	properties: {
-		title: string;
-	};
-	sheets: Array<{
-		properties: {
-			sheetId: number;
-			title: string;
-			index: number;
-		};
-	}>;
+  spreadsheetId: string;
+  properties: {
+    title: string;
+  };
+  sheets: Array<{
+    properties: {
+      sheetId: number;
+      title: string;
+      index: number;
+    };
+  }>;
 }
 
 interface SheetsApiValueRange {
-	range: string;
-	majorDimension: string;
-	values?: string[][];
+  range: string;
+  majorDimension: string;
+  values?: string[][];
 }
 
 export interface GoogleSheetsAdapterDeps {
-	authService: AuthService;
+  authService: AuthService;
 }
 
 /**
  * Adapter for Google Sheets API v4.
  */
 export class GoogleSheetsAdapter implements GoogleSheetsService {
-	private readonly authService: AuthService;
+  private readonly authService: AuthService;
 
-	constructor(deps: GoogleSheetsAdapterDeps) {
-		this.authService = deps.authService;
-	}
+  constructor(deps: GoogleSheetsAdapterDeps) {
+    this.authService = deps.authService;
+  }
 
-	/**
-	 * Parse a Google Sheets URL to extract the spreadsheet ID.
-	 */
-	parseSpreadsheetUrl(url: string): string | null {
-		try {
-			const parsed = new URL(url);
+  /**
+   * Parse a Google Sheets URL to extract the spreadsheet ID.
+   */
+  parseSpreadsheetUrl(url: string): string | null {
+    try {
+      const parsed = new URL(url);
 
-			// Must be a Google domain
-			if (!parsed.hostname.endsWith('google.com')) {
-				return null;
-			}
+      // Must be a Google domain
+      if (!parsed.hostname.endsWith('google.com')) {
+        return null;
+      }
 
-			// Format: https://docs.google.com/spreadsheets/d/{spreadsheetId}/...
-			const match = parsed.pathname.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-			if (match) {
-				return match[1];
-			}
+      // Format: https://docs.google.com/spreadsheets/d/{spreadsheetId}/...
+      const match = parsed.pathname.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+      if (match) {
+        return match[1];
+      }
 
-			return null;
-		} catch {
-			return null;
-		}
-	}
+      return null;
+    } catch {
+      return null;
+    }
+  }
 
-	/**
-	 * Fetch metadata about a spreadsheet (title, tabs).
-	 */
-	async getSheetMetadata(spreadsheetId: string): Promise<SheetMetadata> {
-		const token = await this.getToken();
+  /**
+   * Fetch metadata about a spreadsheet (title, tabs).
+   */
+  async getSheetMetadata(spreadsheetId: string): Promise<SheetMetadata> {
+    const token = await this.getToken();
 
-		const url = `${SHEETS_API_BASE}/${spreadsheetId}?fields=spreadsheetId,properties.title,sheets.properties`;
+    const url = `${SHEETS_API_BASE}/${spreadsheetId}?fields=spreadsheetId,properties.title,sheets.properties`;
 
-		const response = await fetch(url, {
-			headers: {
-				Authorization: `Bearer ${token}`
-			},
-			cache: 'no-store'
-		});
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      cache: 'no-store'
+    });
 
-		if (!response.ok) {
-			throw await this.handleApiError(response);
-		}
+    if (!response.ok) {
+      throw await this.handleApiError(response);
+    }
 
-		const data: SheetsApiSpreadsheet = await response.json();
+    const data: SheetsApiSpreadsheet = await response.json();
 
-		const tabs: SheetTab[] = data.sheets.map((sheet) => ({
-			gid: String(sheet.properties.sheetId),
-			title: sheet.properties.title,
-			index: sheet.properties.index
-		}));
+    const tabs: SheetTab[] = data.sheets.map((sheet) => ({
+      gid: String(sheet.properties.sheetId),
+      title: sheet.properties.title,
+      index: sheet.properties.index
+    }));
 
-		// Sort by index
-		tabs.sort((a, b) => a.index - b.index);
+    // Sort by index
+    tabs.sort((a, b) => a.index - b.index);
 
-		return {
-			spreadsheetId: data.spreadsheetId,
-			title: data.properties.title,
-			tabs
-		};
-	}
+    return {
+      spreadsheetId: data.spreadsheetId,
+      title: data.properties.title,
+      tabs
+    };
+  }
 
-	/**
-	 * Fetch data from a specific tab.
-	 */
-	async getTabData(spreadsheetId: string, tabTitle: string): Promise<RawSheetData> {
-		const token = await this.getToken();
+  /**
+   * Fetch data from a specific tab.
+   */
+  async getTabData(spreadsheetId: string, tabTitle: string): Promise<RawSheetData> {
+    const token = await this.getToken();
 
-		// URL-encode the tab title for the range parameter
-		const range = encodeURIComponent(tabTitle);
-		const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}?valueRenderOption=FORMATTED_VALUE`;
+    // URL-encode the tab title for the range parameter
+    const range = encodeURIComponent(tabTitle);
+    const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}?valueRenderOption=FORMATTED_VALUE`;
 
-		const response = await fetch(url, {
-			headers: {
-				Authorization: `Bearer ${token}`
-			},
-			cache: 'no-store'
-		});
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      cache: 'no-store'
+    });
 
-		if (!response.ok) {
-			throw await this.handleApiError(response);
-		}
+    if (!response.ok) {
+      throw await this.handleApiError(response);
+    }
 
-		const data: SheetsApiValueRange = await response.json();
+    const data: SheetsApiValueRange = await response.json();
 
-		// Handle empty sheets
-		if (!data.values || data.values.length === 0) {
-			return {
-				headers: [],
-				rows: []
-			};
-		}
+    // Handle empty sheets
+    if (!data.values || data.values.length === 0) {
+      return {
+        headers: [],
+        rows: []
+      };
+    }
 
-		// First row is headers
-		const headers = data.values[0].map((h) => (h ?? '').toString());
+    // First row is headers
+    const headers = data.values[0].map((h) => (h ?? '').toString());
 
-		// Remaining rows are data
-		const rows: RawSheetRow[] = data.values.slice(1).map((rowCells, index) => ({
-			rowIndex: index + 2, // 1-based, accounting for header row
-			cells: rowCells.map((c) => (c ?? '').toString())
-		}));
+    // Remaining rows are data
+    const rows: RawSheetRow[] = data.values.slice(1).map((rowCells, index) => ({
+      rowIndex: index + 2, // 1-based, accounting for header row
+      cells: rowCells.map((c) => (c ?? '').toString())
+    }));
 
-		return {
-			headers,
-			rows
-		};
-	}
+    return {
+      headers,
+      rows
+    };
+  }
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// Write Operations
-	// ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // Write Operations
+  // ─────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Write data to a tab, replacing all existing content.
-	 */
-	async updateTabData(
-		spreadsheetId: string,
-		tabTitle: string,
-		data: SheetWriteData
-	): Promise<void> {
-		const token = await this.getToken();
+  /**
+   * Write data to a tab, replacing all existing content.
+   */
+  async updateTabData(
+    spreadsheetId: string,
+    tabTitle: string,
+    data: SheetWriteData
+  ): Promise<void> {
+    const token = await this.getToken();
 
-		// First clear the tab to remove any stale data
-		await this.clearTab(spreadsheetId, tabTitle);
+    // First clear the tab to remove any stale data
+    await this.clearTab(spreadsheetId, tabTitle);
 
-		// If no data to write, we're done
-		if (data.rows.length === 0) {
-			return;
-		}
+    // If no data to write, we're done
+    if (data.rows.length === 0) {
+      return;
+    }
 
-		// Write the new data
-		const range = encodeURIComponent(tabTitle);
-		const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
+    // Write the new data
+    const range = encodeURIComponent(tabTitle);
+    const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
 
-		const response = await fetch(url, {
-			method: 'PUT',
-			headers: {
-				Authorization: `Bearer ${token}`,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				range: tabTitle,
-				majorDimension: 'ROWS',
-				values: data.rows
-			})
-		});
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        range: tabTitle,
+        majorDimension: 'ROWS',
+        values: data.rows
+      })
+    });
 
-		if (!response.ok) {
-			throw await this.handleApiError(response);
-		}
-	}
+    if (!response.ok) {
+      throw await this.handleApiError(response);
+    }
+  }
 
-	/**
-	 * Clear all data from a tab.
-	 */
-	async clearTab(spreadsheetId: string, tabTitle: string): Promise<void> {
-		const token = await this.getToken();
+  /**
+   * Clear all data from a tab.
+   */
+  async clearTab(spreadsheetId: string, tabTitle: string): Promise<void> {
+    const token = await this.getToken();
 
-		const range = encodeURIComponent(tabTitle);
-		const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}:clear`;
+    const range = encodeURIComponent(tabTitle);
+    const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}:clear`;
 
-		const response = await fetch(url, {
-			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${token}`,
-				'Content-Type': 'application/json'
-			},
-			body: '{}'
-		});
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: '{}'
+    });
 
-		if (!response.ok) {
-			throw await this.handleApiError(response);
-		}
-	}
+    if (!response.ok) {
+      throw await this.handleApiError(response);
+    }
+  }
 
-	/**
-	 * Create a new tab in the spreadsheet.
-	 */
-	async createTab(spreadsheetId: string, tabTitle: string): Promise<void> {
-		const token = await this.getToken();
+  /**
+   * Create a new tab in the spreadsheet.
+   */
+  async createTab(spreadsheetId: string, tabTitle: string): Promise<void> {
+    const token = await this.getToken();
 
-		const url = `${SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`;
+    const url = `${SHEETS_API_BASE}/${spreadsheetId}:batchUpdate`;
 
-		const response = await fetch(url, {
-			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${token}`,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				requests: [
-					{
-						addSheet: {
-							properties: {
-								title: tabTitle
-							}
-						}
-					}
-				]
-			})
-		});
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: tabTitle
+              }
+            }
+          }
+        ]
+      })
+    });
 
-		if (!response.ok) {
-			throw await this.handleApiError(response);
-		}
-	}
+    if (!response.ok) {
+      throw await this.handleApiError(response);
+    }
+  }
 
-	/**
-	 * Ensure a tab exists, creating it if necessary.
-	 */
-	async ensureTab(spreadsheetId: string, tabTitle: string): Promise<boolean> {
-		const metadata = await this.getSheetMetadata(spreadsheetId);
-		const tabExists = metadata.tabs.some((tab) => tab.title === tabTitle);
+  /**
+   * Ensure a tab exists, creating it if necessary.
+   */
+  async ensureTab(spreadsheetId: string, tabTitle: string): Promise<boolean> {
+    const metadata = await this.getSheetMetadata(spreadsheetId);
+    const tabExists = metadata.tabs.some((tab) => tab.title === tabTitle);
 
-		if (!tabExists) {
-			await this.createTab(spreadsheetId, tabTitle);
-			return true;
-		}
+    if (!tabExists) {
+      await this.createTab(spreadsheetId, tabTitle);
+      return true;
+    }
 
-		return false;
-	}
+    return false;
+  }
 
-	// ─────────────────────────────────────────────────────────────────────────
-	// Private helpers
-	// ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // Private helpers
+  // ─────────────────────────────────────────────────────────────────────────
 
-	/**
-	 * Get the auth token, throwing if not authenticated.
-	 */
-	private async getToken(): Promise<string> {
-		const token = await this.authService.getAccessToken();
+  /**
+   * Get the auth token, throwing if not authenticated.
+   */
+  private async getToken(): Promise<string> {
+    const token = await this.authService.getAccessToken();
 
-		if (!token) {
-			const error: GoogleSheetsError = {
-				type: 'NOT_AUTHENTICATED',
-				message: 'You must be signed in to access Google Sheets'
-			};
-			throw error;
-		}
+    if (!token) {
+      const error: GoogleSheetsError = {
+        type: 'NOT_AUTHENTICATED',
+        message: 'You must be signed in to access Google Sheets'
+      };
+      throw error;
+    }
 
-		return token;
-	}
+    return token;
+  }
 
-	/**
-	 * Convert API error responses to GoogleSheetsError.
-	 */
-	private async handleApiError(response: Response): Promise<GoogleSheetsError> {
-		let message = `Google Sheets API error (${response.status})`;
+  /**
+   * Convert API error responses to GoogleSheetsError.
+   */
+  private async handleApiError(response: Response): Promise<GoogleSheetsError> {
+    let message = `Google Sheets API error (${response.status})`;
 
-		try {
-			const errorData = await response.json();
-			if (errorData.error?.message) {
-				message = errorData.error.message;
-			}
-		} catch {
-			// Use default message
-		}
+    try {
+      const errorData = await response.json();
+      if (errorData.error?.message) {
+        message = errorData.error.message;
+      }
+    } catch {
+      // Use default message
+    }
 
-		switch (response.status) {
-			case 401:
-				return {
-					type: 'NOT_AUTHENTICATED',
-					message: 'Your session has expired. Please sign in again.'
-				};
-			case 403:
-				return {
-					type: 'PERMISSION_DENIED',
-					message: 'You do not have permission to access this spreadsheet.'
-				};
-			case 404:
-				return {
-					type: 'NOT_FOUND',
-					message: 'Spreadsheet not found. Please check the URL.'
-				};
-			default:
-				return {
-					type: 'API_ERROR',
-					message,
-					statusCode: response.status
-				};
-		}
-	}
+    switch (response.status) {
+      case 401:
+        return {
+          type: 'NOT_AUTHENTICATED',
+          message: 'Your session has expired. Please sign in again.'
+        };
+      case 403:
+        return {
+          type: 'PERMISSION_DENIED',
+          message: 'You do not have permission to access this spreadsheet.'
+        };
+      case 404:
+        return {
+          type: 'NOT_FOUND',
+          message: 'Spreadsheet not found. Please check the URL.'
+        };
+      default:
+        return {
+          type: 'API_ERROR',
+          message,
+          statusCode: response.status
+        };
+    }
+  }
 }

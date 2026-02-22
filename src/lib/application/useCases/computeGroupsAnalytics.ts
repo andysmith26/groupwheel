@@ -5,9 +5,9 @@ import { computeScenarioSatisfaction } from '$lib/domain/analytics';
  * Input for computing analytics from in-memory groups.
  */
 export interface ComputeGroupsAnalyticsInput {
-	groups: Group[];
-	preferences: Preference[];
-	participantSnapshot: string[];
+  groups: Group[];
+  preferences: Preference[];
+  participantSnapshot: string[];
 }
 
 /**
@@ -19,21 +19,21 @@ export interface ComputeGroupsAnalyticsInput {
  * students between groups without persisting intermediate states.
  */
 export function computeGroupsAnalytics(input: ComputeGroupsAnalyticsInput): ScenarioSatisfaction {
-	// Build a pseudo-scenario object for the existing analytics function
-	const now = new Date();
-	const pseudoScenario = {
-		id: 'transient',
-		programId: 'transient',
-		groups: input.groups,
-		participantSnapshot: input.participantSnapshot,
-		status: 'DRAFT' as const,
-		createdAt: now,
-		lastModifiedAt: now
-	};
+  // Build a pseudo-scenario object for the existing analytics function
+  const now = new Date();
+  const pseudoScenario = {
+    id: 'transient',
+    programId: 'transient',
+    groups: input.groups,
+    participantSnapshot: input.participantSnapshot,
+    status: 'DRAFT' as const,
+    createdAt: now,
+    lastModifiedAt: now
+  };
 
-	return computeScenarioSatisfaction({
-		scenario: pseudoScenario,
-		preferences: input.preferences,
-		students: [] // Not used by current implementation
-	});
+  return computeScenarioSatisfaction({
+    scenario: pseudoScenario,
+    preferences: input.preferences,
+    students: [] // Not used by current implementation
+  });
 }

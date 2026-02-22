@@ -1,8 +1,8 @@
 export interface SampleRoster {
-	id: string;
-	label: string;
-	description: string;
-	data: string;
+  id: string;
+  label: string;
+  description: string;
+  data: string;
 }
 
 const BALANCED_24 = `name\tid\tgrade
@@ -133,32 +133,30 @@ Zara Ulman\tzara.ulman@school.edu\t12
 Zoe Vale\tzoe.vale@school.edu\t12`;
 
 export const sampleRosters: SampleRoster[] = [
-	{
-		id: 'balanced-24',
-		label: 'Balanced 24',
-		description: '24 students across grades 9-10. Good for 6 groups of 4.',
-		data: BALANCED_24
-	},
-	{
-		id: 'mixed-32',
-		label: 'Mixed 32',
-		description: '32 students across grades 9-12. Good for 8 groups of 4.',
-		data: MIXED_32
-	},
-	{
-		id: 'small-16',
-		label: 'Small 16',
-		description: '16 students across grades 9-12. Quick sanity check.',
-		data: SMALL_16
-	},
-	{
-		id: 'large-48',
-		label: 'Large 48',
-		description: '48 students across grades 9-12. Stress test slower algorithms.',
-		data: LARGE_48
-	}
+  {
+    id: 'balanced-24',
+    label: 'Balanced 24',
+    description: '24 students across grades 9-10. Good for 6 groups of 4.',
+    data: BALANCED_24
+  },
+  {
+    id: 'mixed-32',
+    label: 'Mixed 32',
+    description: '32 students across grades 9-12. Good for 8 groups of 4.',
+    data: MIXED_32
+  },
+  {
+    id: 'small-16',
+    label: 'Small 16',
+    description: '16 students across grades 9-12. Quick sanity check.',
+    data: SMALL_16
+  },
+  {
+    id: 'large-48',
+    label: 'Large 48',
+    description: '48 students across grades 9-12. Stress test slower algorithms.',
+    data: LARGE_48
+  }
 ];
 
-export const sampleRosterById = new Map(
-	sampleRosters.map((roster) => [roster.id, roster])
-);
+export const sampleRosterById = new Map(sampleRosters.map((roster) => [roster.id, roster]));

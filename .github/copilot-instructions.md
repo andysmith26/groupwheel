@@ -72,7 +72,7 @@ import { onDestroy } from 'svelte';
 
 let timeoutId: number;
 onDestroy(() => {
-	if (timeoutId) clearTimeout(timeoutId);
+  if (timeoutId) clearTimeout(timeoutId);
 });
 ```
 

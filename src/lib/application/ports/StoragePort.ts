@@ -8,19 +8,19 @@
  */
 
 export interface StoragePort {
-	/**
-	 * Get a value by key.
-	 * @returns The stored value, or null if not found.
-	 */
-	get(key: string): Promise<string | null>;
+  /**
+   * Get a value by key.
+   * @returns The stored value, or null if not found.
+   */
+  get(key: string): Promise<string | null>;
 
-	/**
-	 * Set a value by key.
-	 */
-	set(key: string, value: string): Promise<void>;
+  /**
+   * Set a value by key.
+   */
+  set(key: string, value: string): Promise<void>;
 
-	/**
-	 * Remove a value by key.
-	 */
-	remove(key: string): Promise<void>;
+  /**
+   * Remove a value by key.
+   */
+  remove(key: string): Promise<void>;
 }

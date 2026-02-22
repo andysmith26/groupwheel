@@ -14,46 +14,50 @@ let instance: GoogleOAuthAdapter | null = null;
 let initPromise: Promise<void> | null = null;
 
 export interface BrowserAuthAdapterOptions {
-	/** Navigation function (e.g., SvelteKit's goto) */
-	navigate?: (url: string) => Promise<void>;
-	/** Google OAuth client ID */
-	clientId?: string;
+  /** Navigation function (e.g., SvelteKit's goto) */
+  navigate?: (url: string) => Promise<void>;
+  /** Google OAuth client ID */
+  clientId?: string;
 }
 
 /**
  * Get the browser-configured GoogleOAuthAdapter singleton.
  * Returns null during SSR.
  */
-export function getBrowserAuthAdapter(options?: BrowserAuthAdapterOptions): GoogleOAuthAdapter | null {
-	if (typeof window === 'undefined') {
-		return null;
-	}
+export function getBrowserAuthAdapter(
+  options?: BrowserAuthAdapterOptions
+): GoogleOAuthAdapter | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
 
-	if (!instance) {
-		instance = new GoogleOAuthAdapter({
-			storage: new LocalStorageAdapter(),
-			sessionStorage: new SessionStorageAdapter(),
-			navigate: options?.navigate ?? ((url: string) => {
-				window.location.href = url;
-				return Promise.resolve();
-			}),
-			getOrigin: () => window.location.origin,
-			clientId: options?.clientId
-		});
-		// Initialize asynchronously
-		initPromise = instance.initialize();
-	}
+  if (!instance) {
+    instance = new GoogleOAuthAdapter({
+      storage: new LocalStorageAdapter(),
+      sessionStorage: new SessionStorageAdapter(),
+      navigate:
+        options?.navigate ??
+        ((url: string) => {
+          window.location.href = url;
+          return Promise.resolve();
+        }),
+      getOrigin: () => window.location.origin,
+      clientId: options?.clientId
+    });
+    // Initialize asynchronously
+    initPromise = instance.initialize();
+  }
 
-	return instance;
+  return instance;
 }
 
 /**
  * Wait for the auth adapter to be initialized.
  */
 export async function waitForAuthInit(): Promise<void> {
-	if (initPromise) {
-		await initPromise;
-	}
+  if (initPromise) {
+    await initPromise;
+  }
 }
 
 /**
@@ -61,44 +65,44 @@ export async function waitForAuthInit(): Promise<void> {
  * Provides a store-like interface wrapping the GoogleOAuthAdapter.
  */
 export const authStore = {
-	get user() {
-		const adapter = getBrowserAuthAdapter();
-		return adapter?.getUserSync() ?? null;
-	},
+  get user() {
+    const adapter = getBrowserAuthAdapter();
+    return adapter?.getUserSync() ?? null;
+  },
 
-	get accessToken() {
-		const adapter = getBrowserAuthAdapter();
-		return adapter?.getAccessTokenSync() ?? null;
-	},
+  get accessToken() {
+    const adapter = getBrowserAuthAdapter();
+    return adapter?.getAccessTokenSync() ?? null;
+  },
 
-	get isAuthenticated() {
-		const adapter = getBrowserAuthAdapter();
-		return adapter?.isAuthenticated() ?? false;
-	},
+  get isAuthenticated() {
+    const adapter = getBrowserAuthAdapter();
+    return adapter?.isAuthenticated() ?? false;
+  },
 
-	subscribe(callback: (user: unknown) => void): () => void {
-		const adapter = getBrowserAuthAdapter();
-		if (adapter) {
-			return adapter.onAuthStateChange(callback);
-		}
-		callback(null);
-		return () => {};
-	},
+  subscribe(callback: (user: unknown) => void): () => void {
+    const adapter = getBrowserAuthAdapter();
+    if (adapter) {
+      return adapter.onAuthStateChange(callback);
+    }
+    callback(null);
+    return () => {};
+  },
 
-	async setUser(user: unknown, accessToken: string): Promise<void> {
-		const adapter = getBrowserAuthAdapter();
-		if (adapter && user) {
-			await adapter.setUser(
-				user as { id: string; email: string; name: string; avatarUrl?: string; provider: 'google' },
-				accessToken
-			);
-		}
-	},
+  async setUser(user: unknown, accessToken: string): Promise<void> {
+    const adapter = getBrowserAuthAdapter();
+    if (adapter && user) {
+      await adapter.setUser(
+        user as { id: string; email: string; name: string; avatarUrl?: string; provider: 'google' },
+        accessToken
+      );
+    }
+  },
 
-	async clearUser(): Promise<void> {
-		const adapter = getBrowserAuthAdapter();
-		if (adapter) {
-			await adapter.clearUser();
-		}
-	}
+  async clearUser(): Promise<void> {
+    const adapter = getBrowserAuthAdapter();
+    if (adapter) {
+      await adapter.clearUser();
+    }
+  }
 };

@@ -3,6 +3,7 @@
 ## Problem Statement
 
 Teachers need to:
+
 1. Add class rosters for different blocks (periods) — **each block is a separate activity**
 2. At the start of a block, select group size and generate randomized groups
 3. Review/edit groups, then publish to show student-view — **this is when groups are recorded**
@@ -10,12 +11,12 @@ Teachers need to:
 
 ## Clarified Requirements
 
-| Question | Answer |
-|----------|--------|
+| Question                      | Answer                                                           |
+| ----------------------------- | ---------------------------------------------------------------- |
 | Multiple blocks per activity? | No — each block is its own activity (e.g., "Block A", "Block B") |
-| Group naming | Default "Group 1, 2..." but customizable |
-| Show session history? | Yes — "Last grouped on Jan 24" |
-| Re-grouping behavior | Always start fresh |
+| Group naming                  | Default "Group 1, 2..." but customizable                         |
+| Show session history?         | Yes — "Last grouped on Jan 24"                                   |
+| Re-grouping behavior          | Always start fresh                                               |
 
 ## Simplified Flow
 
@@ -70,6 +71,7 @@ Teachers need to:
 **Create `quickGenerateGroups.ts`** (`src/lib/application/useCases/quickGenerateGroups.ts`)
 
 Input:
+
 ```typescript
 interface QuickGenerateInput {
   programId: string;
@@ -79,6 +81,7 @@ interface QuickGenerateInput {
 ```
 
 Behavior:
+
 - Fetches program and pool
 - Calculates number of groups: `Math.ceil(studentCount / groupSize)`
 - Generates group definitions: "Group 1", "Group 2", etc.
@@ -90,6 +93,7 @@ Behavior:
 **Create `/activities/[id]/start/+page.svelte`**
 
 Features:
+
 - Shows activity name and student count
 - Group size selector (dropdown or input)
 - Calculates and displays "This will create N groups"
@@ -99,15 +103,18 @@ Features:
 ### Phase 3: Update Activity Flow
 
 **Modify activity dashboard** (`src/routes/activities/+page.svelte`)
+
 - Primary action for existing activities: "Start Session" → `/[id]/start`
 
 **Modify workspace** (`src/routes/activities/[id]/workspace/+page.svelte`)
+
 - No major changes needed (already supports editing and publish)
 - Ensure "Show to Class" flow creates session + placements
 
 ### Phase 4: Facade Wiring
 
 **Update `appEnvUseCases.ts`**
+
 - Add `quickGenerateGroups(env, input)` wrapper
 - Add `listSessionsByProgram(env, { programId })` if not exists
 
@@ -115,12 +122,12 @@ Features:
 
 ## Files Summary
 
-| Action | File Path |
-|--------|-----------|
-| Create | `src/lib/application/useCases/quickGenerateGroups.ts` |
-| Create | `src/routes/activities/[id]/start/+page.svelte` |
+| Action | File Path                                                    |
+| ------ | ------------------------------------------------------------ |
+| Create | `src/lib/application/useCases/quickGenerateGroups.ts`        |
+| Create | `src/routes/activities/[id]/start/+page.svelte`              |
 | Modify | `src/routes/activities/+page.svelte` (change primary action) |
-| Modify | `src/lib/services/appEnvUseCases.ts` (add facade) |
+| Modify | `src/lib/services/appEnvUseCases.ts` (add facade)            |
 
 ---
 
@@ -131,19 +138,10 @@ Features:
 ```svelte
 <!-- /activities/[id]/start/+page.svelte -->
 
-State:
-- groupSize: number (default 4)
-- isGenerating: boolean
-
-Computed:
-- studentCount: from pool
-- groupCount: Math.ceil(studentCount / groupSize)
-- previousSessions: from listSessions
-
-Actions:
-- handleGenerate():
-  1. Call quickGenerateGroups(env, { programId, groupSize })
-  2. Navigate to /activities/[id]/workspace
+State: - groupSize: number (default 4) - isGenerating: boolean Computed: - studentCount: from pool -
+groupCount: Math.ceil(studentCount / groupSize) - previousSessions: from listSessions Actions: -
+handleGenerate(): 1. Call quickGenerateGroups(env, {(programId, groupSize)}) 2. Navigate to
+/activities/[id]/workspace
 ```
 
 ### Quick Generate Use Case
@@ -165,7 +163,7 @@ export async function quickGenerateGroups(
     groupSize: number;
     groupNamePrefix?: string;
   }
-): Promise<Result<Scenario, QuickGenerateError>>
+): Promise<Result<Scenario, QuickGenerateError>>;
 ```
 
 ---

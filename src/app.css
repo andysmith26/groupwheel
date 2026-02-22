@@ -2,68 +2,68 @@
 
 /* Theme colors derived from the Groupwheel logo - vibrant & high contrast */
 @theme {
-	/* Primary: Coral (bold, energetic - for primary actions) */
-	--color-coral: #E05A3A;
-	--color-coral-dark: #C24829;
-	--color-coral-light: #FDEAE6;
+  /* Primary: Coral (bold, energetic - for primary actions) */
+  --color-coral: #e05a3a;
+  --color-coral-dark: #c24829;
+  --color-coral-light: #fdeae6;
 
-	/* Secondary: Teal (vibrant, trustworthy - for secondary elements) */
-	--color-teal: #2A9D8F;
-	--color-teal-dark: #1F7A6E;
-	--color-teal-light: #E6F5F3;
+  /* Secondary: Teal (vibrant, trustworthy - for secondary elements) */
+  --color-teal: #2a9d8f;
+  --color-teal-dark: #1f7a6e;
+  --color-teal-light: #e6f5f3;
 
-	/* Accent: Amber (warm, golden - for highlights) */
-	--color-amber: #E9A83A;
-	--color-amber-dark: #D4922A;
-	--color-amber-light: #FDF6E6;
+  /* Accent: Amber (warm, golden - for highlights) */
+  --color-amber: #e9a83a;
+  --color-amber-dark: #d4922a;
+  --color-amber-light: #fdf6e6;
 }
 
 /* Performance optimization utilities */
 /* Rendering isolation to prevent layout thrashing during animations */
 .rendering-isolated {
-	contain: layout style paint;
+  contain: layout style paint;
 }
 /* Capacity status colors */
 :root {
-	--capacity-gray: #6b7280;
-	--capacity-amber: #f59e0b;
-	--capacity-red: #dc2626;
+  --capacity-gray: #6b7280;
+  --capacity-amber: #f59e0b;
+  --capacity-red: #dc2626;
 }
 
 .flash-move {
-	animation: flash-move 0.9s ease;
+  animation: flash-move 0.9s ease;
 }
 
 @keyframes flash-move {
-	0% {
-		box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.35);
-		transform: scale(1.01);
-	}
-	40% {
-		box-shadow: 0 0 0 12px rgba(59, 130, 246, 0.18);
-		transform: scale(1.03);
-	}
-	70% {
-		box-shadow: 0 0 0 12px rgba(59, 130, 246, 0.06);
-		transform: scale(1.02);
-	}
-	100% {
-		box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-		transform: scale(1);
-	}
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.35);
+    transform: scale(1.01);
+  }
+  40% {
+    box-shadow: 0 0 0 12px rgba(59, 130, 246, 0.18);
+    transform: scale(1.03);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(59, 130, 246, 0.06);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
 }
 
 /* Preference indicator animations and styles */
 .preference-pulse {
-	animation: preference-pulse 1.5s ease-in-out infinite;
+  animation: preference-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes preference-pulse {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.7;
-	}
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }

@@ -57,6 +57,7 @@ The page should clearly present the two primary actions, with setup/history acce
 ### "New Groups" Button
 
 **Behavior:**
+
 1. Calls `quickGenerateGroups()` with remembered settings (last group size, avoid-recent preference)
 2. On success → navigates to `/workspace`
 3. One tap from this page to fresh groups in workspace
@@ -68,6 +69,7 @@ The page should clearly present the two primary actions, with setup/history acce
 ### "Edit Current Groups" Button
 
 **Behavior:**
+
 1. Navigate to `/workspace`
 2. Only shown when a scenario exists (groups have been generated before)
 
@@ -76,6 +78,7 @@ The page should clearly present the two primary actions, with setup/history acce
 ### "Setup" Section
 
 Collapsed by default. Contains:
+
 - Student roster management (add/remove/import)
 - Group name/shell configuration
 - Preferences import
@@ -146,21 +149,25 @@ export function saveGenerationSettings(programId: string, settings: GenerationSe
 This is a significant rewrite of the page layout. The current page has expandable sections (Students, Groups, History). The new page has:
 
 **Top section (always visible):**
+
 - Activity name + student count
 - "New Groups" card button (if students exist)
 - "Edit Current Groups" card button (if scenario exists)
 
 **Bottom section (collapsible):**
+
 - "Setup" accordion → contains current Students section, Group shells section, Preferences
 - "History" accordion → contains current History section
 
 **Key state additions:**
+
 ```typescript
 let generationSettings = $state<GenerationSettings>({ groupSize: 4, avoidRecentGroupmates: true });
 let isGeneratingNew = $state(false);
 ```
 
 **"New Groups" handler:**
+
 ```typescript
 async function handleNewGroups() {
   if (!env || !program) return;
@@ -186,11 +193,12 @@ async function handleNewGroups() {
 ```
 
 **On mount, load settings:**
+
 ```typescript
 generationSettings = getGenerationSettings(program.id);
 
 // Auto-set avoidRecent based on whether there are published sessions
-const published = sessions.filter(s => s.status === 'PUBLISHED' || s.status === 'ARCHIVED');
+const published = sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED');
 if (published.length === 0) {
   generationSettings.avoidRecentGroupmates = false;
 }
@@ -201,21 +209,23 @@ if (published.length === 0) {
 Add a small inline editor on the "New Groups" card for changing group size without a separate page:
 
 ```svelte
-<div class="rounded-xl border-2 border-gray-200 bg-white p-5 shadow-sm cursor-pointer hover:border-teal transition-colors"
-     onclick={handleNewGroups}>
+<div
+  class="cursor-pointer rounded-xl border-2 border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-teal"
+  onclick={handleNewGroups}
+>
   <div class="flex items-center justify-between">
     <div>
       <h2 class="text-lg font-semibold text-gray-900">New Groups</h2>
       <p class="text-sm text-gray-500">
         Groups of {generationSettings.groupSize}
         {#if generationSettings.avoidRecentGroupmates}
-           · avoid recent groupmates
+          · avoid recent groupmates
         {/if}
       </p>
     </div>
     <button
       class="text-sm text-gray-400 hover:text-gray-600"
-      onclick|stopPropagation={() => showSettingsPopover = true}
+      onclick|stopPropagation={() => (showSettingsPopover = true)}
     >
       Change
     </button>
@@ -248,12 +258,12 @@ This way the activity detail page's "New Groups" always uses the most recent set
 
 ## Files Changed Summary
 
-| File | Action |
-|------|--------|
-| `src/lib/utils/generationSettings.ts` | CREATE |
-| `src/routes/activities/[id]/+page.svelte` | MODIFY (major layout redesign) |
-| `src/routes/activities/+page.svelte` | MODIFY (update navigation links if needed) |
-| `src/lib/components/workspace/InlineGroupGenerator.svelte` | MODIFY (save settings on generate) |
+| File                                                       | Action                                     |
+| ---------------------------------------------------------- | ------------------------------------------ |
+| `src/lib/utils/generationSettings.ts`                      | CREATE                                     |
+| `src/routes/activities/[id]/+page.svelte`                  | MODIFY (major layout redesign)             |
+| `src/routes/activities/+page.svelte`                       | MODIFY (update navigation links if needed) |
+| `src/lib/components/workspace/InlineGroupGenerator.svelte` | MODIFY (save settings on generate)         |
 
 ## Do NOT Touch
 

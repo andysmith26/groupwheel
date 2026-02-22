@@ -66,6 +66,7 @@ None — can be implemented in parallel with Phase 1. However, if Phase 1 is don
 ### No Active Session Behavior
 
 If someone navigates to `/live` without an active session (e.g., via direct URL):
+
 - Show the Student View with groups (read-only, no "Live" badge)
 - Teacher View shows a message: "Show to Class from the workspace to start recording observations"
 - "Done" button still works (just navigates back, no session to archive)
@@ -117,6 +118,7 @@ interface Props {
 ```
 
 Contains:
+
 - View mode toggle: "Find My Group" / "All Groups" (sub-tabs within the Student View)
 - Search input + filtered results (from Present)
 - All-groups grid (from Present)
@@ -140,6 +142,7 @@ interface Props {
 ```
 
 Contains:
+
 - Grid of `ObservationGroupCard` components
 - Observation count per group
 - If no active session: show message "Show to Class from workspace to start recording"
@@ -228,22 +231,33 @@ This is the main page that composes StudentView + TeacherView with tab switching
           <h1 class="text-3xl font-bold text-gray-900">{program.name}</h1>
           {#if activeSession}
             <span class="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1">
-              <span class="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+              <span class="inline-block h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
               <span class="text-sm font-medium text-green-700">Live</span>
             </span>
           {/if}
         </div>
-        <button onclick={handleDone} class="rounded-lg bg-gray-800 px-6 py-3 text-lg font-semibold text-white hover:bg-gray-700">
+        <button
+          onclick={handleDone}
+          class="rounded-lg bg-gray-800 px-6 py-3 text-lg font-semibold text-white hover:bg-gray-700"
+        >
           Done
         </button>
       </div>
 
       <!-- Tabs -->
       <div class="mt-4 flex gap-2">
-        <button class="tab-button" class:active={activeTab === 'student'} onclick={() => activeTab = 'student'}>
+        <button
+          class="tab-button"
+          class:active={activeTab === 'student'}
+          onclick={() => (activeTab = 'student')}
+        >
           Student View
         </button>
-        <button class="tab-button" class:active={activeTab === 'teacher'} onclick={() => activeTab = 'teacher'}>
+        <button
+          class="tab-button"
+          class:active={activeTab === 'teacher'}
+          onclick={() => (activeTab = 'teacher')}
+        >
           Teacher View
         </button>
       </div>
@@ -317,15 +331,15 @@ return;
 
 ## Files Changed Summary
 
-| File | Action |
-|------|--------|
-| `src/lib/utils/groupColors.ts` | CREATE |
-| `src/lib/components/live/StudentView.svelte` | CREATE |
-| `src/lib/components/live/TeacherView.svelte` | CREATE |
-| `src/routes/activities/[id]/live/+page.svelte` | CREATE |
-| `src/routes/activities/[id]/workspace/+page.svelte` | MODIFY (navigation URLs) |
-| `src/routes/activities/[id]/present/+page.svelte` | MODIFY (add redirect to /live) |
-| `src/routes/activities/[id]/observe/+page.svelte` | MODIFY (add redirect to /live) |
+| File                                                | Action                         |
+| --------------------------------------------------- | ------------------------------ |
+| `src/lib/utils/groupColors.ts`                      | CREATE                         |
+| `src/lib/components/live/StudentView.svelte`        | CREATE                         |
+| `src/lib/components/live/TeacherView.svelte`        | CREATE                         |
+| `src/routes/activities/[id]/live/+page.svelte`      | CREATE                         |
+| `src/routes/activities/[id]/workspace/+page.svelte` | MODIFY (navigation URLs)       |
+| `src/routes/activities/[id]/present/+page.svelte`   | MODIFY (add redirect to /live) |
+| `src/routes/activities/[id]/observe/+page.svelte`   | MODIFY (add redirect to /live) |
 
 ## Do NOT Touch
 

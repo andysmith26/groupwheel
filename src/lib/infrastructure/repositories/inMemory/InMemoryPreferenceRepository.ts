@@ -5,49 +5,49 @@ import type { PreferenceRepository } from '$lib/application/ports/PreferenceRepo
  * In-memory PreferenceRepository.
  */
 export class InMemoryPreferenceRepository implements PreferenceRepository {
-	private readonly byProgram = new Map<string, Preference[]>();
+  private readonly byProgram = new Map<string, Preference[]>();
 
-	constructor(initialPreferences: Preference[] = []) {
-		for (const pref of initialPreferences) {
-			const list = this.byProgram.get(pref.programId) ?? [];
-			list.push({ ...pref });
-			this.byProgram.set(pref.programId, list);
-		}
-	}
+  constructor(initialPreferences: Preference[] = []) {
+    for (const pref of initialPreferences) {
+      const list = this.byProgram.get(pref.programId) ?? [];
+      list.push({ ...pref });
+      this.byProgram.set(pref.programId, list);
+    }
+  }
 
-	async listByProgramId(programId: string): Promise<Preference[]> {
-		const prefs = this.byProgram.get(programId) ?? [];
-		return prefs.map((p) => ({ ...p }));
-	}
+  async listByProgramId(programId: string): Promise<Preference[]> {
+    const prefs = this.byProgram.get(programId) ?? [];
+    return prefs.map((p) => ({ ...p }));
+  }
 
-	async save(preference: Preference): Promise<void> {
-		const existing = this.byProgram.get(preference.programId) ?? [];
-		const filtered = existing.filter(
-			(p) => p.id !== preference.id && p.studentId !== preference.studentId
-		);
+  async save(preference: Preference): Promise<void> {
+    const existing = this.byProgram.get(preference.programId) ?? [];
+    const filtered = existing.filter(
+      (p) => p.id !== preference.id && p.studentId !== preference.studentId
+    );
 
-		// Clone the payload if it's an object, otherwise use as-is
-		const clonedPayload =
-			preference.payload && typeof preference.payload === 'object'
-				? { ...preference.payload }
-				: preference.payload;
+    // Clone the payload if it's an object, otherwise use as-is
+    const clonedPayload =
+      preference.payload && typeof preference.payload === 'object'
+        ? { ...preference.payload }
+        : preference.payload;
 
-		this.byProgram.set(preference.programId, [
-			...filtered,
-			{
-				...preference,
-				payload: clonedPayload
-			}
-		]);
-	}
+    this.byProgram.set(preference.programId, [
+      ...filtered,
+      {
+        ...preference,
+        payload: clonedPayload
+      }
+    ]);
+  }
 
-	/**
-	 * Convenience for seeding/updating preferences.
-	 */
-	async setForProgram(programId: string, preferences: Preference[]): Promise<void> {
-		this.byProgram.set(
-			programId,
-			preferences.map((p) => ({ ...p }))
-		);
-	}
+  /**
+   * Convenience for seeding/updating preferences.
+   */
+  async setForProgram(programId: string, preferences: Preference[]): Promise<void> {
+    this.byProgram.set(
+      programId,
+      preferences.map((p) => ({ ...p }))
+    );
+  }
 }

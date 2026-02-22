@@ -586,28 +586,29 @@ This section maps every piece of the existing codebase to its fate in the Blizza
 
 ### 6.1 Routes
 
-| Current Route | Fate | New Location | Notes |
-|---|---|---|---|
-| `/` | **ADAPT** | `/` (Home) | Currently auto-redirects to `/activities`. Becomes the Home screen with activity cards, Quick Start, inline creation. |
-| `/activities` | **REPLACE** | `/` (Home) | Current card grid becomes the Home screen. Merge into `/`. |
-| `/activities/new` | **DELETE** | — | 3-step wizard eliminated. Activity creation becomes inline on Home ("+ New Activity" → name → done). |
-| `/activities/import` | **DELETE** | — | Import flow moves into Class View roster panel. |
-| `/activities/[id]` | **DELETE** | — | Activity Detail "hub" page eliminated. Its functions are distributed to Class View. |
-| `/activities/[id]/setup` | **DELETE** | — | Already a dead-end redirect. |
-| `/activities/[id]/workspace` | **ADAPT** | `/activity/[id]` (Class View) | Core workspace becomes the Class View. Route simplified. |
-| `/activities/[id]/live` | **MOVE** | `/activity/[id]` (Class View, Projection mode) | Live view merged into Class View as a mode toggle, not a separate route. |
-| `/activities/[id]/analytics` | **MOVE** | `/activity/[id]` (Class View, Analytics panel) | Per-activity analytics become an expandable panel in Class View. |
-| `/activities/[id]/print` | **KEEP** | `/activity/[id]/print` | Print layout stays as a separate route (browser print requires it). |
-| `/activities/[id]/students/[studentId]` | **MOVE** | Class View sidebar | Student profile becomes a slide-in sidebar in Class View. |
-| `/analytics` | **DELETE** | — | Cross-activity analytics overview. Not in Phase 1 scope. Consider as Phase 4 Home-level feature. |
-| `/students/[id]` | **DELETE** | — | Student placement history. Moves into Class View student sidebar. |
-| `/track-responses` | **KEEP** | `/track-responses` | Standalone tool, outside Blizzard scope. Keep as-is. |
-| `/settings` | **ADAPT** | Home → Settings | Minimal settings accessible from Home. |
-| `/help` | **KEEP** | `/help` | Keep as-is. |
-| `/auth/*` | **KEEP** | `/auth/*` | Auth routes unchanged. |
-| `/api/sync` | **KEEP** | `/api/sync` | Sync endpoint unchanged. |
+| Current Route                           | Fate        | New Location                                   | Notes                                                                                                                 |
+| --------------------------------------- | ----------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `/`                                     | **ADAPT**   | `/` (Home)                                     | Currently auto-redirects to `/activities`. Becomes the Home screen with activity cards, Quick Start, inline creation. |
+| `/activities`                           | **REPLACE** | `/` (Home)                                     | Current card grid becomes the Home screen. Merge into `/`.                                                            |
+| `/activities/new`                       | **DELETE**  | —                                              | 3-step wizard eliminated. Activity creation becomes inline on Home ("+ New Activity" → name → done).                  |
+| `/activities/import`                    | **DELETE**  | —                                              | Import flow moves into Class View roster panel.                                                                       |
+| `/activities/[id]`                      | **DELETE**  | —                                              | Activity Detail "hub" page eliminated. Its functions are distributed to Class View.                                   |
+| `/activities/[id]/setup`                | **DELETE**  | —                                              | Already a dead-end redirect.                                                                                          |
+| `/activities/[id]/workspace`            | **ADAPT**   | `/activity/[id]` (Class View)                  | Core workspace becomes the Class View. Route simplified.                                                              |
+| `/activities/[id]/live`                 | **MOVE**    | `/activity/[id]` (Class View, Projection mode) | Live view merged into Class View as a mode toggle, not a separate route.                                              |
+| `/activities/[id]/analytics`            | **MOVE**    | `/activity/[id]` (Class View, Analytics panel) | Per-activity analytics become an expandable panel in Class View.                                                      |
+| `/activities/[id]/print`                | **KEEP**    | `/activity/[id]/print`                         | Print layout stays as a separate route (browser print requires it).                                                   |
+| `/activities/[id]/students/[studentId]` | **MOVE**    | Class View sidebar                             | Student profile becomes a slide-in sidebar in Class View.                                                             |
+| `/analytics`                            | **DELETE**  | —                                              | Cross-activity analytics overview. Not in Phase 1 scope. Consider as Phase 4 Home-level feature.                      |
+| `/students/[id]`                        | **DELETE**  | —                                              | Student placement history. Moves into Class View student sidebar.                                                     |
+| `/track-responses`                      | **KEEP**    | `/track-responses`                             | Standalone tool, outside Blizzard scope. Keep as-is.                                                                  |
+| `/settings`                             | **ADAPT**   | Home → Settings                                | Minimal settings accessible from Home.                                                                                |
+| `/help`                                 | **KEEP**    | `/help`                                        | Keep as-is.                                                                                                           |
+| `/auth/*`                               | **KEEP**    | `/auth/*`                                      | Auth routes unchanged.                                                                                                |
+| `/api/sync`                             | **KEEP**    | `/api/sync`                                    | Sync endpoint unchanged.                                                                                              |
 
 **New route structure after Blizzard:**
+
 ```
 /                          Home (activity cards + Quick Start + inline creation + settings)
 /activity/[id]             Class View (the product — roster, groups, generate, project, analytics)
@@ -623,113 +624,113 @@ This section maps every piece of the existing codebase to its fate in the Blizza
 
 #### KEEP (use as-is or minor adjustments)
 
-| Component | Location | Notes |
-|---|---|---|
-| `Button`, `Alert`, `Spinner`, `Skeleton` | `ui/` | Shared primitives. No changes. |
-| `LoginButton` | `auth/` | Google sign-in unchanged. |
-| `OfflineBanner` | `ui/` | Keep for network state. |
-| `ConfirmDialog` | `editing/` | Reusable confirmation modal. |
-| `ContextualHint` | `common/` | Used for one-time rotation avoidance hint. |
-| `SaveStatusIndicator` | `editing/` | "Saved to this browser" indicator — gains prominence in new design. |
-| `SessionTimer` | `live/` | Floating timer. Phase 2, but keep code. |
-| `DropIndicator` | `editing/` | Drag-drop visual. |
-| `HorizontalScrollContainer`, `ScrollProgressIndicator` | `ui/` | Utility components. |
+| Component                                              | Location   | Notes                                                               |
+| ------------------------------------------------------ | ---------- | ------------------------------------------------------------------- |
+| `Button`, `Alert`, `Spinner`, `Skeleton`               | `ui/`      | Shared primitives. No changes.                                      |
+| `LoginButton`                                          | `auth/`    | Google sign-in unchanged.                                           |
+| `OfflineBanner`                                        | `ui/`      | Keep for network state.                                             |
+| `ConfirmDialog`                                        | `editing/` | Reusable confirmation modal.                                        |
+| `ContextualHint`                                       | `common/`  | Used for one-time rotation avoidance hint.                          |
+| `SaveStatusIndicator`                                  | `editing/` | "Saved to this browser" indicator — gains prominence in new design. |
+| `SessionTimer`                                         | `live/`    | Floating timer. Phase 2, but keep code.                             |
+| `DropIndicator`                                        | `editing/` | Drag-drop visual.                                                   |
+| `HorizontalScrollContainer`, `ScrollProgressIndicator` | `ui/`      | Utility components.                                                 |
 
 #### ADAPT (modify for new architecture)
 
-| Component | Current | Changes Needed |
-|---|---|---|
-| `GroupEditingLayout` | `editing/` | Becomes the core of Class View's Groups panel. Needs to handle both minimal (transient) and enriched (sovereign) states. |
-| `EditableGroupColumn` | `editing/` | Adapt for new Class View. Add preference rank badges per Decision 4. |
-| `DraggableStudentCard` | `editing/` | Add preference rank color coding (green→red). Ensure 44px+ touch targets. |
-| `UnassignedArea` | `editing/` | Becomes left roster panel in Class View. Gains import/paste action. |
-| `StudentView` (live) | `live/` | Becomes Projection mode within Class View. Needs ≥36pt names, ≥7:1 contrast. |
-| `TeacherView` (live) | `live/` | Becomes Observation mode (Phase 2). Keep code, wire later. |
-| `ScenarioComparison` | `editing/` | Moves into Class View as "Compare" action. |
-| `WorkspaceActionBar` | `workspace/` | Simplifies: "Make Groups" + "Project" as primary actions. |
-| `SatisfactionSummary` | `workspace/` | Moves into expandable Analytics panel. |
-| `StudentDetailSidebar` | `workspace/` | Becomes the student profile sidebar in Class View. |
-| `StudentInfoTooltip` | `editing/` | Keep for hover info on student cards. |
-| `HistorySelector` | `editing/` | Moves into expandable History panel. |
-| `DataSourcePicker` | `import/` | Used within Class View roster panel's import action. |
-| `GoogleSheetImport` | `import/` | Used within Class View roster panel's import action. |
-| `SheetConnector`, `SheetPreview`, `TabSelector` | `import/` | Sub-components of Google Sheets import flow. Keep. |
-| `ObservationGroupCard`, `ObservationForm` | `session/` | Phase 2 components. Keep code. |
+| Component                                       | Current      | Changes Needed                                                                                                           |
+| ----------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `GroupEditingLayout`                            | `editing/`   | Becomes the core of Class View's Groups panel. Needs to handle both minimal (transient) and enriched (sovereign) states. |
+| `EditableGroupColumn`                           | `editing/`   | Adapt for new Class View. Add preference rank badges per Decision 4.                                                     |
+| `DraggableStudentCard`                          | `editing/`   | Add preference rank color coding (green→red). Ensure 44px+ touch targets.                                                |
+| `UnassignedArea`                                | `editing/`   | Becomes left roster panel in Class View. Gains import/paste action.                                                      |
+| `StudentView` (live)                            | `live/`      | Becomes Projection mode within Class View. Needs ≥36pt names, ≥7:1 contrast.                                             |
+| `TeacherView` (live)                            | `live/`      | Becomes Observation mode (Phase 2). Keep code, wire later.                                                               |
+| `ScenarioComparison`                            | `editing/`   | Moves into Class View as "Compare" action.                                                                               |
+| `WorkspaceActionBar`                            | `workspace/` | Simplifies: "Make Groups" + "Project" as primary actions.                                                                |
+| `SatisfactionSummary`                           | `workspace/` | Moves into expandable Analytics panel.                                                                                   |
+| `StudentDetailSidebar`                          | `workspace/` | Becomes the student profile sidebar in Class View.                                                                       |
+| `StudentInfoTooltip`                            | `editing/`   | Keep for hover info on student cards.                                                                                    |
+| `HistorySelector`                               | `editing/`   | Moves into expandable History panel.                                                                                     |
+| `DataSourcePicker`                              | `import/`    | Used within Class View roster panel's import action.                                                                     |
+| `GoogleSheetImport`                             | `import/`    | Used within Class View roster panel's import action.                                                                     |
+| `SheetConnector`, `SheetPreview`, `TabSelector` | `import/`    | Sub-components of Google Sheets import flow. Keep.                                                                       |
+| `ObservationGroupCard`, `ObservationForm`       | `session/`   | Phase 2 components. Keep code.                                                                                           |
 
 #### REPLACE (rebuild from scratch for new architecture)
 
-| Component | Current | Replacement |
-|---|---|---|
-| `GroupCard` (activity/) | Generation control on Activity Detail | **Inline generation controls** in Class View — group size stepper + "Make Groups" button, co-located with groups panel. |
-| `InlineGroupGenerator` (workspace/) | Empty-state generation prompt | Merge with above into single Class View generation surface. |
-| `WorkspaceHeader` (workspace/) | Header with undo/redo/analytics/export | **Class View header** — simpler, activity name + back button + minimal actions. Undo/redo move to Class View toolbar. |
-| `GuidedStepper` (workspace/) | Post-creation guidance stepper | **Empty state design** — Class View with no data should be self-explanatory per Decision 12 (no tutorials). |
-| Wizard components (`wizard/`) | 3-step creation flow | **Inline creation** on Home screen ("+ New Activity" → name → done). Roster import happens in Class View after creation. |
+| Component                           | Current                                | Replacement                                                                                                              |
+| ----------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `GroupCard` (activity/)             | Generation control on Activity Detail  | **Inline generation controls** in Class View — group size stepper + "Make Groups" button, co-located with groups panel.  |
+| `InlineGroupGenerator` (workspace/) | Empty-state generation prompt          | Merge with above into single Class View generation surface.                                                              |
+| `WorkspaceHeader` (workspace/)      | Header with undo/redo/analytics/export | **Class View header** — simpler, activity name + back button + minimal actions. Undo/redo move to Class View toolbar.    |
+| `GuidedStepper` (workspace/)        | Post-creation guidance stepper         | **Empty state design** — Class View with no data should be self-explanatory per Decision 12 (no tutorials).              |
+| Wizard components (`wizard/`)       | 3-step creation flow                   | **Inline creation** on Home screen ("+ New Activity" → name → done). Roster import happens in Class View after creation. |
 
 #### DELETE (remove entirely)
 
-| Component | Reason |
-|---|---|
-| `AnalyticsPanel` (editing/) | Superseded by Class View Analytics panel. |
-| `EditingToolbar` (editing/) | Superseded by Class View controls. |
-| `WizardProgress` (wizard/) | Wizard eliminated. |
-| `StepStudentsUnified` (wizard/) | Wizard eliminated. Import moves to Class View. |
-| `StepGroupsUnified` (wizard/) | Wizard eliminated. Group setup is inline in Class View. |
-| `StepReviewGenerate` (wizard/) | Wizard eliminated. |
-| `ShellBuilder` (wizard/) | Wizard eliminated. Named groups created inline in Class View. |
-| `StepGroups`, `StepPreferences` (wizard/) | Wizard eliminated. |
-| `PreferencesPromptBanner` (workspace/) | Replace with data-state-adaptive UI per Decision 4. |
-| `PreferencesImportModal` (workspace/) | Import preferences via roster panel import action. |
-| `CandidateGallery` (gallery/) | Not in Blizzard scope. Dead code — was never wired. |
-| `CandidateCard`, `CandidateProgressCard` (gallery/) | Same — dead gallery code. |
-| `AlgorithmTutorialContent` (gallery/) | Same — dead gallery code. |
-| `DemoGuidedOverlay` (onboarding/) | Replaced by Quick Start (Decision 5, Decision 12). |
-| `ActivityAnalyticsCard` (analytics/) | Cross-activity analytics page deleted. |
-| `CardSizeToggle` (workspace/) | Density controls deferred to Phase 4. |
-| `GroupLayoutToggle` (workspace/) | Layout is designer's decision, not user toggle. Revisit Phase 4. |
-| `RepeatedGroupingHint` (workspace/) | Rotation avoidance moves to Settings (Decision 6). One-time hint via `ContextualHint`. |
+| Component                                           | Reason                                                                                 |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `AnalyticsPanel` (editing/)                         | Superseded by Class View Analytics panel.                                              |
+| `EditingToolbar` (editing/)                         | Superseded by Class View controls.                                                     |
+| `WizardProgress` (wizard/)                          | Wizard eliminated.                                                                     |
+| `StepStudentsUnified` (wizard/)                     | Wizard eliminated. Import moves to Class View.                                         |
+| `StepGroupsUnified` (wizard/)                       | Wizard eliminated. Group setup is inline in Class View.                                |
+| `StepReviewGenerate` (wizard/)                      | Wizard eliminated.                                                                     |
+| `ShellBuilder` (wizard/)                            | Wizard eliminated. Named groups created inline in Class View.                          |
+| `StepGroups`, `StepPreferences` (wizard/)           | Wizard eliminated.                                                                     |
+| `PreferencesPromptBanner` (workspace/)              | Replace with data-state-adaptive UI per Decision 4.                                    |
+| `PreferencesImportModal` (workspace/)               | Import preferences via roster panel import action.                                     |
+| `CandidateGallery` (gallery/)                       | Not in Blizzard scope. Dead code — was never wired.                                    |
+| `CandidateCard`, `CandidateProgressCard` (gallery/) | Same — dead gallery code.                                                              |
+| `AlgorithmTutorialContent` (gallery/)               | Same — dead gallery code.                                                              |
+| `DemoGuidedOverlay` (onboarding/)                   | Replaced by Quick Start (Decision 5, Decision 12).                                     |
+| `ActivityAnalyticsCard` (analytics/)                | Cross-activity analytics page deleted.                                                 |
+| `CardSizeToggle` (workspace/)                       | Density controls deferred to Phase 4.                                                  |
+| `GroupLayoutToggle` (workspace/)                    | Layout is designer's decision, not user toggle. Revisit Phase 4.                       |
+| `RepeatedGroupingHint` (workspace/)                 | Rotation avoidance moves to Settings (Decision 6). One-time hint via `ContextualHint`. |
 
 #### NEW (components to build)
 
-| Component | Location | Purpose |
-|---|---|---|
-| **HomeScreen** | `components/home/` | Activity cards, Quick Start, inline creation, settings access. |
-| **ActivityCard** | `components/home/` | Activity card with name, student count, last-used date, "Make Groups" shortcut. |
-| **QuickStartCard** | `components/home/` | Enter student count + group size → instant groups with placeholders. |
-| **InlineActivityCreator** | `components/home/` | "+ New Activity" → name field → create. One action, no wizard. |
-| **ClassView** | `components/class-view/` | The main Class View layout — orchestrates all panels. |
-| **RosterPanel** | `components/class-view/` | Left panel: student list, import/paste action, preference status indicators. |
-| **GroupsPanel** | `components/class-view/` | Right panel: generated groups, "Make Groups" button, group size stepper. |
-| **GenerationControls** | `components/class-view/` | Inline group size stepper + algorithm settings, co-located with Make Groups button. |
-| **ProjectionMode** | `components/class-view/` | Full-screen high-contrast group display with floating teacher toolbar. |
-| **AnalyticsPanel** | `components/class-view/` | Expandable bottom panel: satisfaction metrics, contextual interpretation. |
-| **HistoryPanel** | `components/class-view/` | Expandable sidebar: generation history, session history. |
-| **SettingsPanel** | `components/class-view/` | Expandable sidebar: constraint config, export, rotation avoidance settings. |
-| **ClassViewToolbar** | `components/class-view/` | Undo/redo, projection toggle, export, compare. |
-| **SavedIndicator** | `components/class-view/` | Persistent "Saved to this browser" with device icon (P4). |
+| Component                 | Location                 | Purpose                                                                             |
+| ------------------------- | ------------------------ | ----------------------------------------------------------------------------------- |
+| **HomeScreen**            | `components/home/`       | Activity cards, Quick Start, inline creation, settings access.                      |
+| **ActivityCard**          | `components/home/`       | Activity card with name, student count, last-used date, "Make Groups" shortcut.     |
+| **QuickStartCard**        | `components/home/`       | Enter student count + group size → instant groups with placeholders.                |
+| **InlineActivityCreator** | `components/home/`       | "+ New Activity" → name field → create. One action, no wizard.                      |
+| **ClassView**             | `components/class-view/` | The main Class View layout — orchestrates all panels.                               |
+| **RosterPanel**           | `components/class-view/` | Left panel: student list, import/paste action, preference status indicators.        |
+| **GroupsPanel**           | `components/class-view/` | Right panel: generated groups, "Make Groups" button, group size stepper.            |
+| **GenerationControls**    | `components/class-view/` | Inline group size stepper + algorithm settings, co-located with Make Groups button. |
+| **ProjectionMode**        | `components/class-view/` | Full-screen high-contrast group display with floating teacher toolbar.              |
+| **AnalyticsPanel**        | `components/class-view/` | Expandable bottom panel: satisfaction metrics, contextual interpretation.           |
+| **HistoryPanel**          | `components/class-view/` | Expandable sidebar: generation history, session history.                            |
+| **SettingsPanel**         | `components/class-view/` | Expandable sidebar: constraint config, export, rotation avoidance settings.         |
+| **ClassViewToolbar**      | `components/class-view/` | Undo/redo, projection toggle, export, compare.                                      |
+| **SavedIndicator**        | `components/class-view/` | Persistent "Saved to this browser" with device icon (P4).                           |
 
 ### 6.3 Stores
 
-| Current Store | Fate | Notes |
-|---|---|---|
-| `workspace-page-vm.svelte.ts` | **ADAPT** | Becomes `class-view-vm.svelte.ts`. Core VM for Class View. Gains live-session state concept. |
-| `scenarioEditingStore.ts` | **KEEP** | Command pattern + undo/redo + auto-save. Exactly what Class View needs. |
-| `workspace-command-runner.svelte.ts` | **ADAPT** | Rename to `class-view-command-runner.svelte.ts`. Minor adjustments. |
-| `workspace-export-handlers.ts` | **KEEP** | Export functions work as-is. |
-| `workspace-keyboard-controller.svelte.ts` | **KEEP** | Keyboard nav for accessibility (P11). |
-| `workspace-keyboard-move.svelte.ts` | **KEEP** | Arrow-key movement. |
-| `workspace-tooltip-controller.svelte.ts` | **KEEP** | Hover tooltips. |
-| `workspace-sidebar-controller.svelte.ts` | **KEEP** | Student detail sidebar. |
-| `workspace-student-analytics.svelte.ts` | **KEEP** | Per-student analytics derivation. |
-| `workspace-student-lookup.svelte.ts` | **KEEP** | Student data resolution. |
-| `activityHeader.svelte.ts` | **DELETE** | Class View owns its own header. No cross-layout store needed. |
-| `workspaceHeader.svelte.ts` | **DELETE** | Same — header state moves into Class View VM. |
-| `uiSettings.svelte.ts` | **ADAPT** | Remove card-size and layout toggles (Phase 4). Keep other preferences. |
-| `syncSettings.svelte.ts` | **KEEP** | Google Sheets sync preference. |
-| `hintState.svelte.ts` | **ADAPT** | Add rotation-avoidance hint tracking (Decision 6). |
-| `candidateConfigStore.ts` | **DELETE** | Gallery code removed. |
-| `trackResponsesSession.svelte.ts` | **KEEP** | Standalone tool, unchanged. |
-| `devTools.svelte.ts` | **KEEP** | Dev tools flag. |
+| Current Store                             | Fate       | Notes                                                                                        |
+| ----------------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| `workspace-page-vm.svelte.ts`             | **ADAPT**  | Becomes `class-view-vm.svelte.ts`. Core VM for Class View. Gains live-session state concept. |
+| `scenarioEditingStore.ts`                 | **KEEP**   | Command pattern + undo/redo + auto-save. Exactly what Class View needs.                      |
+| `workspace-command-runner.svelte.ts`      | **ADAPT**  | Rename to `class-view-command-runner.svelte.ts`. Minor adjustments.                          |
+| `workspace-export-handlers.ts`            | **KEEP**   | Export functions work as-is.                                                                 |
+| `workspace-keyboard-controller.svelte.ts` | **KEEP**   | Keyboard nav for accessibility (P11).                                                        |
+| `workspace-keyboard-move.svelte.ts`       | **KEEP**   | Arrow-key movement.                                                                          |
+| `workspace-tooltip-controller.svelte.ts`  | **KEEP**   | Hover tooltips.                                                                              |
+| `workspace-sidebar-controller.svelte.ts`  | **KEEP**   | Student detail sidebar.                                                                      |
+| `workspace-student-analytics.svelte.ts`   | **KEEP**   | Per-student analytics derivation.                                                            |
+| `workspace-student-lookup.svelte.ts`      | **KEEP**   | Student data resolution.                                                                     |
+| `activityHeader.svelte.ts`                | **DELETE** | Class View owns its own header. No cross-layout store needed.                                |
+| `workspaceHeader.svelte.ts`               | **DELETE** | Same — header state moves into Class View VM.                                                |
+| `uiSettings.svelte.ts`                    | **ADAPT**  | Remove card-size and layout toggles (Phase 4). Keep other preferences.                       |
+| `syncSettings.svelte.ts`                  | **KEEP**   | Google Sheets sync preference.                                                               |
+| `hintState.svelte.ts`                     | **ADAPT**  | Add rotation-avoidance hint tracking (Decision 6).                                           |
+| `candidateConfigStore.ts`                 | **DELETE** | Gallery code removed.                                                                        |
+| `trackResponsesSession.svelte.ts`         | **KEEP**   | Standalone tool, unchanged.                                                                  |
+| `devTools.svelte.ts`                      | **KEEP**   | Dev tools flag.                                                                              |
 
 **New store:** `class-view-vm.svelte.ts` — central VM for Class View, incorporating live-session state concept per Decision 3.
 
@@ -737,27 +738,28 @@ This section maps every piece of the existing codebase to its fate in the Blizza
 
 **The domain layer is almost entirely KEEP.** This is the payoff of hexagonal architecture — the UI overhaul doesn't touch domain logic.
 
-| Entity | Fate | Notes |
-|---|---|---|
-| Student | **KEEP** | No changes. |
-| Group | **KEEP** | No changes. |
-| Pool | **KEEP** | Internal term. Eliminated from UI labels per Decision 7, but domain entity unchanged. |
-| Program | **KEEP** | Internal term. UI shows "Activity" but domain uses Program. No rename needed. |
-| Scenario | **KEEP** | No changes. |
-| Preference | **KEEP** | No changes. |
-| Session | **ADAPT** | Add live-session state concept (Decision 3). Session needs a "LIVE" status for Phase 2 observation. Phase 1: just ensure status enum can accommodate it. |
-| Placement | **KEEP** | No changes. |
-| GroupTemplate | **KEEP** | No changes. |
-| Observation | **KEEP** | Phase 2 entity. Already implemented. |
-| SheetConnection | **KEEP** | No changes. |
-| Staff | **KEEP** | No changes. |
-| StudentIdentity | **KEEP** | No changes. |
+| Entity          | Fate      | Notes                                                                                                                                                    |
+| --------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Student         | **KEEP**  | No changes.                                                                                                                                              |
+| Group           | **KEEP**  | No changes.                                                                                                                                              |
+| Pool            | **KEEP**  | Internal term. Eliminated from UI labels per Decision 7, but domain entity unchanged.                                                                    |
+| Program         | **KEEP**  | Internal term. UI shows "Activity" but domain uses Program. No rename needed.                                                                            |
+| Scenario        | **KEEP**  | No changes.                                                                                                                                              |
+| Preference      | **KEEP**  | No changes.                                                                                                                                              |
+| Session         | **ADAPT** | Add live-session state concept (Decision 3). Session needs a "LIVE" status for Phase 2 observation. Phase 1: just ensure status enum can accommodate it. |
+| Placement       | **KEEP**  | No changes.                                                                                                                                              |
+| GroupTemplate   | **KEEP**  | No changes.                                                                                                                                              |
+| Observation     | **KEEP**  | Phase 2 entity. Already implemented.                                                                                                                     |
+| SheetConnection | **KEEP**  | No changes.                                                                                                                                              |
+| Staff           | **KEEP**  | No changes.                                                                                                                                              |
+| StudentIdentity | **KEEP**  | No changes.                                                                                                                                              |
 
 ### 6.5 Application Layer (Use Cases & Ports)
 
 All existing use cases are **KEEP**. The new architecture calls them from different UI surfaces but the use cases themselves don't change. This is the hexagonal architecture working as designed.
 
 New use cases needed for Phase 1:
+
 - `quickStart` — generate groups from student count + group size (placeholder names)
 - `createActivityInline` — simplified activity creation (name only, no wizard data)
 - `upgradeQuickStart` — replace placeholder students with real roster (Banked Note #2)
@@ -777,9 +779,11 @@ All infrastructure (repositories, auth, storage, sync, http) is **KEEP**. The UI
 Phase 1 is broken into work packages (WPs) that can be completed in order. Each WP is independently testable and mergeable. Dependencies are explicit.
 
 ### WP0: Branch & Scaffold (0.5 day)
+
 **Goal:** Create the Blizzard branch and new directory structure.
 
 **Tasks:**
+
 - Create `project-blizzard` branch from main
 - Create new directories: `src/lib/components/home/`, `src/lib/components/class-view/`
 - Create new route stubs: `src/routes/(blizzard)/+page.svelte` (Home), `src/routes/(blizzard)/activity/[id]/+page.svelte` (Class View)
@@ -789,10 +793,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** `pnpm dev` serves both old and new routes without conflict.
 
 ### WP1: Home Screen — Activity Cards (1-2 days)
+
 **Goal:** Home screen showing existing activities as cards.
 **Depends on:** WP0
 
 **Tasks:**
+
 - Build `HomeScreen.svelte` — full-width layout, activity card grid
 - Build `ActivityCard.svelte` — name, student count, last-used date, "Make Groups" shortcut button
 - Wire `listActivities` use case to populate cards
@@ -803,10 +809,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** Home screen loads, shows existing activities, cards are tappable.
 
 ### WP2: Home Screen — Inline Activity Creation (1 day)
+
 **Goal:** Create activities without a wizard.
 **Depends on:** WP1
 
 **Tasks:**
+
 - Build `InlineActivityCreator.svelte` — "+ New Activity" button → expands to name input → create
 - Wire `createActivityInline` use case (creates Program with empty Pool)
 - On create → navigate to `/activity/[id]` (Class View)
@@ -815,10 +823,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** User can create a named activity in one action from Home, lands in Class View.
 
 ### WP3: Home Screen — Quick Start (1 day)
+
 **Goal:** Zero-data grouping for new users.
 **Depends on:** WP1
 
 **Tasks:**
+
 - Build `QuickStartCard.svelte` — student count input + group size input + "Go" button
 - Build `quickStart` use case — creates Program + Pool with placeholder students (Student 1, Student 2, ...) + generates groups
 - On submit → navigate to `/activity/[id]` (Class View with groups already generated)
@@ -827,10 +837,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** New user enters "24 students, groups of 4" → sees 6 groups of placeholder students in under 15 seconds.
 
 ### WP4: Class View — Core Layout & Roster Panel (2-3 days)
+
 **Goal:** Class View with roster panel showing students.
 **Depends on:** WP0
 
 **Tasks:**
+
 - Build `ClassView.svelte` — two-panel layout (left roster, right groups)
 - Build `RosterPanel.svelte` — scrollable student list, student count, "Import" button
 - Build `ClassViewToolbar.svelte` — activity name, back button (→ Home), undo/redo buttons
@@ -841,10 +853,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** Navigate to `/activity/[id]`, see roster panel with student names, "Saved to this browser" visible.
 
 ### WP5: Class View — Groups Panel & Generation (2-3 days)
+
 **Goal:** Generate and display groups in Class View.
 **Depends on:** WP4
 
 **Tasks:**
+
 - Build `GroupsPanel.svelte` — group columns layout, "Make Groups" button at top
 - Build `GenerationControls.svelte` — inline group size stepper, positioned near Make Groups button
 - Wire `generateScenario` use case to Make Groups button
@@ -855,10 +869,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** Click "Make Groups" → groups appear. Click again → new groups appear, previous saved to history.
 
 ### WP6: Class View — Drag-Drop Editing (1-2 days)
+
 **Goal:** Full drag-drop group editing in Class View.
 **Depends on:** WP5
 
 **Tasks:**
+
 - Wire `scenarioEditingStore` to Class View groups panel
 - Adapt `DraggableStudentCard` for Class View (ensure 44px+ touch targets)
 - Wire undo/redo to `ClassViewToolbar`
@@ -868,10 +884,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** Drag student between groups → auto-saves → undo works → redo works.
 
 ### WP7: Class View — Projection Mode (2-3 days)
+
 **Goal:** Full-screen projection from within Class View.
 **Depends on:** WP5
 
 **Tasks:**
+
 - Build `ProjectionMode.svelte` — full-screen, high-contrast group display
 - Student names ≥36pt, body text ≥60pt, contrast ≥7:1
 - No teacher-private information visible
@@ -883,10 +901,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** Click "Project" → full-screen high-contrast groups → student at 30 feet can read names → ESC exits.
 
 ### WP8: Class View — Preference-Adaptive UI (2-3 days)
+
 **Goal:** Class View automatically enriches when preference data exists (Decision 4).
 **Depends on:** WP6
 
 **Tasks:**
+
 - Detect preference data presence and completeness in `class-view-vm`
 - When preferences exist: show preference rank badges on student cards (color-coded green→red)
 - When preferences exist: show preference status indicators in roster panel
@@ -898,10 +918,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** Activity with no preferences → clean transient UI. Import preferences → badges appear, analytics panel available.
 
 ### WP9: Class View — History & Comparison (1-2 days)
+
 **Goal:** Generation history and scenario comparison.
 **Depends on:** WP5
 
 **Tasks:**
+
 - Build `HistoryPanel.svelte` — expandable sidebar showing generation history + session history
 - Adapt `HistorySelector` for history navigation
 - Adapt `ScenarioComparison` for "Compare" action in Class View
@@ -910,10 +932,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** Generate → Compare → see two side-by-side → pick one → history shows both.
 
 ### WP10: Class View — Settings & Rotation Avoidance (1 day)
+
 **Goal:** Rotation avoidance on by default, configurable in settings (Decision 6).
 **Depends on:** WP5
 
 **Tasks:**
+
 - Rotation avoidance on by default (lookback: 3 sessions) — no user action needed
 - Build rotation avoidance settings in Settings panel (toggle + lookback window 1-10)
 - One-time hint after second session: "Groups now avoid recent groupmates. Change this in Settings."
@@ -922,10 +946,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** First session → rotation active but invisible. Second session → hint appears once → dismiss → never returns.
 
 ### WP11: Quick Start Upgrade Path (1 day)
+
 **Goal:** Replace placeholder students with real roster (Banked Note #2).
 **Depends on:** WP4, WP3
 
 **Tasks:**
+
 - Build `upgradeQuickStart` use case — replaces placeholder students with imported roster
 - When teacher imports roster into a Quick Start activity, replace placeholders in-place
 - If imported count differs from placeholder count: keep group structure, redistribute
@@ -935,10 +961,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** Quick Start → 24 placeholders in 6 groups → paste 24 real names → same 6 groups, real names.
 
 ### WP12: Route Migration & Cleanup (1-2 days)
+
 **Goal:** Remove old routes, make Blizzard routes primary.
 **Depends on:** WP1-WP11 all complete
 
 **Tasks:**
+
 - Move Blizzard routes from `(blizzard)/` group to top-level
 - Delete old routes: `/activities`, `/activities/new`, `/activities/import`, `/activities/[id]`, `/activities/[id]/setup`, `/activities/[id]/workspace`, `/activities/[id]/live`, `/activities/[id]/analytics`, `/analytics`, `/students/[id]`
 - Update all internal navigation to new route structure
@@ -950,10 +978,12 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** All old routes return 404 or redirect. All new routes work. No user-facing label says "Pool" or "Program". `pnpm check` passes. `pnpm test:unit` passes.
 
 ### WP13: Red-Line Verification & Phase Gate (0.5 day)
+
 **Goal:** Verify all Phase 1 exit criteria.
 **Depends on:** WP12
 
 **Tasks:**
+
 - Run all 12 applicable red-line criteria (checklist from Decision 10)
 - Math teacher scenario: app launch → groups on projector in ≤3 taps and ≤10 seconds (stopwatch)
 - Club admin scenario: import → generate → analytics → drag-drop → compare → export (no dead ends)
@@ -965,6 +995,7 @@ Phase 1 is broken into work packages (WPs) that can be completed in order. Each 
 **Exit test:** All checks pass. Phase 1 is shippable.
 
 ### Dependency Graph
+
 ```
 WP0 ──→ WP1 ──→ WP2
     │        └──→ WP3 ──→ WP11
@@ -979,6 +1010,7 @@ WP1-WP11 all ──→ WP12 ──→ WP13
 ```
 
 **Parallelization opportunities:**
+
 - WP1 (Home) and WP4 (Class View core) can be built in parallel after WP0
 - WP7 (Projection), WP8 (Preferences), WP9 (History), WP10 (Settings) can all be built in parallel after WP5
 - WP2 (Inline creation) and WP3 (Quick Start) can be built in parallel after WP1

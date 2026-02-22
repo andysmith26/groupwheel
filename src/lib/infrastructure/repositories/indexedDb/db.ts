@@ -15,95 +15,97 @@ export const DB_VERSION = 7; // Bumped to 7 to add studentIdentities store
  * This function is shared by all repositories to ensure schema consistency.
  */
 export function openDb(): Promise<IDBDatabase> {
-	return new Promise((resolve, reject) => {
-		if (typeof indexedDB === 'undefined') {
-			reject(new Error('IndexedDB not available in this environment'));
-			return;
-		}
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB not available in this environment'));
+      return;
+    }
 
-		const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-		request.onerror = () => reject(request.error);
-		request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
 
-		request.onupgradeneeded = (event) => {
-			const db = (event.target as IDBOpenDBRequest).result;
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
 
-			// 1. Scenarios (v1)
-			if (!db.objectStoreNames.contains('scenarios')) {
-				const scenarioStore = db.createObjectStore('scenarios', { keyPath: 'id' });
-				scenarioStore.createIndex('programId', 'programId', { unique: true });
-			}
+      // 1. Scenarios (v1)
+      if (!db.objectStoreNames.contains('scenarios')) {
+        const scenarioStore = db.createObjectStore('scenarios', { keyPath: 'id' });
+        scenarioStore.createIndex('programId', 'programId', { unique: true });
+      }
 
-			// 2. Group Templates (v2)
-			if (!db.objectStoreNames.contains('groupTemplates')) {
-				const templateStore = db.createObjectStore('groupTemplates', { keyPath: 'id' });
-				templateStore.createIndex('ownerStaffId', 'ownerStaffId', { unique: false });
-			}
+      // 2. Group Templates (v2)
+      if (!db.objectStoreNames.contains('groupTemplates')) {
+        const templateStore = db.createObjectStore('groupTemplates', { keyPath: 'id' });
+        templateStore.createIndex('ownerStaffId', 'ownerStaffId', { unique: false });
+      }
 
-			// 3. Programs (v3)
-			if (!db.objectStoreNames.contains('programs')) {
-				db.createObjectStore('programs', { keyPath: 'id' });
-			}
+      // 3. Programs (v3)
+      if (!db.objectStoreNames.contains('programs')) {
+        db.createObjectStore('programs', { keyPath: 'id' });
+      }
 
-			// 4. Pools (v3)
-			if (!db.objectStoreNames.contains('pools')) {
-				db.createObjectStore('pools', { keyPath: 'id' });
-			}
+      // 4. Pools (v3)
+      if (!db.objectStoreNames.contains('pools')) {
+        db.createObjectStore('pools', { keyPath: 'id' });
+      }
 
-			// 5. Students (v3)
-			if (!db.objectStoreNames.contains('students')) {
-				db.createObjectStore('students', { keyPath: 'id' });
-			}
+      // 5. Students (v3)
+      if (!db.objectStoreNames.contains('students')) {
+        db.createObjectStore('students', { keyPath: 'id' });
+      }
 
-			// 6. Staff (v3)
-			if (!db.objectStoreNames.contains('staff')) {
-				db.createObjectStore('staff', { keyPath: 'id' });
-			}
+      // 6. Staff (v3)
+      if (!db.objectStoreNames.contains('staff')) {
+        db.createObjectStore('staff', { keyPath: 'id' });
+      }
 
-			// 7. Preferences (v3)
-			if (!db.objectStoreNames.contains('preferences')) {
-				const prefStore = db.createObjectStore('preferences', { keyPath: 'id' });
-				prefStore.createIndex('programId', 'programId', { unique: false });
-			}
+      // 7. Preferences (v3)
+      if (!db.objectStoreNames.contains('preferences')) {
+        const prefStore = db.createObjectStore('preferences', { keyPath: 'id' });
+        prefStore.createIndex('programId', 'programId', { unique: false });
+      }
 
-			// 8. Sessions (v5)
-			if (!db.objectStoreNames.contains('sessions')) {
-				const sessionStore = db.createObjectStore('sessions', { keyPath: 'id' });
-				sessionStore.createIndex('programId', 'programId', { unique: false });
-				sessionStore.createIndex('academicYear', 'academicYear', { unique: false });
-				sessionStore.createIndex('status', 'status', { unique: false });
-			}
+      // 8. Sessions (v5)
+      if (!db.objectStoreNames.contains('sessions')) {
+        const sessionStore = db.createObjectStore('sessions', { keyPath: 'id' });
+        sessionStore.createIndex('programId', 'programId', { unique: false });
+        sessionStore.createIndex('academicYear', 'academicYear', { unique: false });
+        sessionStore.createIndex('status', 'status', { unique: false });
+      }
 
-			// 9. Placements (v5)
-			if (!db.objectStoreNames.contains('placements')) {
-				const placementStore = db.createObjectStore('placements', { keyPath: 'id' });
-				placementStore.createIndex('sessionId', 'sessionId', { unique: false });
-				placementStore.createIndex('studentId', 'studentId', { unique: false });
-			}
+      // 9. Placements (v5)
+      if (!db.objectStoreNames.contains('placements')) {
+        const placementStore = db.createObjectStore('placements', { keyPath: 'id' });
+        placementStore.createIndex('sessionId', 'sessionId', { unique: false });
+        placementStore.createIndex('studentId', 'studentId', { unique: false });
+      }
 
-			// 10. Observations (v6)
-			if (!db.objectStoreNames.contains('observations')) {
-				const observationStore = db.createObjectStore('observations', { keyPath: 'id' });
-				observationStore.createIndex('programId', 'programId', { unique: false });
-				observationStore.createIndex('sessionId', 'sessionId', { unique: false });
-				observationStore.createIndex('groupId', 'groupId', { unique: false });
-			}
+      // 10. Observations (v6)
+      if (!db.objectStoreNames.contains('observations')) {
+        const observationStore = db.createObjectStore('observations', { keyPath: 'id' });
+        observationStore.createIndex('programId', 'programId', { unique: false });
+        observationStore.createIndex('sessionId', 'sessionId', { unique: false });
+        observationStore.createIndex('groupId', 'groupId', { unique: false });
+      }
 
-			// 11. Student Identities (v7)
-			if (!db.objectStoreNames.contains('studentIdentities')) {
-				const identityStore = db.createObjectStore('studentIdentities', { keyPath: 'id' });
-				identityStore.createIndex('userId', 'userId', { unique: false });
-			}
+      // 11. Student Identities (v7)
+      if (!db.objectStoreNames.contains('studentIdentities')) {
+        const identityStore = db.createObjectStore('studentIdentities', { keyPath: 'id' });
+        identityStore.createIndex('userId', 'userId', { unique: false });
+      }
 
-			// 12. Add canonicalId index to students (v7)
-			// Note: We can only add indexes during upgrade, so we check if we need to
-			if (db.objectStoreNames.contains('students')) {
-				const studentStore = (event.target as IDBOpenDBRequest).transaction?.objectStore('students');
-				if (studentStore && !studentStore.indexNames.contains('canonicalId')) {
-					studentStore.createIndex('canonicalId', 'canonicalId', { unique: false });
-				}
-			}
-		};
-	});
+      // 12. Add canonicalId index to students (v7)
+      // Note: We can only add indexes during upgrade, so we check if we need to
+      if (db.objectStoreNames.contains('students')) {
+        const studentStore = (event.target as IDBOpenDBRequest).transaction?.objectStore(
+          'students'
+        );
+        if (studentStore && !studentStore.indexNames.contains('canonicalId')) {
+          studentStore.createIndex('canonicalId', 'canonicalId', { unique: false });
+        }
+      }
+    };
+  });
 }

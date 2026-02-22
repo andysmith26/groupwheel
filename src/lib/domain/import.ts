@@ -17,10 +17,10 @@
  * Cells are strings exactly as they appear in the source.
  */
 export interface RawSheetRow {
-	/** 1-based row index (for error messages) */
-	rowIndex: number;
-	/** Cell values in column order */
-	cells: string[];
+  /** 1-based row index (for error messages) */
+  rowIndex: number;
+  /** Cell values in column order */
+  cells: string[];
 }
 
 /**
@@ -28,10 +28,10 @@ export interface RawSheetRow {
  * Represents the source data exactly as fetched.
  */
 export interface RawSheetData {
-	/** Column headers (first row of the sheet) */
-	headers: string[];
-	/** Data rows (excluding header row) */
-	rows: RawSheetRow[];
+  /** Column headers (first row of the sheet) */
+  headers: string[];
+  /** Data rows (excluding header row) */
+  rows: RawSheetRow[];
 }
 
 // =============================================================================
@@ -47,32 +47,32 @@ export interface RawSheetData {
  * - ignore: Explicitly skip this column.
  */
 export type MappedField =
-	| 'firstName'
-	| 'lastName'
-	| 'choice1'
-	| 'choice2'
-	| 'choice3'
-	| 'choice4'
-	| 'choice5'
-	| 'ignore';
+  | 'firstName'
+  | 'lastName'
+  | 'choice1'
+  | 'choice2'
+  | 'choice3'
+  | 'choice4'
+  | 'choice5'
+  | 'ignore';
 
 /**
  * Mapping configuration for a single column.
  */
 export interface ColumnMapping {
-	/** 0-based column index */
-	columnIndex: number;
-	/** Original header name from the sheet */
-	headerName: string;
-	/** What domain field this column maps to (null = not yet mapped) */
-	mappedTo: MappedField | null;
+  /** 0-based column index */
+  columnIndex: number;
+  /** Original header name from the sheet */
+  headerName: string;
+  /** What domain field this column maps to (null = not yet mapped) */
+  mappedTo: MappedField | null;
 }
 
 /**
  * Check if a field is a choice field (choice1, choice2, etc.)
  */
 export function isChoiceField(field: MappedField): boolean {
-	return field.startsWith('choice');
+  return field.startsWith('choice');
 }
 
 /**
@@ -80,9 +80,9 @@ export function isChoiceField(field: MappedField): boolean {
  * Returns null for non-choice fields.
  */
 export function getChoiceRank(field: MappedField): number | null {
-	if (!isChoiceField(field)) return null;
-	const rank = parseInt(field.replace('choice', ''), 10);
-	return isNaN(rank) ? null : rank;
+  if (!isChoiceField(field)) return null;
+  const rank = parseInt(field.replace('choice', ''), 10);
+  return isNaN(rank) ? null : rank;
 }
 
 /**
@@ -94,12 +94,12 @@ export const REQUIRED_FIELDS: MappedField[] = ['firstName'];
  * All optional fields that can be mapped.
  */
 export const OPTIONAL_FIELDS: MappedField[] = [
-	'lastName',
-	'choice1',
-	'choice2',
-	'choice3',
-	'choice4',
-	'choice5'
+  'lastName',
+  'choice1',
+  'choice2',
+  'choice3',
+  'choice4',
+  'choice5'
 ];
 
 // =============================================================================
@@ -110,37 +110,37 @@ export const OPTIONAL_FIELDS: MappedField[] = [
  * Validation result for a single row.
  */
 export interface RowValidationResult {
-	/** 1-based row index (matches RawSheetRow.rowIndex) */
-	rowIndex: number;
-	/** Whether this row can be imported */
-	isValid: boolean;
-	/** Specific validation errors for this row */
-	errors: string[];
-	/** Extracted student data (if valid) */
-	student?: {
-		firstName: string;
-		lastName?: string;
-	};
-	/** Extracted group choices in rank order (if any) */
-	choices?: string[];
+  /** 1-based row index (matches RawSheetRow.rowIndex) */
+  rowIndex: number;
+  /** Whether this row can be imported */
+  isValid: boolean;
+  /** Specific validation errors for this row */
+  errors: string[];
+  /** Extracted student data (if valid) */
+  student?: {
+    firstName: string;
+    lastName?: string;
+  };
+  /** Extracted group choices in rank order (if any) */
+  choices?: string[];
 }
 
 /**
  * Complete validation result for an import operation.
  */
 export interface ImportValidationResult {
-	/** Whether the overall import can proceed */
-	isValid: boolean;
-	/** Rows that passed validation */
-	validRows: RowValidationResult[];
-	/** Rows that failed validation */
-	invalidRows: RowValidationResult[];
-	/** Summary statistics */
-	summary: {
-		totalRows: number;
-		validCount: number;
-		invalidCount: number;
-	};
+  /** Whether the overall import can proceed */
+  isValid: boolean;
+  /** Rows that passed validation */
+  validRows: RowValidationResult[];
+  /** Rows that failed validation */
+  invalidRows: RowValidationResult[];
+  /** Summary statistics */
+  summary: {
+    totalRows: number;
+    validCount: number;
+    invalidCount: number;
+  };
 }
 
 // =============================================================================
@@ -151,114 +151,114 @@ export interface ImportValidationResult {
  * Check if all required fields are mapped.
  */
 export function hasRequiredMappings(mappings: ColumnMapping[]): boolean {
-	const mappedFields = new Set(mappings.map((m) => m.mappedTo).filter((f) => f !== null));
-	return REQUIRED_FIELDS.every((field) => mappedFields.has(field));
+  const mappedFields = new Set(mappings.map((m) => m.mappedTo).filter((f) => f !== null));
+  return REQUIRED_FIELDS.every((field) => mappedFields.has(field));
 }
 
 /**
  * Get the list of missing required field mappings.
  */
 export function getMissingRequiredFields(mappings: ColumnMapping[]): MappedField[] {
-	const mappedFields = new Set(mappings.map((m) => m.mappedTo).filter((f) => f !== null));
-	return REQUIRED_FIELDS.filter((field) => !mappedFields.has(field));
+  const mappedFields = new Set(mappings.map((m) => m.mappedTo).filter((f) => f !== null));
+  return REQUIRED_FIELDS.filter((field) => !mappedFields.has(field));
 }
 
 /**
  * Validate that no field is mapped to multiple columns.
  */
 export function hasDuplicateMappings(mappings: ColumnMapping[]): MappedField[] {
-	const fieldCounts = new Map<MappedField, number>();
+  const fieldCounts = new Map<MappedField, number>();
 
-	for (const mapping of mappings) {
-		if (mapping.mappedTo && mapping.mappedTo !== 'ignore') {
-			const count = fieldCounts.get(mapping.mappedTo) || 0;
-			fieldCounts.set(mapping.mappedTo, count + 1);
-		}
-	}
+  for (const mapping of mappings) {
+    if (mapping.mappedTo && mapping.mappedTo !== 'ignore') {
+      const count = fieldCounts.get(mapping.mappedTo) || 0;
+      fieldCounts.set(mapping.mappedTo, count + 1);
+    }
+  }
 
-	return Array.from(fieldCounts.entries())
-		.filter(([, count]) => count > 1)
-		.map(([field]) => field);
+  return Array.from(fieldCounts.entries())
+    .filter(([, count]) => count > 1)
+    .map(([field]) => field);
 }
 
 /**
  * Apply column mappings to raw sheet data and validate each row.
  */
 export function validateMappedData(
-	data: RawSheetData,
-	mappings: ColumnMapping[]
+  data: RawSheetData,
+  mappings: ColumnMapping[]
 ): ImportValidationResult {
-	const validRows: RowValidationResult[] = [];
-	const invalidRows: RowValidationResult[] = [];
+  const validRows: RowValidationResult[] = [];
+  const invalidRows: RowValidationResult[] = [];
 
-	// Build a lookup from field to column index
-	const fieldToColumn = new Map<MappedField, number>();
-	for (const mapping of mappings) {
-		if (mapping.mappedTo && mapping.mappedTo !== 'ignore') {
-			fieldToColumn.set(mapping.mappedTo, mapping.columnIndex);
-		}
-	}
+  // Build a lookup from field to column index
+  const fieldToColumn = new Map<MappedField, number>();
+  for (const mapping of mappings) {
+    if (mapping.mappedTo && mapping.mappedTo !== 'ignore') {
+      fieldToColumn.set(mapping.mappedTo, mapping.columnIndex);
+    }
+  }
 
-	// Validate each row
-	for (const row of data.rows) {
-		const errors: string[] = [];
-		let student: RowValidationResult['student'] = undefined;
-		const choices: string[] = [];
+  // Validate each row
+  for (const row of data.rows) {
+    const errors: string[] = [];
+    let student: RowValidationResult['student'] = undefined;
+    const choices: string[] = [];
 
-		// Extract firstName (required)
-		const firstNameIdx = fieldToColumn.get('firstName');
-		const firstName = firstNameIdx !== undefined ? (row.cells[firstNameIdx] ?? '').trim() : '';
+    // Extract firstName (required)
+    const firstNameIdx = fieldToColumn.get('firstName');
+    const firstName = firstNameIdx !== undefined ? (row.cells[firstNameIdx] ?? '').trim() : '';
 
-		if (!firstName) {
-			errors.push('First name is empty');
-		} else {
-			// Extract lastName (optional)
-			const lastNameIdx = fieldToColumn.get('lastName');
-			const lastName = lastNameIdx !== undefined ? (row.cells[lastNameIdx] ?? '').trim() : '';
+    if (!firstName) {
+      errors.push('First name is empty');
+    } else {
+      // Extract lastName (optional)
+      const lastNameIdx = fieldToColumn.get('lastName');
+      const lastName = lastNameIdx !== undefined ? (row.cells[lastNameIdx] ?? '').trim() : '';
 
-			student = {
-				firstName,
-				lastName: lastName || undefined
-			};
-		}
+      student = {
+        firstName,
+        lastName: lastName || undefined
+      };
+    }
 
-		// Extract choices in order
-		for (let i = 1; i <= 5; i++) {
-			const choiceField = `choice${i}` as MappedField;
-			const choiceIdx = fieldToColumn.get(choiceField);
-			if (choiceIdx !== undefined) {
-				const choiceValue = (row.cells[choiceIdx] ?? '').trim();
-				if (choiceValue) {
-					choices.push(choiceValue);
-				}
-			}
-		}
+    // Extract choices in order
+    for (let i = 1; i <= 5; i++) {
+      const choiceField = `choice${i}` as MappedField;
+      const choiceIdx = fieldToColumn.get(choiceField);
+      if (choiceIdx !== undefined) {
+        const choiceValue = (row.cells[choiceIdx] ?? '').trim();
+        if (choiceValue) {
+          choices.push(choiceValue);
+        }
+      }
+    }
 
-		const result: RowValidationResult = {
-			rowIndex: row.rowIndex,
-			isValid: errors.length === 0,
-			errors,
-			student,
-			choices: choices.length > 0 ? choices : undefined
-		};
+    const result: RowValidationResult = {
+      rowIndex: row.rowIndex,
+      isValid: errors.length === 0,
+      errors,
+      student,
+      choices: choices.length > 0 ? choices : undefined
+    };
 
-		if (result.isValid) {
-			validRows.push(result);
-		} else {
-			invalidRows.push(result);
-		}
-	}
+    if (result.isValid) {
+      validRows.push(result);
+    } else {
+      invalidRows.push(result);
+    }
+  }
 
-	return {
-		isValid: invalidRows.length === 0 && validRows.length > 0,
-		validRows,
-		invalidRows,
-		summary: {
-			totalRows: data.rows.length,
-			validCount: validRows.length,
-			invalidCount: invalidRows.length
-		}
-	};
+  return {
+    isValid: invalidRows.length === 0 && validRows.length > 0,
+    validRows,
+    invalidRows,
+    summary: {
+      totalRows: data.rows.length,
+      validCount: validRows.length,
+      invalidCount: invalidRows.length
+    }
+  };
 }
 
 /**
@@ -266,10 +266,10 @@ export function validateMappedData(
  * Uses firstName + lastName + row index to create a deterministic ID.
  */
 export function generateStudentId(
-	firstName: string,
-	lastName: string | undefined,
-	rowIndex: number
+  firstName: string,
+  lastName: string | undefined,
+  rowIndex: number
 ): string {
-	const namePart = `${firstName}${lastName || ''}`.toLowerCase().replace(/\s+/g, '-');
-	return `${namePart}-${rowIndex}`;
+  const namePart = `${firstName}${lastName || ''}`.toLowerCase().replace(/\s+/g, '-');
+  return `${namePart}-${rowIndex}`;
 }

@@ -1,32 +1,32 @@
 export type WorkspaceHeaderState = {
-	canUndo: boolean;
-	canRedo: boolean;
-	topChoicePercent: number | null;
-	topTwoPercent: number | null;
-	qualityLabel: string | null;
-	hasPreferences: boolean;
-	isComparing: boolean;
-	onCompare: (() => void) | null;
-	onUndo: () => void;
-	onRedo: () => void;
-	onExportCSV: () => void;
-	onExportTSV: () => void;
-	onExportGroupsSummary: () => void;
-	onExportGroupsColumns: () => void;
-	onExportActivitySchema: () => void | Promise<void>;
-	onExportActivityScreenshot: () => void | Promise<void>;
+  canUndo: boolean;
+  canRedo: boolean;
+  topChoicePercent: number | null;
+  topTwoPercent: number | null;
+  qualityLabel: string | null;
+  hasPreferences: boolean;
+  isComparing: boolean;
+  onCompare: (() => void) | null;
+  onUndo: () => void;
+  onRedo: () => void;
+  onExportCSV: () => void;
+  onExportTSV: () => void;
+  onExportGroupsSummary: () => void;
+  onExportGroupsColumns: () => void;
+  onExportActivitySchema: () => void | Promise<void>;
+  onExportActivityScreenshot: () => void | Promise<void>;
 };
 
 export class WorkspaceHeaderStore {
-	state = $state<WorkspaceHeaderState | null>(null);
+  state = $state<WorkspaceHeaderState | null>(null);
 
-	set(value: WorkspaceHeaderState | null) {
-		this.state = value;
-	}
+  set(value: WorkspaceHeaderState | null) {
+    this.state = value;
+  }
 
-	clear() {
-		this.state = null;
-	}
+  clear() {
+    this.state = null;
+  }
 }
 
 export const workspaceHeader = new WorkspaceHeaderStore();

@@ -8,44 +8,44 @@ import type { GroupTemplateRepository, SyncService } from '$lib/application/port
 import type { GroupTemplate } from '$lib/domain';
 
 export class SyncedGroupTemplateRepository implements GroupTemplateRepository {
-	constructor(
-		private readonly local: GroupTemplateRepository,
-		private readonly sync: SyncService
-	) {}
+  constructor(
+    private readonly local: GroupTemplateRepository,
+    private readonly sync: SyncService
+  ) {}
 
-	async getById(id: string): Promise<GroupTemplate | null> {
-		return this.local.getById(id);
-	}
+  async getById(id: string): Promise<GroupTemplate | null> {
+    return this.local.getById(id);
+  }
 
-	async listByOwnerId(staffId: string): Promise<GroupTemplate[]> {
-		return this.local.listByOwnerId(staffId);
-	}
+  async listByOwnerId(staffId: string): Promise<GroupTemplate[]> {
+    return this.local.listByOwnerId(staffId);
+  }
 
-	async listAll(userId?: string): Promise<GroupTemplate[]> {
-		return this.local.listAll(userId);
-	}
+  async listAll(userId?: string): Promise<GroupTemplate[]> {
+    return this.local.listAll(userId);
+  }
 
-	async save(template: GroupTemplate): Promise<void> {
-		await this.local.save(template);
+  async save(template: GroupTemplate): Promise<void> {
+    await this.local.save(template);
 
-		if (this.sync.isEnabled()) {
-			await this.sync.queueForSync('groupTemplates', 'save', template.id);
-		}
-	}
+    if (this.sync.isEnabled()) {
+      await this.sync.queueForSync('groupTemplates', 'save', template.id);
+    }
+  }
 
-	async update(template: GroupTemplate): Promise<void> {
-		await this.local.update(template);
+  async update(template: GroupTemplate): Promise<void> {
+    await this.local.update(template);
 
-		if (this.sync.isEnabled()) {
-			await this.sync.queueForSync('groupTemplates', 'save', template.id);
-		}
-	}
+    if (this.sync.isEnabled()) {
+      await this.sync.queueForSync('groupTemplates', 'save', template.id);
+    }
+  }
 
-	async delete(id: string): Promise<void> {
-		await this.local.delete(id);
+  async delete(id: string): Promise<void> {
+    await this.local.delete(id);
 
-		if (this.sync.isEnabled()) {
-			await this.sync.queueForSync('groupTemplates', 'delete', id);
-		}
-	}
+    if (this.sync.isEnabled()) {
+      await this.sync.queueForSync('groupTemplates', 'delete', id);
+    }
+  }
 }
