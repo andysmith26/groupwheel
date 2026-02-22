@@ -39,7 +39,7 @@ import type {
 	StudentViewData
 } from '$lib/application/useCases/getStudentView';
 import { getStudentView } from '$lib/application/useCases/getStudentView';
-import type { Pool } from '$lib/domain';
+import type { Pool, Program } from '$lib/domain';
 import type {
 	ImportPoolFromCsvInput,
 	ImportPoolFromCsvError
@@ -834,6 +834,74 @@ export async function deleteActivity(
 		return err({
 			type: 'DELETE_FAILED',
 			message: e instanceof Error ? e.message : 'Failed to delete activity'
+		});
+	}
+}
+
+// =============================================================================
+// Inline Activity Creation (Blizzard WP2)
+// =============================================================================
+
+export type CreateActivityInlineError =
+	| { type: 'EMPTY_NAME'; message: string }
+	| { type: 'CREATION_FAILED'; message: string };
+
+export interface CreateActivityInlineResult {
+	program: Program;
+	pool: Pool;
+}
+
+/**
+ * Create an activity with just a name — no students, no wizard.
+ *
+ * Creates a Program linked to an empty Pool. Roster import happens
+ * later in Class View.
+ *
+ * See: project definition.md — WP2 (Inline Activity Creation),
+ * Decision 2 (Two-Screen Architecture), Part 6 §6.5
+ */
+export async function createActivityInline(
+	env: InMemoryEnvironment,
+	input: { name: string }
+): Promise<Result<CreateActivityInlineResult, CreateActivityInlineError>> {
+	const name = input.name.trim();
+	if (!name) {
+		return err({ type: 'EMPTY_NAME', message: 'Activity name cannot be empty' });
+	}
+
+	const userId = getCurrentUserId(env);
+
+	try {
+		const poolId = env.idGenerator.generateId();
+		const pool: Pool = {
+			id: poolId,
+			name: `${name} Roster`,
+			type: 'CLASS' as const,
+			memberIds: [],
+			status: 'ACTIVE' as const,
+			source: 'MANUAL' as const,
+			userId
+		};
+		await env.poolRepo.save(pool);
+
+		const programId = env.idGenerator.generateId();
+		const program: Program = {
+			id: programId,
+			name,
+			type: 'CLASS_ACTIVITY' as const,
+			timeSpan: { termLabel: new Date().toISOString() },
+			poolIds: [pool.id],
+			primaryPoolId: pool.id,
+			ownerStaffIds: ['owner-1'],
+			userId
+		};
+		await env.programRepo.save(program);
+
+		return ok({ program, pool });
+	} catch (e) {
+		return err({
+			type: 'CREATION_FAILED',
+			message: e instanceof Error ? e.message : 'Failed to create activity'
 		});
 	}
 }

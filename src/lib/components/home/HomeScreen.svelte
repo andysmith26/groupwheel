@@ -1,0 +1,319 @@
+<script lang="ts">
+	/**
+	 * HomeScreen — Activity hub and entry point.
+	 *
+	 * Shows activity cards with one-tap "Make Groups" shortcut,
+	 * settings gear, and empty state (placeholder for Quick Start in WP3).
+	 *
+	 * See: project definition.md — Decision 2, Part 3 (Home screen), WP1
+	 */
+
+	import { onMount } from 'svelte';
+	import { fade, scale } from 'svelte/transition';
+	import { goto } from '$app/navigation';
+	import { getAppEnvContext } from '$lib/contexts/appEnv';
+	import {
+		listActivities,
+		renameActivity,
+		deleteActivity,
+		type ActivityDisplay
+	} from '$lib/services/appEnvUseCases';
+	import { isErr, isOk } from '$lib/types/result';
+	import { Button, Alert } from '$lib/components/ui';
+	import ActivityCardSkeleton from '$lib/components/ui/ActivityCardSkeleton.svelte';
+	import ActivityCard from './ActivityCard.svelte';
+	import InlineActivityCreator from './InlineActivityCreator.svelte';
+	import QuickStartCard from './QuickStartCard.svelte';
+
+	let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
+
+	let activities = $state<ActivityDisplay[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+
+	// Menu state
+	let openMenuId = $state<string | null>(null);
+
+	// Rename modal state
+	let renameModalOpen = $state(false);
+	let renameTarget = $state<ActivityDisplay | null>(null);
+	let renameValue = $state('');
+	let renameError = $state<string | null>(null);
+
+	// Delete modal state
+	let deleteModalOpen = $state(false);
+	let deleteTarget = $state<ActivityDisplay | null>(null);
+	let isDeleting = $state(false);
+
+	let now = $state(new Date());
+
+	onMount(() => {
+		env = getAppEnvContext();
+		loadActivities();
+
+		const handleClick = (e: MouseEvent) => {
+			if (openMenuId && !(e.target as Element).closest('.overflow-menu')) {
+				openMenuId = null;
+			}
+		};
+		const intervalId = window.setInterval(() => {
+			now = new Date();
+		}, 60_000);
+
+		document.addEventListener('click', handleClick);
+		return () => {
+			document.removeEventListener('click', handleClick);
+			window.clearInterval(intervalId);
+		};
+	});
+
+	async function loadActivities() {
+		if (!env) return;
+
+		loading = true;
+		error = null;
+
+		const result = await listActivities(env);
+
+		if (isErr(result)) {
+			error = result.error.message;
+		} else {
+			activities = result.value;
+		}
+
+		loading = false;
+	}
+
+	function handleMakeGroups(programId: string) {
+		goto(`/activity/${programId}?generate=true`);
+	}
+
+	function toggleMenu(id: string, e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		openMenuId = openMenuId === id ? null : id;
+	}
+
+	function handleRenameRequest(activity: ActivityDisplay) {
+		openMenuId = null;
+		renameTarget = activity;
+		renameValue = activity.program.name;
+		renameError = null;
+		renameModalOpen = true;
+	}
+
+	function handleDeleteRequest(activity: ActivityDisplay) {
+		openMenuId = null;
+		deleteTarget = activity;
+		deleteModalOpen = true;
+	}
+
+	async function handleRenameSubmit() {
+		if (!env || !renameTarget) return;
+
+		const trimmed = renameValue.trim();
+		if (!trimmed) {
+			renameError = 'Activity name cannot be empty';
+			return;
+		}
+
+		const result = await renameActivity(env, {
+			programId: renameTarget.program.id,
+			newName: trimmed
+		});
+
+		if (isErr(result)) {
+			renameError = result.error.message;
+			return;
+		}
+
+		activities = activities.map((a) =>
+			a.program.id === renameTarget!.program.id
+				? { ...a, program: { ...a.program, name: trimmed } }
+				: a
+		);
+
+		renameModalOpen = false;
+		renameTarget = null;
+	}
+
+	async function handleDeleteConfirm() {
+		if (!env || !deleteTarget) return;
+
+		isDeleting = true;
+		const result = await deleteActivity(env, { programId: deleteTarget.program.id });
+
+		if (isErr(result)) {
+			isDeleting = false;
+			return;
+		}
+
+		activities = activities.filter((a) => a.program.id !== deleteTarget!.program.id);
+		isDeleting = false;
+		deleteModalOpen = false;
+		deleteTarget = null;
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			if (renameModalOpen) {
+				renameModalOpen = false;
+				renameTarget = null;
+			}
+			if (deleteModalOpen) {
+				deleteModalOpen = false;
+				deleteTarget = null;
+			}
+			if (openMenuId) {
+				openMenuId = null;
+			}
+		}
+	}
+</script>
+
+<svelte:head>
+	<title>Home | Groupwheel</title>
+</svelte:head>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<div class="mx-auto max-w-4xl space-y-6 p-4">
+	<header class="flex items-center justify-between gap-4">
+		<div>
+			<h1 class="text-2xl font-semibold text-gray-900">Your Activities</h1>
+			<p class="text-sm text-gray-600">
+				Create and manage student groupings for your classes.
+			</p>
+		</div>
+		<a
+			href="/settings"
+			class="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+			aria-label="Settings"
+		>
+			<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+				<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+			</svg>
+		</a>
+	</header>
+
+	{#if loading}
+		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			{#each Array(6) as _}
+				<ActivityCardSkeleton />
+			{/each}
+		</div>
+	{:else if error}
+		<Alert variant="error">{error}</Alert>
+	{:else if activities.length === 0}
+		<QuickStartCard onCreated={() => loadActivities()} />
+		<div class="relative">
+			<div class="absolute inset-0 flex items-center" aria-hidden="true">
+				<div class="w-full border-t border-gray-200"></div>
+			</div>
+			<div class="relative flex justify-center">
+				<span class="bg-white px-3 text-xs text-gray-400">or create with a name</span>
+			</div>
+		</div>
+		<InlineActivityCreator onCreated={() => loadActivities()} />
+	{:else}
+		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			{#each activities as activity (activity.program.id)}
+				<ActivityCard
+					{activity}
+					{now}
+					{openMenuId}
+					onMakeGroups={handleMakeGroups}
+					onRename={handleRenameRequest}
+					onDelete={handleDeleteRequest}
+					onToggleMenu={toggleMenu}
+				/>
+			{/each}
+		</div>
+		<InlineActivityCreator onCreated={() => loadActivities()} />
+	{/if}
+</div>
+
+<!-- Rename Modal -->
+{#if renameModalOpen && renameTarget}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+		transition:fade={{ duration: 150 }}
+		role="dialog"
+		aria-modal="true"
+		aria-label="Rename activity"
+	>
+		<div
+			class="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl"
+			transition:scale={{ duration: 150, start: 0.95 }}
+		>
+			<h3 class="text-lg font-medium text-gray-900">Rename Activity</h3>
+			<div class="mt-4">
+				<input
+					type="text"
+					class="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+					bind:value={renameValue}
+					onkeydown={(e) => e.key === 'Enter' && handleRenameSubmit()}
+				/>
+				{#if renameError}
+					<p class="mt-2 text-sm text-red-600">{renameError}</p>
+				{/if}
+			</div>
+			<div class="mt-4 flex justify-end gap-3">
+				<Button
+					variant="ghost"
+					onclick={() => {
+						renameModalOpen = false;
+						renameTarget = null;
+					}}
+				>
+					Cancel
+				</Button>
+				<Button variant="secondary" onclick={handleRenameSubmit}>
+					Save
+				</Button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Delete Confirmation Modal -->
+{#if deleteModalOpen && deleteTarget}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+		transition:fade={{ duration: 150 }}
+		role="dialog"
+		aria-modal="true"
+		aria-label="Delete activity"
+	>
+		<div
+			class="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl"
+			transition:scale={{ duration: 150, start: 0.95 }}
+		>
+			<h3 class="text-lg font-medium text-gray-900">Delete Activity</h3>
+			<p class="mt-2 text-sm text-gray-600">
+				Delete "{deleteTarget.program.name}"? This cannot be undone.
+			</p>
+			<div class="mt-4 flex justify-end gap-3">
+				<Button
+					variant="ghost"
+					onclick={() => {
+						deleteModalOpen = false;
+						deleteTarget = null;
+					}}
+					disabled={isDeleting}
+				>
+					Cancel
+				</Button>
+				<Button
+					variant="danger"
+					onclick={handleDeleteConfirm}
+					disabled={isDeleting}
+					loading={isDeleting}
+				>
+					{isDeleting ? 'Deleting...' : 'Delete'}
+				</Button>
+			</div>
+		</div>
+	</div>
+{/if}
