@@ -13,6 +13,7 @@ import {
   type SaveStatus,
   type ScenarioEditingView
 } from '$lib/stores/scenarioEditingStore';
+import { getGenerationErrorMessage } from '$lib/utils/generationErrorMessages';
 
 /**
  * Live session state for the Class View.
@@ -48,10 +49,17 @@ export interface ClassViewVmState {
   latestPublishedSession: Session | null;
   pairingStats: PairingStat[];
 
+  // Derived lookups
+  studentsById: Record<string, Student>;
+
   // Loading state
   loading: boolean;
   loadError: string | null;
   generationError: string | null;
+  isGenerating: boolean;
+
+  // Generation settings (persisted across navigations within session)
+  groupSize: number;
 
   // Editing
   editingStore: ScenarioEditingStore | null;
@@ -63,6 +71,17 @@ export interface ClassViewVmState {
 
   // Data-state adaptation (Decision 4)
   hasPreferenceData: boolean;
+
+  // Unplaced student tracking
+  unplacedStudentCount: number;
+
+  // Drag-drop state
+  draggingId: string | null;
+
+  // Keyboard drag-drop state
+  pickedUpStudentId: string | null;
+  pickedUpContainer: string | null;
+  pickedUpIndex: number | null;
 }
 
 export interface ClassViewVm {
@@ -73,6 +92,27 @@ export interface ClassViewVm {
 
     // Generation
     generateGroups: (groupSize: number) => Promise<void>;
+    setGroupSize: (size: number) => void;
+
+    // Drag-drop editing
+    moveStudent: (payload: {
+      studentId: string;
+      source: string;
+      target: string;
+      targetIndex?: number;
+    }) => void;
+    reorderStudent: (payload: {
+      groupId: string;
+      studentId: string;
+      newIndex: number;
+    }) => void;
+    alphabetizeGroup: (groupId: string) => void;
+
+    // Keyboard drag-drop
+    keyboardPickUp: (studentId: string, container: string, index: number) => void;
+    keyboardDrop: () => void;
+    keyboardCancel: () => void;
+    keyboardMove: (direction: 'up' | 'down' | 'left' | 'right') => void;
 
     // Live session controls
     enterProjection: () => void;
@@ -96,17 +136,50 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     latestPublishedSession: null,
     pairingStats: [],
 
+    studentsById: {},
+
     loading: false,
     loadError: null,
     generationError: null,
+    isGenerating: false,
+
+    groupSize: 4,
 
     editingStore: null,
     view: null,
     lastSaveStatus: null,
 
     liveSessionStatus: 'IDLE',
-    hasPreferenceData: false
+    hasPreferenceData: false,
+    unplacedStudentCount: 0,
+
+    draggingId: null,
+    pickedUpStudentId: null,
+    pickedUpContainer: null,
+    pickedUpIndex: null
   });
+
+  function rebuildStudentsById() {
+    const map: Record<string, Student> = {};
+    for (const student of state.students) {
+      map[student.id] = student;
+    }
+    state.studentsById = map;
+  }
+
+  function computeUnplacedStudentCount() {
+    if (!state.view || state.view.groups.length === 0) {
+      state.unplacedStudentCount = 0;
+      return;
+    }
+    const placedIds = new Set<string>();
+    for (const group of state.view.groups) {
+      for (const id of group.memberIds) {
+        placedIds.add(id);
+      }
+    }
+    state.unplacedStudentCount = state.students.filter((s) => !placedIds.has(s.id)).length;
+  }
 
   function initializeEditingStore(scenario: Scenario) {
     unsubscribeEditingStore?.();
@@ -120,6 +193,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     store.initialize(scenario, state.preferences);
     unsubscribeEditingStore = store.subscribe((value) => {
       state.view = value;
+      computeUnplacedStudentCount();
     });
     state.editingStore = store;
   }
@@ -134,7 +208,11 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       }
 
       const isMac =
-        typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC');
+        typeof navigator !== 'undefined' &&
+        ('userAgentData' in navigator
+          ? (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ===
+            'macOS'
+          : navigator.platform.toUpperCase().includes('MAC'));
       const modKey = isMac ? event.metaKey : event.ctrlKey;
 
       if (modKey && event.key === 'z') {
@@ -181,6 +259,8 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       state.latestPublishedSession = data.latestPublishedSession;
       state.hasPreferenceData = data.preferences.length > 0;
 
+      rebuildStudentsById();
+
       // Load pairing stats if 2+ published sessions (for rotation avoidance)
       const publishedSessions = state.sessions.filter(
         (session) => session.status === 'PUBLISHED' || session.status === 'ARCHIVED'
@@ -196,6 +276,17 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
 
       if (state.scenario) {
         initializeEditingStore(state.scenario);
+
+        // Restore groupSize from existing groups if available
+        if (state.view && state.view.groups.length > 0) {
+          const totalMembers = state.view.groups.reduce(
+            (sum, g) => sum + g.memberIds.length,
+            0
+          );
+          if (totalMembers > 0) {
+            state.groupSize = Math.round(totalMembers / state.view.groups.length);
+          }
+        }
       }
 
       state.loading = false;
@@ -219,53 +310,226 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
   }
 
   async function generateGroups(groupSize: number): Promise<void> {
-    if (!state.program) return;
+    if (!state.program || state.isGenerating) return;
 
     state.generationError = null;
+    state.isGenerating = true;
+    state.groupSize = groupSize;
 
-    if (state.scenario && state.editingStore) {
-      // We already have a scenario, generate a candidate and regenerate the store
-      const studentCount = state.students.length;
-      const groupCount = Math.ceil(studentCount / groupSize);
-      const groups = Array.from({ length: groupCount }, (_, i) => ({
-        name: `Group ${i + 1}`,
-        capacity: null as number | null
-      }));
+    try {
+      if (state.scenario && state.editingStore) {
+        // We already have a scenario, generate a candidate and regenerate the store.
+        // Preserve existing group names where possible.
+        const studentCount = state.students.length;
+        const groupCount = Math.ceil(studentCount / groupSize);
+        const existingGroups = state.view?.groups ?? [];
+        const groups = Array.from({ length: groupCount }, (_, i) => ({
+          name: i < existingGroups.length ? existingGroups[i].name : `Group ${i + 1}`,
+          capacity: null as number | null
+        }));
 
-      const result = await generateCandidate(state.env, {
-        programId: state.program.id,
-        algorithmId: 'balanced',
-        algorithmConfig: {
-          groups,
-          avoidRecentGroupmates: true, // Default to true per Decision 6
-          lookbackSessions: 3
+        const result = await generateCandidate(state.env, {
+          programId: state.program.id,
+          algorithmId: 'balanced',
+          algorithmConfig: {
+            groups,
+            avoidRecentGroupmates: true, // Default to true per Decision 6
+            lookbackSessions: 3
+          }
+        });
+
+        if (isErr(result)) {
+          state.generationError = getGenerationErrorMessage(result.error.type);
+          return;
         }
-      });
 
-      if (isErr(result)) {
-        state.generationError =
-          'message' in result.error ? result.error.message : result.error.type;
-        return;
+        await state.editingStore.regenerate(result.value.groups);
+      } else {
+        // No scenario yet, use quickGenerateGroups to create one
+        const result = await quickGenerateGroups(state.env, {
+          programId: state.program.id,
+          groupSize,
+          avoidRecentGroupmates: true,
+          lookbackSessions: 3
+        });
+
+        if (isErr(result)) {
+          state.generationError = getGenerationErrorMessage(result.error.type);
+          return;
+        }
+
+        state.scenario = result.value;
+        initializeEditingStore(state.scenario);
       }
+    } finally {
+      state.isGenerating = false;
+    }
+  }
 
-      await state.editingStore.regenerate(result.value.groups);
+  function setGroupSize(size: number): void {
+    state.groupSize = size;
+  }
+
+  function moveStudent(payload: {
+    studentId: string;
+    source: string;
+    target: string;
+    targetIndex?: number;
+  }): void {
+    if (!state.editingStore) return;
+
+    // Normalize source: find the actual group the student is in
+    const currentGroup = state.view?.groups.find((g) =>
+      g.memberIds.includes(payload.studentId)
+    );
+    const normalizedSource = currentGroup ? currentGroup.id : 'unassigned';
+
+    state.editingStore.dispatch({
+      type: 'MOVE_STUDENT',
+      studentId: payload.studentId,
+      source: normalizedSource,
+      target: payload.target,
+      targetIndex: payload.targetIndex
+    });
+  }
+
+  function reorderStudent(payload: {
+    groupId: string;
+    studentId: string;
+    newIndex: number;
+  }): void {
+    if (!state.editingStore || !state.view) return;
+
+    if (payload.groupId === 'unassigned') {
+      const currentIndex = state.view.unassignedStudentIds.indexOf(payload.studentId);
+      if (currentIndex === -1) return;
+
+      const newOrder = [...state.view.unassignedStudentIds];
+      newOrder.splice(currentIndex, 1);
+      newOrder.splice(payload.newIndex, 0, payload.studentId);
+      state.editingStore.reorderUnassigned(newOrder);
+      return;
+    }
+
+    const group = state.view.groups.find((g) => g.id === payload.groupId);
+    if (!group) return;
+
+    const currentIndex = group.memberIds.indexOf(payload.studentId);
+    if (currentIndex === -1) return;
+
+    const newOrder = [...group.memberIds];
+    newOrder.splice(currentIndex, 1);
+    newOrder.splice(payload.newIndex, 0, payload.studentId);
+    state.editingStore.reorderGroup(payload.groupId, newOrder);
+  }
+
+  function alphabetizeGroup(groupId: string): void {
+    if (!state.editingStore || !state.view) return;
+
+    const group = state.view.groups.find((g) => g.id === groupId);
+    if (!group) return;
+
+    const sorted = [...group.memberIds].sort((a, b) => {
+      const sa = state.studentsById[a];
+      const sb = state.studentsById[b];
+      if (!sa || !sb) return 0;
+      const nameA = `${sa.firstName} ${sa.lastName ?? ''}`.trim().toLowerCase();
+      const nameB = `${sb.firstName} ${sb.lastName ?? ''}`.trim().toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    state.editingStore.reorderGroup(groupId, sorted);
+  }
+
+  // --- Keyboard drag-drop ---
+
+  function keyboardPickUp(studentId: string, container: string, index: number): void {
+    state.pickedUpStudentId = studentId;
+    state.pickedUpContainer = container;
+    state.pickedUpIndex = index;
+  }
+
+  function keyboardDrop(): void {
+    // Drop at current position (student has been moved via keyboardMove)
+    state.pickedUpStudentId = null;
+    state.pickedUpContainer = null;
+    state.pickedUpIndex = null;
+  }
+
+  function keyboardCancel(): void {
+    state.pickedUpStudentId = null;
+    state.pickedUpContainer = null;
+    state.pickedUpIndex = null;
+  }
+
+  function keyboardMove(direction: 'up' | 'down' | 'left' | 'right'): void {
+    if (!state.pickedUpStudentId || !state.pickedUpContainer || !state.view) return;
+
+    const groups = state.view.groups;
+    const currentContainer = state.pickedUpContainer;
+
+    if (direction === 'up' || direction === 'down') {
+      // Move within same group/container
+      if (currentContainer === 'unassigned') {
+        const ids = state.view.unassignedStudentIds;
+        const idx = ids.indexOf(state.pickedUpStudentId);
+        if (idx === -1) return;
+        const newIdx = direction === 'up' ? Math.max(0, idx - 1) : Math.min(ids.length - 1, idx + 1);
+        if (newIdx !== idx) {
+          reorderStudent({ groupId: 'unassigned', studentId: state.pickedUpStudentId, newIndex: newIdx });
+          state.pickedUpIndex = newIdx;
+        }
+      } else {
+        const group = groups.find((g) => g.id === currentContainer);
+        if (!group) return;
+        const idx = group.memberIds.indexOf(state.pickedUpStudentId);
+        if (idx === -1) return;
+        const newIdx = direction === 'up' ? Math.max(0, idx - 1) : Math.min(group.memberIds.length - 1, idx + 1);
+        if (newIdx !== idx) {
+          reorderStudent({ groupId: currentContainer, studentId: state.pickedUpStudentId, newIndex: newIdx });
+          state.pickedUpIndex = newIdx;
+        }
+      }
     } else {
-      // No scenario yet, use quickGenerateGroups to create one
-      const result = await quickGenerateGroups(state.env, {
-        programId: state.program.id,
-        groupSize,
-        avoidRecentGroupmates: true,
-        lookbackSessions: 3
-      });
+      // Move between groups (left/right)
+      const groupIds = groups.map((g) => g.id);
+      const currentGroupIndex = groupIds.indexOf(currentContainer);
 
-      if (isErr(result)) {
-        state.generationError =
-          'message' in result.error ? result.error.message : result.error.type;
-        return;
+      let targetGroupIndex: number;
+      if (currentContainer === 'unassigned') {
+        // From unassigned, right goes to first group
+        if (direction === 'right' && groups.length > 0) {
+          targetGroupIndex = 0;
+        } else {
+          return;
+        }
+      } else if (direction === 'left') {
+        if (currentGroupIndex <= 0) {
+          // Move to unassigned
+          moveStudent({
+            studentId: state.pickedUpStudentId,
+            source: currentContainer,
+            target: 'unassigned'
+          });
+          state.pickedUpContainer = 'unassigned';
+          state.pickedUpIndex = state.view.unassignedStudentIds.length;
+          return;
+        }
+        targetGroupIndex = currentGroupIndex - 1;
+      } else {
+        // right
+        if (currentGroupIndex >= groupIds.length - 1) return;
+        targetGroupIndex = currentGroupIndex + 1;
       }
 
-      state.scenario = result.value;
-      initializeEditingStore(state.scenario);
+      const targetGroup = groups[targetGroupIndex];
+      moveStudent({
+        studentId: state.pickedUpStudentId,
+        source: currentContainer,
+        target: targetGroup.id
+      });
+      state.pickedUpContainer = targetGroup.id;
+      state.pickedUpIndex = targetGroup.memberIds.length;
     }
   }
 
@@ -285,6 +549,14 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       init,
       dispose,
       generateGroups,
+      setGroupSize,
+      moveStudent,
+      reorderStudent,
+      alphabetizeGroup,
+      keyboardPickUp,
+      keyboardDrop,
+      keyboardCancel,
+      keyboardMove,
       enterProjection,
       exitProjection
     }

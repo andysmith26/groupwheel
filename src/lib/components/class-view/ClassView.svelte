@@ -20,6 +20,7 @@
   import RosterPanel from './RosterPanel.svelte';
   import RosterImportModal from './RosterImportModal.svelte';
   import GroupsPanel from './GroupsPanel.svelte';
+  import ProjectionMode from './ProjectionMode.svelte';
 
   interface Props {
     activityId: string;
@@ -36,25 +37,24 @@
   let loading = $derived(vm.state.loading);
   let loadError = $derived(vm.state.loadError);
   let generationError = $derived(vm.state.generationError);
+  let isGenerating = $derived(vm.state.isGenerating);
   let program = $derived(vm.state.program);
   let students = $derived(vm.state.students);
-  let studentsById = $derived(
-    students.reduce(
-      (acc, student) => {
-        acc[student.id] = student;
-        return acc;
-      },
-      {} as Record<string, import('$lib/domain').Student>
-    )
-  );
+  let studentsById = $derived(vm.state.studentsById);
   let view = $derived(vm.state.view);
   let pool = $derived(vm.state.pool);
+  let groupSize = $derived(vm.state.groupSize);
+  let unplacedStudentCount = $derived(vm.state.unplacedStudentCount);
 
   let activityName = $derived(program?.name ?? 'Activity');
   let canUndo = $derived(view?.canUndo ?? false);
   let canRedo = $derived(view?.canRedo ?? false);
   let saveStatus = $derived(view?.saveStatus ?? 'idle');
   let lastSavedAt = $derived(view?.lastSavedAt ?? null);
+  let draggingId = $derived(vm.state.draggingId);
+  let pickedUpStudentId = $derived(vm.state.pickedUpStudentId);
+  let hasGroups = $derived((view?.groups.length ?? 0) > 0);
+  let isProjecting = $derived(vm.state.liveSessionStatus === 'PROJECTING');
 
   onMount(() => {
     vm.actions.init(activityId);
@@ -78,6 +78,43 @@
 
   function handleRetrySave() {
     vm.state.editingStore?.retrySave();
+  }
+
+  function handleDrop(payload: {
+    studentId: string;
+    source: string;
+    target: string;
+    targetIndex?: number;
+  }) {
+    vm.actions.moveStudent(payload);
+  }
+
+  function handleReorder(payload: { groupId: string; studentId: string; newIndex: number }) {
+    vm.actions.reorderStudent(payload);
+  }
+
+  function handleDragStart(id: string) {
+    vm.state.draggingId = id;
+  }
+
+  function handleDragEnd() {
+    vm.state.draggingId = null;
+  }
+
+  function handleAlphabetize(groupId: string) {
+    vm.actions.alphabetizeGroup(groupId);
+  }
+
+  function handleProject() {
+    vm.actions.enterProjection();
+  }
+
+  function handleExitProjection() {
+    vm.actions.exitProjection();
+  }
+
+  function handleProjectionRegenerate(size: number) {
+    vm.actions.generateGroups(size);
   }
 
   function openImportModal() {
@@ -143,6 +180,12 @@
     // Refresh students in VM state
     if (addedStudents.length > 0) {
       vm.state.students = [...vm.state.students, ...addedStudents];
+      // Rebuild the lookup map
+      const newMap: Record<string, import('$lib/domain').Student> = { ...vm.state.studentsById };
+      for (const s of addedStudents) {
+        newMap[s.id] = s;
+      }
+      vm.state.studentsById = newMap;
     }
 
     if (errors.length > 0 && addedStudents.length === 0) {
@@ -150,6 +193,14 @@
     }
   }
 </script>
+
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === 'Escape' && isProjecting) {
+      handleExitProjection();
+    }
+  }}
+/>
 
 <svelte:head>
   <title>{activityName} | Groupwheel</title>
@@ -183,9 +234,11 @@
       {canRedo}
       {saveStatus}
       {lastSavedAt}
+      {hasGroups}
       onUndo={handleUndo}
       onRedo={handleRedo}
       onBack={handleBack}
+      onProject={handleProject}
       onRetrySave={handleRetrySave}
     />
 
@@ -201,10 +254,25 @@
           groups={view?.groups ?? []}
           {studentsById}
           studentCount={students.length}
+          {groupSize}
+          onGroupSizeChange={(size) => vm.actions.setGroupSize(size)}
           onGenerate={(size) => vm.actions.generateGroups(size)}
           onImport={openImportModal}
           disabled={loading || !!loadError}
+          {isGenerating}
           {generationError}
+          {unplacedStudentCount}
+          draggingId={hasGroups ? draggingId : null}
+          onDrop={hasGroups ? handleDrop : undefined}
+          onReorder={hasGroups ? handleReorder : undefined}
+          onDragStart={hasGroups ? handleDragStart : undefined}
+          onDragEnd={hasGroups ? handleDragEnd : undefined}
+          onAlphabetize={hasGroups ? handleAlphabetize : undefined}
+          pickedUpStudentId={hasGroups ? pickedUpStudentId : null}
+          onKeyboardPickUp={hasGroups ? vm.actions.keyboardPickUp : undefined}
+          onKeyboardDrop={hasGroups ? vm.actions.keyboardDrop : undefined}
+          onKeyboardCancel={hasGroups ? vm.actions.keyboardCancel : undefined}
+          onKeyboardMove={hasGroups ? vm.actions.keyboardMove : undefined}
         />
 
         <!-- Saved to this browser indicator (P4) -->
@@ -230,3 +298,14 @@
 </div>
 
 <RosterImportModal open={importModalOpen} onClose={closeImportModal} onImport={handleImport} />
+
+{#if isProjecting && view}
+  <ProjectionMode
+    groups={view.groups}
+    {studentsById}
+    {groupSize}
+    {isGenerating}
+    onRegenerate={handleProjectionRegenerate}
+    onExit={handleExitProjection}
+  />
+{/if}

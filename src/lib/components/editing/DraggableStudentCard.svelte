@@ -197,7 +197,7 @@
     : 'Press Enter to pick up.'}"
   aria-pressed={isPickedUp}
   data-student-id={student.id}
-  style="width: var(--card-width, 112px); padding: var(--card-padding, 2px);"
+  style="width: var(--card-width, 112px); padding: var(--card-padding, 2px); min-height: 44px;"
   class={`group mx-auto flex cursor-grab items-center rounded-md border bg-white text-sm shadow-sm transition duration-150 ease-out ${
     isPickedUp ? 'border-blue-500 shadow-md ring-2 ring-blue-500 ring-offset-1' : 'border-gray-200'
   } ${isDragging ? 'cursor-grabbing opacity-60' : ''} ${flash ? 'flash-move' : ''} focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 focus:outline-none`}

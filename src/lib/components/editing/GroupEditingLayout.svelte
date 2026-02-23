@@ -37,6 +37,7 @@
     newGroupId = null,
     selectedStudentPreferences = null,
     layout = 'masonry',
+    readonly = false,
     studentPreferenceRanks = new Map<string, number | null>(),
     studentHasPreferences = new Map<string, boolean>(),
     onStudentHoverStart,
@@ -70,6 +71,8 @@
     newGroupId?: string | null;
     selectedStudentPreferences?: string[] | null;
     layout?: LayoutMode;
+    /** When true, suppresses drag-drop affordances and empty-group placeholder text. */
+    readonly?: boolean;
     studentPreferenceRanks?: Map<string, number | null>;
     studentHasPreferences?: Map<string, boolean>;
     onStudentHoverStart?: (studentId: string, x: number, y: number) => void;
@@ -109,6 +112,7 @@
           {studentsById}
           {draggingId}
           rowSpan={1}
+          {readonly}
           {onDrop}
           {onReorder}
           {onDragStart}
@@ -142,6 +146,7 @@
         {studentsById}
         {draggingId}
         rowSpan={calculateRowSpan(group)}
+        {readonly}
         {onDrop}
         {onReorder}
         {onDragStart}

@@ -14,9 +14,11 @@
     canRedo: boolean;
     saveStatus: SaveStatus;
     lastSavedAt: Date | null;
+    hasGroups: boolean;
     onUndo: () => void;
     onRedo: () => void;
     onBack: () => void;
+    onProject: () => void;
     onRetrySave?: () => void;
   }
 
@@ -26,9 +28,11 @@
     canRedo,
     saveStatus,
     lastSavedAt,
+    hasGroups,
     onUndo,
     onRedo,
     onBack,
+    onProject,
     onRetrySave
   }: Props = $props();
 </script>
@@ -53,6 +57,21 @@
 
   <div class="flex items-center gap-2">
     <SaveStatusIndicator status={saveStatus} {lastSavedAt} onRetry={onRetrySave} />
+
+    {#if hasGroups}
+      <button
+        type="button"
+        onclick={onProject}
+        class="flex min-h-[44px] items-center gap-1.5 rounded-md bg-teal-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-teal-700"
+        aria-label="Show groups to class"
+        title="Project groups (fullscreen)"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+        </svg>
+        Project
+      </button>
+    {/if}
 
     <div class="flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-1">
       <button

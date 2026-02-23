@@ -10,9 +10,20 @@
     onGroupSizeChange: (size: number) => void;
     onGenerate: () => void;
     disabled?: boolean;
+    isGenerating?: boolean;
+    maxGroupSize?: number;
   }
 
-  let { groupSize, onGroupSizeChange, onGenerate, disabled = false }: Props = $props();
+  let {
+    groupSize,
+    onGroupSizeChange,
+    onGenerate,
+    disabled = false,
+    isGenerating = false,
+    maxGroupSize = 10
+  }: Props = $props();
+
+  let effectiveMax = $derived(Math.max(2, Math.min(10, maxGroupSize)));
 
   function handleDecrease() {
     if (groupSize > 2) {
@@ -21,7 +32,7 @@
   }
 
   function handleIncrease() {
-    if (groupSize < 10) {
+    if (groupSize < effectiveMax) {
       onGroupSizeChange(groupSize + 1);
     }
   }
@@ -31,9 +42,9 @@
   <div class="flex items-center rounded-md border border-gray-300 bg-white shadow-sm">
     <button
       type="button"
-      class="flex h-9 w-9 items-center justify-center rounded-l-md text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50"
+      class="flex h-11 w-11 items-center justify-center rounded-l-md text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50"
       onclick={handleDecrease}
-      disabled={disabled || groupSize <= 2}
+      disabled={disabled || isGenerating || groupSize <= 2}
       aria-label="Decrease group size"
     >
       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -41,15 +52,15 @@
       </svg>
     </button>
     <div
-      class="flex h-9 w-16 items-center justify-center border-x border-gray-300 text-sm font-medium text-gray-900"
+      class="flex h-11 min-w-20 items-center justify-center border-x border-gray-300 px-2 text-sm font-medium text-gray-900"
     >
-      {groupSize} / grp
+      {groupSize} per group
     </div>
     <button
       type="button"
-      class="flex h-9 w-9 items-center justify-center rounded-r-md text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50"
+      class="flex h-11 w-11 items-center justify-center rounded-r-md text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50"
       onclick={handleIncrease}
-      disabled={disabled || groupSize >= 10}
+      disabled={disabled || isGenerating || groupSize >= effectiveMax}
       aria-label="Increase group size"
     >
       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -60,9 +71,9 @@
 
   <button
     type="button"
-    class="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
+    class="min-h-[44px] rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
     onclick={onGenerate}
-    {disabled}
+    disabled={disabled}
   >
     Make Groups
   </button>

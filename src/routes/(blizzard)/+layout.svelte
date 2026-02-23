@@ -1,6 +1,6 @@
 <script lang="ts">
   import '../../app.css';
-  import logo from '$lib/assets/logo.svg';
+  import logo from '$lib/assets/gw-logo-med.png';
 
   import { browser } from '$app/environment';
   import { onDestroy } from 'svelte';

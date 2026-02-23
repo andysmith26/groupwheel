@@ -1,39 +1,83 @@
 <script lang="ts">
   /**
-   * GroupsPanel — group columns layout, "Make Groups" button at top.
+   * GroupsPanel — group columns layout with drag-drop editing, "Make Groups" button at top.
    *
-   * See: project definition.md — WP5
+   * See: project definition.md — WP5, WP6
    */
 
   import type { Group, Student } from '$lib/domain';
+  import type { KeyboardMoveDirection } from '$lib/components/editing/DraggableStudentCard.svelte';
   import GenerationControls from './GenerationControls.svelte';
   import GroupEditingLayout from '$lib/components/editing/GroupEditingLayout.svelte';
+  import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
 
   interface Props {
     groups: Group[];
     studentsById: Record<string, Student>;
     studentCount: number;
+    groupSize: number;
+    onGroupSizeChange: (size: number) => void;
     onGenerate: (groupSize: number) => void;
     onImport?: () => void;
     disabled?: boolean;
+    isGenerating?: boolean;
     generationError?: string | null;
+    unplacedStudentCount?: number;
+
+    // Drag-drop editing callbacks (WP6)
+    draggingId?: string | null;
+    onDrop?: (payload: {
+      studentId: string;
+      source: string;
+      target: string;
+      targetIndex?: number;
+    }) => void;
+    onReorder?: (payload: { groupId: string; studentId: string; newIndex: number }) => void;
+    onDragStart?: (id: string) => void;
+    onDragEnd?: () => void;
+    onAlphabetize?: (groupId: string) => void;
+    flashingIds?: Set<string>;
+
+    // Keyboard drag-drop (P6/P11)
+    pickedUpStudentId?: string | null;
+    onKeyboardPickUp?: (studentId: string, container: string, index: number) => void;
+    onKeyboardDrop?: () => void;
+    onKeyboardCancel?: () => void;
+    onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
   }
 
   let {
     groups,
     studentsById,
     studentCount,
+    groupSize,
+    onGroupSizeChange,
     onGenerate,
     onImport,
     disabled = false,
-    generationError = null
+    isGenerating = false,
+    generationError = null,
+    unplacedStudentCount = 0,
+    draggingId = null,
+    onDrop,
+    onReorder,
+    onDragStart,
+    onDragEnd,
+    onAlphabetize,
+    flashingIds = new Set<string>(),
+    pickedUpStudentId = null,
+    onKeyboardPickUp,
+    onKeyboardDrop,
+    onKeyboardCancel,
+    onKeyboardMove
   }: Props = $props();
-
-  let groupSize = $state(4);
 
   function handleGenerate() {
     onGenerate(groupSize);
   }
+
+  const hasEditingCallbacks = $derived(!!onDrop);
 </script>
 
 <div class="flex h-full flex-col bg-gray-50">
@@ -47,17 +91,19 @@
     </div>
     <GenerationControls
       {groupSize}
-      onGroupSizeChange={(size) => (groupSize = size)}
+      onGroupSizeChange={(size) => onGroupSizeChange(size)}
       onGenerate={handleGenerate}
       disabled={disabled || studentCount === 0}
+      {isGenerating}
+      maxGroupSize={studentCount}
     />
   </div>
 
   <!-- Groups Display -->
-  <div class="flex-1 overflow-hidden">
+  <div class="flex-1 overflow-auto">
     {#if generationError}
       <div class="p-4">
-        <div class="rounded-md bg-red-50 p-4">
+        <div class="rounded-md bg-red-50 p-4" role="alert">
           <div class="flex">
             <div class="shrink-0">
               <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -79,9 +125,45 @@
       </div>
     {/if}
 
+    {#if unplacedStudentCount > 0 && groups.length > 0}
+      <div class="px-4 pt-4">
+        <div class="rounded-md bg-amber-50 p-3" role="status">
+          <div class="flex items-center gap-2">
+            <svg class="h-4 w-4 shrink-0 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <p class="text-sm text-amber-800">
+              {unplacedStudentCount} new {unplacedStudentCount === 1 ? 'student' : 'students'} not yet in groups. Tap "Make Groups" to include {unplacedStudentCount === 1 ? 'them' : 'everyone'}.
+            </p>
+          </div>
+        </div>
+      </div>
+    {/if}
+
     {#if groups.length > 0}
-      <div class="h-full p-6">
-        <GroupEditingLayout {groups} {studentsById} layout="masonry" />
+      <div class="h-full p-6" style={cardSizeStyle(uiSettings.cardSize)}>
+        <GroupEditingLayout
+          {groups}
+          {studentsById}
+          layout="masonry"
+          readonly={!hasEditingCallbacks}
+          {draggingId}
+          {onDrop}
+          {onReorder}
+          {onDragStart}
+          {onDragEnd}
+          {onAlphabetize}
+          {flashingIds}
+          {pickedUpStudentId}
+          {onKeyboardPickUp}
+          {onKeyboardDrop}
+          {onKeyboardCancel}
+          {onKeyboardMove}
+        />
       </div>
     {:else}
       <div class="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
@@ -109,7 +191,7 @@
             <button
               type="button"
               onclick={onImport}
-              class="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700"
+              class="min-h-[44px] rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700"
             >
               Import Roster
             </button>
@@ -125,8 +207,8 @@
           <button
             type="button"
             onclick={handleGenerate}
-            {disabled}
-            class="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
+            disabled={disabled || isGenerating}
+            class="min-h-[44px] rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
           >
             Make Groups
           </button>

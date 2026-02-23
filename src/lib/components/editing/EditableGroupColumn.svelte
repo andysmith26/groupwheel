@@ -30,7 +30,8 @@
     onKeyboardCancel,
     onKeyboardMove,
     onStudentClick,
-    draggedStudentPreferences = null
+    draggedStudentPreferences = null,
+    readonly = false
   } = $props<{
     group: Group;
     studentsById: Record<string, Student>;
@@ -62,6 +63,8 @@
     onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
     onStudentClick?: (studentId: string) => void;
     draggedStudentPreferences?: string[] | null;
+    /** When true, suppresses drag-drop affordances and empty placeholder text. */
+    readonly?: boolean;
   }>();
 
   const capacityStatus = $derived(getCapacityStatus(group));
@@ -281,7 +284,7 @@
     style="grid-template-columns: 1fr; gap: var(--card-gap, 4px);"
   >
     {#if memberIds.length === 0}
-      <p class="col-span-full py-6 text-center text-xs text-gray-500">Drop students here</p>
+      <p class="col-span-full py-6 text-center text-xs text-gray-500">{readonly ? 'No students' : 'Drop students here'}</p>
     {:else}
       {#each memberIds as memberId, index (memberId)}
         {#if studentsById[memberId]}
