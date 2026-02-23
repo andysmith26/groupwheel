@@ -749,12 +749,12 @@
       if (isErr(genResult)) {
         // Activity created but generation failed - still navigate but show error
         console.error('Failed to generate scenario:', genResult.error);
-        goto(`/activities/${program.id}/workspace?genError=${genResult.error.type}`);
+        goto(`/activity/${program.id}?genError=${genResult.error.type}`);
         return;
       }
 
       // Success - navigate to workspace
-      goto(`/activities/${program.id}/workspace?showBanner=true`);
+      goto(`/activity/${program.id}?showBanner=true`);
     } catch (error) {
       console.error('Error during sort:', error);
       trackResponsesSession.isSorting = false;

@@ -1,9 +1,8 @@
 <script lang="ts">
   /**
-   * /activities/[id]/print/+page.svelte
+   * /activity/[id]/print/+page.svelte
    *
    * Print View - A clean, print-optimized layout for group assignments.
-   * Part of the UX Overhaul (Phase 3).
    */
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
@@ -109,8 +108,8 @@
     <div class="p-8">
       <div class="rounded-lg border border-red-200 bg-red-50 p-4">
         <p class="text-red-700">{loadError}</p>
-        <a href="/activities" class="mt-2 inline-block text-sm text-blue-600 underline">
-          ← Back to activities
+        <a href="/" class="mt-2 inline-block text-sm text-blue-600 underline">
+          ← Back to Home
         </a>
       </div>
     </div>
@@ -119,10 +118,10 @@
     <div class="no-print border-b border-gray-200 bg-gray-50 px-4 py-3">
       <div class="mx-auto flex max-w-5xl items-center justify-between">
         <a
-          href="/activities/{program.id}/workspace"
+          href="/activity/{program.id}"
           class="text-sm text-gray-600 hover:text-gray-900"
         >
-          ← Back to Workspace
+          ← Back to Activity
         </a>
         <button
           type="button"
@@ -148,10 +147,10 @@
         <div class="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
           <p class="text-gray-600">No groups have been generated yet.</p>
           <a
-            href="/activities/{program.id}/workspace"
+            href="/activity/{program.id}"
             class="no-print mt-4 inline-block text-sm text-blue-600 underline"
           >
-            Go to workspace to generate groups
+            Go to activity to generate groups
           </a>
         </div>
       {:else}

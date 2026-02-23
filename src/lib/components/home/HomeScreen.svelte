@@ -185,7 +185,7 @@
     </div>
     <a
       href="/settings"
-      class="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+      class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600"
       aria-label="Settings"
     >
       <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

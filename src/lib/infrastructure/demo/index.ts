@@ -35,3 +35,10 @@ export {
   exposeDemoFunctionsToWindow,
   type SeedDemoResult
 } from './demoSeeder';
+
+export {
+  exposeTestFixturesToWindow,
+  printConsoleDirectory
+} from './testSeeder';
+
+export { TEST_FIXTURES, getFixtureById, type TestFixture } from './testFixtures';

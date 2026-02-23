@@ -45,6 +45,10 @@
     onKeyboardDrop?: () => void;
     onKeyboardCancel?: () => void;
     onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
+
+    // Preference-adaptive UI (WP8 / Decision 4)
+    studentPreferenceRanks?: Map<string, number | null>;
+    studentHasPreferences?: Map<string, boolean>;
   }
 
   let {
@@ -70,7 +74,9 @@
     onKeyboardPickUp,
     onKeyboardDrop,
     onKeyboardCancel,
-    onKeyboardMove
+    onKeyboardMove,
+    studentPreferenceRanks = new Map(),
+    studentHasPreferences = new Map()
   }: Props = $props();
 
   function handleGenerate() {
@@ -163,6 +169,8 @@
           {onKeyboardDrop}
           {onKeyboardCancel}
           {onKeyboardMove}
+          {studentPreferenceRanks}
+          {studentHasPreferences}
         />
       </div>
     {:else}

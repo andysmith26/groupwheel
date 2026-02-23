@@ -700,6 +700,42 @@ export async function quickStartActivity(
 export type { QuickStartActivityInput, QuickStartActivityResult, QuickStartActivityError };
 
 // =============================================================================
+// Quick Start Upgrade Operations (WP11)
+// =============================================================================
+
+import {
+  upgradeQuickStartRoster as upgradeQuickStartRosterUseCase,
+  type UpgradeQuickStartRosterInput,
+  type UpgradeQuickStartRosterResult,
+  type UpgradeQuickStartRosterError
+} from '$lib/application/useCases/upgradeQuickStartRoster';
+
+/**
+ * Replace placeholder students in a quick-start activity with real names.
+ * Preserves group structure when counts match (Decision 5, Banked Note #2).
+ */
+export async function upgradeQuickStartRoster(
+  env: InMemoryEnvironment,
+  input: UpgradeQuickStartRosterInput
+): Promise<Result<UpgradeQuickStartRosterResult, UpgradeQuickStartRosterError>> {
+  return upgradeQuickStartRosterUseCase(
+    {
+      idGenerator: env.idGenerator,
+      studentRepository: env.studentRepo,
+      poolRepository: env.poolRepo
+    },
+    input
+  );
+}
+
+// Re-export upgrade types
+export type {
+  UpgradeQuickStartRosterInput,
+  UpgradeQuickStartRosterResult,
+  UpgradeQuickStartRosterError
+};
+
+// =============================================================================
 // Demo Activity Operations
 // =============================================================================
 

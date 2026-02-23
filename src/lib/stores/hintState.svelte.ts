@@ -16,6 +16,7 @@ interface HintState {
     preferenceDetected?: boolean;
     observationPrompt?: boolean;
     analyticsHint?: boolean;
+    rotationAvoidance?: boolean; // Decision 6: one-time hint after 2nd session
   };
   patterns: {
     hasUsedObservations?: boolean;

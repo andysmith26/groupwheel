@@ -3,7 +3,8 @@
    * RosterPanel — Left panel of Class View showing the student roster.
    *
    * Scrollable student list with count and Import button.
-   * See: project definition.md — Part 3 (Class View), WP4
+   * Shows an upgrade prompt when the roster has placeholder students (WP11).
+   * See: project definition.md — Part 3 (Class View), WP4, WP11
    */
 
   import type { Student } from '$lib/domain';
@@ -12,11 +13,32 @@
     students: Student[];
     loading: boolean;
     onImport: () => void;
+    /** Per-student flag: does this student have any preferences? */
+    studentHasPreferences?: Map<string, boolean>;
+    /** True when any student has preference data (controls whether indicators are shown) */
+    hasPreferenceData?: boolean;
+    /** True when all students are quick-start placeholders (WP11) */
+    hasPlaceholderStudents?: boolean;
   }
 
-  let { students, loading, onImport }: Props = $props();
+  let {
+    students,
+    loading,
+    onImport,
+    studentHasPreferences = new Map(),
+    hasPreferenceData = false,
+    hasPlaceholderStudents = false
+  }: Props = $props();
 
   let studentCount = $derived(students.length);
+  let preferencesCollectedCount = $derived.by(() => {
+    if (!hasPreferenceData) return 0;
+    let count = 0;
+    for (const [, has] of studentHasPreferences) {
+      if (has) count++;
+    }
+    return count;
+  });
 </script>
 
 <div class="flex h-full flex-col border-r bg-white">
@@ -26,13 +48,25 @@
       <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
         {studentCount}
       </span>
+      {#if hasPlaceholderStudents}
+        <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+          Placeholders
+        </span>
+      {:else if hasPreferenceData}
+        <span
+          class="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700"
+          title="{preferencesCollectedCount} of {studentCount} students have preferences"
+        >
+          {preferencesCollectedCount} prefs
+        </span>
+      {/if}
     </div>
 
     <button
       type="button"
       onclick={onImport}
       class="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-      aria-label="Import roster"
+      aria-label={hasPlaceholderStudents ? 'Import real roster' : 'Import roster'}
     >
       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
         <path
@@ -44,6 +78,22 @@
       Import
     </button>
   </div>
+
+  <!-- WP11: Gentle upgrade prompt for quick-start placeholder students -->
+  {#if hasPlaceholderStudents}
+    <div class="border-b border-amber-200 bg-amber-50 px-4 py-3">
+      <p class="text-sm text-amber-800">
+        These are placeholder names.
+      </p>
+      <button
+        type="button"
+        onclick={onImport}
+        class="mt-1.5 text-sm font-medium text-amber-700 underline hover:text-amber-900"
+      >
+        Add real names? Import your roster.
+      </button>
+    </div>
+  {/if}
 
   <div class="flex-1 overflow-y-auto px-2 py-2">
     {#if loading}
@@ -82,14 +132,14 @@
       <ul class="space-y-0.5" role="list">
         {#each students as student (student.id)}
           <li
-            class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm {hasPlaceholderStudents ? 'text-gray-400 italic' : 'text-gray-700'} hover:bg-gray-50"
           >
             <span
-              class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600"
+              class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full {hasPlaceholderStudents ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 text-gray-600'} text-xs font-medium"
             >
               {(student.firstName?.[0] ?? student.lastName?.[0] ?? '?').toUpperCase()}
             </span>
-            <span class="min-w-0 truncate">
+            <span class="min-w-0 flex-1 truncate">
               {#if student.firstName && student.lastName}
                 {student.firstName} {student.lastName}
               {:else if student.firstName}
@@ -100,6 +150,21 @@
                 Student
               {/if}
             </span>
+            {#if hasPreferenceData && !hasPlaceholderStudents}
+              {#if studentHasPreferences.get(student.id)}
+                <span
+                  class="h-2 w-2 shrink-0 rounded-full bg-teal-500"
+                  title="Has preferences"
+                  aria-label="Has preferences"
+                ></span>
+              {:else}
+                <span
+                  class="h-2 w-2 shrink-0 rounded-full bg-gray-300"
+                  title="No preferences"
+                  aria-label="No preferences"
+                ></span>
+              {/if}
+            {/if}
           </li>
         {/each}
       </ul>

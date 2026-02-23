@@ -42,7 +42,7 @@
 
     <!-- Actions -->
     <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-      <Button href="/activities" variant="primary">Go to Dashboard</Button>
+      <Button href="/" variant="primary">Go to Home</Button>
       <Button onclick={() => window.location.reload()} variant="ghost">Refresh page</Button>
     </div>
 

@@ -1,10 +1,13 @@
 import type { AppEnvContext } from '$lib/contexts/appEnv';
-import type { Pool, Preference, Program, Scenario, Session, Student } from '$lib/domain';
+import type { Group, Pool, Preference, Program, Scenario, Session, Student } from '$lib/domain';
+import type { ScenarioSatisfaction } from '$lib/domain/analytics';
+import type { StudentPreference } from '$lib/domain/preference';
 import {
   getActivityData,
   getProgramPairingStats,
   quickGenerateGroups,
   generateCandidate,
+  upgradeQuickStartRoster,
   type PairingStat
 } from '$lib/services/appEnvUseCases';
 import { isErr } from '$lib/types/result';
@@ -14,6 +17,27 @@ import {
   type ScenarioEditingView
 } from '$lib/stores/scenarioEditingStore';
 import { getGenerationErrorMessage } from '$lib/utils/generationErrorMessages';
+import { buildPreferenceMap } from '$lib/utils/preferenceAdapter';
+import { getGenerationSettings, saveGenerationSettings } from '$lib/utils/generationSettings';
+
+/**
+ * A snapshot of a past generation for the history panel.
+ * Each time "Make Groups" is clicked, the previous groups are saved here.
+ */
+export interface GenerationHistoryEntry {
+  groups: Group[];
+  analytics: ScenarioSatisfaction | null;
+  generatedAt: Date;
+}
+
+/**
+ * State for scenario comparison overlay.
+ */
+export interface ComparisonState {
+  alternativeGroups: Group[];
+  alternativeAnalytics: ScenarioSatisfaction;
+  isGenerating: boolean;
+}
 
 /**
  * Live session state for the Class View.
@@ -58,8 +82,13 @@ export interface ClassViewVmState {
   generationError: string | null;
   isGenerating: boolean;
 
-  // Generation settings (persisted across navigations within session)
+  // Generation settings (persisted per-activity via localStorage)
   groupSize: number;
+  avoidRecentGroupmates: boolean;
+  lookbackSessions: number;
+
+  // Settings panel visibility
+  settingsPanelOpen: boolean;
 
   // Editing
   editingStore: ScenarioEditingStore | null;
@@ -71,9 +100,31 @@ export interface ClassViewVmState {
 
   // Data-state adaptation (Decision 4)
   hasPreferenceData: boolean;
+  /** Number of students who have at least one preference. Analytics panel threshold: >=3. */
+  studentsWithPreferencesCount: number;
+  /** Lookup map: studentId → StudentPreference (derived from preferences[]) */
+  preferenceMap: Record<string, StudentPreference>;
+  /** Per-student preference rank in their current group (1 = 1st choice, null = no pref or unmatched) */
+  studentPreferenceRanks: Map<string, number | null>;
+  /** Per-student flag: does this student have any preferences at all? */
+  studentHasPreferences: Map<string, boolean>;
+
+  // Generation history (WP9)
+  generationHistory: GenerationHistoryEntry[];
+  /** Index into generationHistory being viewed, or -1 for current */
+  selectedHistoryIndex: number;
+
+  // Comparison state (WP9)
+  comparison: ComparisonState | null;
+
+  // History panel visibility (WP9)
+  historyPanelOpen: boolean;
 
   // Unplaced student tracking
   unplacedStudentCount: number;
+
+  // Quick Start upgrade path (WP11 / Decision 5, Banked Note #2)
+  hasPlaceholderStudents: boolean;
 
   // Drag-drop state
   draggingId: string | null;
@@ -114,9 +165,25 @@ export interface ClassViewVm {
     keyboardCancel: () => void;
     keyboardMove: (direction: 'up' | 'down' | 'left' | 'right') => void;
 
+    // History & comparison (WP9)
+    selectHistoryEntry: (index: number) => void;
+    toggleHistoryPanel: () => void;
+    startComparison: () => Promise<void>;
+    keepCurrentArrangement: () => void;
+    useAlternativeArrangement: () => void;
+    closeComparison: () => void;
+
+    // Settings (WP10)
+    setAvoidRecentGroupmates: (enabled: boolean) => void;
+    setLookbackSessions: (sessions: number) => void;
+    toggleSettingsPanel: () => void;
+
     // Live session controls
     enterProjection: () => void;
     exitProjection: () => void;
+
+    // Quick Start upgrade (WP11)
+    upgradeRoster: (students: Array<{ firstName: string; lastName: string }>) => Promise<void>;
   };
 }
 
@@ -144,6 +211,9 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     isGenerating: false,
 
     groupSize: 4,
+    avoidRecentGroupmates: true,
+    lookbackSessions: 3,
+    settingsPanelOpen: false,
 
     editingStore: null,
     view: null,
@@ -151,7 +221,18 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
 
     liveSessionStatus: 'IDLE',
     hasPreferenceData: false,
+    studentsWithPreferencesCount: 0,
+    preferenceMap: {},
+    studentPreferenceRanks: new Map(),
+    studentHasPreferences: new Map(),
+    generationHistory: [],
+    selectedHistoryIndex: -1,
+    comparison: null,
+    historyPanelOpen: false,
+
     unplacedStudentCount: 0,
+
+    hasPlaceholderStudents: false,
 
     draggingId: null,
     pickedUpStudentId: null,
@@ -165,6 +246,66 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       map[student.id] = student;
     }
     state.studentsById = map;
+  }
+
+  /**
+   * Detect whether all students are quick-start placeholders ("Student 1", "Student 2", ...).
+   * Used to show the upgrade prompt (WP11 / Decision 5, Banked Note #2).
+   */
+  function detectPlaceholderStudents() {
+    state.hasPlaceholderStudents =
+      state.students.length > 0 &&
+      state.students.every(
+        (s) => /^Student$/.test(s.firstName) && /^\d+$/.test(s.lastName ?? '')
+      );
+  }
+
+  function persistSettings() {
+    if (!state.program) return;
+    saveGenerationSettings(state.program.id, {
+      groupSize: state.groupSize,
+      avoidRecentGroupmates: state.avoidRecentGroupmates,
+      lookbackSessions: state.lookbackSessions
+    });
+  }
+
+  function computePreferenceState() {
+    const prefMap = buildPreferenceMap(state.preferences);
+    state.preferenceMap = prefMap;
+
+    // Count students with preferences and build the has-preferences map
+    const hasPrefs = new Map<string, boolean>();
+    let count = 0;
+    for (const student of state.students) {
+      const prefs = prefMap[student.id]?.likeGroupIds;
+      const has = Boolean(prefs && prefs.length > 0);
+      hasPrefs.set(student.id, has);
+      if (has) count++;
+    }
+    state.studentHasPreferences = hasPrefs;
+    state.studentsWithPreferencesCount = count;
+    state.hasPreferenceData = count > 0;
+  }
+
+  function computePreferenceRanks() {
+    const view = state.view;
+    if (!view) {
+      state.studentPreferenceRanks = new Map();
+      return;
+    }
+    const ranks = new Map<string, number | null>();
+    for (const group of view.groups) {
+      for (const studentId of group.memberIds) {
+        const prefs = state.preferenceMap[studentId]?.likeGroupIds;
+        if (!prefs || prefs.length === 0) {
+          ranks.set(studentId, null);
+          continue;
+        }
+        const rank = prefs.indexOf(group.name);
+        ranks.set(studentId, rank >= 0 ? rank + 1 : null);
+      }
+    }
+    state.studentPreferenceRanks = ranks;
   }
 
   function computeUnplacedStudentCount() {
@@ -194,6 +335,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     unsubscribeEditingStore = store.subscribe((value) => {
       state.view = value;
       computeUnplacedStudentCount();
+      computePreferenceRanks();
     });
     state.editingStore = store;
   }
@@ -249,6 +391,12 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
         return;
       }
 
+      // Load persisted generation settings (WP10 — rotation avoidance)
+      const savedSettings = getGenerationSettings(activityId);
+      state.groupSize = savedSettings.groupSize;
+      state.avoidRecentGroupmates = savedSettings.avoidRecentGroupmates;
+      state.lookbackSessions = savedSettings.lookbackSessions;
+
       const data = result.value;
       state.program = data.program;
       state.pool = data.pool;
@@ -257,9 +405,9 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       state.scenario = data.scenario;
       state.sessions = data.sessions;
       state.latestPublishedSession = data.latestPublishedSession;
-      state.hasPreferenceData = data.preferences.length > 0;
-
       rebuildStudentsById();
+      detectPlaceholderStudents();
+      computePreferenceState();
 
       // Load pairing stats if 2+ published sessions (for rotation avoidance)
       const publishedSessions = state.sessions.filter(
@@ -315,9 +463,26 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     state.generationError = null;
     state.isGenerating = true;
     state.groupSize = groupSize;
+    persistSettings();
 
     try {
       if (state.scenario && state.editingStore) {
+        // Save current arrangement to history before generating new one
+        const currentGroups = state.view?.groups ?? [];
+        const currentAnalytics = state.view?.currentAnalytics ?? null;
+        if (currentGroups.length > 0) {
+          state.generationHistory = [
+            {
+              groups: currentGroups.map((g) => ({ ...g, memberIds: [...g.memberIds] })),
+              analytics: currentAnalytics,
+              generatedAt: new Date()
+            },
+            ...state.generationHistory
+          ].slice(0, 10); // Keep max 10 history entries
+        }
+        // Reset to viewing current
+        state.selectedHistoryIndex = -1;
+
         // We already have a scenario, generate a candidate and regenerate the store.
         // Preserve existing group names where possible.
         const studentCount = state.students.length;
@@ -333,8 +498,8 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
           algorithmId: 'balanced',
           algorithmConfig: {
             groups,
-            avoidRecentGroupmates: true, // Default to true per Decision 6
-            lookbackSessions: 3
+            avoidRecentGroupmates: state.avoidRecentGroupmates,
+            lookbackSessions: state.lookbackSessions
           }
         });
 
@@ -349,8 +514,8 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
         const result = await quickGenerateGroups(state.env, {
           programId: state.program.id,
           groupSize,
-          avoidRecentGroupmates: true,
-          lookbackSessions: 3
+          avoidRecentGroupmates: state.avoidRecentGroupmates,
+          lookbackSessions: state.lookbackSessions
         });
 
         if (isErr(result)) {
@@ -533,12 +698,166 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     }
   }
 
+  // --- History & Comparison (WP9) ---
+
+  function selectHistoryEntry(index: number): void {
+    state.selectedHistoryIndex = index;
+  }
+
+  function toggleHistoryPanel(): void {
+    state.historyPanelOpen = !state.historyPanelOpen;
+  }
+
+  async function startComparison(): Promise<void> {
+    if (!state.program || !state.view || state.view.groups.length === 0) return;
+    if (state.comparison?.isGenerating) return;
+
+    state.comparison = {
+      alternativeGroups: [],
+      alternativeAnalytics: {
+        percentAssignedTopChoice: 0,
+        averagePreferenceRankAssigned: 0
+      },
+      isGenerating: true
+    };
+
+    try {
+      const existingGroups = state.view.groups;
+      const studentCount = state.students.length;
+      const groupCount = existingGroups.length;
+      const groups = Array.from({ length: groupCount }, (_, i) => ({
+        name: i < existingGroups.length ? existingGroups[i].name : `Group ${i + 1}`,
+        capacity: null as number | null
+      }));
+
+      const result = await generateCandidate(state.env, {
+        programId: state.program.id,
+        algorithmId: 'balanced',
+        algorithmConfig: {
+          groups,
+          avoidRecentGroupmates: state.avoidRecentGroupmates,
+          lookbackSessions: state.lookbackSessions
+        }
+      });
+
+      if (isErr(result)) {
+        state.comparison = null;
+        state.generationError = getGenerationErrorMessage(result.error.type);
+        return;
+      }
+
+      state.comparison = {
+        alternativeGroups: result.value.groups,
+        alternativeAnalytics: result.value.analytics,
+        isGenerating: false
+      };
+    } catch {
+      state.comparison = null;
+    }
+  }
+
+  function keepCurrentArrangement(): void {
+    state.comparison = null;
+  }
+
+  function useAlternativeArrangement(): void {
+    if (!state.comparison || !state.editingStore) return;
+
+    // Save current to history before adopting alternative
+    const currentGroups = state.view?.groups ?? [];
+    const currentAnalytics = state.view?.currentAnalytics ?? null;
+    if (currentGroups.length > 0) {
+      state.generationHistory = [
+        {
+          groups: currentGroups.map((g) => ({ ...g, memberIds: [...g.memberIds] })),
+          analytics: currentAnalytics,
+          generatedAt: new Date()
+        },
+        ...state.generationHistory
+      ].slice(0, 10);
+    }
+
+    state.editingStore.regenerate(state.comparison.alternativeGroups);
+    state.comparison = null;
+    state.selectedHistoryIndex = -1;
+  }
+
+  function closeComparison(): void {
+    state.comparison = null;
+  }
+
+  // --- Settings (WP10) ---
+
+  function setAvoidRecentGroupmates(enabled: boolean): void {
+    state.avoidRecentGroupmates = enabled;
+    persistSettings();
+  }
+
+  function setLookbackSessions(sessions: number): void {
+    state.lookbackSessions = Math.min(10, Math.max(1, Math.round(sessions)));
+    persistSettings();
+  }
+
+  function toggleSettingsPanel(): void {
+    state.settingsPanelOpen = !state.settingsPanelOpen;
+  }
+
   function enterProjection(): void {
     state.liveSessionStatus = 'PROJECTING';
   }
 
   function exitProjection(): void {
     state.liveSessionStatus = 'IDLE';
+  }
+
+  /**
+   * Replace placeholder students with real names (WP11 / Decision 5, Banked Note #2).
+   *
+   * When counts match, remaps student IDs in existing groups so the group structure
+   * is preserved — the experience feels like "upgrading" not "starting over".
+   * When counts differ, clears the scenario so the teacher regenerates.
+   */
+  async function upgradeRoster(
+    students: Array<{ firstName: string; lastName: string }>
+  ): Promise<void> {
+    if (!state.pool) return;
+
+    const result = await upgradeQuickStartRoster(state.env, {
+      poolId: state.pool.id,
+      students
+    });
+
+    if (isErr(result)) {
+      state.generationError = result.error.message;
+      return;
+    }
+
+    const { newStudents, countsMatch, idMapping } = result.value;
+
+    // Update local state with new students
+    state.students = newStudents;
+    state.pool = { ...state.pool, memberIds: newStudents.map((s) => s.id) };
+    rebuildStudentsById();
+    state.hasPlaceholderStudents = false;
+
+    if (countsMatch && state.editingStore && state.view) {
+      // Remap student IDs in existing groups to preserve structure
+      const remappedGroups = state.view.groups.map((group) => ({
+        ...group,
+        memberIds: group.memberIds.map((id) => idMapping.get(id) ?? id)
+      }));
+      await state.editingStore.regenerate(remappedGroups);
+    } else {
+      // Counts differ — clear scenario so teacher regenerates
+      unsubscribeEditingStore?.();
+      unsubscribeEditingStore = null;
+      state.editingStore?.destroy();
+      state.editingStore = null;
+      state.view = null;
+      state.scenario = null;
+      state.generationHistory = [];
+      state.selectedHistoryIndex = -1;
+    }
   }
 
   return {
@@ -557,8 +876,18 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       keyboardDrop,
       keyboardCancel,
       keyboardMove,
+      selectHistoryEntry,
+      toggleHistoryPanel,
+      startComparison,
+      keepCurrentArrangement,
+      useAlternativeArrangement,
+      closeComparison,
+      setAvoidRecentGroupmates,
+      setLookbackSessions,
+      toggleSettingsPanel,
       enterProjection,
-      exitProjection
+      exitProjection,
+      upgradeRoster
     }
   };
 }
