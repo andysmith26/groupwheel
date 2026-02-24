@@ -40,7 +40,7 @@ src/lib/
 
 - Domain layer has no dependencies on frameworks or UI
 - Dependencies flow inward (UI → Application → Domain)
-- See `docs/ARCHITECTURE.md` for detailed layer boundaries
+- See `docs/reference/ARCHITECTURE.md` for detailed layer boundaries
 
 ## Tech Stack
 
@@ -91,7 +91,7 @@ src/lib/
 **SheetConnection**: Link to a Google Sheet for data import
 **Staff**: Staff members (teachers, aides)
 
-See `docs/domain_model.md` for complete entity definitions.
+See `docs/reference/domain_model.md` for complete entity definitions.
 
 ## Storage & State
 
@@ -145,16 +145,19 @@ pnpm test:e2e          # E2E tests (Playwright)
 
 Comprehensive docs are in `/docs/`:
 
-- `ARCHITECTURE.md`: Layer design and boundaries
-- `PRODUCT.md`: Vision, roadmap, use cases
-- `domain_model.md`: Entity relationships
-- `UX_STRATEGY.md`: Design principles
-- `STATUS.md`: Current state and known gaps
-- `ALGORITHMS.md`: Group generation algorithm details
-- `ALGORITHMS_TUTORIAL.md`: Guide to algorithm implementation
-- `RESEARCH.md`: Research notes and references
+- `reference/ARCHITECTURE.md`: Layer design and boundaries
+- `reference/PRODUCT.md`: Vision, roadmap, use cases
+- `reference/domain_model.md`: Entity relationships (includes ER diagram)
+- `reference/UX_STRATEGY.md`: Design principles
+- `reference/STATUS.md`: Current state and known gaps
+- `reference/ALGORITHMS.md`: Group generation algorithm details
+- `reference/ALGORITHMS_TUTORIAL.md`: Guide to algorithm implementation
+- `reference/RESEARCH.md`: Research notes and references
+- `reference/PRINCIPLES.md`: Cross-project architecture principles
 - `decisions/`: Architectural decision records
 - `spikes/`: Technical experiments
+- `planning/`: Active planning specs and work packages
+- `archive/`: Superseded plans and historical docs
 
 ## Development Commands
 
@@ -187,11 +190,12 @@ pnpm format           # Format code
 
 When uncertain about:
 
-- **Architecture**: Check `docs/ARCHITECTURE.md`
-- **Domain logic**: Check `docs/domain_model.md`
-- **Product direction**: Check `docs/PRODUCT.md`
-- **Current state**: Check `docs/STATUS.md`
+- **Architecture**: Check `docs/reference/ARCHITECTURE.md`
+- **Domain logic**: Check `docs/reference/domain_model.md`
+- **Product direction**: Check `docs/reference/PRODUCT.md`
+- **Current state**: Check `docs/reference/STATUS.md`
 - **Past decisions**: Check `docs/decisions/`
+- **Planning**: Check `docs/planning/`
 
 ## Project Philosophy
 

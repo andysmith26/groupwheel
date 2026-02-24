@@ -28,15 +28,16 @@ No accounts required. All data stays in your browser.
 
 | Document                              | Description                                     |
 | ------------------------------------- | ----------------------------------------------- |
-| [Product & Roadmap](docs/PRODUCT.md)  | Vision, use cases, what's planned               |
-| [Architecture](docs/ARCHITECTURE.md)  | Technical design, layer boundaries, conventions |
-| [Domain Model](docs/domain_model.md)  | Entity definitions and relationships            |
-| [UX Strategy](docs/UX_STRATEGY.md)    | Design principles and phased UX evolution       |
-| [Current Status](docs/STATUS.md)      | What's built, what works, known gaps            |
-| [Research Log](docs/RESEARCH.md)      | User research findings                          |
-| [Project History](PROJECT_HISTORY.md) | Major pivots and historical context             |
-| [Decisions](docs/decisions/)          | Architectural decision records                  |
-| [Spikes](docs/spikes/)                | Technical experiments                           |
+| [Product & Roadmap](docs/reference/PRODUCT.md)  | Vision, use cases, what's planned               |
+| [Architecture](docs/reference/ARCHITECTURE.md)  | Technical design, layer boundaries, conventions |
+| [Domain Model](docs/reference/domain_model.md)  | Entity definitions and relationships            |
+| [UX Strategy](docs/reference/UX_STRATEGY.md)    | Design principles and phased UX evolution       |
+| [Current Status](docs/reference/STATUS.md)      | What's built, what works, known gaps            |
+| [Research Log](docs/reference/RESEARCH.md)      | User research findings                          |
+| [Project History](PROJECT_HISTORY.md)            | Major pivots and historical context             |
+| [Decisions](docs/decisions/)                     | Architectural decision records                  |
+| [Spikes](docs/spikes/)                           | Technical experiments                           |
+| [Planning](docs/planning/)                       | Active planning specs and work packages         |
 
 ## Tech Stack
 
@@ -61,7 +62,7 @@ This is currently a solo learning project. If you're interested in contributing,
 - If `no-restricted-imports` fails, move business logic into `src/lib/application/useCases` or `src/lib/domain` instead of importing across layers.
 - In routes/components, prefer `src/lib/services/appEnvUseCases.ts` facades for runtime operations.
 - Domain files must stay framework-agnostic: no `svelte` or `@sveltejs/*` imports.
-- See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the layer rules and expected dependency direction.
+- See [docs/reference/ARCHITECTURE.md](docs/reference/ARCHITECTURE.md) for the layer rules and expected dependency direction.
 
 ## License
 

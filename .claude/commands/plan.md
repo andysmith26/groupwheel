@@ -16,7 +16,7 @@ Before proposing anything, ground yourself in this repository:
 
 ## Step 2: Check architecture constraints
 
-Read ARCHITECTURE.md (or docs/ARCHITECTURE.md if present). Then verify:
+Read docs/reference/ARCHITECTURE.md. Then verify:
 
 - Which layer(s) does this change touch? (domain / application / infrastructure / UI)
 - Does this require a new use case, or does it extend an existing one?

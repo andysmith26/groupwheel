@@ -175,8 +175,8 @@ Decision Records are for _strategic choices_, not daily work.
 ## Related Documentation
 
 - **Spike Logs** (`/docs/spikes/`) - Technical experiments with time-boxed results
-- **Engineering Journal** (`/docs/journal/`) - Personal learning and reflections
-- **Roadmap** (`roadmap.md`) - NOW/NEXT/LATER priorities
+- **Reference Docs** (`/docs/reference/`) - Architecture, product, domain model, etc.
+- **Planning** (`/docs/planning/`) - Active planning specs and work packages
 
 **Rule of thumb:**
 

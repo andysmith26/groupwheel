@@ -161,8 +161,8 @@ Fix any remaining references.
 
 ### Step 8: Update documentation
 
-**Modify:** `docs/STATUS.md` — Update route descriptions
-**Modify:** `docs/ARCHITECTURE.md` — Update flow descriptions if applicable
+**Modify:** `docs/reference/STATUS.md` — Update route descriptions
+**Modify:** `docs/reference/ARCHITECTURE.md` — Update flow descriptions if applicable
 **Modify:** `CLAUDE.md` — Update the "Core workflow" section if it references old routes
 
 ### Step 9: Run full test suite

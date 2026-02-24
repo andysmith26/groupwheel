@@ -144,4 +144,4 @@ To add another algorithm:
 1. Implement `GroupingAlgorithm` in `src/lib/infrastructure/algorithms/`.
 2. Register it in `createInMemoryEnvironment()` via `MultiAlgorithmGroupingAlgorithm`.
 3. Add it to the algorithm list in `generateMultipleCandidates()` with an id and label.
-4. (Optional) Document the algorithm here and in `docs/ALGORITHMS_TUTORIAL.md`.
+4. (Optional) Document the algorithm here and in `docs/reference/ALGORITHMS_TUTORIAL.md`.

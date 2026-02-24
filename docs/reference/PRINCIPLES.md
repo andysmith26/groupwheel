@@ -1,5 +1,7 @@
 # Software Architecture Principles
 
+> **Cross-project reference document.** This defines shared architectural principles that apply across all projects. For Groupwheel-specific architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 This document defines shared architectural principles, patterns, and guardrails that apply across all projects. Individual projects implement these principles within their specific technology stacks.
 
 ---
