@@ -9,13 +9,14 @@
    * WP4 (Core Layout), WP5 (Groups Panel), WP7 (Projection Mode)
    */
 
+  import { browser } from '$app/environment';
   import { page } from '$app/stores';
   import ClassView from '$lib/components/class-view/ClassView.svelte';
 
   let activityId = $derived($page.params.id ?? '');
 </script>
 
-{#if activityId}
+{#if browser && activityId}
   {#key activityId}
     <ClassView {activityId} />
   {/key}

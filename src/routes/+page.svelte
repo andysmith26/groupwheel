@@ -8,7 +8,10 @@
    * See: project definition.md — Decision 2, Part 3 (Home screen)
    */
 
+  import { browser } from '$app/environment';
   import HomeScreen from '$lib/components/home/HomeScreen.svelte';
 </script>
 
-<HomeScreen />
+{#if browser}
+  <HomeScreen />
+{/if}
