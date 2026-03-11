@@ -2,6 +2,7 @@
   import type { Group, Student } from '$lib/domain';
   import { calculateRowSpan } from '$lib/utils/groups';
   import EditableGroupColumn from './EditableGroupColumn.svelte';
+  import AddGroupCard from './AddGroupCard.svelte';
   import HorizontalScrollContainer from '$lib/components/ui/HorizontalScrollContainer.svelte';
   import type { KeyboardMoveDirection } from './DraggableStudentCard.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
@@ -87,6 +88,11 @@
     onStudentClick?: (studentId: string) => void;
   }>();
 
+  // Helper to get sibling group names for duplicate validation
+  function getSiblingNames(groupId: string): string[] {
+    return groups.filter((g: Group) => g.id !== groupId).map((g: Group) => g.name);
+  }
+
   // Helper to get preference rank for a group
   function getPreferenceRank(groupId: string): number | null {
     if (!selectedStudentPreferences || selectedStudentPreferences.length === 0) {
@@ -122,6 +128,7 @@
           {onDeleteGroup}
           {onAlphabetize}
           focusNameOnMount={group.id === newGroupId}
+          siblingGroupNames={getSiblingNames(group.id)}
           preferenceRank={getPreferenceRank(group.id)}
           {studentPreferenceRanks}
           {studentHasPreferences}
@@ -156,6 +163,7 @@
         {onDeleteGroup}
         {onAlphabetize}
         focusNameOnMount={group.id === newGroupId}
+        siblingGroupNames={getSiblingNames(group.id)}
         preferenceRank={getPreferenceRank(group.id)}
         {studentPreferenceRanks}
         {studentHasPreferences}
@@ -171,7 +179,9 @@
       />
     {/each}
 
-    <!-- Add Group card removed for compact view -->
+    {#if onAddGroup && !readonly}
+      <AddGroupCard {onAddGroup} rowSpan={groups.length > 0 ? calculateRowSpan(groups[0]) : 4} />
+    {/if}
   </div>
 {/if}
 

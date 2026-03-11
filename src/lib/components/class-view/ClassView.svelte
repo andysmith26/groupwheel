@@ -63,6 +63,7 @@
   let draggingId = $derived(vm.state.draggingId);
   let pickedUpStudentId = $derived(vm.state.pickedUpStudentId);
   let hasGroups = $derived((view?.groups.length ?? 0) > 0);
+  let newGroupId = $derived(vm.state.newGroupId);
   let isProjecting = $derived(vm.state.liveSessionStatus === 'PROJECTING');
 
   // Preference-adaptive UI (WP8 / Decision 4)
@@ -162,6 +163,18 @@
 
   function handleAlphabetize(groupId: string) {
     vm.actions.alphabetizeGroup(groupId);
+  }
+
+  function handleCreateGroup() {
+    vm.actions.createGroup();
+  }
+
+  function handleUpdateGroup(groupId: string, changes: Partial<Pick<import('$lib/domain').Group, 'name' | 'capacity'>>) {
+    vm.actions.updateGroup(groupId, changes);
+  }
+
+  function handleDeleteGroup(groupId: string) {
+    vm.actions.deleteGroup(groupId);
   }
 
   function handleProject() {
@@ -402,6 +415,10 @@
             onDragStart={hasGroups && !isViewingHistory ? handleDragStart : undefined}
             onDragEnd={hasGroups && !isViewingHistory ? handleDragEnd : undefined}
             onAlphabetize={hasGroups && !isViewingHistory ? handleAlphabetize : undefined}
+            onUpdateGroup={hasGroups && !isViewingHistory ? handleUpdateGroup : undefined}
+            onDeleteGroup={hasGroups && !isViewingHistory ? handleDeleteGroup : undefined}
+            onAddGroup={hasGroups && !isViewingHistory ? handleCreateGroup : undefined}
+            newGroupId={!isViewingHistory ? newGroupId : null}
             pickedUpStudentId={hasGroups && !isViewingHistory ? pickedUpStudentId : null}
             onKeyboardPickUp={hasGroups && !isViewingHistory ? vm.actions.keyboardPickUp : undefined}
             onKeyboardDrop={hasGroups && !isViewingHistory ? vm.actions.keyboardDrop : undefined}

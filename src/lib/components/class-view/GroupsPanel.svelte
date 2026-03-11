@@ -9,6 +9,7 @@
   import type { KeyboardMoveDirection } from '$lib/components/editing/DraggableStudentCard.svelte';
   import GenerationControls from './GenerationControls.svelte';
   import GroupEditingLayout from '$lib/components/editing/GroupEditingLayout.svelte';
+  import DeleteGroupConfirmDialog from '$lib/components/editing/DeleteGroupConfirmDialog.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
   import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
 
@@ -46,6 +47,12 @@
     onKeyboardCancel?: () => void;
     onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
 
+    // Group CRUD callbacks
+    onUpdateGroup?: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
+    onDeleteGroup?: (groupId: string) => void;
+    onAddGroup?: () => void;
+    newGroupId?: string | null;
+
     // Preference-adaptive UI (WP8 / Decision 4)
     studentPreferenceRanks?: Map<string, number | null>;
     studentHasPreferences?: Map<string, boolean>;
@@ -70,6 +77,10 @@
     onDragEnd,
     onAlphabetize,
     flashingIds = new Set<string>(),
+    onUpdateGroup,
+    onDeleteGroup,
+    onAddGroup,
+    newGroupId = null,
     pickedUpStudentId = null,
     onKeyboardPickUp,
     onKeyboardDrop,
@@ -84,6 +95,40 @@
   }
 
   const hasEditingCallbacks = $derived(!!onDrop);
+
+  // --- Delete confirmation state ---
+  const SKIP_DELETE_CONFIRM_KEY = 'groupwheel:skipDeleteGroupConfirm';
+
+  let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
+  let skipDeleteConfirm = $state(
+    typeof localStorage !== 'undefined' && localStorage.getItem(SKIP_DELETE_CONFIRM_KEY) === 'true'
+  );
+
+  function handleRequestDelete(groupId: string) {
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+
+    if (skipDeleteConfirm) {
+      onDeleteGroup?.(groupId);
+      return;
+    }
+
+    groupToDelete = { id: groupId, name: group.name, memberCount: group.memberIds.length };
+  }
+
+  function handleConfirmDelete(dontAskAgain: boolean) {
+    if (!groupToDelete) return;
+    if (dontAskAgain) {
+      skipDeleteConfirm = true;
+      try { localStorage.setItem(SKIP_DELETE_CONFIRM_KEY, 'true'); } catch { /* ignore */ }
+    }
+    onDeleteGroup?.(groupToDelete.id);
+    groupToDelete = null;
+  }
+
+  function handleCancelDelete() {
+    groupToDelete = null;
+  }
 </script>
 
 <div class="flex h-full flex-col bg-gray-50">
@@ -164,6 +209,10 @@
           {onDragEnd}
           {onAlphabetize}
           {flashingIds}
+          {onUpdateGroup}
+          onDeleteGroup={onDeleteGroup ? handleRequestDelete : undefined}
+          {onAddGroup}
+          {newGroupId}
           {pickedUpStudentId}
           {onKeyboardPickUp}
           {onKeyboardDrop}
@@ -225,3 +274,12 @@
     {/if}
   </div>
 </div>
+
+{#if groupToDelete}
+  <DeleteGroupConfirmDialog
+    groupName={groupToDelete.name}
+    memberCount={groupToDelete.memberCount}
+    onConfirm={handleConfirmDelete}
+    onCancel={handleCancelDelete}
+  />
+{/if}

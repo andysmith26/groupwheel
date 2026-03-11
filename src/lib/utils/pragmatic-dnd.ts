@@ -212,6 +212,8 @@ export type SortableItemConfig = {
   container: string; // The ID of the container this item belongs to
   index: number; // The current index of this item in the list
   dragData: DragData;
+  /** When true, disables both dragging and drop-target behavior. */
+  disabled?: boolean;
   callbacks?: {
     onDragStart?: () => void;
     onDragEnd?: () => void;
@@ -239,6 +241,15 @@ export function sortableItem(element: HTMLElement, config: SortableItemConfig) {
   }
 
   let currentConfig = config;
+
+  if (config.disabled) {
+    return {
+      update(newConfig: SortableItemConfig) {
+        currentConfig = newConfig;
+      },
+      destroy() {}
+    };
+  }
 
   const draggableCleanup = makeDraggable({
     element,

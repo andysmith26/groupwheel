@@ -133,6 +133,9 @@ export interface ClassViewVmState {
   pickedUpStudentId: string | null;
   pickedUpContainer: string | null;
   pickedUpIndex: number | null;
+
+  // Group editing — tracks newly created group for auto-focus
+  newGroupId: string | null;
 }
 
 export interface ClassViewVm {
@@ -158,6 +161,11 @@ export interface ClassViewVm {
       newIndex: number;
     }) => void;
     alphabetizeGroup: (groupId: string) => void;
+
+    // Group CRUD
+    createGroup: () => void;
+    updateGroup: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
+    deleteGroup: (groupId: string) => void;
 
     // Keyboard drag-drop
     keyboardPickUp: (studentId: string, container: string, index: number) => void;
@@ -237,7 +245,9 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     draggingId: null,
     pickedUpStudentId: null,
     pickedUpContainer: null,
-    pickedUpIndex: null
+    pickedUpIndex: null,
+
+    newGroupId: null
   });
 
   function rebuildStudentsById() {
@@ -606,6 +616,29 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     state.editingStore.reorderGroup(groupId, sorted);
   }
 
+  // --- Group CRUD ---
+
+  function createGroup(): void {
+    if (!state.editingStore) return;
+    const result = state.editingStore.createGroup();
+    if (result.success && result.groupId) {
+      state.newGroupId = result.groupId;
+    }
+  }
+
+  function updateGroup(
+    groupId: string,
+    changes: Partial<Pick<Group, 'name' | 'capacity'>>
+  ): void {
+    if (!state.editingStore) return;
+    state.editingStore.updateGroup(groupId, changes);
+  }
+
+  function deleteGroup(groupId: string): void {
+    if (!state.editingStore) return;
+    state.editingStore.deleteGroup(groupId);
+  }
+
   // --- Keyboard drag-drop ---
 
   function keyboardPickUp(studentId: string, container: string, index: number): void {
@@ -872,6 +905,9 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       moveStudent,
       reorderStudent,
       alphabetizeGroup,
+      createGroup,
+      updateGroup,
+      deleteGroup,
       keyboardPickUp,
       keyboardDrop,
       keyboardCancel,

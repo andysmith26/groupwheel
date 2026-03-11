@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade } from 'svelte/transition';
   import type { Group, Student } from '$lib/domain';
   import { droppable, type Edge, type SortableDropState } from '$lib/utils/pragmatic-dnd';
   import DraggableStudentCard, { type KeyboardMoveDirection } from './DraggableStudentCard.svelte';
@@ -31,6 +32,7 @@
     onKeyboardMove,
     onStudentClick,
     draggedStudentPreferences = null,
+    siblingGroupNames = [] as string[],
     readonly = false
   } = $props<{
     group: Group;
@@ -63,6 +65,8 @@
     onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
     onStudentClick?: (studentId: string) => void;
     draggedStudentPreferences?: string[] | null;
+    /** Names of sibling groups for duplicate-name validation. */
+    siblingGroupNames?: string[];
     /** When true, suppresses drag-drop affordances and empty placeholder text. */
     readonly?: boolean;
   }>();
@@ -140,8 +144,16 @@
     };
   });
 
-  // Local editing state to handle validation
+  // Local editing state for inline rename
   let editingName = $state(group.name);
+  let isEditingName = $state(focusNameOnMount);
+  let nameInputEl = $state<HTMLInputElement | null>(null);
+  let nameError = $state<string | null>(null);
+  let nameErrorTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // Kebab menu state
+  let menuOpen = $state(false);
+  let menuButtonEl = $state<HTMLButtonElement | null>(null);
 
   const capacityLabel = $derived(() => {
     if (group.capacity === null) return `${group.memberIds.length}`;
@@ -159,6 +171,90 @@
   $effect(() => {
     editingName = group.name;
   });
+
+  // Focus and select input when it becomes visible
+  $effect(() => {
+    if (isEditingName && nameInputEl) {
+      nameInputEl.focus();
+      nameInputEl.select();
+    }
+  });
+
+  function showNameError(msg: string) {
+    nameError = msg;
+    if (nameErrorTimeout) clearTimeout(nameErrorTimeout);
+    nameErrorTimeout = setTimeout(() => { nameError = null; }, 2000);
+  }
+
+  function isDuplicateName(name: string): boolean {
+    return siblingGroupNames.some((n: string) => n.toLowerCase() === name.toLowerCase());
+  }
+
+  function commitName() {
+    const trimmed = editingName.trim();
+
+    if (trimmed.length === 0) {
+      editingName = group.name;
+      isEditingName = false;
+      return;
+    }
+
+    if (trimmed === group.name) {
+      isEditingName = false;
+      return;
+    }
+
+    // Check for duplicate names among siblings — keep editing so user can fix
+    if (isDuplicateName(trimmed)) {
+      showNameError('Name already taken');
+      // Re-focus after the blur event completes
+      requestAnimationFrame(() => nameInputEl?.focus());
+      return;
+    }
+
+    onUpdateGroup?.(group.id, { name: trimmed });
+    isEditingName = false;
+  }
+
+  function handleNameInput() {
+    if (nameError) {
+      nameError = null;
+      if (nameErrorTimeout) clearTimeout(nameErrorTimeout);
+    }
+  }
+
+  function handleNameKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitName();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      editingName = group.name;
+      nameError = null;
+      isEditingName = false;
+    }
+  }
+
+  function handleNameClick() {
+    if (!onUpdateGroup || readonly) return;
+    isEditingName = true;
+  }
+
+  function toggleMenu() {
+    menuOpen = !menuOpen;
+  }
+
+  function handleDeleteClick() {
+    menuOpen = false;
+    onDeleteGroup?.(group.id);
+  }
+
+  // Close menu on outside click
+  function handleWindowClick(e: MouseEvent) {
+    if (menuOpen && menuButtonEl && !menuButtonEl.contains(e.target as Node)) {
+      menuOpen = false;
+    }
+  }
 
   function handleContainerDrop(event: {
     draggedItem: { id: string };
@@ -223,6 +319,8 @@
   }
 </script>
 
+<svelte:window onclick={handleWindowClick} />
+
 <div
   class={`relative flex flex-col gap-2 rounded-xl border-2 p-1.5 shadow-sm ${
     preferenceStyles()
@@ -232,12 +330,27 @@
   style={`grid-row: span ${rowSpan}; height: 100%;`}
 >
   <div class="flex items-center justify-between gap-2">
-    <span
-      class="min-w-0 flex-1 truncate px-1 py-0.5 text-xs font-semibold text-gray-900"
-      title={editingName}
-    >
-      {editingName}
-    </span>
+    {#if isEditingName}
+      <input
+        bind:this={nameInputEl}
+        type="text"
+        bind:value={editingName}
+        onblur={commitName}
+        oninput={handleNameInput}
+        onkeydown={handleNameKeydown}
+        class="min-w-0 flex-1 rounded border border-teal-400 bg-white px-1 py-0.5 text-xs font-semibold text-gray-900 outline-none focus:ring-1 focus:ring-teal-400"
+      />
+    {:else}
+      <button
+        type="button"
+        onclick={handleNameClick}
+        class="min-w-0 flex-1 truncate rounded px-1 py-0.5 text-left text-xs font-semibold text-gray-900 {onUpdateGroup && !readonly ? 'cursor-text hover:bg-gray-100' : ''}"
+        title={onUpdateGroup && !readonly ? `Click to rename "${editingName}"` : editingName}
+        disabled={!onUpdateGroup || readonly}
+      >
+        {editingName}
+      </button>
+    {/if}
     <div class="flex items-center gap-1">
       {#if draggingId && draggedStudentPreferences}
         <span class={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${previewBadgeClass}`}>
@@ -267,6 +380,41 @@
             </svg>
           </button>
         {/if}
+        {#if onDeleteGroup && !readonly}
+          <div class="relative">
+            <button
+              bind:this={menuButtonEl}
+              type="button"
+              onclick={toggleMenu}
+              class="rounded p-0.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
+              title="Group options"
+              aria-label="Group options"
+              aria-expanded={menuOpen}
+            >
+              <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
+            </button>
+            {#if menuOpen}
+              <div
+                class="absolute right-0 top-full z-10 mt-1 w-32 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                role="menu"
+              >
+                <button
+                  type="button"
+                  onclick={handleDeleteClick}
+                  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
+                  role="menuitem"
+                >
+                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                  </svg>
+                  Delete group
+                </button>
+              </div>
+            {/if}
+          </div>
+        {/if}
         <span
           class={`text-xs font-medium ${
             capacityStatus.isOverEnrolled ? 'text-violet-600' : 'text-gray-600'
@@ -277,6 +425,10 @@
       {/if}
     </div>
   </div>
+
+  {#if nameError}
+    <p class="absolute left-1 top-8 z-20 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-500 shadow-sm" transition:fade={{ duration: 150 }}>{nameError}</p>
+  {/if}
 
   <div
     use:droppable={{ container: group.id, callbacks: { onDrop: handleContainerDrop } }}
@@ -316,6 +468,7 @@
               {onKeyboardCancel}
               {onKeyboardMove}
               {onStudentClick}
+              {readonly}
             />
 
             {#if index === memberIds.length - 1}

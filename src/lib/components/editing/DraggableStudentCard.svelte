@@ -24,7 +24,8 @@
     onKeyboardDrop,
     onKeyboardCancel,
     onKeyboardMove,
-    onStudentClick
+    onStudentClick,
+    readonly = false
   } = $props<{
     student: Student;
     container: string;
@@ -46,6 +47,8 @@
     onKeyboardCancel?: () => void;
     onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
     onStudentClick?: (studentId: string) => void;
+    /** When true, suppresses drag, keyboard pick-up, and click interactions. */
+    readonly?: boolean;
   }>();
 
   const fullName = `${student.firstName} ${student.lastName ?? ''}`.trim() || student.id;
@@ -183,6 +186,7 @@
     container,
     index,
     dragData: { id: student.id },
+    disabled: readonly,
     callbacks: {
       onDragStart: handleDragStartInternal,
       onDragEnd,
@@ -190,23 +194,25 @@
       onDrop: onItemDrop
     }
   }}
-  tabindex="0"
-  role="button"
-  aria-label="{fullName}. {isPickedUp
-    ? 'Press arrow keys to move, Enter to drop, Escape to cancel.'
-    : 'Press Enter to pick up.'}"
-  aria-pressed={isPickedUp}
+  tabindex={readonly ? -1 : 0}
+  role={readonly ? undefined : 'button'}
+  aria-label="{fullName}{readonly ? '' : isPickedUp
+    ? '. Press arrow keys to move, Enter to drop, Escape to cancel.'
+    : '. Press Enter to pick up.'}"
+  aria-pressed={readonly ? undefined : isPickedUp}
   data-student-id={student.id}
   style="width: var(--card-width, 112px); padding: var(--card-padding, 2px); min-height: 44px;"
-  class={`group mx-auto flex cursor-grab items-center rounded-md border bg-white text-sm shadow-sm transition duration-150 ease-out ${
-    isPickedUp ? 'border-blue-500 shadow-md ring-2 ring-blue-500 ring-offset-1' : 'border-gray-200'
-  } ${isDragging ? 'cursor-grabbing opacity-60' : ''} ${flash ? 'flash-move' : ''} focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 focus:outline-none`}
-  onmouseenter={handleMouseEnter}
-  onmouseleave={handleMouseLeave}
-  onkeydown={handleKeydown}
-  onclick={handleClick}
+  class={`group mx-auto flex items-center rounded-md border bg-white text-sm shadow-sm transition duration-150 ease-out ${
+    readonly ? 'cursor-default border-gray-200' : 'cursor-grab'
+  } ${!readonly && isPickedUp ? 'border-blue-500 shadow-md ring-2 ring-blue-500 ring-offset-1' : 'border-gray-200'
+  } ${!readonly && isDragging ? 'cursor-grabbing opacity-60' : ''} ${flash ? 'flash-move' : ''} ${readonly ? '' : 'focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 focus:outline-none'}`}
+  onmouseenter={readonly ? undefined : handleMouseEnter}
+  onmouseleave={readonly ? undefined : handleMouseLeave}
+  onkeydown={readonly ? undefined : handleKeydown}
+  onclick={readonly ? undefined : handleClick}
 >
-  <!-- Drag handle grip icon -->
+  <!-- Drag handle grip icon (hidden in readonly mode) -->
+  {#if !readonly}
   <svg
     style="width: var(--grip-size, 10px); height: var(--grip-size, 10px);"
     class="flex-shrink-0 text-gray-300 transition-colors group-hover:text-gray-400"
@@ -219,6 +225,7 @@
     <circle cx="7.5" cy="2.5" r="1" />
     <circle cx="7.5" cy="7.5" r="1" />
   </svg>
+  {/if}
   <div
     style="font-size: var(--card-font-size, 15px);"
     class={`relative flex min-w-0 flex-1 items-center justify-center overflow-visible rounded-md bg-white px-0.5 py-0.5 font-semibold ${textTone}`}
