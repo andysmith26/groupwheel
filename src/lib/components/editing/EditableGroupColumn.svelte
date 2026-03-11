@@ -1,11 +1,11 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import type { Group, Student } from '$lib/domain';
-  import { droppable, sortableGroup, type Edge, type SortableDropState, type SortableGroupDropState } from '$lib/utils/pragmatic-dnd';
+  import { droppable, type Edge, type SortableDropState } from '$lib/utils/pragmatic-dnd';
   import DraggableStudentCard, { type KeyboardMoveDirection } from './DraggableStudentCard.svelte';
   import DropIndicator from './DropIndicator.svelte';
-  import GroupDropIndicator from './GroupDropIndicator.svelte';
   import { getCapacityStatus } from '$lib/utils/groups';
+  import { resolveGroupColorHex } from '$lib/utils/groupColors';
 
   const {
     group,
@@ -17,8 +17,6 @@
     onDragEnd,
     flashingIds = new Set<string>(),
     onUpdateGroup,
-    onDeleteGroup,
-    onAlphabetize,
     focusNameOnMount = false,
     rowSpan = 1,
     preferenceRank = null,
@@ -35,12 +33,10 @@
     draggedStudentPreferences = null,
     siblingGroupNames = [] as string[],
     readonly = false,
-    groupIndex = 0,
-    draggingGroupId = null,
-    onGroupDrop,
-    onGroupEdgeChange,
-    onGroupDragStart,
-    onGroupDragEnd
+    selected = false,
+    onSelect,
+    renamingGroupId = null,
+    onRenameComplete
   } = $props<{
     group: Group;
     studentsById: Record<string, Student>;
@@ -56,8 +52,6 @@
     onDragEnd?: () => void;
     flashingIds?: Set<string>;
     onUpdateGroup?: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
-    onDeleteGroup?: (groupId: string) => void;
-    onAlphabetize?: (groupId: string) => void;
     focusNameOnMount?: boolean;
     rowSpan?: number;
     preferenceRank?: number | null;
@@ -76,21 +70,18 @@
     siblingGroupNames?: string[];
     /** When true, suppresses drag-drop affordances and empty placeholder text. */
     readonly?: boolean;
-    /** Index of this group in the group array (for sortableGroup). */
-    groupIndex?: number;
-    /** ID of the group currently being dragged (null if none). */
-    draggingGroupId?: string | null;
-    /** Called when a group is dropped on this column. */
-    onGroupDrop?: (state: SortableGroupDropState) => void;
-    /** Called when the closest edge changes during a group drag. */
-    onGroupEdgeChange?: (groupId: string, edge: Edge | null) => void;
-    /** Called when this group starts being dragged. */
-    onGroupDragStart?: (groupId: string) => void;
-    /** Called when this group stops being dragged. */
-    onGroupDragEnd?: () => void;
+    /** Whether this group is currently selected in the toolbar. */
+    selected?: boolean;
+    /** Called when user clicks header to select this group. */
+    onSelect?: (groupId: string) => void;
+    /** When set to this group's ID, triggers inline rename from the toolbar. */
+    renamingGroupId?: string | null;
+    /** Called when rename completes or is cancelled, to clear the toolbar state. */
+    onRenameComplete?: () => void;
   }>();
 
   const capacityStatus = $derived(getCapacityStatus(group));
+  const leftBorderColor = $derived(resolveGroupColorHex(group));
 
   // Drag destination rank preview
   const previewRank = $derived.by(() => {
@@ -170,10 +161,6 @@
   let nameError = $state<string | null>(null);
   let nameErrorTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // Kebab menu state
-  let menuOpen = $state(false);
-  let menuButtonEl = $state<HTMLButtonElement | null>(null);
-
   const capacityLabel = $derived(() => {
     if (group.capacity === null) return `${group.memberIds.length}`;
     return `${group.memberIds.length}/${group.capacity}`;
@@ -183,20 +170,19 @@
   let hoveredItemId = $state<string | null>(null);
   let hoveredEdge = $state<Edge | null>(null);
 
-  // Group drag handle element binding
-  let headerEl = $state<HTMLElement | null>(null);
-
-  // Local group edge state for rendering indicator
-  let localGroupEdge = $state<Edge | null>(null);
-
-  const isThisGroupDragging = $derived(draggingGroupId === group.id);
-
   // Use memberIds directly - no sorting (preserve order for drag reordering)
   const memberIds = $derived(group.memberIds);
 
   // Sync local state when group changes externally
   $effect(() => {
     editingName = group.name;
+  });
+
+  // Trigger inline rename from toolbar
+  $effect(() => {
+    if (renamingGroupId === group.id && !isEditingName) {
+      isEditingName = true;
+    }
   });
 
   // Focus and select input when it becomes visible
@@ -223,11 +209,13 @@
     if (trimmed.length === 0) {
       editingName = group.name;
       isEditingName = false;
+      onRenameComplete?.();
       return;
     }
 
     if (trimmed === group.name) {
       isEditingName = false;
+      onRenameComplete?.();
       return;
     }
 
@@ -241,6 +229,7 @@
 
     onUpdateGroup?.(group.id, { name: trimmed });
     isEditingName = false;
+    onRenameComplete?.();
   }
 
   function handleNameInput() {
@@ -259,28 +248,17 @@
       editingName = group.name;
       nameError = null;
       isEditingName = false;
+      onRenameComplete?.();
     }
   }
 
-  function handleNameClick() {
+  function handleHeaderClick() {
+    onSelect?.(group.id);
+  }
+
+  function handleNameDblClick() {
     if (!onUpdateGroup || readonly) return;
     isEditingName = true;
-  }
-
-  function toggleMenu() {
-    menuOpen = !menuOpen;
-  }
-
-  function handleDeleteClick() {
-    menuOpen = false;
-    onDeleteGroup?.(group.id);
-  }
-
-  // Close menu on outside click
-  function handleWindowClick(e: MouseEvent) {
-    if (menuOpen && menuButtonEl && !menuButtonEl.contains(e.target as Node)) {
-      menuOpen = false;
-    }
   }
 
   function handleContainerDrop(event: {
@@ -346,53 +324,27 @@
   }
 </script>
 
-<svelte:window onclick={handleWindowClick} />
-
 <div
-  class={`relative flex flex-col gap-2 rounded-xl border-2 p-1.5 shadow-sm ${
+  class={`relative flex flex-col rounded-xl border-2 shadow-sm overflow-hidden ${
     preferenceStyles()
       ? `${preferenceStyles()!.borderColor} ${preferenceStyles()!.bgColor}`
-      : 'border-gray-200 bg-gray-50'
-  } ${isThisGroupDragging ? 'opacity-40' : ''}`}
+      : selected ? 'border-teal-400 bg-gray-50' : 'border-gray-200 bg-gray-50'
+  }`}
   style={`grid-row: span ${rowSpan}; height: 100%;`}
-  use:sortableGroup={{
-    groupId: group.id,
-    index: groupIndex,
-    dragHandle: headerEl ?? undefined,
-    disabled: readonly,
-    callbacks: {
-      onDragStart: () => onGroupDragStart?.(group.id),
-      onDragEnd: () => onGroupDragEnd?.(),
-      onEdgeChange: (edge) => {
-        localGroupEdge = edge;
-        onGroupEdgeChange?.(group.id, edge);
-      },
-      onDrop: (state) => onGroupDrop?.(state)
-    }
-  }}
 >
-  <GroupDropIndicator edge="left" visible={localGroupEdge === 'left' && !isThisGroupDragging} />
-  <GroupDropIndicator edge="right" visible={localGroupEdge === 'right' && !isThisGroupDragging} />
+  <!-- Top color bar -->
+  <div
+    class="h-1.5 w-full shrink-0"
+    style={`background-color: ${leftBorderColor};`}
+  ></div>
 
-  <div class="group/header flex items-center gap-1">
-    {#if !readonly}
-      <div
-        bind:this={headerEl}
-        class="flex shrink-0 cursor-grab items-center self-stretch rounded opacity-0 transition-opacity hover:bg-gray-200 group-hover/header:opacity-100 active:cursor-grabbing"
-        title="Drag to reorder group"
-        aria-label="Drag to reorder group"
-      >
-        <svg class="h-3.5 w-3 text-gray-400" viewBox="0 0 6 10" fill="currentColor">
-          <circle cx="1.5" cy="1.5" r="1" />
-          <circle cx="4.5" cy="1.5" r="1" />
-          <circle cx="1.5" cy="5" r="1" />
-          <circle cx="4.5" cy="5" r="1" />
-          <circle cx="1.5" cy="8.5" r="1" />
-          <circle cx="4.5" cy="8.5" r="1" />
-        </svg>
-      </div>
-    {/if}
-    <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
+  <!-- Header: name + count -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="flex items-center gap-1 border-b border-gray-200 px-2 py-1.5"
+    onclick={handleHeaderClick}
+  >
     {#if isEditingName}
       <input
         bind:this={nameInputEl}
@@ -401,97 +353,35 @@
         onblur={commitName}
         oninput={handleNameInput}
         onkeydown={handleNameKeydown}
-        class="min-w-0 flex-1 rounded border border-teal-400 bg-white px-1 py-0.5 text-xs font-semibold text-gray-900 outline-none focus:ring-1 focus:ring-teal-400"
+        onclick={(e) => e.stopPropagation()}
+        class="min-w-0 flex-1 rounded border border-teal-400 bg-white px-1 py-0.5 text-sm font-semibold text-gray-900 outline-none focus:ring-1 focus:ring-teal-400"
       />
     {:else}
-      <button
-        type="button"
-        onclick={handleNameClick}
-        class="min-w-0 flex-1 truncate rounded px-1 py-0.5 text-left text-xs font-semibold text-gray-900 {onUpdateGroup && !readonly ? 'cursor-text hover:bg-gray-100' : ''}"
-        title={onUpdateGroup && !readonly ? `Click to rename "${editingName}"` : editingName}
-        disabled={!onUpdateGroup || readonly}
+      <span
+        class="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900"
+        ondblclick={handleNameDblClick}
+        title={onUpdateGroup && !readonly ? `Double-click to rename "${editingName}"` : editingName}
       >
         {editingName}
-      </button>
+      </span>
     {/if}
-    <div class="flex items-center gap-1">
-      {#if draggingId && draggedStudentPreferences}
-        <span class={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${previewBadgeClass}`}>
-          {previewBadgeText}
-        </span>
-      {:else}
-        {#if group.memberIds.length > 1 && onAlphabetize}
-          <button
-            type="button"
-            onclick={() => onAlphabetize?.(group.id)}
-            class="rounded p-0.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
-            title="Sort alphabetically"
-            aria-label="Sort alphabetically"
-          >
-            <svg
-              class="h-3.5 w-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
-              />
-            </svg>
-          </button>
-        {/if}
-        {#if onDeleteGroup && !readonly}
-          <div class="relative">
-            <button
-              bind:this={menuButtonEl}
-              type="button"
-              onclick={toggleMenu}
-              class="rounded p-0.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
-              title="Group options"
-              aria-label="Group options"
-              aria-expanded={menuOpen}
-            >
-              <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-              </svg>
-            </button>
-            {#if menuOpen}
-              <div
-                class="absolute right-0 top-full z-10 mt-1 w-32 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
-                role="menu"
-              >
-                <button
-                  type="button"
-                  onclick={handleDeleteClick}
-                  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
-                  role="menuitem"
-                >
-                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                  </svg>
-                  Delete group
-                </button>
-              </div>
-            {/if}
-          </div>
-        {/if}
-        <span
-          class={`text-xs font-medium ${
-            capacityStatus.isOverEnrolled ? 'text-violet-600' : 'text-gray-600'
-          }`}
-        >
-          {capacityLabel()}
-        </span>
-      {/if}
-    </div>
-    </div>
+    {#if draggingId && draggedStudentPreferences}
+      <span class={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${previewBadgeClass}`}>
+        {previewBadgeText}
+      </span>
+    {:else}
+      <span
+        class={`shrink-0 text-xs ${
+          capacityStatus.isOverEnrolled ? 'font-medium text-violet-600' : 'text-gray-400'
+        }`}
+      >
+        {capacityLabel()}
+      </span>
+    {/if}
   </div>
 
   {#if nameError}
-    <p class="absolute left-1 top-8 z-20 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-500 shadow-sm" transition:fade={{ duration: 150 }}>{nameError}</p>
+    <p class="absolute left-2 top-10 z-20 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-500 shadow-sm" transition:fade={{ duration: 150 }}>{nameError}</p>
   {/if}
 
   <div

@@ -160,13 +160,12 @@ export interface ClassViewVm {
       studentId: string;
       newIndex: number;
     }) => void;
-    alphabetizeGroup: (groupId: string) => void;
+    sortGroup: (groupId: string, sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc') => void;
 
     // Group CRUD
     createGroup: () => void;
     updateGroup: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
     deleteGroup: (groupId: string) => void;
-    reorderGroups: (payload: { draggedGroupId: string; targetGroupId: string; edge: 'left' | 'right' }) => void;
 
     // Keyboard drag-drop
     keyboardPickUp: (studentId: string, container: string, index: number) => void;
@@ -599,7 +598,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     state.editingStore.reorderGroup(payload.groupId, newOrder);
   }
 
-  function alphabetizeGroup(groupId: string): void {
+  function sortGroup(groupId: string, sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc'): void {
     if (!state.editingStore || !state.view) return;
 
     const group = state.view.groups.find((g) => g.id === groupId);
@@ -609,9 +608,14 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       const sa = state.studentsById[a];
       const sb = state.studentsById[b];
       if (!sa || !sb) return 0;
-      const nameA = `${sa.firstName} ${sa.lastName ?? ''}`.trim().toLowerCase();
-      const nameB = `${sb.firstName} ${sb.lastName ?? ''}`.trim().toLowerCase();
-      return nameA.localeCompare(nameB);
+      const primary = sortBy === 'firstName'
+        ? (sa.firstName ?? '').toLowerCase().localeCompare((sb.firstName ?? '').toLowerCase())
+        : (sa.lastName ?? '').toLowerCase().localeCompare((sb.lastName ?? '').toLowerCase());
+      if (primary !== 0) return direction === 'asc' ? primary : -primary;
+      const secondary = sortBy === 'firstName'
+        ? (sa.lastName ?? '').toLowerCase().localeCompare((sb.lastName ?? '').toLowerCase())
+        : (sa.firstName ?? '').toLowerCase().localeCompare((sb.firstName ?? '').toLowerCase());
+      return direction === 'asc' ? secondary : -secondary;
     });
 
     state.editingStore.reorderGroup(groupId, sorted);
@@ -924,11 +928,10 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       setGroupSize,
       moveStudent,
       reorderStudent,
-      alphabetizeGroup,
+      sortGroup,
       createGroup,
       updateGroup,
       deleteGroup,
-      reorderGroups,
       keyboardPickUp,
       keyboardDrop,
       keyboardCancel,

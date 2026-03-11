@@ -161,8 +161,8 @@
     vm.state.draggingId = null;
   }
 
-  function handleAlphabetize(groupId: string) {
-    vm.actions.alphabetizeGroup(groupId);
+  function handleSortGroup(groupId: string, sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc') {
+    vm.actions.sortGroup(groupId, sortBy, direction);
   }
 
   function handleCreateGroup() {
@@ -414,7 +414,7 @@
             onReorder={hasGroups && !isViewingHistory ? handleReorder : undefined}
             onDragStart={hasGroups && !isViewingHistory ? handleDragStart : undefined}
             onDragEnd={hasGroups && !isViewingHistory ? handleDragEnd : undefined}
-            onAlphabetize={hasGroups && !isViewingHistory ? handleAlphabetize : undefined}
+            onSortGroup={hasGroups && !isViewingHistory ? handleSortGroup : undefined}
             onUpdateGroup={hasGroups && !isViewingHistory ? handleUpdateGroup : undefined}
             onDeleteGroup={hasGroups && !isViewingHistory ? handleDeleteGroup : undefined}
             onAddGroup={hasGroups && !isViewingHistory ? handleCreateGroup : undefined}
@@ -426,7 +426,6 @@
             onKeyboardMove={hasGroups && !isViewingHistory ? vm.actions.keyboardMove : undefined}
             {studentPreferenceRanks}
             {studentHasPreferences}
-            onReorderGroups={hasGroups && !isViewingHistory ? vm.actions.reorderGroups : undefined}
           />
 
           <!-- Analytics Panel — expandable, only when preference data warrants it (Decision 4, WP8) -->

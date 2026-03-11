@@ -37,7 +37,7 @@
     onReorder?: (payload: { groupId: string; studentId: string; newIndex: number }) => void;
     onDragStart?: (id: string) => void;
     onDragEnd?: () => void;
-    onAlphabetize?: (groupId: string) => void;
+    onSortGroup?: (groupId: string, sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc') => void;
     flashingIds?: Set<string>;
 
     // Keyboard drag-drop (P6/P11)
@@ -56,9 +56,6 @@
     // Preference-adaptive UI (WP8 / Decision 4)
     studentPreferenceRanks?: Map<string, number | null>;
     studentHasPreferences?: Map<string, boolean>;
-
-    // Group reordering
-    onReorderGroups?: (payload: { draggedGroupId: string; targetGroupId: string; edge: 'left' | 'right' }) => void;
   }
 
   let {
@@ -78,7 +75,7 @@
     onReorder,
     onDragStart,
     onDragEnd,
-    onAlphabetize,
+    onSortGroup,
     flashingIds = new Set<string>(),
     onUpdateGroup,
     onDeleteGroup,
@@ -90,9 +87,41 @@
     onKeyboardCancel,
     onKeyboardMove,
     studentPreferenceRanks = new Map(),
-    studentHasPreferences = new Map(),
-    onReorderGroups
+    studentHasPreferences = new Map()
   }: Props = $props();
+
+  // --- Group selection state (for toolbar actions) ---
+  let selectedGroupId = $state<string | null>(null);
+
+  function handleSelectGroup(groupId: string) {
+    selectedGroupId = selectedGroupId === groupId ? null : groupId;
+  }
+
+  const selectedGroup = $derived(
+    selectedGroupId ? groups.find((g) => g.id === selectedGroupId) ?? null : null
+  );
+
+  // --- Sort dropdown state ---
+  let sortMenuOpen = $state(false);
+  let sortButtonEl = $state<HTMLButtonElement | null>(null);
+
+  function handleWindowClick(e: MouseEvent) {
+    if (sortMenuOpen && sortButtonEl && !sortButtonEl.contains(e.target as Node)) {
+      sortMenuOpen = false;
+    }
+  }
+
+  function handleSort(sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc') {
+    if (!selectedGroupId || !onSortGroup) return;
+    onSortGroup(selectedGroupId, sortBy, direction);
+    sortMenuOpen = false;
+  }
+
+  function handleToolbarDelete() {
+    if (!selectedGroupId) return;
+    handleRequestDelete(selectedGroupId);
+    selectedGroupId = null;
+  }
 
   function handleGenerate() {
     onGenerate(groupSize);
@@ -100,19 +129,26 @@
 
   const hasEditingCallbacks = $derived(!!onDrop);
 
-  // --- Delete confirmation state ---
-  const SKIP_DELETE_CONFIRM_KEY = 'groupwheel:skipDeleteGroupConfirm';
+  // --- Rename from toolbar ---
+  let renamingGroupId = $state<string | null>(null);
 
+  function handleToolbarRename() {
+    if (!selectedGroupId) return;
+    renamingGroupId = selectedGroupId;
+  }
+
+  function handleRenameComplete() {
+    renamingGroupId = null;
+  }
+
+  // --- Delete confirmation state ---
   let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
-  let skipDeleteConfirm = $state(
-    typeof localStorage !== 'undefined' && localStorage.getItem(SKIP_DELETE_CONFIRM_KEY) === 'true'
-  );
 
   function handleRequestDelete(groupId: string) {
     const group = groups.find((g) => g.id === groupId);
     if (!group) return;
 
-    if (skipDeleteConfirm) {
+    if (uiSettings.skipDeleteGroupConfirm) {
       onDeleteGroup?.(groupId);
       return;
     }
@@ -123,8 +159,7 @@
   function handleConfirmDelete(dontAskAgain: boolean) {
     if (!groupToDelete) return;
     if (dontAskAgain) {
-      skipDeleteConfirm = true;
-      try { localStorage.setItem(SKIP_DELETE_CONFIRM_KEY, 'true'); } catch { /* ignore */ }
+      uiSettings.setSkipDeleteGroupConfirm(true);
     }
     onDeleteGroup?.(groupToDelete.id);
     groupToDelete = null;
@@ -134,6 +169,8 @@
     groupToDelete = null;
   }
 </script>
+
+<svelte:window onclick={handleWindowClick} />
 
 <div class="flex h-full flex-col bg-gray-50">
   <!-- Header with Generation Controls -->
@@ -200,6 +237,76 @@
     {/if}
 
     {#if groups.length > 0}
+      <!-- Group actions toolbar -->
+      {#if hasEditingCallbacks && (onSortGroup || onUpdateGroup || onDeleteGroup)}
+        <div class="flex items-center gap-2 border-b border-gray-200 bg-white px-6 py-2">
+          {#if onUpdateGroup}
+            <button
+              type="button"
+              onclick={handleToolbarRename}
+              disabled={!selectedGroup}
+              class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors {
+                !selectedGroup
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              }"
+            >
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+              </svg>
+              Rename
+            </button>
+          {/if}
+
+          {#if onSortGroup}
+            <div class="relative">
+              <button
+                bind:this={sortButtonEl}
+                type="button"
+                onclick={() => { sortMenuOpen = !sortMenuOpen; }}
+                disabled={!selectedGroup || selectedGroup.memberIds.length <= 1}
+                class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors {
+                  !selectedGroup || selectedGroup.memberIds.length <= 1
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }"
+              >
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+                Sort
+              </button>
+              {#if sortMenuOpen}
+                <div class="absolute left-0 top-full z-10 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg" role="menu">
+                  <button type="button" onclick={() => handleSort('firstName', 'asc')} class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100" role="menuitem">First name A–Z</button>
+                  <button type="button" onclick={() => handleSort('firstName', 'desc')} class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100" role="menuitem">First name Z–A</button>
+                  <button type="button" onclick={() => handleSort('lastName', 'asc')} class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100" role="menuitem">Last name A–Z</button>
+                  <button type="button" onclick={() => handleSort('lastName', 'desc')} class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100" role="menuitem">Last name Z–A</button>
+                </div>
+              {/if}
+            </div>
+          {/if}
+
+          {#if onDeleteGroup}
+            <button
+              type="button"
+              onclick={handleToolbarDelete}
+              disabled={!selectedGroup}
+              class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors {
+                !selectedGroup
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-red-600 hover:bg-red-50 hover:text-red-700'
+              }"
+            >
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+              </svg>
+              Delete
+            </button>
+          {/if}
+        </div>
+      {/if}
+
       <div class="h-full p-6" style={cardSizeStyle(uiSettings.cardSize)}>
         <GroupEditingLayout
           {groups}
@@ -211,10 +318,8 @@
           {onReorder}
           {onDragStart}
           {onDragEnd}
-          {onAlphabetize}
           {flashingIds}
           {onUpdateGroup}
-          onDeleteGroup={onDeleteGroup ? handleRequestDelete : undefined}
           {onAddGroup}
           {newGroupId}
           {pickedUpStudentId}
@@ -224,7 +329,10 @@
           {onKeyboardMove}
           {studentPreferenceRanks}
           {studentHasPreferences}
-          {onReorderGroups}
+          {selectedGroupId}
+          onSelectGroup={handleSelectGroup}
+          {renamingGroupId}
+          onRenameComplete={handleRenameComplete}
         />
       </div>
     {:else}

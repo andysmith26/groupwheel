@@ -5,7 +5,6 @@
   import AddGroupCard from './AddGroupCard.svelte';
   import HorizontalScrollContainer from '$lib/components/ui/HorizontalScrollContainer.svelte';
   import type { KeyboardMoveDirection } from './DraggableStudentCard.svelte';
-  import type { SortableGroupDropState } from '$lib/utils/pragmatic-dnd';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
   import { getGroupColWidthPx } from '$lib/utils/cardSizeTokens';
 
@@ -33,9 +32,7 @@
     onDragEnd,
     flashingIds = new Set<string>(),
     onUpdateGroup,
-    onDeleteGroup,
     onAddGroup,
-    onAlphabetize,
     newGroupId = null,
     selectedStudentPreferences = null,
     layout = 'masonry',
@@ -52,7 +49,10 @@
     onKeyboardCancel,
     onKeyboardMove,
     onStudentClick,
-    onReorderGroups
+    selectedGroupId = null,
+    onSelectGroup,
+    renamingGroupId = null,
+    onRenameComplete
   } = $props<{
     groups?: Group[];
     studentsById?: Record<string, Student>;
@@ -68,9 +68,7 @@
     onDragEnd?: () => void;
     flashingIds?: Set<string>;
     onUpdateGroup?: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
-    onDeleteGroup?: (groupId: string) => void;
     onAddGroup?: () => void;
-    onAlphabetize?: (groupId: string) => void;
     newGroupId?: string | null;
     selectedStudentPreferences?: string[] | null;
     layout?: LayoutMode;
@@ -88,28 +86,15 @@
     onKeyboardCancel?: () => void;
     onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
     onStudentClick?: (studentId: string) => void;
-    onReorderGroups?: (payload: { draggedGroupId: string; targetGroupId: string; edge: 'left' | 'right' }) => void;
+    /** ID of the currently selected group (for toolbar actions). */
+    selectedGroupId?: string | null;
+    /** Called when a group header is clicked to select/deselect. */
+    onSelectGroup?: (groupId: string) => void;
+    /** When set, triggers inline rename on the matching group column. */
+    renamingGroupId?: string | null;
+    /** Called when rename completes or is cancelled. */
+    onRenameComplete?: () => void;
   }>();
-
-  // Group drag state
-  let draggingGroupId = $state<string | null>(null);
-
-  function handleGroupDragStart(groupId: string) {
-    draggingGroupId = groupId;
-  }
-
-  function handleGroupDragEnd() {
-    draggingGroupId = null;
-  }
-
-  function handleGroupDrop(state: SortableGroupDropState) {
-    if (!state.closestEdge || state.draggedGroupId === state.targetGroupId) return;
-    onReorderGroups?.({
-      draggedGroupId: state.draggedGroupId,
-      targetGroupId: state.targetGroupId,
-      edge: state.closestEdge as 'left' | 'right'
-    });
-  }
 
   // Helper to get sibling group names for duplicate validation
   function getSiblingNames(groupId: string): string[] {
@@ -148,8 +133,6 @@
           {onDragEnd}
           {flashingIds}
           {onUpdateGroup}
-          {onDeleteGroup}
-          {onAlphabetize}
           focusNameOnMount={group.id === newGroupId}
           siblingGroupNames={getSiblingNames(group.id)}
           preferenceRank={getPreferenceRank(group.id)}
@@ -164,6 +147,10 @@
           {onKeyboardMove}
           {onStudentClick}
           draggedStudentPreferences={selectedStudentPreferences}
+          selected={selectedGroupId === group.id}
+          onSelect={onSelectGroup}
+          {renamingGroupId}
+          {onRenameComplete}
         />
       {/each}
     </div>
@@ -183,8 +170,6 @@
         {onDragEnd}
         {flashingIds}
         {onUpdateGroup}
-        {onDeleteGroup}
-        {onAlphabetize}
         focusNameOnMount={group.id === newGroupId}
         siblingGroupNames={getSiblingNames(group.id)}
         preferenceRank={getPreferenceRank(group.id)}
@@ -199,11 +184,10 @@
         {onKeyboardMove}
         {onStudentClick}
         draggedStudentPreferences={selectedStudentPreferences}
-        groupIndex={i}
-        {draggingGroupId}
-        onGroupDrop={handleGroupDrop}
-        onGroupDragStart={handleGroupDragStart}
-        onGroupDragEnd={handleGroupDragEnd}
+        selected={selectedGroupId === group.id}
+        onSelect={onSelectGroup}
+        {renamingGroupId}
+        {onRenameComplete}
       />
     {/each}
 

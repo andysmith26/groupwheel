@@ -43,6 +43,12 @@ export interface Group {
    * Used for advisory/homeroom scenarios.
    */
   leaderStaffId?: string;
+
+  /**
+   * Index into the GROUP_COLOR_HEX / GROUP_COLORS arrays.
+   * Assigned randomly at creation time and persists across renames.
+   */
+  colorIndex?: number;
 }
 
 /**
@@ -72,6 +78,7 @@ export function createGroup(input: {
   capacity?: number | null;
   memberIds?: string[];
   leaderStaffId?: string;
+  colorIndex?: number;
 }): Group {
   if (!input.id || typeof input.id !== 'string') {
     throw new Error('Group id is required and must be a string');
@@ -100,7 +107,8 @@ export function createGroup(input: {
     name: input.name.trim(),
     capacity: normalizedCapacity,
     memberIds: uniqueMemberIds,
-    leaderStaffId: input.leaderStaffId
+    leaderStaffId: input.leaderStaffId,
+    colorIndex: input.colorIndex
   };
 }
 

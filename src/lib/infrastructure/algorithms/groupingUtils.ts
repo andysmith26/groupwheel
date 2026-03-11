@@ -1,5 +1,6 @@
 import type { Group } from '$lib/domain';
 import type { IdGenerator } from '$lib/application/ports';
+import { randomColorIndex } from '$lib/utils/groupColors';
 
 export interface SharedGroupingConfig {
   groups?: Array<{ id?: string; name: string; capacity?: number | null }>;
@@ -27,7 +28,8 @@ export function buildGroups(
       id: group.id ?? idGenerator.generateId(),
       name: group.name,
       capacity: group.capacity ?? null,
-      memberIds: []
+      memberIds: [],
+      colorIndex: randomColorIndex()
     }));
   }
 
@@ -78,7 +80,8 @@ export function generateDefaultGroups(
       id: idGenerator.generateId(),
       name: `Group ${i}`,
       capacity: capacity ?? null,
-      memberIds: []
+      memberIds: [],
+      colorIndex: randomColorIndex()
     });
 
     remainingStudents -= capacity;

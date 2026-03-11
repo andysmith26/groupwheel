@@ -7,6 +7,7 @@ import type {
 } from '$lib/domain';
 import { computeAnalyticsSync } from '$lib/application/useCases/computeAnalyticsSync';
 import type { ScenarioRepository, IdGenerator } from '$lib/application/ports';
+import { randomColorIndex } from '$lib/utils/groupColors';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'failed';
 
@@ -428,7 +429,8 @@ export class ScenarioEditingStore {
       id: this.deps.idGenerator.generateId(),
       name: finalName,
       capacity: null,
-      memberIds: []
+      memberIds: [],
+      colorIndex: randomColorIndex()
     };
 
     const command: CreateGroupCommand = {

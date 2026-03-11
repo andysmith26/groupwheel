@@ -99,7 +99,8 @@ export async function createScenarioFromGroups(
         id: group.id,
         name: group.name,
         capacity: group.capacity,
-        memberIds: group.memberIds
+        memberIds: group.memberIds,
+        colorIndex: group.colorIndex
       })),
       participantIds: pool.memberIds,
       createdAt: deps.clock.now(),

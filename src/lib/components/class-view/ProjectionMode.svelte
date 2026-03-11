@@ -15,7 +15,6 @@
 
   import type { Group, Student } from '$lib/domain';
   import { getStudentDisplayName } from '$lib/domain/student';
-  import { getGroupColor } from '$lib/utils/groupColors';
 
   interface Props {
     groups: Group[];
@@ -67,10 +66,13 @@
     'background-color: #be185d'  // pink-700
   ];
 
-  function getProjectionColor(groupName: string): string {
+  function getProjectionColor(group: Group): string {
+    if (group.colorIndex != null) {
+      return PROJECTION_COLORS[group.colorIndex % PROJECTION_COLORS.length];
+    }
     let hash = 0;
-    for (let i = 0; i < groupName.length; i++) {
-      hash = groupName.charCodeAt(i) + ((hash << 5) - hash);
+    for (let i = 0; i < group.name.length; i++) {
+      hash = group.name.charCodeAt(i) + ((hash << 5) - hash);
     }
     return PROJECTION_COLORS[Math.abs(hash) % PROJECTION_COLORS.length];
   }
@@ -99,7 +101,7 @@
     {#each groups as group (group.id)}
       {@const members = getMembers(group)}
       <div class="group-card">
-        <div class="group-header" style={getProjectionColor(group.name)}>
+        <div class="group-header" style={getProjectionColor(group)}>
           <h2 class="group-name">{group.name}</h2>
           <span class="group-count">{members.length} {members.length === 1 ? 'student' : 'students'}</span>
         </div>
