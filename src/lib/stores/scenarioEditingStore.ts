@@ -29,6 +29,7 @@ export type DeleteGroupCommand = {
   groupId: string;
   previousGroup: Group;
   displacedStudentIds: string[];
+  originalIndex: number;
 };
 
 export type UpdateGroupCommand = {
@@ -51,6 +52,12 @@ export type ReorderUnassignedCommand = {
   previousOrder: string[]; // Previous order for undo
 };
 
+export type ReorderGroupColumnsCommand = {
+  type: 'REORDER_GROUP_COLUMNS';
+  newGroupIds: string[];
+  previousGroupIds: string[];
+};
+
 export type RegenerateCommand = {
   type: 'REGENERATE';
   previousGroups: Group[];
@@ -64,6 +71,7 @@ export type Command =
   | UpdateGroupCommand
   | ReorderGroupCommand
   | ReorderUnassignedCommand
+  | ReorderGroupColumnsCommand
   | RegenerateCommand;
 
 type ScenarioMetadata = {
@@ -460,11 +468,13 @@ export class ScenarioEditingStore {
       return { success: false, reason: 'group_not_found' };
     }
 
+    const originalIndex = snapshot.groups.findIndex((g) => g.id === groupId);
     const command: DeleteGroupCommand = {
       type: 'DELETE_GROUP',
       groupId,
       previousGroup: { ...targetGroup, memberIds: [...targetGroup.memberIds] },
-      displacedStudentIds: [...targetGroup.memberIds]
+      displacedStudentIds: [...targetGroup.memberIds],
+      originalIndex
     };
 
     this.updateState((current) => {
@@ -705,6 +715,49 @@ export class ScenarioEditingStore {
     return { success: true };
   }
 
+  reorderGroupColumns(newGroupIds: string[]): { success: boolean; reason?: string } {
+    this.ensureInitialized();
+
+    const snapshot = this.state;
+    if (snapshot.saveStatus === 'failed') {
+      return { success: false, reason: 'save_failed' };
+    }
+
+    // Validate that newGroupIds contains exactly the same group IDs
+    const currentIds = snapshot.groups.map((g) => g.id);
+    const currentSet = new Set(currentIds);
+    const newSet = new Set(newGroupIds);
+    if (currentSet.size !== newSet.size || ![...currentSet].every((id) => newSet.has(id))) {
+      return { success: false, reason: 'invalid_order' };
+    }
+
+    const command: ReorderGroupColumnsCommand = {
+      type: 'REORDER_GROUP_COLUMNS',
+      newGroupIds: [...newGroupIds],
+      previousGroupIds: [...currentIds]
+    };
+
+    this.updateState((current) => {
+      const byId = new Map(current.groups.map((g) => [g.id, g]));
+      const reordered = newGroupIds.map((id) => byId.get(id)!);
+      const { history, historyIndex } = addToHistory(
+        current.history,
+        current.historyIndex,
+        command
+      );
+      return {
+        ...current,
+        groups: reordered,
+        history,
+        historyIndex,
+        pendingSave: true
+      };
+    });
+
+    this.scheduleSave();
+    return { success: true };
+  }
+
   undo(): boolean {
     this.ensureInitialized();
 
@@ -742,8 +795,10 @@ export class ScenarioEditingStore {
         }
 
         case 'DELETE_GROUP': {
-          // Restore the group (append for simplicity)
-          newGroups = [...current.groups, command.previousGroup];
+          // Restore the group at its original position
+          newGroups = [...current.groups];
+          const insertIndex = Math.min(command.originalIndex, newGroups.length);
+          newGroups.splice(insertIndex, 0, command.previousGroup);
           break;
         }
 
@@ -764,6 +819,12 @@ export class ScenarioEditingStore {
         case 'REORDER_UNASSIGNED': {
           newGroups = current.groups;
           newUnassignedOrder = [...command.previousOrder];
+          break;
+        }
+
+        case 'REORDER_GROUP_COLUMNS': {
+          const byId = new Map(current.groups.map((g) => [g.id, g]));
+          newGroups = command.previousGroupIds.map((id) => byId.get(id)!);
           break;
         }
 
@@ -840,6 +901,12 @@ export class ScenarioEditingStore {
         case 'REORDER_UNASSIGNED': {
           newGroups = current.groups;
           newUnassignedOrder = [...command.newOrder];
+          break;
+        }
+
+        case 'REORDER_GROUP_COLUMNS': {
+          const byId = new Map(current.groups.map((g) => [g.id, g]));
+          newGroups = command.newGroupIds.map((id) => byId.get(id)!);
           break;
         }
 

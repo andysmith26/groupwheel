@@ -426,6 +426,7 @@
             onKeyboardMove={hasGroups && !isViewingHistory ? vm.actions.keyboardMove : undefined}
             {studentPreferenceRanks}
             {studentHasPreferences}
+            onReorderGroups={hasGroups && !isViewingHistory ? vm.actions.reorderGroups : undefined}
           />
 
           <!-- Analytics Panel — expandable, only when preference data warrants it (Decision 4, WP8) -->

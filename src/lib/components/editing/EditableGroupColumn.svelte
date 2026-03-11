@@ -1,9 +1,10 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import type { Group, Student } from '$lib/domain';
-  import { droppable, type Edge, type SortableDropState } from '$lib/utils/pragmatic-dnd';
+  import { droppable, sortableGroup, type Edge, type SortableDropState, type SortableGroupDropState } from '$lib/utils/pragmatic-dnd';
   import DraggableStudentCard, { type KeyboardMoveDirection } from './DraggableStudentCard.svelte';
   import DropIndicator from './DropIndicator.svelte';
+  import GroupDropIndicator from './GroupDropIndicator.svelte';
   import { getCapacityStatus } from '$lib/utils/groups';
 
   const {
@@ -33,7 +34,13 @@
     onStudentClick,
     draggedStudentPreferences = null,
     siblingGroupNames = [] as string[],
-    readonly = false
+    readonly = false,
+    groupIndex = 0,
+    draggingGroupId = null,
+    onGroupDrop,
+    onGroupEdgeChange,
+    onGroupDragStart,
+    onGroupDragEnd
   } = $props<{
     group: Group;
     studentsById: Record<string, Student>;
@@ -69,6 +76,18 @@
     siblingGroupNames?: string[];
     /** When true, suppresses drag-drop affordances and empty placeholder text. */
     readonly?: boolean;
+    /** Index of this group in the group array (for sortableGroup). */
+    groupIndex?: number;
+    /** ID of the group currently being dragged (null if none). */
+    draggingGroupId?: string | null;
+    /** Called when a group is dropped on this column. */
+    onGroupDrop?: (state: SortableGroupDropState) => void;
+    /** Called when the closest edge changes during a group drag. */
+    onGroupEdgeChange?: (groupId: string, edge: Edge | null) => void;
+    /** Called when this group starts being dragged. */
+    onGroupDragStart?: (groupId: string) => void;
+    /** Called when this group stops being dragged. */
+    onGroupDragEnd?: () => void;
   }>();
 
   const capacityStatus = $derived(getCapacityStatus(group));
@@ -163,6 +182,14 @@
   // Track which item has edge hover and which edge
   let hoveredItemId = $state<string | null>(null);
   let hoveredEdge = $state<Edge | null>(null);
+
+  // Group drag handle element binding
+  let headerEl = $state<HTMLElement | null>(null);
+
+  // Local group edge state for rendering indicator
+  let localGroupEdge = $state<Edge | null>(null);
+
+  const isThisGroupDragging = $derived(draggingGroupId === group.id);
 
   // Use memberIds directly - no sorting (preserve order for drag reordering)
   const memberIds = $derived(group.memberIds);
@@ -326,10 +353,46 @@
     preferenceStyles()
       ? `${preferenceStyles()!.borderColor} ${preferenceStyles()!.bgColor}`
       : 'border-gray-200 bg-gray-50'
-  }`}
+  } ${isThisGroupDragging ? 'opacity-40' : ''}`}
   style={`grid-row: span ${rowSpan}; height: 100%;`}
+  use:sortableGroup={{
+    groupId: group.id,
+    index: groupIndex,
+    dragHandle: headerEl ?? undefined,
+    disabled: readonly,
+    callbacks: {
+      onDragStart: () => onGroupDragStart?.(group.id),
+      onDragEnd: () => onGroupDragEnd?.(),
+      onEdgeChange: (edge) => {
+        localGroupEdge = edge;
+        onGroupEdgeChange?.(group.id, edge);
+      },
+      onDrop: (state) => onGroupDrop?.(state)
+    }
+  }}
 >
-  <div class="flex items-center justify-between gap-2">
+  <GroupDropIndicator edge="left" visible={localGroupEdge === 'left' && !isThisGroupDragging} />
+  <GroupDropIndicator edge="right" visible={localGroupEdge === 'right' && !isThisGroupDragging} />
+
+  <div class="group/header flex items-center gap-1">
+    {#if !readonly}
+      <div
+        bind:this={headerEl}
+        class="flex shrink-0 cursor-grab items-center self-stretch rounded opacity-0 transition-opacity hover:bg-gray-200 group-hover/header:opacity-100 active:cursor-grabbing"
+        title="Drag to reorder group"
+        aria-label="Drag to reorder group"
+      >
+        <svg class="h-3.5 w-3 text-gray-400" viewBox="0 0 6 10" fill="currentColor">
+          <circle cx="1.5" cy="1.5" r="1" />
+          <circle cx="4.5" cy="1.5" r="1" />
+          <circle cx="1.5" cy="5" r="1" />
+          <circle cx="4.5" cy="5" r="1" />
+          <circle cx="1.5" cy="8.5" r="1" />
+          <circle cx="4.5" cy="8.5" r="1" />
+        </svg>
+      </div>
+    {/if}
+    <div class="flex min-w-0 flex-1 items-center justify-between gap-2">
     {#if isEditingName}
       <input
         bind:this={nameInputEl}
@@ -423,6 +486,7 @@
           {capacityLabel()}
         </span>
       {/if}
+    </div>
     </div>
   </div>
 

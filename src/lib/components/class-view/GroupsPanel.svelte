@@ -56,6 +56,9 @@
     // Preference-adaptive UI (WP8 / Decision 4)
     studentPreferenceRanks?: Map<string, number | null>;
     studentHasPreferences?: Map<string, boolean>;
+
+    // Group reordering
+    onReorderGroups?: (payload: { draggedGroupId: string; targetGroupId: string; edge: 'left' | 'right' }) => void;
   }
 
   let {
@@ -87,7 +90,8 @@
     onKeyboardCancel,
     onKeyboardMove,
     studentPreferenceRanks = new Map(),
-    studentHasPreferences = new Map()
+    studentHasPreferences = new Map(),
+    onReorderGroups
   }: Props = $props();
 
   function handleGenerate() {
@@ -220,6 +224,7 @@
           {onKeyboardMove}
           {studentPreferenceRanks}
           {studentHasPreferences}
+          {onReorderGroups}
         />
       </div>
     {:else}

@@ -5,6 +5,7 @@
   import AddGroupCard from './AddGroupCard.svelte';
   import HorizontalScrollContainer from '$lib/components/ui/HorizontalScrollContainer.svelte';
   import type { KeyboardMoveDirection } from './DraggableStudentCard.svelte';
+  import type { SortableGroupDropState } from '$lib/utils/pragmatic-dnd';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
   import { getGroupColWidthPx } from '$lib/utils/cardSizeTokens';
 
@@ -50,7 +51,8 @@
     onKeyboardDrop,
     onKeyboardCancel,
     onKeyboardMove,
-    onStudentClick
+    onStudentClick,
+    onReorderGroups
   } = $props<{
     groups?: Group[];
     studentsById?: Record<string, Student>;
@@ -86,7 +88,28 @@
     onKeyboardCancel?: () => void;
     onKeyboardMove?: (direction: KeyboardMoveDirection) => void;
     onStudentClick?: (studentId: string) => void;
+    onReorderGroups?: (payload: { draggedGroupId: string; targetGroupId: string; edge: 'left' | 'right' }) => void;
   }>();
+
+  // Group drag state
+  let draggingGroupId = $state<string | null>(null);
+
+  function handleGroupDragStart(groupId: string) {
+    draggingGroupId = groupId;
+  }
+
+  function handleGroupDragEnd() {
+    draggingGroupId = null;
+  }
+
+  function handleGroupDrop(state: SortableGroupDropState) {
+    if (!state.closestEdge || state.draggedGroupId === state.targetGroupId) return;
+    onReorderGroups?.({
+      draggedGroupId: state.draggedGroupId,
+      targetGroupId: state.targetGroupId,
+      edge: state.closestEdge as 'left' | 'right'
+    });
+  }
 
   // Helper to get sibling group names for duplicate validation
   function getSiblingNames(groupId: string): string[] {
@@ -176,6 +199,11 @@
         {onKeyboardMove}
         {onStudentClick}
         draggedStudentPreferences={selectedStudentPreferences}
+        groupIndex={i}
+        {draggingGroupId}
+        onGroupDrop={handleGroupDrop}
+        onGroupDragStart={handleGroupDragStart}
+        onGroupDragEnd={handleGroupDragEnd}
       />
     {/each}
 

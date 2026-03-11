@@ -356,6 +356,163 @@ export function sortableItem(element: HTMLElement, config: SortableItemConfig) {
   };
 }
 
+// =============================================================================
+// Sortable Group Column action — for reordering entire group columns
+// =============================================================================
+
+export type SortableGroupConfig = {
+  groupId: string;
+  index: number;
+  dragHandle?: HTMLElement;
+  disabled?: boolean;
+  callbacks?: {
+    onDragStart?: () => void;
+    onDragEnd?: () => void;
+    onEdgeChange?: (edge: Edge | null) => void;
+    onDrop?: (state: SortableGroupDropState) => void;
+  };
+};
+
+export type SortableGroupDropState = {
+  draggedGroupId: string;
+  targetGroupId: string;
+  targetIndex: number;
+  closestEdge: Edge | null;
+};
+
+/** CSS custom properties to copy onto group drag preview clones */
+const GROUP_SIZE_VARS = [
+  '--group-col-width',
+  '--card-width',
+  '--card-font-size',
+  '--card-padding',
+  '--grip-size',
+  '--dot-size',
+  '--card-gap'
+];
+
+/**
+ * Svelte action for sortable group columns.
+ * Makes an element both draggable and a drop target for horizontal reordering.
+ * Uses type 'group-column' to avoid conflicts with student-card drags.
+ */
+export function sortableGroup(element: HTMLElement, config: SortableGroupConfig) {
+  if (!isBrowser) {
+    return {
+      update() {},
+      destroy() {}
+    };
+  }
+
+  let currentConfig = config;
+
+  if (config.disabled) {
+    return {
+      update(newConfig: SortableGroupConfig) {
+        currentConfig = newConfig;
+      },
+      destroy() {}
+    };
+  }
+
+  const draggableCleanup = makeDraggable({
+    element,
+    dragHandle: config.dragHandle ?? element,
+    getInitialData: () => ({
+      type: 'group-column',
+      groupId: currentConfig.groupId,
+      index: currentConfig.index
+    }),
+    onGenerateDragPreview: ({ nativeSetDragImage, location }) => {
+      const rect = element.getBoundingClientRect();
+      const offsetX = location.current.input.clientX - rect.left;
+      const offsetY = location.current.input.clientY - rect.top;
+
+      setCustomNativeDragPreview({
+        nativeSetDragImage,
+        getOffset: () => ({ x: offsetX, y: offsetY }),
+        render: ({ container }) => {
+          const clone = element.cloneNode(true) as HTMLElement;
+          clone.style.width = `${element.offsetWidth}px`;
+          clone.style.opacity = '0.85';
+          // Copy CSS custom properties for consistent sizing
+          const computed = getComputedStyle(element);
+          for (const prop of GROUP_SIZE_VARS) {
+            const val = computed.getPropertyValue(prop);
+            if (val) clone.style.setProperty(prop, val);
+          }
+          container.appendChild(clone);
+        }
+      });
+    },
+    onDragStart: () => {
+      currentConfig.callbacks?.onDragStart?.();
+    },
+    onDrop: () => {
+      currentConfig.callbacks?.onDragEnd?.();
+    }
+  });
+
+  const dropTargetCleanup = dropTargetForElements({
+    element,
+    canDrop: ({ source }) => source.data.type === 'group-column',
+    getData: ({ input, element: el }) => {
+      return attachClosestEdge(
+        {
+          type: 'group-column',
+          groupId: currentConfig.groupId,
+          index: currentConfig.index
+        },
+        {
+          input,
+          element: el,
+          allowedEdges: ['left', 'right']
+        }
+      );
+    },
+    onDrag: ({ self }) => {
+      const edge = extractClosestEdge(self.data);
+      currentConfig.callbacks?.onEdgeChange?.(edge);
+    },
+    onDragLeave: () => {
+      currentConfig.callbacks?.onEdgeChange?.(null);
+    },
+    onDrop: ({ source, self }) => {
+      currentConfig.callbacks?.onEdgeChange?.(null);
+
+      const dragData = source.data as { groupId?: string; type?: string };
+      if (dragData.type !== 'group-column' || !dragData.groupId) return;
+
+      const edge = extractClosestEdge(self.data);
+      const targetData = self.data as { groupId?: string; index?: number };
+      const targetGroupId = targetData?.groupId || '';
+      const targetIndex = targetData?.index ?? 0;
+
+      let insertIndex = targetIndex;
+      if (edge === 'right') {
+        insertIndex = targetIndex + 1;
+      }
+
+      currentConfig.callbacks?.onDrop?.({
+        draggedGroupId: dragData.groupId,
+        targetGroupId,
+        targetIndex: insertIndex,
+        closestEdge: edge
+      });
+    }
+  });
+
+  return {
+    update(newConfig: SortableGroupConfig) {
+      currentConfig = newConfig;
+    },
+    destroy() {
+      draggableCleanup();
+      dropTargetCleanup();
+    }
+  };
+}
+
 // Global monitor to track currently dragging items
 let currentlyDraggingId: string | null = null;
 

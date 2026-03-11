@@ -166,6 +166,7 @@ export interface ClassViewVm {
     createGroup: () => void;
     updateGroup: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
     deleteGroup: (groupId: string) => void;
+    reorderGroups: (payload: { draggedGroupId: string; targetGroupId: string; edge: 'left' | 'right' }) => void;
 
     // Keyboard drag-drop
     keyboardPickUp: (studentId: string, container: string, index: number) => void;
@@ -639,6 +640,25 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     state.editingStore.deleteGroup(groupId);
   }
 
+  // --- Group reordering ---
+
+  function reorderGroups(payload: { draggedGroupId: string; targetGroupId: string; edge: 'left' | 'right' }): void {
+    if (!state.editingStore || !state.view) return;
+
+    const currentIds = state.view.groups.map((g) => g.id);
+    const fromIndex = currentIds.indexOf(payload.draggedGroupId);
+    const toIndex = currentIds.indexOf(payload.targetGroupId);
+    if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
+
+    const newIds = [...currentIds];
+    newIds.splice(fromIndex, 1);
+    let insertAt = newIds.indexOf(payload.targetGroupId);
+    if (payload.edge === 'right') insertAt++;
+    newIds.splice(insertAt, 0, payload.draggedGroupId);
+
+    state.editingStore.reorderGroupColumns(newIds);
+  }
+
   // --- Keyboard drag-drop ---
 
   function keyboardPickUp(studentId: string, container: string, index: number): void {
@@ -908,6 +928,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       createGroup,
       updateGroup,
       deleteGroup,
+      reorderGroups,
       keyboardPickUp,
       keyboardDrop,
       keyboardCancel,
