@@ -58,7 +58,7 @@ export function getGenerationSettings(programId: string): GenerationSettings {
   return { ...DEFAULTS };
 }
 
-export function saveGenerationSettings(programId: string, settings: GenerationSettings): void {
+export function saveGenerationSettings(programId: string, settings: Partial<GenerationSettings>): void {
   try {
     localStorage.setItem(`${STORAGE_KEY_PREFIX}${programId}`, JSON.stringify(settings));
   } catch {

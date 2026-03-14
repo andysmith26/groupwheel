@@ -26,6 +26,9 @@
   import AnalyticsPanel from '$lib/components/editing/AnalyticsPanel.svelte';
   import ScenarioComparison from '$lib/components/editing/ScenarioComparison.svelte';
   import ContextualHint from '$lib/components/common/ContextualHint.svelte';
+  import StudentDetailSidebar from '$lib/components/workspace/StudentDetailSidebar.svelte';
+  import RemoveStudentConfirmDialog from './RemoveStudentConfirmDialog.svelte';
+  import DeleteSessionConfirmDialog from './DeleteSessionConfirmDialog.svelte';
   import { hintState } from '$lib/stores/hintState.svelte';
 
   interface Props {
@@ -49,7 +52,6 @@
   let studentsById = $derived(vm.state.studentsById);
   let view = $derived(vm.state.view);
   let pool = $derived(vm.state.pool);
-  let groupSize = $derived(vm.state.groupSize);
   let unplacedStudentCount = $derived(vm.state.unplacedStudentCount);
 
   // Quick Start upgrade path (WP11 / Decision 5)
@@ -65,6 +67,8 @@
   let hasGroups = $derived((view?.groups.length ?? 0) > 0);
   let newGroupId = $derived(vm.state.newGroupId);
   let isProjecting = $derived(vm.state.liveSessionStatus === 'PROJECTING');
+  let isPublished = $derived(vm.state.isPublished);
+  let isPublishing = $derived(vm.state.isPublishing);
 
   // Preference-adaptive UI (WP8 / Decision 4)
   let studentPreferenceRanks = $derived(vm.state.studentPreferenceRanks);
@@ -103,18 +107,54 @@
   let sessions = $derived(vm.state.sessions);
   let historyPanelOpen = $derived(vm.state.historyPanelOpen);
   let comparison = $derived(vm.state.comparison);
-  /** Show history button when there's any history to view */
+  let viewingSessionId = $derived(vm.state.viewingSessionId);
+  let viewingSessionGroups = $derived(vm.state.viewingSessionGroups);
+  /** Show history button when there are past published sessions */
   let hasHistory = $derived(
-    generationHistory.length > 0 ||
     sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED').length > 0
   );
-  /** Groups to display: either current view or a history entry */
+  /** Groups to display: past session placements, generation history entry, or current view */
   let displayGroups = $derived(
-    selectedHistoryIndex >= 0 && selectedHistoryIndex < generationHistory.length
-      ? generationHistory[selectedHistoryIndex].groups
-      : (view?.groups ?? [])
+    viewingSessionId
+      ? viewingSessionGroups
+      : selectedHistoryIndex >= 0 && selectedHistoryIndex < generationHistory.length
+        ? generationHistory[selectedHistoryIndex].groups
+        : (view?.groups ?? [])
   );
-  let isViewingHistory = $derived(selectedHistoryIndex >= 0);
+  let isViewingHistory = $derived(viewingSessionId !== null || selectedHistoryIndex >= 0);
+  let viewingSession = $derived(
+    viewingSessionId ? sessions.find((s) => s.id === viewingSessionId) ?? null : null
+  );
+
+  // Student detail sidebar
+  let selectedStudentId = $state<string | null>(null);
+  let studentSidebarMode = $state<'view' | 'edit' | 'create'>('view');
+  let showRemoveConfirm = $state(false);
+  let deletingSessionId = $state<string | null>(null);
+  let deletingSession = $derived(
+    deletingSessionId ? sessions.find((s) => s.id === deletingSessionId) ?? null : null
+  );
+  let selectedStudent = $derived(selectedStudentId ? (studentsById[selectedStudentId] ?? null) : null);
+  let selectedStudentPreferences = $derived(
+    selectedStudentId ? (vm.state.preferenceMap[selectedStudentId] ?? null) : null
+  );
+  let selectedStudentRecentGroupmates = $derived.by(() => {
+    if (!selectedStudentId) return [];
+    const stats = vm.state.pairingStats;
+    return stats
+      .filter((s) => s.studentAId === selectedStudentId || s.studentBId === selectedStudentId)
+      .map((s) => ({
+        studentName: s.studentAId === selectedStudentId ? s.studentBName : s.studentAName,
+        count: s.count
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  });
+  let studentSidebarOpen = $derived(selectedStudent !== null || studentSidebarMode === 'create');
+  let removeStudentIsInGroup = $derived.by(() => {
+    if (!selectedStudentId || !view) return false;
+    return view.groups.some((g) => g.memberIds.includes(selectedStudentId!));
+  });
 
   onMount(() => {
     vm.actions.init(activityId);
@@ -177,16 +217,46 @@
     vm.actions.deleteGroup(groupId);
   }
 
-  function handleProject() {
+  function handlePublish() {
+    vm.actions.publishSession();
+  }
+
+  function handleDisplay() {
     vm.actions.enterProjection();
+  }
+
+  function handleNewSession() {
+    vm.actions.startNewSession();
   }
 
   function handleExitProjection() {
     vm.actions.exitProjection();
   }
 
-  function handleProjectionRegenerate(size: number) {
-    vm.actions.generateGroups(size);
+  function handleProjectionRegenerate() {
+    vm.actions.generateGroups();
+  }
+
+  function handleRequestDeleteSession(sessionId: string) {
+    deletingSessionId = sessionId;
+  }
+
+  async function handleConfirmDeleteSession() {
+    if (!deletingSessionId) return;
+    // If deleting the session we're currently viewing, go back to current
+    if (viewingSessionId === deletingSessionId) {
+      await vm.actions.selectSession(null);
+    }
+    await vm.actions.deleteSession(deletingSessionId);
+    deletingSessionId = null;
+  }
+
+  function handleCancelDeleteSession() {
+    deletingSessionId = null;
+  }
+
+  function handleRenameSession(sessionId: string, name: string) {
+    vm.actions.renameSession(sessionId, name);
   }
 
   function handleCompare() {
@@ -194,11 +264,96 @@
   }
 
   function handleToggleHistory() {
+    selectedStudentId = null;
+    // When closing the history panel, return to current session
+    if (historyPanelOpen && viewingSessionId) {
+      vm.actions.selectSession(null);
+    }
     vm.actions.toggleHistoryPanel();
   }
 
   function handleToggleSettings() {
+    selectedStudentId = null;
     vm.actions.toggleSettingsPanel();
+  }
+
+  function handleStudentClick(studentId: string) {
+    // Toggle: clicking the same student closes the sidebar
+    if (selectedStudentId === studentId && studentSidebarMode === 'view') {
+      selectedStudentId = null;
+      return;
+    }
+    // Close other sidebars
+    if (historyPanelOpen) vm.actions.toggleHistoryPanel();
+    if (settingsPanelOpen) vm.actions.toggleSettingsPanel();
+    selectedStudentId = studentId;
+    studentSidebarMode = 'view';
+  }
+
+  function handleCloseStudentDetail() {
+    selectedStudentId = null;
+    studentSidebarMode = 'view';
+  }
+
+  function handleStartAddStudent() {
+    if (historyPanelOpen) vm.actions.toggleHistoryPanel();
+    if (settingsPanelOpen) vm.actions.toggleSettingsPanel();
+    selectedStudentId = null;
+    studentSidebarMode = 'create';
+  }
+
+  async function handleSaveStudent(data: {
+    firstName: string;
+    lastName?: string;
+    gradeLevel?: string;
+    gender?: string;
+  }): Promise<boolean> {
+    if (studentSidebarMode === 'create') {
+      const result = await vm.actions.addStudent(data);
+      if (result.success && result.studentId) {
+        selectedStudentId = result.studentId;
+        studentSidebarMode = 'view';
+        return true;
+      }
+      return result.success;
+    } else {
+      // Edit mode
+      if (!selectedStudentId) return false;
+      const success = await vm.actions.updateStudent({ studentId: selectedStudentId, ...data });
+      if (success) {
+        studentSidebarMode = 'view';
+      }
+      return success;
+    }
+  }
+
+  function handleEditStudent() {
+    studentSidebarMode = 'edit';
+  }
+
+  function handleCancelEditStudent() {
+    if (studentSidebarMode === 'create') {
+      selectedStudentId = null;
+      studentSidebarMode = 'view';
+    } else {
+      studentSidebarMode = 'view';
+    }
+  }
+
+  function handleRequestRemoveStudent() {
+    showRemoveConfirm = true;
+  }
+
+  async function handleConfirmRemoveStudent() {
+    if (!selectedStudentId) return;
+    await vm.actions.removeStudent(selectedStudentId);
+    selectedStudentId = null;
+    studentSidebarMode = 'view';
+    showRemoveConfirm = false;
+  }
+
+  function handleCancelRemoveStudent() {
+    showRemoveConfirm = false;
   }
 
   function handleDismissRotationHint() {
@@ -313,7 +468,7 @@
     </div>
   {:else if loadError}
     <div class="mx-auto max-w-md p-8">
-      <Alert variant="error">{loadError}</Alert>
+      <Alert variant="error" dismissible>{loadError}</Alert>
       <button
         type="button"
         class="mt-4 text-sm text-gray-500 hover:text-gray-700"
@@ -333,10 +488,14 @@
       {hasHistory}
       {historyPanelOpen}
       {isViewingHistory}
+      {isPublished}
+      {isPublishing}
       onUndo={handleUndo}
       onRedo={handleRedo}
       onBack={handleBack}
-      onProject={handleProject}
+      onPublish={handlePublish}
+      onDisplay={handleDisplay}
+      onNewSession={handleNewSession}
       onRetrySave={handleRetrySave}
       onCompare={handleCompare}
       onToggleHistory={handleToggleHistory}
@@ -354,6 +513,9 @@
           {studentHasPreferences}
           {hasPreferenceData}
           {hasPlaceholderStudents}
+          onAddStudent={handleStartAddStudent}
+          onStudentClick={handleStudentClick}
+          {selectedStudentId}
         />
       </div>
 
@@ -363,10 +525,19 @@
           {#if isViewingHistory}
             <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
               <div class="flex items-center justify-between">
-                <span>Viewing a previous arrangement (read-only)</span>
+                <span>
+                  {#if viewingSession}
+                    Viewing "{viewingSession.name}" (read-only)
+                  {:else}
+                    Viewing a previous arrangement (read-only)
+                  {/if}
+                </span>
                 <button
                   type="button"
-                  onclick={() => vm.actions.selectHistoryEntry(-1)}
+                  onclick={() => {
+                    vm.actions.selectSession(null);
+                    vm.actions.selectHistoryEntry(-1);
+                  }}
                   class="font-medium text-amber-700 hover:text-amber-900"
                 >
                   Back to current
@@ -401,9 +572,10 @@
             groups={displayGroups}
             {studentsById}
             studentCount={students.length}
-            {groupSize}
-            onGroupSizeChange={(size) => vm.actions.setGroupSize(size)}
-            onGenerate={(size) => vm.actions.generateGroups(size)}
+            readOnly={isPublished || isViewingHistory}
+            onGenerate={(groupCount) => vm.actions.generateGroups(groupCount)}
+            onAssignAll={() => vm.actions.assignAll()}
+            onShuffle={() => vm.actions.shuffleGroups()}
             onImport={openImportModal}
             disabled={loading || !!loadError || isViewingHistory}
             {isGenerating}
@@ -426,6 +598,7 @@
             onKeyboardMove={hasGroups && !isViewingHistory ? vm.actions.keyboardMove : undefined}
             {studentPreferenceRanks}
             {studentHasPreferences}
+            onStudentClick={hasGroups && !isViewingHistory ? handleStudentClick : undefined}
           />
 
           <!-- Analytics Panel — expandable, only when preference data warrants it (Decision 4, WP8) -->
@@ -486,6 +659,21 @@
           </div>
         </div>
 
+        <!-- Student Detail Sidebar — click a student card to view/edit/create -->
+        {#if studentSidebarOpen}
+          <StudentDetailSidebar
+            student={selectedStudent}
+            mode={studentSidebarMode}
+            preferences={selectedStudentPreferences}
+            recentGroupmates={selectedStudentRecentGroupmates}
+            onClose={handleCloseStudentDetail}
+            onSave={handleSaveStudent}
+            onDelete={handleRequestRemoveStudent}
+            onEditMode={handleEditStudent}
+            onCancelEdit={handleCancelEditStudent}
+          />
+        {/if}
+
         <!-- Settings Panel (WP10) — expandable sidebar -->
         <SettingsPanel
           open={settingsPanelOpen}
@@ -500,11 +688,13 @@
         <!-- History Panel (WP9) — expandable sidebar -->
         <HistoryPanel
           open={historyPanelOpen}
-          {generationHistory}
           {sessions}
-          {selectedHistoryIndex}
-          onSelect={(index) => vm.actions.selectHistoryEntry(index)}
+          {viewingSessionId}
+          currentSessionId={isPublished ? vm.state.latestPublishedSession?.id ?? null : null}
+          onSelectSession={(sessionId) => vm.actions.selectSession(sessionId)}
           onToggle={handleToggleHistory}
+          onDeleteSession={handleRequestDeleteSession}
+          onRenameSession={handleRenameSession}
         />
       </div>
     </div>
@@ -532,9 +722,25 @@
   <ProjectionMode
     groups={view.groups}
     {studentsById}
-    {groupSize}
     {isGenerating}
     onRegenerate={handleProjectionRegenerate}
     onExit={handleExitProjection}
+  />
+{/if}
+
+{#if showRemoveConfirm && selectedStudent}
+  <RemoveStudentConfirmDialog
+    studentName={`${selectedStudent.firstName} ${selectedStudent.lastName ?? ''}`.trim()}
+    isInGroup={removeStudentIsInGroup}
+    onConfirm={handleConfirmRemoveStudent}
+    onCancel={handleCancelRemoveStudent}
+  />
+{/if}
+
+{#if deletingSession}
+  <DeleteSessionConfirmDialog
+    sessionName={deletingSession.name}
+    onConfirm={handleConfirmDeleteSession}
+    onCancel={handleCancelDeleteSession}
   />
 {/if}

@@ -12,6 +12,7 @@
 
   import { goto } from '$app/navigation';
   import { getAppEnvContext } from '$lib/contexts/appEnv';
+  import { InlineError } from '$lib/components/ui';
   import { quickStartActivity, quickGenerateGroups } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
 
@@ -142,6 +143,8 @@
   {/if}
 
   {#if error}
-    <p class="mt-2 text-sm text-red-600">{error}</p>
+    <div class="mt-2">
+      <InlineError message={error} dismissible onDismiss={() => (error = null)} />
+    </div>
   {/if}
 </div>

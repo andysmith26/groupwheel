@@ -8,6 +8,7 @@
    */
 
   import { getAppEnvContext } from '$lib/contexts/appEnv';
+  import { InlineError } from '$lib/components/ui';
   import { importFromSheetTab } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
   import type { SheetConnection, SheetTab } from '$lib/domain/sheetConnection';
@@ -116,7 +117,7 @@
   {/if}
 
   {#if error}
-    <p class="text-sm text-red-600">{error}</p>
+    <InlineError message={error} dismissible onDismiss={() => (error = '')} />
   {/if}
 
   {#if previewData && !isLoading}

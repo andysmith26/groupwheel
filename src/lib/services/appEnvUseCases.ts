@@ -1145,6 +1145,11 @@ import {
   type ShowToClassInput,
   type ShowToClassError
 } from '$lib/application/useCases/showToClass';
+import {
+  deleteSession as deleteSessionUseCase,
+  type DeleteSessionInput,
+  type DeleteSessionError
+} from '$lib/application/useCases/deleteSession';
 import type { Session } from '$lib/domain';
 
 /**
@@ -1233,11 +1238,29 @@ export async function showToClass(
   );
 }
 
+/**
+ * Delete a session and all its placement records (cascade).
+ */
+export async function deleteSession(
+  env: InMemoryEnvironment,
+  input: DeleteSessionInput
+): Promise<Result<{ sessionId: string }, DeleteSessionError>> {
+  return deleteSessionUseCase(
+    {
+      sessionRepo: env.sessionRepo,
+      placementRepo: env.placementRepo
+    },
+    input
+  );
+}
+
 // Re-export session types
 export type {
   ListSessionsInput,
   ShowToClassInput,
   ShowToClassError,
+  DeleteSessionInput,
+  DeleteSessionError,
   StudentPlacementHistoryResult,
   GetActiveSessionInput,
   EndSessionInput
@@ -1260,6 +1283,13 @@ import {
   type RemoveStudentFromPoolError,
   type RemoveStudentFromPoolResult
 } from '$lib/application/useCases/removeStudentFromPool';
+
+import {
+  updateStudent as updateStudentUseCase,
+  type UpdateStudentInput,
+  type UpdateStudentError,
+  type UpdateStudentResult
+} from '$lib/application/useCases/updateStudent';
 
 /**
  * Add a new student to a pool (roster).
@@ -1294,6 +1324,21 @@ export async function removeStudentFromPool(
   );
 }
 
+/**
+ * Update a student's editable fields.
+ */
+export async function updateStudent(
+  env: InMemoryEnvironment,
+  input: UpdateStudentInput
+): Promise<Result<UpdateStudentResult, UpdateStudentError>> {
+  return updateStudentUseCase(
+    {
+      studentRepo: env.studentRepo
+    },
+    input
+  );
+}
+
 // Re-export student pool types
 export type {
   AddStudentToPoolInput,
@@ -1301,7 +1346,10 @@ export type {
   AddStudentToPoolResult,
   RemoveStudentFromPoolInput,
   RemoveStudentFromPoolError,
-  RemoveStudentFromPoolResult
+  RemoveStudentFromPoolResult,
+  UpdateStudentInput,
+  UpdateStudentError,
+  UpdateStudentResult
 };
 
 // =============================================================================

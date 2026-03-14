@@ -16,6 +16,7 @@
   import type { RawSheetData, ColumnMapping, MappedField } from '$lib/domain/import';
   import type { GroupTemplate } from '$lib/domain/groupTemplate';
   import type { ExtractedGroup } from '$lib/application/useCases/extractGroupsFromPreferences';
+  import { InlineError } from '$lib/components/ui';
   import TabSelector from './TabSelector.svelte';
   import SheetPreview from './SheetPreview.svelte';
   import { ensureUniqueGroupNames } from '$lib/utils/ensureUniqueGroupNames';
@@ -291,7 +292,7 @@
           Extracting groups from preferences...
         </div>
       {:else if extractError}
-        <p class="text-sm text-red-600">{extractError}</p>
+        <InlineError message={extractError} dismissible onDismiss={() => (extractError = '')} />
       {:else if extractedGroups.length > 0}
         <div class="space-y-3">
           <p class="text-sm font-medium text-gray-700">

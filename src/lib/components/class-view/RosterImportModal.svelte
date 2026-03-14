@@ -9,7 +9,7 @@
    */
 
   import { fade, scale } from 'svelte/transition';
-  import { Button } from '$lib/components/ui';
+  import { Button, InlineError } from '$lib/components/ui';
 
   interface Props {
     open: boolean;
@@ -90,7 +90,9 @@
         {/if}
 
         {#if error}
-          <p class="mt-2 text-sm text-red-600">{error}</p>
+          <div class="mt-2">
+            <InlineError message={error} dismissible onDismiss={() => (error = null)} />
+          </div>
         {/if}
       </div>
 

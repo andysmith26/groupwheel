@@ -24,7 +24,7 @@
   let errorMessage = $derived(getGenerationErrorMessage(errorType));
 </script>
 
-<Alert variant="warning" title="Couldn't generate groups">
+<Alert variant="warning" title="Couldn't generate groups" dismissible>
   <p>{errorMessage}</p>
   <div class="mt-3 flex items-center gap-3">
     <button

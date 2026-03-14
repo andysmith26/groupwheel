@@ -19,7 +19,7 @@
     type ActivityDisplay
   } from '$lib/services/appEnvUseCases';
   import { isErr, isOk } from '$lib/types/result';
-  import { Button, Alert } from '$lib/components/ui';
+  import { Button, Alert, InlineError } from '$lib/components/ui';
   import ActivityCardSkeleton from '$lib/components/ui/ActivityCardSkeleton.svelte';
   import ActivityCard from './ActivityCard.svelte';
   import InlineActivityCreator from './InlineActivityCreator.svelte';
@@ -261,7 +261,9 @@
           onkeydown={(e) => e.key === 'Enter' && handleRenameSubmit()}
         />
         {#if renameError}
-          <p class="mt-2 text-sm text-red-600">{renameError}</p>
+          <div class="mt-2">
+            <InlineError message={renameError} dismissible onDismiss={() => (renameError = null)} />
+          </div>
         {/if}
       </div>
       <div class="mt-4 flex justify-end gap-3">

@@ -18,8 +18,9 @@ import type { Student, Group, StudentPreference, Preference } from '$lib/domain'
 export interface BalancedGroupingConfig {
   /**
    * Predefined groups to use. If not provided, groups will be generated automatically.
+   * When memberIds are included, those students are treated as pre-placed (fill mode).
    */
-  groups?: Array<{ id?: string; name: string; capacity?: number | null }>;
+  groups?: Array<{ id?: string; name: string; capacity?: number | null; memberIds?: string[] }>;
 
   /**
    * Desired number of groups when auto-generating.
@@ -141,13 +142,19 @@ export class BalancedGroupingAlgorithm implements GroupingAlgorithm {
       // Generate or use provided groups
       let groups: Group[];
       if (config.groups && config.groups.length > 0) {
-        // Use provided groups
+        // Use provided groups, preserving any pre-placed memberIds (fill mode)
         groups = config.groups.map((g) => ({
           id: g.id ?? this.idGenerator.generateId(),
           name: g.name,
           capacity: g.capacity ?? null,
-          memberIds: []
+          memberIds: g.memberIds ? [...g.memberIds] : []
         }));
+
+        // In fill mode: exclude already-placed students from the assignment order
+        const prePlacedIds = new Set(groups.flatMap((g) => g.memberIds));
+        if (prePlacedIds.size > 0) {
+          studentOrder = studentOrder.filter((id) => !prePlacedIds.has(id));
+        }
       } else {
         // Generate default groups
         groups = this.generateDefaultGroups(params.studentIds.length, config);

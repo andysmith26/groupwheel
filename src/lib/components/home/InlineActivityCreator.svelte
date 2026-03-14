@@ -11,6 +11,7 @@
 
   import { goto } from '$app/navigation';
   import { getAppEnvContext } from '$lib/contexts/appEnv';
+  import { InlineError } from '$lib/components/ui';
   import { createActivityInline } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
 
@@ -113,7 +114,9 @@
     </button>
   </div>
   {#if error}
-    <p class="mt-1 text-sm text-red-600">{error}</p>
+    <div class="mt-1">
+      <InlineError message={error} dismissible onDismiss={() => (error = null)} />
+    </div>
   {/if}
 {:else}
   <button

@@ -7,9 +7,11 @@
 
   import type { Group, Student } from '$lib/domain';
   import type { KeyboardMoveDirection } from '$lib/components/editing/DraggableStudentCard.svelte';
+  import { Alert } from '$lib/components/ui';
   import GenerationControls from './GenerationControls.svelte';
   import GroupEditingLayout from '$lib/components/editing/GroupEditingLayout.svelte';
   import DeleteGroupConfirmDialog from '$lib/components/editing/DeleteGroupConfirmDialog.svelte';
+  import ShuffleConfirmDialog from './ShuffleConfirmDialog.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
   import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
 
@@ -17,9 +19,9 @@
     groups: Group[];
     studentsById: Record<string, Student>;
     studentCount: number;
-    groupSize: number;
-    onGroupSizeChange: (size: number) => void;
-    onGenerate: (groupSize: number) => void;
+    onGenerate: (groupCount?: number) => void;
+    onAssignAll: () => void;
+    onShuffle: () => void;
     onImport?: () => void;
     disabled?: boolean;
     isGenerating?: boolean;
@@ -56,15 +58,21 @@
     // Preference-adaptive UI (WP8 / Decision 4)
     studentPreferenceRanks?: Map<string, number | null>;
     studentHasPreferences?: Map<string, boolean>;
+
+    // Student detail click
+    onStudentClick?: (studentId: string) => void;
+
+    // Read-only mode (published session)
+    readOnly?: boolean;
   }
 
   let {
     groups,
     studentsById,
     studentCount,
-    groupSize,
-    onGroupSizeChange,
     onGenerate,
+    onAssignAll,
+    onShuffle,
     onImport,
     disabled = false,
     isGenerating = false,
@@ -87,7 +95,9 @@
     onKeyboardCancel,
     onKeyboardMove,
     studentPreferenceRanks = new Map(),
-    studentHasPreferences = new Map()
+    studentHasPreferences = new Map(),
+    onStudentClick,
+    readOnly = false
   }: Props = $props();
 
   // --- Group selection state (for toolbar actions) ---
@@ -123,8 +133,46 @@
     selectedGroupId = null;
   }
 
-  function handleGenerate() {
-    onGenerate(groupSize);
+  // --- Preview group count (for the empty-state slider) ---
+  // Stored as group count directly so every integer count is reachable.
+  const minGroups = $derived(Math.max(1, Math.ceil(studentCount / 10)));
+  const maxGroups = $derived(Math.max(1, Math.floor(studentCount / 2)));
+  // Default to ~4 students per group
+  const defaultGroupCount = $derived(Math.max(minGroups, Math.min(maxGroups, Math.ceil(studentCount / 4))));
+  let previewGroupCount = $state<number | null>(null);
+  const effectiveGroupCount = $derived(
+    previewGroupCount !== null
+      ? Math.max(minGroups, Math.min(maxGroups, previewGroupCount))
+      : defaultGroupCount
+  );
+
+  function handleSliderInput(e: Event) {
+    const count = Number((e.target as HTMLInputElement).value);
+    previewGroupCount = count;
+  }
+
+  // --- Derived counts ---
+  const assignedStudentCount = $derived(groups.reduce((sum, g) => sum + g.memberIds.length, 0));
+
+  // --- Shuffle confirmation state ---
+  let showShuffleConfirm = $state(false);
+  const hasPlacedStudents = $derived(groups.some((g) => g.memberIds.length > 0));
+
+  function handleShuffle() {
+    if (hasPlacedStudents) {
+      showShuffleConfirm = true;
+      return;
+    }
+    onShuffle();
+  }
+
+  function handleConfirmShuffle() {
+    showShuffleConfirm = false;
+    onShuffle();
+  }
+
+  function handleCancelShuffle() {
+    showShuffleConfirm = false;
   }
 
   const hasEditingCallbacks = $derived(!!onDrop);
@@ -178,42 +226,33 @@
     <div>
       <h2 class="text-lg font-medium text-gray-900">Groups</h2>
       <p class="text-sm text-gray-500">
-        {groups.length > 0 ? `${groups.length} groups generated` : 'No groups generated yet'}
+        {#if readOnly}
+          Published &middot; {groups.length} groups
+        {:else}
+          {groups.length > 0 ? `${groups.length} groups generated` : 'No groups generated yet'}
+        {/if}
       </p>
     </div>
-    <GenerationControls
-      {groupSize}
-      onGroupSizeChange={(size) => onGroupSizeChange(size)}
-      onGenerate={handleGenerate}
-      disabled={disabled || studentCount === 0}
-      {isGenerating}
-      maxGroupSize={studentCount}
-    />
+    {#if !readOnly}
+      <GenerationControls
+        hasGroups={groups.length > 0}
+        onAssignAll={onAssignAll}
+        onShuffle={handleShuffle}
+        disabled={disabled || studentCount === 0}
+        {isGenerating}
+        {unplacedStudentCount}
+        {assignedStudentCount}
+      />
+    {/if}
   </div>
 
   <!-- Groups Display -->
   <div class="flex-1 overflow-auto">
     {#if generationError}
       <div class="p-4">
-        <div class="rounded-md bg-red-50 p-4" role="alert">
-          <div class="flex">
-            <div class="shrink-0">
-              <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-                  clip-rule="evenodd"
-                />
-              </svg>
-            </div>
-            <div class="ml-3">
-              <h3 class="text-sm font-medium text-red-800">Failed to generate groups</h3>
-              <div class="mt-2 text-sm text-red-700">
-                <p>{generationError}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Alert variant="error" title="Failed to generate groups" dismissible>
+          <p>{generationError}</p>
+        </Alert>
       </div>
     {/if}
 
@@ -229,7 +268,7 @@
               />
             </svg>
             <p class="text-sm text-amber-800">
-              {unplacedStudentCount} new {unplacedStudentCount === 1 ? 'student' : 'students'} not yet in groups. Tap "Make Groups" to include {unplacedStudentCount === 1 ? 'them' : 'everyone'}.
+              {unplacedStudentCount} {unplacedStudentCount === 1 ? 'student' : 'students'} not yet in groups. Tap "Assign All" to place them.
             </p>
           </div>
         </div>
@@ -238,7 +277,7 @@
 
     {#if groups.length > 0}
       <!-- Group actions toolbar -->
-      {#if hasEditingCallbacks && (onSortGroup || onUpdateGroup || onDeleteGroup)}
+      {#if !readOnly && hasEditingCallbacks && (onSortGroup || onUpdateGroup || onDeleteGroup)}
         <div class="flex items-center gap-2 border-b border-gray-200 bg-white px-6 py-2">
           {#if onUpdateGroup}
             <button
@@ -312,7 +351,7 @@
           {groups}
           {studentsById}
           layout="masonry"
-          readonly={!hasEditingCallbacks}
+          readonly={readOnly || !hasEditingCallbacks}
           {draggingId}
           {onDrop}
           {onReorder}
@@ -333,6 +372,7 @@
           onSelectGroup={handleSelectGroup}
           {renamingGroupId}
           onRenameComplete={handleRenameComplete}
+          {onStudentClick}
         />
       </div>
     {:else}
@@ -367,21 +407,90 @@
             </button>
           {/if}
         {:else}
-          <div>
-            <p class="text-lg font-medium text-gray-900">Ready to make groups</p>
-            <p class="mt-1 text-sm text-gray-500">
-              {studentCount}
-              {studentCount === 1 ? 'student' : 'students'} in roster. Generate groups to get started.
-            </p>
+          {@const basePerGroup = Math.floor(studentCount / effectiveGroupCount)}
+          {@const remainder = studentCount - basePerGroup * effectiveGroupCount}
+          {@const largeSize = basePerGroup + 1}
+          {@const smallSize = basePerGroup}
+
+          <div class="w-full max-w-lg px-8">
+            <!-- Header -->
+            <div class="mb-6 text-center">
+              <p class="text-lg font-medium text-gray-900">Ready to make groups</p>
+              <p class="mt-1 text-sm text-gray-500">
+                {studentCount}
+                {studentCount === 1 ? 'student' : 'students'} in roster
+              </p>
+            </div>
+
+            <!-- Slider — drives number of groups directly, so every count is reachable -->
+            <div class="mb-5">
+              <div class="flex items-center justify-between mb-2">
+                <label for="group-count-slider" class="text-sm font-medium text-gray-700">Number of groups</label>
+                <span class="text-sm font-semibold text-teal-700 tabular-nums">{effectiveGroupCount}</span>
+              </div>
+              <input
+                id="group-count-slider"
+                type="range"
+                min={minGroups}
+                max={maxGroups}
+                value={effectiveGroupCount}
+                step="1"
+                oninput={handleSliderInput}
+                disabled={disabled || isGenerating}
+                class="w-full h-2 rounded-lg appearance-none cursor-pointer accent-teal-600 bg-gray-200"
+              />
+              <div class="flex justify-between mt-1 text-xs text-gray-400">
+                <span>{minGroups}</span>
+                <span>{maxGroups}</span>
+              </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="mb-5 rounded-lg bg-teal-50 border border-teal-100 px-4 py-3 text-center">
+              <p class="text-sm text-teal-800">
+                {#if remainder === 0}
+                  <span class="font-semibold">{effectiveGroupCount}</span>
+                  {effectiveGroupCount === 1 ? 'group' : 'groups'} of
+                  <span class="font-semibold">{smallSize}</span>
+                {:else}
+                  <span class="font-semibold">{remainder}</span>
+                  {remainder === 1 ? 'group' : 'groups'} of
+                  <span class="font-semibold">{largeSize}</span>
+                  &nbsp;and&nbsp;
+                  <span class="font-semibold">{effectiveGroupCount - remainder}</span>
+                  of <span class="font-semibold">{smallSize}</span>
+                {/if}
+              </p>
+            </div>
+
+            <!-- Preview grid -->
+            <div class="mb-6 flex flex-wrap justify-center gap-3">
+              {#each Array(effectiveGroupCount) as _, i}
+                {@const membersInThisGroup = i < remainder ? largeSize : smallSize}
+                <div class="flex flex-col items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm min-w-[68px]">
+                  <span class="text-[11px] font-medium text-gray-500">Group {i + 1}</span>
+                  <div class="flex flex-wrap justify-center gap-1">
+                    {#each Array(membersInThisGroup) as _}
+                      <div class="h-4 w-4 rounded-full bg-teal-200"></div>
+                    {/each}
+                  </div>
+                  <span class="text-[11px] tabular-nums text-gray-400">{membersInThisGroup}</span>
+                </div>
+              {/each}
+            </div>
+
+            <!-- Make Groups button -->
+            <div class="text-center">
+              <button
+                type="button"
+                onclick={() => onGenerate(effectiveGroupCount)}
+                disabled={disabled || isGenerating}
+                class="min-h-[44px] rounded-md bg-teal-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-teal-700 disabled:opacity-50 transition-colors"
+              >
+                Make Groups
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onclick={handleGenerate}
-            disabled={disabled || isGenerating}
-            class="min-h-[44px] rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
-          >
-            Make Groups
-          </button>
         {/if}
       </div>
     {/if}
@@ -394,5 +503,12 @@
     memberCount={groupToDelete.memberCount}
     onConfirm={handleConfirmDelete}
     onCancel={handleCancelDelete}
+  />
+{/if}
+
+{#if showShuffleConfirm}
+  <ShuffleConfirmDialog
+    onConfirm={handleConfirmShuffle}
+    onCancel={handleCancelShuffle}
   />
 {/if}

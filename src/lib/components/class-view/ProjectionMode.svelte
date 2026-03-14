@@ -19,13 +19,12 @@
   interface Props {
     groups: Group[];
     studentsById: Record<string, Student>;
-    groupSize: number;
     isGenerating: boolean;
-    onRegenerate: (groupSize: number) => void;
+    onRegenerate: () => void;
     onExit: () => void;
   }
 
-  let { groups, studentsById, groupSize, isGenerating, onRegenerate, onExit }: Props = $props();
+  let { groups, studentsById, isGenerating, onRegenerate, onExit }: Props = $props();
 
   let toolbarVisible = $state(true);
   let toolbarTimer: ReturnType<typeof setTimeout> | null = null;
@@ -125,7 +124,7 @@
     <button
       type="button"
       class="toolbar-btn regenerate-btn"
-      onclick={() => onRegenerate(groupSize)}
+      onclick={() => onRegenerate()}
       disabled={isGenerating}
       aria-label="Regenerate groups"
     >

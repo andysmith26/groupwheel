@@ -167,10 +167,10 @@ function collectViolations(
 export function assignBalanced(options: AssignmentOptions): AssignmentResult {
   const random = options.seed !== undefined ? createSeededRandom(options.seed) : Math.random;
 
-  // Create working copies of groups
+  // Create working copies of groups, preserving any pre-placed members (fill mode)
   const workingGroups: Group[] = options.groups.map((group) => ({
     ...group,
-    memberIds: []
+    memberIds: [...group.memberIds]
   }));
 
   // Build maps for group lookup (by ID and by name)
@@ -244,12 +244,23 @@ export function assignBalanced(options: AssignmentOptions): AssignmentResult {
 
     for (const group of workingGroups) {
       const remaining = remainingCapacity(group);
-      if (
-        remaining > bestRemaining &&
-        !wouldViolateConstraints(studentId, group.memberIds, options.constraints)
-      ) {
-        bestRemaining = remaining;
+      const passesConstraints = !wouldViolateConstraints(
+        studentId,
+        group.memberIds,
+        options.constraints
+      );
+      if (!passesConstraints || remaining <= 0) continue;
+
+      if (bestGroup === null) {
         bestGroup = group;
+        bestRemaining = remaining;
+      } else if (remaining > bestRemaining) {
+        bestGroup = group;
+        bestRemaining = remaining;
+      } else if (remaining === bestRemaining && group.memberIds.length < bestGroup.memberIds.length) {
+        // Equal capacity (e.g. both Infinity) — prefer the group with fewer members
+        bestGroup = group;
+        bestRemaining = remaining;
       }
     }
 
@@ -263,9 +274,17 @@ export function assignBalanced(options: AssignmentOptions): AssignmentResult {
       let fallbackRemaining = 0;
       for (const group of workingGroups) {
         const remaining = remainingCapacity(group);
-        if (remaining > fallbackRemaining) {
+        if (remaining <= 0) continue;
+
+        if (fallbackGroup === null) {
+          fallbackGroup = group;
+          fallbackRemaining = remaining;
+        } else if (remaining > fallbackRemaining) {
           fallbackRemaining = remaining;
           fallbackGroup = group;
+        } else if (remaining === fallbackRemaining && group.memberIds.length < fallbackGroup.memberIds.length) {
+          fallbackGroup = group;
+          fallbackRemaining = remaining;
         }
       }
 

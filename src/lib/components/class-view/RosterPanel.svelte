@@ -19,6 +19,12 @@
     hasPreferenceData?: boolean;
     /** True when all students are quick-start placeholders (WP11) */
     hasPlaceholderStudents?: boolean;
+    /** Called when the "+" add student button is clicked */
+    onAddStudent?: () => void;
+    /** Called when a student row is clicked */
+    onStudentClick?: (studentId: string) => void;
+    /** ID of currently selected student (for highlight) */
+    selectedStudentId?: string | null;
   }
 
   let {
@@ -27,7 +33,10 @@
     onImport,
     studentHasPreferences = new Map(),
     hasPreferenceData = false,
-    hasPlaceholderStudents = false
+    hasPlaceholderStudents = false,
+    onAddStudent,
+    onStudentClick,
+    selectedStudentId = null
   }: Props = $props();
 
   let studentCount = $derived(students.length);
@@ -62,21 +71,36 @@
       {/if}
     </div>
 
-    <button
-      type="button"
-      onclick={onImport}
-      class="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-      aria-label={hasPlaceholderStudents ? 'Import real roster' : 'Import roster'}
-    >
-      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
-        />
-      </svg>
-      Import
-    </button>
+    <div class="flex items-center gap-1.5">
+      {#if onAddStudent}
+        <button
+          type="button"
+          onclick={onAddStudent}
+          class="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 shadow-sm hover:bg-gray-50"
+          aria-label="Add student"
+          title="Add student"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+        </button>
+      {/if}
+      <button
+        type="button"
+        onclick={onImport}
+        class="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+        aria-label={hasPlaceholderStudents ? 'Import real roster' : 'Import roster'}
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+          />
+        </svg>
+        Import
+      </button>
+    </div>
   </div>
 
   <!-- WP11: Gentle upgrade prompt for quick-start placeholder students -->
@@ -131,8 +155,11 @@
     {:else}
       <ul class="space-y-0.5" role="list">
         {#each students as student (student.id)}
-          <li
-            class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm {hasPlaceholderStudents ? 'text-gray-400 italic' : 'text-gray-700'} hover:bg-gray-50"
+          <li>
+          <button
+            type="button"
+            onclick={() => onStudentClick?.(student.id)}
+            class="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm {hasPlaceholderStudents ? 'text-gray-400 italic' : 'text-gray-700'} {selectedStudentId === student.id ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-gray-50'} cursor-pointer"
           >
             <span
               class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full {hasPlaceholderStudents ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 text-gray-600'} text-xs font-medium"
@@ -165,6 +192,7 @@
                 ></span>
               {/if}
             {/if}
+          </button>
           </li>
         {/each}
       </ul>

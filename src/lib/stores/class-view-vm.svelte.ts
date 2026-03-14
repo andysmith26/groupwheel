@@ -1,5 +1,5 @@
 import type { AppEnvContext } from '$lib/contexts/appEnv';
-import type { Group, Pool, Preference, Program, Scenario, Session, Student } from '$lib/domain';
+import type { Group, Placement, Pool, Preference, Program, Scenario, Session, Student } from '$lib/domain';
 import type { ScenarioSatisfaction } from '$lib/domain/analytics';
 import type { StudentPreference } from '$lib/domain/preference';
 import {
@@ -8,6 +8,11 @@ import {
   quickGenerateGroups,
   generateCandidate,
   upgradeQuickStartRoster,
+  addStudentToPool,
+  updateStudent as updateStudentUseCase,
+  removeStudentFromPool,
+  showToClass,
+  deleteSession as deleteSessionUseCase,
   type PairingStat
 } from '$lib/services/appEnvUseCases';
 import { isErr } from '$lib/types/result';
@@ -18,7 +23,10 @@ import {
 } from '$lib/stores/scenarioEditingStore';
 import { getGenerationErrorMessage } from '$lib/utils/generationErrorMessages';
 import { buildPreferenceMap } from '$lib/utils/preferenceAdapter';
-import { getGenerationSettings, saveGenerationSettings } from '$lib/utils/generationSettings';
+import {
+  getGenerationSettings,
+  saveGenerationSettings
+} from '$lib/utils/generationSettings';
 
 /**
  * A snapshot of a past generation for the history panel.
@@ -83,10 +91,8 @@ export interface ClassViewVmState {
   isGenerating: boolean;
 
   // Generation settings (persisted per-activity via localStorage)
-  groupSize: number;
   avoidRecentGroupmates: boolean;
   lookbackSessions: number;
-
   // Settings panel visibility
   settingsPanelOpen: boolean;
 
@@ -120,6 +126,14 @@ export interface ClassViewVmState {
   // History panel visibility (WP9)
   historyPanelOpen: boolean;
 
+  // Viewing a past session's placements (read-only)
+  viewingSessionId: string | null;
+  viewingSessionGroups: Group[];
+
+  // Publish state
+  isPublished: boolean;
+  isPublishing: boolean;
+
   // Unplaced student tracking
   unplacedStudentCount: number;
 
@@ -145,8 +159,9 @@ export interface ClassViewVm {
     dispose: () => void;
 
     // Generation
-    generateGroups: (groupSize: number) => Promise<void>;
-    setGroupSize: (size: number) => void;
+    generateGroups: (groupCount?: number) => Promise<void>;
+    assignAll: () => Promise<void>;
+    shuffleGroups: () => Promise<void>;
 
     // Drag-drop editing
     moveStudent: (payload: {
@@ -176,6 +191,7 @@ export interface ClassViewVm {
     // History & comparison (WP9)
     selectHistoryEntry: (index: number) => void;
     toggleHistoryPanel: () => void;
+    selectSession: (sessionId: string | null) => Promise<void>;
     startComparison: () => Promise<void>;
     keepCurrentArrangement: () => void;
     useAlternativeArrangement: () => void;
@@ -192,6 +208,28 @@ export interface ClassViewVm {
 
     // Quick Start upgrade (WP11)
     upgradeRoster: (students: Array<{ firstName: string; lastName: string }>) => Promise<void>;
+
+    // Session lifecycle
+    publishSession: () => Promise<void>;
+    startNewSession: () => void;
+    deleteSession: (sessionId: string) => Promise<void>;
+    renameSession: (sessionId: string, name: string) => Promise<void>;
+
+    // Student CRUD
+    addStudent: (input: {
+      firstName: string;
+      lastName?: string;
+      gradeLevel?: string;
+      gender?: string;
+    }) => Promise<{ success: boolean; studentId?: string }>;
+    updateStudent: (input: {
+      studentId: string;
+      firstName?: string;
+      lastName?: string;
+      gradeLevel?: string;
+      gender?: string;
+    }) => Promise<boolean>;
+    removeStudent: (studentId: string) => Promise<boolean>;
   };
 }
 
@@ -218,7 +256,6 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     generationError: null,
     isGenerating: false,
 
-    groupSize: 4,
     avoidRecentGroupmates: true,
     lookbackSessions: 3,
     settingsPanelOpen: false,
@@ -237,6 +274,12 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     selectedHistoryIndex: -1,
     comparison: null,
     historyPanelOpen: false,
+
+    viewingSessionId: null,
+    viewingSessionGroups: [],
+
+    isPublished: false,
+    isPublishing: false,
 
     unplacedStudentCount: 0,
 
@@ -273,7 +316,6 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
   function persistSettings() {
     if (!state.program) return;
     saveGenerationSettings(state.program.id, {
-      groupSize: state.groupSize,
       avoidRecentGroupmates: state.avoidRecentGroupmates,
       lookbackSessions: state.lookbackSessions
     });
@@ -403,7 +445,6 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
 
       // Load persisted generation settings (WP10 — rotation avoidance)
       const savedSettings = getGenerationSettings(activityId);
-      state.groupSize = savedSettings.groupSize;
       state.avoidRecentGroupmates = savedSettings.avoidRecentGroupmates;
       state.lookbackSessions = savedSettings.lookbackSessions;
 
@@ -415,6 +456,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       state.scenario = data.scenario;
       state.sessions = data.sessions;
       state.latestPublishedSession = data.latestPublishedSession;
+      computeIsPublished();
       rebuildStudentsById();
       detectPlaceholderStudents();
       computePreferenceState();
@@ -434,17 +476,6 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
 
       if (state.scenario) {
         initializeEditingStore(state.scenario);
-
-        // Restore groupSize from existing groups if available
-        if (state.view && state.view.groups.length > 0) {
-          const totalMembers = state.view.groups.reduce(
-            (sum, g) => sum + g.memberIds.length,
-            0
-          );
-          if (totalMembers > 0) {
-            state.groupSize = Math.round(totalMembers / state.view.groups.length);
-          }
-        }
       }
 
       state.loading = false;
@@ -467,82 +498,100 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     state.liveSessionStatus = 'IDLE';
   }
 
-  async function generateGroups(groupSize: number): Promise<void> {
+  /** Initial group creation (no groups exist yet). */
+  async function generateGroups(groupCount?: number): Promise<void> {
     if (!state.program || state.isGenerating) return;
 
     state.generationError = null;
     state.isGenerating = true;
-    state.groupSize = groupSize;
-    persistSettings();
 
     try {
-      if (state.scenario && state.editingStore) {
-        // Save current arrangement to history before generating new one
-        const currentGroups = state.view?.groups ?? [];
-        const currentAnalytics = state.view?.currentAnalytics ?? null;
-        if (currentGroups.length > 0) {
-          state.generationHistory = [
-            {
-              groups: currentGroups.map((g) => ({ ...g, memberIds: [...g.memberIds] })),
-              analytics: currentAnalytics,
-              generatedAt: new Date()
-            },
-            ...state.generationHistory
-          ].slice(0, 10); // Keep max 10 history entries
-        }
-        // Reset to viewing current
-        state.selectedHistoryIndex = -1;
+      const effectiveGroupCount = groupCount ?? Math.ceil(state.students.length / 4);
+      const groupDefs = Array.from({ length: effectiveGroupCount }, (_, i) => ({
+        name: `Group ${i + 1}`,
+        capacity: null as number | null
+      }));
 
-        // We already have a scenario, generate a candidate and regenerate the store.
-        // Preserve existing group names where possible.
-        const studentCount = state.students.length;
-        const groupCount = Math.ceil(studentCount / groupSize);
-        const existingGroups = state.view?.groups ?? [];
-        const groups = Array.from({ length: groupCount }, (_, i) => ({
-          name: i < existingGroups.length ? existingGroups[i].name : `Group ${i + 1}`,
-          capacity: null as number | null
-        }));
+      const result = await quickGenerateGroups(state.env, {
+        programId: state.program.id,
+        groupSize: Math.ceil(state.students.length / effectiveGroupCount),
+        groups: groupDefs,
+        avoidRecentGroupmates: state.avoidRecentGroupmates,
+        lookbackSessions: state.lookbackSessions
+      });
 
-        const result = await generateCandidate(state.env, {
-          programId: state.program.id,
-          algorithmId: 'balanced',
-          algorithmConfig: {
-            groups,
-            avoidRecentGroupmates: state.avoidRecentGroupmates,
-            lookbackSessions: state.lookbackSessions
-          }
-        });
-
-        if (isErr(result)) {
-          state.generationError = getGenerationErrorMessage(result.error.type);
-          return;
-        }
-
-        await state.editingStore.regenerate(result.value.groups);
-      } else {
-        // No scenario yet, use quickGenerateGroups to create one
-        const result = await quickGenerateGroups(state.env, {
-          programId: state.program.id,
-          groupSize,
-          avoidRecentGroupmates: state.avoidRecentGroupmates,
-          lookbackSessions: state.lookbackSessions
-        });
-
-        if (isErr(result)) {
-          state.generationError = getGenerationErrorMessage(result.error.type);
-          return;
-        }
-
-        state.scenario = result.value;
-        initializeEditingStore(state.scenario);
+      if (isErr(result)) {
+        state.generationError = getGenerationErrorMessage(result.error.type);
+        return;
       }
+
+      state.scenario = result.value;
+      initializeEditingStore(state.scenario);
     } finally {
       state.isGenerating = false;
     }
   }
 
-  function setGroupSize(size: number): void {
-    state.groupSize = size;
+  /** Run the algorithm on existing groups, using a specific mode. */
+  async function runGeneration(mode: 'fill' | 'shuffle'): Promise<void> {
+    if (!state.program || state.isGenerating || !state.scenario || !state.editingStore) return;
+
+    state.generationError = null;
+    state.isGenerating = true;
+
+    try {
+      const existingGroups = state.view?.groups ?? [];
+
+      // Save current arrangement to history before generating new one
+      const currentAnalytics = state.view?.currentAnalytics ?? null;
+      if (existingGroups.length > 0) {
+        state.generationHistory = [
+          {
+            groups: existingGroups.map((g) => ({ ...g, memberIds: [...g.memberIds] })),
+            analytics: currentAnalytics,
+            generatedAt: new Date()
+          },
+          ...state.generationHistory
+        ].slice(0, 10);
+      }
+      state.selectedHistoryIndex = -1;
+
+      const groups = existingGroups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        capacity: g.capacity,
+        memberIds: mode === 'fill' ? [...g.memberIds] : ([] as string[])
+      }));
+
+      const result = await generateCandidate(state.env, {
+        programId: state.program.id,
+        algorithmId: 'balanced',
+        algorithmConfig: {
+          groups,
+          avoidRecentGroupmates: state.avoidRecentGroupmates,
+          lookbackSessions: state.lookbackSessions
+        }
+      });
+
+      if (isErr(result)) {
+        state.generationError = getGenerationErrorMessage(result.error.type);
+        return;
+      }
+
+      await state.editingStore.regenerate(result.value.groups);
+    } finally {
+      state.isGenerating = false;
+    }
+  }
+
+  /** Place all unassigned students into existing groups, preserving current placements. */
+  async function assignAll(): Promise<void> {
+    await runGeneration('fill');
+  }
+
+  /** Re-run the placement algorithm on all students, clearing existing placements. */
+  async function shuffleGroups(): Promise<void> {
+    await runGeneration('shuffle');
   }
 
   function moveStudent(payload: {
@@ -765,6 +814,49 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     state.historyPanelOpen = !state.historyPanelOpen;
   }
 
+  /**
+   * Load a past session's placements and display them read-only on the canvas.
+   * Pass null to return to the current editing session.
+   */
+  async function selectSession(sessionId: string | null): Promise<void> {
+    if (sessionId === null) {
+      state.viewingSessionId = null;
+      state.viewingSessionGroups = [];
+      state.selectedHistoryIndex = -1;
+      return;
+    }
+
+    // Already viewing this session
+    if (state.viewingSessionId === sessionId) return;
+
+    const placements: Placement[] = await state.env.placementRepo.listBySessionId(sessionId);
+    if (placements.length === 0) {
+      state.viewingSessionId = null;
+      state.viewingSessionGroups = [];
+      return;
+    }
+
+    // Build Group[] from placements, grouping by groupId
+    const groupMap = new Map<string, { id: string; name: string; memberIds: string[] }>();
+    for (const p of placements) {
+      let group = groupMap.get(p.groupId);
+      if (!group) {
+        group = { id: p.groupId, name: p.groupName, memberIds: [] };
+        groupMap.set(p.groupId, group);
+      }
+      group.memberIds.push(p.studentId);
+    }
+
+    state.viewingSessionGroups = Array.from(groupMap.values()).map((g) => ({
+      id: g.id,
+      name: g.name,
+      capacity: null,
+      memberIds: g.memberIds
+    }));
+    state.viewingSessionId = sessionId;
+    state.selectedHistoryIndex = -1;
+  }
+
   async function startComparison(): Promise<void> {
     if (!state.program || !state.view || state.view.groups.length === 0) return;
     if (state.comparison?.isGenerating) return;
@@ -917,6 +1009,183 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     }
   }
 
+  // --- Publish state ---
+
+  function computeIsPublished(): void {
+    state.isPublished =
+      state.latestPublishedSession !== null &&
+      state.scenario !== null &&
+      state.latestPublishedSession.scenarioId === state.scenario.id;
+  }
+
+  // --- Session Lifecycle ---
+
+  async function publishSession(): Promise<void> {
+    if (!state.program || !state.scenario || state.isPublishing) return;
+
+    state.isPublishing = true;
+
+    try {
+      const result = await showToClass(state.env, {
+        programId: state.program.id,
+        scenarioId: state.scenario.id
+      });
+
+      if (isErr(result)) {
+        state.generationError = 'Failed to publish session.';
+        return;
+      }
+
+      const session = result.value;
+      state.sessions = [...state.sessions, session];
+      state.latestPublishedSession = session;
+      computeIsPublished();
+
+      // Enter projection mode on first publish
+      state.liveSessionStatus = 'PROJECTING';
+    } finally {
+      state.isPublishing = false;
+    }
+  }
+
+  function startNewSession(): void {
+    if (!state.editingStore) return;
+
+    // Clear groups to start fresh
+    state.editingStore.regenerate([]);
+    state.latestPublishedSession = null;
+    state.isPublished = false;
+    state.generationHistory = [];
+    state.selectedHistoryIndex = -1;
+    state.viewingSessionId = null;
+    state.viewingSessionGroups = [];
+  }
+
+  async function deleteSessionAction(sessionId: string): Promise<void> {
+    const result = await deleteSessionUseCase(state.env, { sessionId });
+    if (isErr(result)) return;
+
+    state.sessions = state.sessions.filter((s) => s.id !== sessionId);
+
+    // If we deleted the latest published session, recompute
+    if (state.latestPublishedSession?.id === sessionId) {
+      const published = state.sessions
+        .filter((s) => s.status === 'PUBLISHED')
+        .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0));
+      state.latestPublishedSession = published[0] ?? null;
+      computeIsPublished();
+    }
+
+    // Refresh pairing stats since placements changed
+    if (state.program) {
+      const publishedSessions = state.sessions.filter(
+        (s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED'
+      );
+      if (publishedSessions.length >= 2) {
+        const statsResult = await getProgramPairingStats(state.env, {
+          programId: state.program.id
+        });
+        if (!isErr(statsResult)) {
+          state.pairingStats = statsResult.value.pairs;
+        }
+      } else {
+        state.pairingStats = [];
+      }
+    }
+  }
+
+  async function renameSession(sessionId: string, name: string): Promise<void> {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
+    const session = state.sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+
+    const updated = { ...session, name: trimmedName };
+    await state.env.sessionRepo.update(updated);
+    state.sessions = state.sessions.map((s) => (s.id === sessionId ? updated : s));
+
+    if (state.latestPublishedSession?.id === sessionId) {
+      state.latestPublishedSession = updated;
+    }
+  }
+
+  // --- Student CRUD ---
+
+  async function addStudent(input: {
+    firstName: string;
+    lastName?: string;
+    gradeLevel?: string;
+    gender?: string;
+  }): Promise<{ success: boolean; studentId?: string }> {
+    if (!state.pool) return { success: false };
+
+    const result = await addStudentToPool(state.env, {
+      poolId: state.pool.id,
+      ...input
+    });
+
+    if (isErr(result)) return { success: false };
+
+    const { student, pool } = result.value;
+    state.students = [...state.students, student];
+    state.pool = pool;
+    rebuildStudentsById();
+    detectPlaceholderStudents();
+    return { success: true, studentId: student.id };
+  }
+
+  async function updateStudentAction(input: {
+    studentId: string;
+    firstName?: string;
+    lastName?: string;
+    gradeLevel?: string;
+    gender?: string;
+  }): Promise<boolean> {
+    const result = await updateStudentUseCase(state.env, input);
+
+    if (isErr(result)) return false;
+
+    const { student } = result.value;
+    state.students = state.students.map((s) => (s.id === student.id ? student : s));
+    rebuildStudentsById();
+    return true;
+  }
+
+  async function removeStudentAction(studentId: string): Promise<boolean> {
+    if (!state.pool || !state.program) return false;
+
+    // If student is in a group, move them to unassigned first (editing store)
+    if (state.editingStore && state.view) {
+      const groupWithStudent = state.view.groups.find((g) =>
+        g.memberIds.includes(studentId)
+      );
+      if (groupWithStudent) {
+        state.editingStore.dispatch({
+          type: 'MOVE_STUDENT',
+          studentId,
+          source: groupWithStudent.id,
+          target: 'unassigned'
+        });
+      }
+    }
+
+    const result = await removeStudentFromPool(state.env, {
+      poolId: state.pool.id,
+      studentId,
+      programId: state.program.id
+    });
+
+    if (isErr(result)) return false;
+
+    state.students = state.students.filter((s) => s.id !== studentId);
+    state.pool = { ...state.pool, memberIds: state.pool.memberIds.filter((id) => id !== studentId) };
+    rebuildStudentsById();
+    detectPlaceholderStudents();
+    computeUnplacedStudentCount();
+    return true;
+  }
+
   return {
     get state() {
       return state;
@@ -925,7 +1194,8 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       init,
       dispose,
       generateGroups,
-      setGroupSize,
+      assignAll,
+      shuffleGroups,
       moveStudent,
       reorderStudent,
       sortGroup,
@@ -938,6 +1208,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       keyboardMove,
       selectHistoryEntry,
       toggleHistoryPanel,
+      selectSession,
       startComparison,
       keepCurrentArrangement,
       useAlternativeArrangement,
@@ -947,7 +1218,14 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       toggleSettingsPanel,
       enterProjection,
       exitProjection,
-      upgradeRoster
+      publishSession,
+      startNewSession,
+      deleteSession: deleteSessionAction,
+      renameSession,
+      upgradeRoster,
+      addStudent,
+      updateStudent: updateStudentAction,
+      removeStudent: removeStudentAction
     }
   };
 }

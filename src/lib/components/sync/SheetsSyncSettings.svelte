@@ -8,6 +8,7 @@
     getSheetsSyncConfig
   } from '$lib/application/useCases';
   import { isOk } from '$lib/types/result';
+  import { InlineError } from '$lib/components/ui';
 
   const env = getAppEnvContext();
   const sheetsSyncService = env.sheetsSyncService;
@@ -183,7 +184,7 @@
       </div>
 
       {#if connectError}
-        <p class="text-sm text-red-600">{connectError}</p>
+        <InlineError message={connectError} dismissible onDismiss={() => (connectError = null)} />
       {/if}
 
       <button

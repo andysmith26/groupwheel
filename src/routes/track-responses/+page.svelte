@@ -17,7 +17,7 @@
     generateScenario
   } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
-  import { Button } from '$lib/components/ui';
+  import { Button, InlineError } from '$lib/components/ui';
   import ActivityStatusBar from '$lib/components/track-responses/ActivityStatusBar.svelte';
   import type { SheetConnection, SheetTab } from '$lib/domain/sheetConnection';
   import type { RawSheetData } from '$lib/domain/import';
@@ -928,7 +928,7 @@
           </div>
 
           {#if connectionError}
-            <p class="text-sm text-red-600">{connectionError}</p>
+            <InlineError message={connectionError} dismissible onDismiss={() => (connectionError = '')} />
           {/if}
 
           <p class="text-xs text-gray-500">

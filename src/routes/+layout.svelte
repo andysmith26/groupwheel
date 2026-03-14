@@ -18,7 +18,7 @@
   import LoginButton from '$lib/components/auth/LoginButton.svelte';
   import TrackResponsesNavControls from '$lib/components/track-responses/TrackResponsesNavControls.svelte';
   import { trackResponsesSession } from '$lib/stores/trackResponsesSession.svelte';
-  import { OfflineBanner } from '$lib/components/ui';
+  import { OfflineBanner, ToastContainer } from '$lib/components/ui';
   import { devTools } from '$lib/stores/devTools.svelte';
   import {
     initializeDemoModeIfRequested,
@@ -168,4 +168,8 @@
   >
     {@render children()}
   </main>
+
+  {#if browser}
+    <ToastContainer />
+  {/if}
 </div>

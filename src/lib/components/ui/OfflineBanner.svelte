@@ -5,12 +5,14 @@
   let isOnline = $state(true);
   let wasOffline = $state(false);
   let showReconnected = $state(false);
+  let dismissed = $state(false);
 
   onMount(() => {
     isOnline = navigator.onLine;
 
     function handleOnline() {
       isOnline = true;
+      dismissed = false;
       if (wasOffline) {
         showReconnected = true;
         setTimeout(() => {
@@ -22,6 +24,7 @@
     function handleOffline() {
       isOnline = false;
       wasOffline = true;
+      dismissed = false;
     }
 
     window.addEventListener('online', handleOnline);
@@ -34,7 +37,7 @@
   });
 </script>
 
-{#if !isOnline}
+{#if !isOnline && !dismissed}
   <div
     class="bg-amber-500 px-4 py-2 text-center text-sm font-medium text-white"
     role="alert"
@@ -51,6 +54,16 @@
         />
       </svg>
       <span>You're offline. Changes will sync when reconnected.</span>
+      <button
+        type="button"
+        class="ml-2 rounded p-0.5 hover:bg-white/20 focus:ring-2 focus:ring-white focus:outline-none"
+        onclick={() => (dismissed = true)}
+        aria-label="Dismiss"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   </div>
 {:else if showReconnected}
@@ -65,6 +78,16 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
       </svg>
       <span>You're back online!</span>
+      <button
+        type="button"
+        class="ml-2 rounded p-0.5 hover:bg-white/20 focus:ring-2 focus:ring-white focus:outline-none"
+        onclick={() => (showReconnected = false)}
+        aria-label="Dismiss"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   </div>
 {/if}

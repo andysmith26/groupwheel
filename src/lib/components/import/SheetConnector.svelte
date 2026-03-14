@@ -11,7 +11,7 @@
   import { getAppEnvContext } from '$lib/contexts/appEnv';
   import { connectGoogleSheet, isAuthenticated } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
-  import { Button } from '$lib/components/ui';
+  import { Button, InlineError } from '$lib/components/ui';
   import type { SheetConnection } from '$lib/domain/sheetConnection';
 
   interface Props {
@@ -159,7 +159,7 @@
       </div>
 
       {#if error}
-        <p class="text-sm text-red-600">{error}</p>
+        <InlineError message={error} dismissible onDismiss={() => (error = '')} />
       {/if}
 
       <p class="text-xs text-gray-500">

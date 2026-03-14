@@ -12,6 +12,7 @@
   import type { RawSheetData, ColumnMapping, MappedField } from '$lib/domain/import';
   import { hasRequiredMappings, validateMappedData } from '$lib/domain/import';
   import { fetchGoogleSheet, isGoogleSheetsUrl, getPreviewRows } from '$lib/services/googleSheets';
+  import { InlineError } from '$lib/components/ui';
   import SheetPreview from './SheetPreview.svelte';
 
   interface Props {
@@ -196,7 +197,7 @@
         </div>
 
         {#if urlError}
-          <p class="text-sm text-red-600">{urlError}</p>
+          <InlineError message={urlError} dismissible onDismiss={() => (urlError = '')} />
         {/if}
       </div>
 

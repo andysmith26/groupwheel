@@ -142,16 +142,35 @@ export async function getStudentProfile(
   const { identityId } = input;
 
   // Fetch the identity
-  const identity = await studentIdentityRepo.getById(identityId);
-  if (!identity) {
-    return err({
-      type: 'IDENTITY_NOT_FOUND',
-      message: `Student identity ${identityId} not found`
-    });
-  }
+  let identity = await studentIdentityRepo.getById(identityId);
 
-  // Get all student records linked to this identity
-  const studentRecords = await studentRepo.listByCanonicalId(identityId);
+  // Get all student records linked to this identity (or the student itself)
+  let studentRecords = identity
+    ? await studentRepo.listByCanonicalId(identityId)
+    : [];
+
+  // If no identity exists, look up the student record directly and build
+  // a synthetic identity so the profile can still show placement history.
+  if (!identity) {
+    const student = await studentRepo.getById(identityId);
+    if (!student) {
+      return err({
+        type: 'IDENTITY_NOT_FOUND',
+        message: `Student identity ${identityId} not found`
+      });
+    }
+    studentRecords = [student];
+    identity = {
+      id: identityId,
+      displayName: student.lastName
+        ? `${student.firstName} ${student.lastName}`
+        : student.firstName,
+      knownVariants: [{ firstName: student.firstName, lastName: student.lastName, source: 'roster' }],
+      createdAt: new Date(),
+      gradeLevel: student.gradeLevel,
+      gender: student.gender
+    };
+  }
 
   // Collect all student IDs (for querying placements, preferences)
   const studentIds = studentRecords.map((s) => s.id);

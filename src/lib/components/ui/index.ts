@@ -5,3 +5,5 @@ export { default as Skeleton } from './Skeleton.svelte';
 export { default as OfflineBanner } from './OfflineBanner.svelte';
 export { default as HorizontalScrollContainer } from './HorizontalScrollContainer.svelte';
 export { default as ScrollProgressIndicator } from './ScrollProgressIndicator.svelte';
+export { default as InlineError } from './InlineError.svelte';
+export { default as ToastContainer } from './ToastContainer.svelte';
