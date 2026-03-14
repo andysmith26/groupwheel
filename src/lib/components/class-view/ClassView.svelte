@@ -14,19 +14,20 @@
   import { createClassViewVm } from '$lib/stores/class-view-vm.svelte';
   import { addStudentToPool } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
-  import { Alert } from '$lib/components/ui';
+  import { Alert, OverlaySheet } from '$lib/components/ui';
   import { detectSimpleNameList } from '$lib/utils/pasteDetection';
   import ClassViewToolbar from './ClassViewToolbar.svelte';
   import RosterPanel from './RosterPanel.svelte';
   import RosterImportModal from './RosterImportModal.svelte';
   import GroupsPanel from './GroupsPanel.svelte';
-  import HistoryPanel from './HistoryPanel.svelte';
-  import SettingsPanel from './SettingsPanel.svelte';
-  import ProjectionMode from './ProjectionMode.svelte';
+  // HistoryPanel replaced by HistoryPopover inside ClassViewToolbar (Step 4)
+  // SettingsPanel replaced by SettingsPopover inside FloatingToolbar (Step 2)
+  // ProjectionMode replaced by /activity/[id]/display route (Step 5)
   import AnalyticsPanel from '$lib/components/editing/AnalyticsPanel.svelte';
   import ScenarioComparison from '$lib/components/editing/ScenarioComparison.svelte';
   import ContextualHint from '$lib/components/common/ContextualHint.svelte';
   import StudentDetailSidebar from '$lib/components/workspace/StudentDetailSidebar.svelte';
+  import FloatingToolbar from '$lib/components/workspace/FloatingToolbar.svelte';
   import RemoveStudentConfirmDialog from './RemoveStudentConfirmDialog.svelte';
   import DeleteSessionConfirmDialog from './DeleteSessionConfirmDialog.svelte';
   import { hintState } from '$lib/stores/hintState.svelte';
@@ -41,6 +42,11 @@
   let vm = createClassViewVm(env);
 
   let importModalOpen = $state(false);
+  let rosterDrawerOpen = $state(true);
+
+  function handleToggleRoster() {
+    rosterDrawerOpen = !rosterDrawerOpen;
+  }
 
   // Derived state from VM
   let loading = $derived(vm.state.loading);
@@ -66,7 +72,6 @@
   let pickedUpStudentId = $derived(vm.state.pickedUpStudentId);
   let hasGroups = $derived((view?.groups.length ?? 0) > 0);
   let newGroupId = $derived(vm.state.newGroupId);
-  let isProjecting = $derived(vm.state.liveSessionStatus === 'PROJECTING');
   let isPublished = $derived(vm.state.isPublished);
   let isPublishing = $derived(vm.state.isPublishing);
 
@@ -222,19 +227,11 @@
   }
 
   function handleDisplay() {
-    vm.actions.enterProjection();
+    window.open(`/activity/${activityId}/display`, '_blank');
   }
 
   function handleNewSession() {
     vm.actions.startNewSession();
-  }
-
-  function handleExitProjection() {
-    vm.actions.exitProjection();
-  }
-
-  function handleProjectionRegenerate() {
-    vm.actions.generateGroups();
   }
 
   function handleRequestDeleteSession(sessionId: string) {
@@ -444,13 +441,6 @@
   }
 </script>
 
-<svelte:window
-  onkeydown={(e) => {
-    if (e.key === 'Escape' && isProjecting) {
-      handleExitProjection();
-    }
-  }}
-/>
 
 <svelte:head>
   <title>{activityName} | Groupwheel</title>
@@ -489,215 +479,213 @@
       {historyPanelOpen}
       {isViewingHistory}
       {isPublished}
-      {isPublishing}
       onUndo={handleUndo}
       onRedo={handleRedo}
       onBack={handleBack}
-      onPublish={handlePublish}
-      onDisplay={handleDisplay}
-      onNewSession={handleNewSession}
       onRetrySave={handleRetrySave}
       onCompare={handleCompare}
       onToggleHistory={handleToggleHistory}
-      onToggleSettings={handleToggleSettings}
-      {settingsPanelOpen}
+      onToggleRoster={handleToggleRoster}
+      rosterOpen={rosterDrawerOpen}
+      {sessions}
+      {viewingSessionId}
+      currentSessionId={isPublished ? vm.state.latestPublishedSession?.id ?? null : null}
+      onSelectSession={(sessionId) => vm.actions.selectSession(sessionId)}
+      onDeleteSession={handleRequestDeleteSession}
+      onRenameSession={handleRenameSession}
     />
 
     <div class="flex flex-1 overflow-hidden">
-      <!-- Left: Roster Panel -->
-      <div class="w-64 shrink-0">
-        <RosterPanel
-          {students}
-          {loading}
-          onImport={openImportModal}
-          {studentHasPreferences}
-          {hasPreferenceData}
-          {hasPlaceholderStudents}
-          onAddStudent={handleStartAddStudent}
-          onStudentClick={handleStudentClick}
-          {selectedStudentId}
-        />
-      </div>
-
-      <!-- Right: Groups Panel + History Panel -->
-      <div class="flex flex-1 overflow-hidden">
-        <div class="flex flex-1 flex-col overflow-hidden bg-gray-50">
-          {#if isViewingHistory}
-            <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-              <div class="flex items-center justify-between">
-                <span>
-                  {#if viewingSession}
-                    Viewing "{viewingSession.name}" (read-only)
-                  {:else}
-                    Viewing a previous arrangement (read-only)
-                  {/if}
-                </span>
-                <button
-                  type="button"
-                  onclick={() => {
-                    vm.actions.selectSession(null);
-                    vm.actions.selectHistoryEntry(-1);
-                  }}
-                  class="font-medium text-amber-700 hover:text-amber-900"
-                >
-                  Back to current
-                </button>
-              </div>
-            </div>
-          {/if}
-          <!-- Rotation avoidance one-time hint (Decision 6, WP10) -->
-          {#if showRotationHint}
-            <div class="border-b border-gray-200 px-4 py-3">
-              <ContextualHint
-                title="Groups avoid recent groupmates"
-                icon="sparkles"
-                dismissible={true}
-                onDismiss={handleDismissRotationHint}
-              >
-                <p>
-                  Students are automatically grouped with different people than recent sessions.
-                  <button
-                    type="button"
-                    class="font-medium text-teal-800 underline hover:text-teal-900"
-                    onclick={() => { handleDismissRotationHint(); handleToggleSettings(); }}
-                  >
-                    Change this in Settings
-                  </button>
-                </p>
-              </ContextualHint>
-            </div>
-          {/if}
-
-          <GroupsPanel
-            groups={displayGroups}
-            {studentsById}
-            studentCount={students.length}
-            readOnly={isPublished || isViewingHistory}
-            onGenerate={(groupCount) => vm.actions.generateGroups(groupCount)}
-            onAssignAll={() => vm.actions.assignAll()}
-            onShuffle={() => vm.actions.shuffleGroups()}
-            onImport={openImportModal}
-            disabled={loading || !!loadError || isViewingHistory}
-            {isGenerating}
-            {generationError}
-            unplacedStudentCount={isViewingHistory ? 0 : unplacedStudentCount}
-            draggingId={hasGroups && !isViewingHistory ? draggingId : null}
-            onDrop={hasGroups && !isViewingHistory ? handleDrop : undefined}
-            onReorder={hasGroups && !isViewingHistory ? handleReorder : undefined}
-            onDragStart={hasGroups && !isViewingHistory ? handleDragStart : undefined}
-            onDragEnd={hasGroups && !isViewingHistory ? handleDragEnd : undefined}
-            onSortGroup={hasGroups && !isViewingHistory ? handleSortGroup : undefined}
-            onUpdateGroup={hasGroups && !isViewingHistory ? handleUpdateGroup : undefined}
-            onDeleteGroup={hasGroups && !isViewingHistory ? handleDeleteGroup : undefined}
-            onAddGroup={hasGroups && !isViewingHistory ? handleCreateGroup : undefined}
-            newGroupId={!isViewingHistory ? newGroupId : null}
-            pickedUpStudentId={hasGroups && !isViewingHistory ? pickedUpStudentId : null}
-            onKeyboardPickUp={hasGroups && !isViewingHistory ? vm.actions.keyboardPickUp : undefined}
-            onKeyboardDrop={hasGroups && !isViewingHistory ? vm.actions.keyboardDrop : undefined}
-            onKeyboardCancel={hasGroups && !isViewingHistory ? vm.actions.keyboardCancel : undefined}
-            onKeyboardMove={hasGroups && !isViewingHistory ? vm.actions.keyboardMove : undefined}
-            {studentPreferenceRanks}
-            {studentHasPreferences}
-            onStudentClick={hasGroups && !isViewingHistory ? handleStudentClick : undefined}
-          />
-
-          <!-- Analytics Panel — expandable, only when preference data warrants it (Decision 4, WP8) -->
-          {#if showAnalytics}
-            <div class="border-t border-gray-200">
+      <!-- Center: Groups canvas (always full remaining width) -->
+      <div class="flex flex-1 flex-col overflow-hidden bg-gray-50">
+        {#if isViewingHistory}
+          <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+            <div class="flex items-center justify-between">
+              <span>
+                {#if viewingSession}
+                  Viewing "{viewingSession.name}" (read-only)
+                {:else}
+                  Viewing a previous arrangement (read-only)
+                {/if}
+              </span>
               <button
                 type="button"
-                class="flex min-h-[44px] w-full items-center gap-2 bg-white px-4 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
-                onclick={() => (analyticsOpen = !analyticsOpen)}
-                aria-expanded={analyticsOpen}
-                aria-controls="analytics-panel"
+                onclick={() => {
+                  vm.actions.selectSession(null);
+                  vm.actions.selectHistoryEntry(-1);
+                }}
+                class="rounded-md bg-amber-600 px-3 py-1 text-sm font-medium text-white hover:bg-amber-700"
               >
-                <svg
-                  class="h-4 w-4 transition-transform {analyticsOpen ? 'rotate-90' : ''}"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="2"
-                  stroke="currentColor"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                </svg>
-                Preference Analytics
-                {#if currentAnalytics}
-                  <span class="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700">
-                    {Math.round(currentAnalytics.percentAssignedTopChoice)}% top choice
-                  </span>
-                {/if}
+                Back to current
               </button>
-              <div id="analytics-panel" class="px-4 pb-3">
-                <AnalyticsPanel
-                  open={analyticsOpen}
-                  {baseline}
-                  current={currentAnalytics}
-                  delta={analyticsDelta}
-                  studentCount={students.length}
-                  {groupCount}
-                />
-              </div>
             </div>
-          {/if}
-
-          <!-- Saved to this browser indicator (P4) -->
-          <div class="flex items-center gap-1.5 border-t bg-white px-4 py-1.5 text-xs text-gray-400">
-            <svg
-              class="h-3.5 w-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25A2.25 2.25 0 0 1 5.25 3h13.5A2.25 2.25 0 0 1 21 5.25Z"
-              />
-            </svg>
-            Saved to this browser
           </div>
-        </div>
-
-        <!-- Student Detail Sidebar — click a student card to view/edit/create -->
-        {#if studentSidebarOpen}
-          <StudentDetailSidebar
-            student={selectedStudent}
-            mode={studentSidebarMode}
-            preferences={selectedStudentPreferences}
-            recentGroupmates={selectedStudentRecentGroupmates}
-            onClose={handleCloseStudentDetail}
-            onSave={handleSaveStudent}
-            onDelete={handleRequestRemoveStudent}
-            onEditMode={handleEditStudent}
-            onCancelEdit={handleCancelEditStudent}
-          />
+        {/if}
+        <!-- Rotation avoidance one-time hint (Decision 6, WP10) -->
+        {#if showRotationHint}
+          <div class="border-b border-gray-200 px-4 py-3">
+            <ContextualHint
+              title="Groups avoid recent groupmates"
+              icon="sparkles"
+              dismissible={true}
+              onDismiss={handleDismissRotationHint}
+            >
+              <p>
+                Students are automatically grouped with different people than recent sessions.
+                <button
+                  type="button"
+                  class="font-medium text-teal-800 underline hover:text-teal-900"
+                  onclick={() => { handleDismissRotationHint(); handleToggleSettings(); }}
+                >
+                  Change this in Settings
+                </button>
+              </p>
+            </ContextualHint>
+          </div>
         {/if}
 
-        <!-- Settings Panel (WP10) — expandable sidebar -->
-        <SettingsPanel
-          open={settingsPanelOpen}
-          {avoidRecentGroupmates}
-          {lookbackSessions}
-          {publishedSessionCount}
-          onToggleAvoidance={(enabled) => vm.actions.setAvoidRecentGroupmates(enabled)}
-          onLookbackChange={(sessions) => vm.actions.setLookbackSessions(sessions)}
-          onToggle={handleToggleSettings}
+        <GroupsPanel
+          groups={displayGroups}
+          {studentsById}
+          studentCount={students.length}
+          readOnly={isPublished || isViewingHistory}
+          onGenerate={(groupCount) => vm.actions.generateGroups(groupCount)}
+          onAssignAll={() => vm.actions.assignAll()}
+          onShuffle={() => vm.actions.shuffleGroups()}
+          onImport={openImportModal}
+          disabled={loading || !!loadError || isViewingHistory}
+          {isGenerating}
+          {generationError}
+          unplacedStudentCount={isViewingHistory ? 0 : unplacedStudentCount}
+          draggingId={hasGroups && !isViewingHistory ? draggingId : null}
+          onDrop={hasGroups && !isViewingHistory ? handleDrop : undefined}
+          onReorder={hasGroups && !isViewingHistory ? handleReorder : undefined}
+          onDragStart={hasGroups && !isViewingHistory ? handleDragStart : undefined}
+          onDragEnd={hasGroups && !isViewingHistory ? handleDragEnd : undefined}
+          onSortGroup={hasGroups && !isViewingHistory ? handleSortGroup : undefined}
+          onUpdateGroup={hasGroups && !isViewingHistory ? handleUpdateGroup : undefined}
+          onDeleteGroup={hasGroups && !isViewingHistory ? handleDeleteGroup : undefined}
+          onAddGroup={hasGroups && !isViewingHistory ? handleCreateGroup : undefined}
+          newGroupId={!isViewingHistory ? newGroupId : null}
+          pickedUpStudentId={hasGroups && !isViewingHistory ? pickedUpStudentId : null}
+          onKeyboardPickUp={hasGroups && !isViewingHistory ? vm.actions.keyboardPickUp : undefined}
+          onKeyboardDrop={hasGroups && !isViewingHistory ? vm.actions.keyboardDrop : undefined}
+          onKeyboardCancel={hasGroups && !isViewingHistory ? vm.actions.keyboardCancel : undefined}
+          onKeyboardMove={hasGroups && !isViewingHistory ? vm.actions.keyboardMove : undefined}
+          {studentPreferenceRanks}
+          {studentHasPreferences}
+          onStudentClick={hasGroups && !isViewingHistory ? handleStudentClick : undefined}
         />
 
-        <!-- History Panel (WP9) — expandable sidebar -->
-        <HistoryPanel
-          open={historyPanelOpen}
-          {sessions}
-          {viewingSessionId}
-          currentSessionId={isPublished ? vm.state.latestPublishedSession?.id ?? null : null}
-          onSelectSession={(sessionId) => vm.actions.selectSession(sessionId)}
-          onToggle={handleToggleHistory}
-          onDeleteSession={handleRequestDeleteSession}
-          onRenameSession={handleRenameSession}
-        />
+        <!-- Analytics Panel — expandable, only when preference data warrants it (Decision 4, WP8) -->
+        {#if showAnalytics}
+          <div class="border-t border-gray-200">
+            <button
+              type="button"
+              class="flex min-h-[44px] w-full items-center gap-2 bg-white px-4 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
+              onclick={() => (analyticsOpen = !analyticsOpen)}
+              aria-expanded={analyticsOpen}
+              aria-controls="analytics-panel"
+            >
+              <svg
+                class="h-4 w-4 transition-transform {analyticsOpen ? 'rotate-90' : ''}"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+              Preference Analytics
+              {#if currentAnalytics}
+                <span class="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700">
+                  {Math.round(currentAnalytics.percentAssignedTopChoice)}% top choice
+                </span>
+              {/if}
+            </button>
+            <div id="analytics-panel" class="px-4 pb-3">
+              <AnalyticsPanel
+                open={analyticsOpen}
+                {baseline}
+                current={currentAnalytics}
+                delta={analyticsDelta}
+                studentCount={students.length}
+                {groupCount}
+              />
+            </div>
+          </div>
+        {/if}
+
+        <!-- Saved to this browser indicator (P4) -->
+        <div class="flex items-center gap-1.5 border-t bg-white px-4 py-1.5 text-xs text-gray-400">
+          <svg
+            class="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25A2.25 2.25 0 0 1 5.25 3h13.5A2.25 2.25 0 0 1 21 5.25Z"
+            />
+          </svg>
+          Saved to this browser
+        </div>
       </div>
     </div>
+
+    <!-- Floating Toolbar — primary actions at bottom-center -->
+    <FloatingToolbar
+      visible={hasGroups && !isViewingHistory}
+      {isPublished}
+      {isPublishing}
+      onNewSession={handleNewSession}
+      onPublish={handlePublish}
+      onDisplay={handleDisplay}
+      onToggleSettings={handleToggleSettings}
+      {settingsPanelOpen}
+      {avoidRecentGroupmates}
+      {lookbackSessions}
+      {publishedSessionCount}
+      onToggleAvoidance={(enabled) => vm.actions.setAvoidRecentGroupmates(enabled)}
+      onLookbackChange={(sessions) => vm.actions.setLookbackSessions(sessions)}
+    />
+
+    <!-- Overlay panels (OverlaySheet, do not reflow the group canvas) -->
+
+    <!-- Roster drawer (left) -->
+    <OverlaySheet open={rosterDrawerOpen} side="left" width="w-64" onClose={handleToggleRoster}>
+      <RosterPanel
+        {students}
+        {loading}
+        onImport={openImportModal}
+        {studentHasPreferences}
+        {hasPreferenceData}
+        {hasPlaceholderStudents}
+        onAddStudent={handleStartAddStudent}
+        onStudentClick={handleStudentClick}
+        {selectedStudentId}
+      />
+    </OverlaySheet>
+
+    <!-- Student Detail Sidebar (right) -->
+    <OverlaySheet open={studentSidebarOpen} side="right" width="w-80" onClose={handleCloseStudentDetail}>
+      <StudentDetailSidebar
+        student={selectedStudent}
+        mode={studentSidebarMode}
+        preferences={selectedStudentPreferences}
+        recentGroupmates={selectedStudentRecentGroupmates}
+        onClose={handleCloseStudentDetail}
+        onSave={handleSaveStudent}
+        onDelete={handleRequestRemoveStudent}
+        onEditMode={handleEditStudent}
+        onCancelEdit={handleCancelEditStudent}
+      />
+    </OverlaySheet>
+
+    <!-- History is now a popover inside ClassViewToolbar (Step 4) -->
   {/if}
 </div>
 
@@ -718,15 +706,7 @@
   />
 {/if}
 
-{#if isProjecting && view}
-  <ProjectionMode
-    groups={view.groups}
-    {studentsById}
-    {isGenerating}
-    onRegenerate={handleProjectionRegenerate}
-    onExit={handleExitProjection}
-  />
-{/if}
+<!-- Projection moved to /activity/[id]/display route (Step 5) -->
 
 {#if showRemoveConfirm && selectedStudent}
   <RemoveStudentConfirmDialog

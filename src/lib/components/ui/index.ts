@@ -7,3 +7,4 @@ export { default as HorizontalScrollContainer } from './HorizontalScrollContaine
 export { default as ScrollProgressIndicator } from './ScrollProgressIndicator.svelte';
 export { default as InlineError } from './InlineError.svelte';
 export { default as ToastContainer } from './ToastContainer.svelte';
+export { default as OverlaySheet } from './OverlaySheet.svelte';
