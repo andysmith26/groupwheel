@@ -64,7 +64,7 @@
   {#if isDesktop}
     <!-- Side drawer (desktop) -->
     <div
-      class="fixed top-[49px] bottom-0 z-30 {side === 'left' ? 'left-0' : 'right-0'} {width} border-{side === 'left' ? 'r' : 'l'} border-gray-200 bg-white shadow-xl"
+      class="fixed top-0 bottom-0 z-40 {side === 'left' ? 'left-0' : 'right-0'} {width} border-{side === 'left' ? 'r' : 'l'} border-gray-200 bg-white shadow-xl"
       transition:fly={{ x: flyX, duration: 250, opacity: 1 }}
       role="dialog"
       aria-modal="true"
@@ -74,7 +74,7 @@
   {:else}
     <!-- Bottom sheet (mobile/tablet) -->
     <div
-      class="fixed right-0 bottom-0 left-0 z-30 max-h-[70vh] overflow-y-auto rounded-t-xl border-t border-gray-200 bg-white shadow-xl"
+      class="fixed right-0 bottom-0 left-0 z-40 max-h-[70vh] overflow-y-auto rounded-t-xl border-t border-gray-200 bg-white shadow-xl"
       transition:fly={{ y: 400, duration: 250, opacity: 1 }}
       role="dialog"
       aria-modal="true"

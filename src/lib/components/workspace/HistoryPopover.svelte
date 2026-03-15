@@ -29,6 +29,13 @@
   }: Props = $props();
 
   let popoverEl = $state<HTMLDivElement | null>(null);
+  let ready = $state(false);
+
+  // Defer click-outside detection to avoid catching the same click that opened the popover
+  $effect(() => {
+    const timer = setTimeout(() => { ready = true; }, 0);
+    return () => { clearTimeout(timer); ready = false; };
+  });
 
   let publishedSessions = $derived(
     sessions
@@ -97,7 +104,7 @@
   }
 
   function handleClickOutside(e: MouseEvent) {
-    if (popoverEl && !popoverEl.contains(e.target as Node)) {
+    if (ready && popoverEl && !popoverEl.contains(e.target as Node)) {
       onClose();
     }
   }

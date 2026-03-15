@@ -446,7 +446,7 @@
   <title>{activityName} | Groupwheel</title>
 </svelte:head>
 
-<div class="flex h-[calc(100vh-49px)] flex-col">
+<div class="flex h-screen flex-col">
   {#if loading}
     <div class="flex flex-1 items-center justify-center">
       <div class="text-center">
@@ -639,10 +639,7 @@
     <!-- Floating Toolbar — primary actions at bottom-center -->
     <FloatingToolbar
       visible={hasGroups && !isViewingHistory}
-      {isPublished}
-      {isPublishing}
       onNewSession={handleNewSession}
-      onPublish={handlePublish}
       onDisplay={handleDisplay}
       onToggleSettings={handleToggleSettings}
       {settingsPanelOpen}

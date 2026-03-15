@@ -106,6 +106,8 @@
   let isAuthPage = $derived($page.url.pathname.startsWith('/auth'));
   let isTrackResponses = $derived($page.url.pathname.startsWith('/track-responses'));
   let isClassView = $derived($page.route.id?.startsWith('/activity/[id]') ?? false);
+  let isDisplayRoute = $derived($page.route.id === '/activity/[id]/display');
+  let hideChrome = $derived(isClassView || isDisplayRoute);
 
   function handleKeydown(event: KeyboardEvent) {
     // Demo mode shortcut: Ctrl+Shift+D (when devtools enabled)
@@ -129,40 +131,42 @@
   {#if browser}
     <OfflineBanner />
   {/if}
-  <header class={`border-b bg-white shadow-sm ${isTrackResponses ? 'sticky top-0 z-40' : ''}`}>
-    <div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2">
-      <a href="/" class="group flex items-center gap-2">
-        <img src={logo} alt="Groupwheel logo" class="h-8 w-8" />
-        <div>
-          <p class="text-sm font-semibold tracking-wide text-gray-700 group-hover:text-coral">
-            Groupwheel
-          </p>
-          {#if isTrackResponses}
-            <p class="text-xs text-gray-500">
-              {trackResponsesSession.sheetTitle ?? 'No sheet connected'}
+  {#if !hideChrome}
+    <header class={`border-b bg-white shadow-sm ${isTrackResponses ? 'sticky top-0 z-40' : ''}`}>
+      <div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2">
+        <a href="/" class="group flex items-center gap-2">
+          <img src={logo} alt="Groupwheel logo" class="h-8 w-8" />
+          <div>
+            <p class="text-sm font-semibold tracking-wide text-gray-700 group-hover:text-coral">
+              Groupwheel
             </p>
-          {/if}
-        </div>
-      </a>
-
-      {#if !isAuthPage}
-        <nav aria-label="Main navigation" class="flex flex-1 items-center gap-4">
-          {#if isTrackResponses && trackResponsesSession.isConnected}
-            <TrackResponsesNavControls />
-          {/if}
-
-          <div class="ml-auto flex items-center gap-3">
-            {#if browser}
-              <LoginButton />
+            {#if isTrackResponses}
+              <p class="text-xs text-gray-500">
+                {trackResponsesSession.sheetTitle ?? 'No sheet connected'}
+              </p>
             {/if}
           </div>
-        </nav>
-      {/if}
-    </div>
-  </header>
+        </a>
+
+        {#if !isAuthPage}
+          <nav aria-label="Main navigation" class="flex flex-1 items-center gap-4">
+            {#if isTrackResponses && trackResponsesSession.isConnected}
+              <TrackResponsesNavControls />
+            {/if}
+
+            <div class="ml-auto flex items-center gap-3">
+              {#if browser}
+                <LoginButton />
+              {/if}
+            </div>
+          </nav>
+        {/if}
+      </div>
+    </header>
+  {/if}
 
   <main
-    class={isClassView
+    class={hideChrome
       ? 'flex-1 overflow-hidden'
       : 'mx-auto max-w-6xl flex-1 p-4'}
   >

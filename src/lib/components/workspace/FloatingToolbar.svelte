@@ -10,10 +10,7 @@
 
   interface Props {
     visible: boolean;
-    isPublished: boolean;
-    isPublishing: boolean;
     onNewSession: () => void;
-    onPublish: () => void;
     onDisplay: () => void;
     onToggleSettings: () => void;
     settingsPanelOpen: boolean;
@@ -26,10 +23,7 @@
 
   let {
     visible,
-    isPublished,
-    isPublishing,
     onNewSession,
-    onPublish,
     onDisplay,
     onToggleSettings,
     settingsPanelOpen,
@@ -77,41 +71,19 @@
       {/if}
     </div>
 
-    <!-- Primary action: Publish or New Session -->
-    {#if isPublished}
-      <button
-        type="button"
-        onclick={onNewSession}
-        class="flex min-h-[56px] items-center gap-2 rounded-full bg-teal-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700"
-        aria-label="Start new session"
-        title="Clear groups and start a new session"
-      >
-        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-        New Session
-      </button>
-    {:else}
-      <button
-        type="button"
-        onclick={onPublish}
-        disabled={isPublishing}
-        class="flex min-h-[56px] items-center gap-2 rounded-full bg-teal-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
-        aria-label="Publish groups"
-        title="Publish groups and show to class"
-      >
-        {#if isPublishing}
-          <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path d="M12 2v4m0 12v4m-7.07-3.93 2.83-2.83m8.48-8.48 2.83-2.83M2 12h4m12 0h4m-3.93 7.07-2.83-2.83M7.76 7.76 4.93 4.93" />
-          </svg>
-        {:else}
-          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 0 0-2.25 2.25v9a2.25 2.25 0 0 0 2.25 2.25h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25H15m0-3-3-3m0 0-3 3m3-3V15" />
-          </svg>
-        {/if}
-        {isPublishing ? 'Publishing...' : 'Publish'}
-      </button>
-    {/if}
+    <!-- Primary action: New Session (always available) -->
+    <button
+      type="button"
+      onclick={onNewSession}
+      class="flex min-h-[56px] items-center gap-2 rounded-full bg-teal-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700"
+      aria-label="Start new session"
+      title="Generate new groups"
+    >
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      New Session
+    </button>
 
     <!-- Display -->
     <button
