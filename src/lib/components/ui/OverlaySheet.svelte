@@ -13,7 +13,10 @@
   interface Props {
     open: boolean;
     side: 'left' | 'right';
+    /** Tailwind width class (e.g. 'w-64'). Ignored if widthPx is set. */
     width?: string;
+    /** Pixel width for the drawer. Takes precedence over `width` class. */
+    widthPx?: number;
     onClose: () => void;
     children: Snippet;
   }
@@ -22,6 +25,7 @@
     open,
     side,
     width = 'w-64',
+    widthPx,
     onClose,
     children,
   }: Props = $props();
@@ -39,6 +43,10 @@
   });
 
   let flyX = $derived(side === 'left' ? -320 : 320);
+
+  // Compute CSS class vs inline style for width
+  let widthClass = $derived(widthPx ? '' : width);
+  let widthStyle = $derived(widthPx ? `width: ${widthPx}px` : '');
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape' && open) {
@@ -64,7 +72,8 @@
   {#if isDesktop}
     <!-- Side drawer (desktop) -->
     <div
-      class="fixed top-0 bottom-0 z-40 {side === 'left' ? 'left-0' : 'right-0'} {width} border-{side === 'left' ? 'r' : 'l'} border-gray-200 bg-white shadow-xl"
+      class="fixed top-0 bottom-0 z-40 {side === 'left' ? 'left-0' : 'right-0'} {widthClass} border-{side === 'left' ? 'r' : 'l'} border-gray-200 bg-white shadow-xl"
+      style={widthStyle}
       transition:fly={{ x: flyX, duration: 250, opacity: 1 }}
       role="dialog"
       aria-modal="true"

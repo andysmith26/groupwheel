@@ -2,10 +2,11 @@
   /**
    * FloatingToolbar — Fixed pill at bottom-center of the canvas.
    *
-   * Contains primary actions: New Session/Publish, Settings gear (with popover), Display.
+   * Contains primary actions: New Session, Settings gear (with popover), Display.
    * Visible when groups exist and not viewing history.
    */
 
+  import type { Group } from '$lib/domain';
   import SettingsPopover from './SettingsPopover.svelte';
 
   interface Props {
@@ -19,6 +20,10 @@
     publishedSessionCount: number;
     onToggleAvoidance: (enabled: boolean) => void;
     onLookbackChange: (sessions: number) => void;
+    groups: Group[];
+    onUpdateGroup: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
+    onDeleteGroup: (groupId: string) => void;
+    onAddGroup: () => void;
   }
 
   let {
@@ -32,6 +37,10 @@
     publishedSessionCount,
     onToggleAvoidance,
     onLookbackChange,
+    groups,
+    onUpdateGroup,
+    onDeleteGroup,
+    onAddGroup,
   }: Props = $props();
 </script>
 
@@ -61,17 +70,21 @@
 
       {#if settingsPanelOpen}
         <SettingsPopover
+          {groups}
           {avoidRecentGroupmates}
           {lookbackSessions}
           {publishedSessionCount}
           {onToggleAvoidance}
           {onLookbackChange}
+          {onUpdateGroup}
+          {onDeleteGroup}
+          {onAddGroup}
           onClose={onToggleSettings}
         />
       {/if}
     </div>
 
-    <!-- Primary action: New Session (always available) -->
+    <!-- Primary action: New Session -->
     <button
       type="button"
       onclick={onNewSession}

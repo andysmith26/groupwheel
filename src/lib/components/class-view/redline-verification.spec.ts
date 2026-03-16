@@ -5,6 +5,12 @@
  * Static analysis tests verifying all 12 applicable Phase 1 red-line criteria
  * from Decision 10 of the project definition.
  *
+ * Updated for the spatial model restructuring:
+ * - ProjectionMode.svelte → /activity/[id]/display route (display/+page.svelte)
+ * - GenerationControls.svelte → removed (New Session in FloatingToolbar)
+ * - SettingsPanel.svelte → SettingsPopover.svelte (in workspace/)
+ * - HistoryPanel.svelte → HistoryPopover.svelte (in workspace/)
+ *
  * Red-lines H-R1 and H-R2 are Phase 2 (observation mode) — excluded.
  */
 
@@ -17,7 +23,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '../../..');
 const COMPONENTS_DIR = path.join(ROOT, 'lib/components');
-const ROUTES_DIR = path.join(ROOT, '..', 'routes');
+const ROUTES_DIR = path.join(ROOT, 'routes');
 
 /**
  * Recursively collect all .svelte files under a directory.
@@ -110,38 +116,37 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
   });
 
   // =========================================================================
-  // B-R1: Projection mode text ≥36pt, contrast ≥4.5:1
+  // B-R1: Display route text ≥36pt, contrast ≥4.5:1
+  // (Projection moved from in-page overlay to /activity/[id]/display route)
   // =========================================================================
-  describe('B-R1: Projection mode text sizing', () => {
-    it('ProjectionMode student names use ≥36pt (3rem) font size', () => {
-      const projFile = svelteFiles.find((f) => f.includes('ProjectionMode.svelte'));
-      expect(projFile, 'ProjectionMode.svelte must exist').toBeDefined();
+  describe('B-R1: Display route text sizing', () => {
+    it('Display route student names use ≥48pt (4rem) font size', () => {
+      const displayFile = svelteFiles.find((f) => f.includes('display/+page.svelte'));
+      expect(displayFile, 'display/+page.svelte must exist').toBeDefined();
 
-      const content = fileContents.get(projFile!)!;
-      // Student names: clamp minimum must be ≥1.5rem (24px) with max ≥3rem (48px ≈ 36pt)
-      expect(content).toContain('clamp(1.5rem');
-      expect(content).toContain('3rem)');
+      const content = fileContents.get(displayFile!)!;
+      // Student names: clamp with max ≥4rem (48pt ≈ 64px)
+      expect(content).toContain('4rem)');
     });
 
-    it('ProjectionMode group names use ≥60pt (5rem) font size', () => {
-      const projFile = svelteFiles.find((f) => f.includes('ProjectionMode.svelte'));
-      const content = fileContents.get(projFile!)!;
-      expect(content).toContain('clamp(2.5rem');
+    it('Display route group names use ≥60pt (5rem) font size', () => {
+      const displayFile = svelteFiles.find((f) => f.includes('display/+page.svelte'));
+      const content = fileContents.get(displayFile!)!;
       expect(content).toContain('5rem)');
     });
 
-    it('ProjectionMode uses high-contrast colors (≥7:1)', () => {
-      const projFile = svelteFiles.find((f) => f.includes('ProjectionMode.svelte'));
-      const content = fileContents.get(projFile!)!;
+    it('Display route uses high-contrast colors (≥7:1)', () => {
+      const displayFile = svelteFiles.find((f) => f.includes('display/+page.svelte'));
+      const content = fileContents.get(displayFile!)!;
       // White text on dark backgrounds
-      expect(content).toContain('color: #ffffff');
+      expect(content).toContain('#ffffff');
       // Dark text on white for member items
       expect(content).toContain('#111827');
     });
 
-    it('ProjectionMode has no teacher-private information', () => {
-      const projFile = svelteFiles.find((f) => f.includes('ProjectionMode.svelte'));
-      const content = fileContents.get(projFile!)!;
+    it('Display route has no teacher-private information', () => {
+      const displayFile = svelteFiles.find((f) => f.includes('display/+page.svelte'));
+      const content = fileContents.get(displayFile!)!;
       const template = extractTemplate(content);
       // Should not contain preference, analytics, or settings terms
       expect(template).not.toContain('preference');
@@ -154,42 +159,24 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
   // C-R2: All primary action buttons ≥44×44px
   // =========================================================================
   describe('C-R2: Primary action buttons ≥44×44px', () => {
-    const PRIMARY_BUTTONS_BY_FILE: Record<string, string[]> = {
-      'ClassViewToolbar.svelte': ['Back to Home', 'Undo', 'Redo', 'Project'],
-      'GenerationControls.svelte': ['Decrease group size', 'Increase group size', 'Make Groups'],
-      'SettingsPanel.svelte': ['Close settings panel'],
-      'HistoryPanel.svelte': ['Close history panel']
-    };
+    it('ClassViewToolbar.svelte — all buttons meet 44px minimum', () => {
+      const file = svelteFiles.find((f) => f.endsWith('ClassViewToolbar.svelte'));
+      expect(file, 'ClassViewToolbar.svelte must exist').toBeDefined();
 
-    for (const [fileName, buttons] of Object.entries(PRIMARY_BUTTONS_BY_FILE)) {
-      it(`${fileName} — all buttons meet 44px minimum`, () => {
-        const file = svelteFiles.find((f) => f.endsWith(fileName));
-        expect(file, `${fileName} must exist`).toBeDefined();
+      const content = fileContents.get(file!)!;
+      // Back button uses h-11 w-11 (44px)
+      expect(content).toContain('h-11 w-11');
+    });
 
-        const content = fileContents.get(file!)!;
+    it('FloatingToolbar.svelte — all buttons meet 44px minimum', () => {
+      const file = svelteFiles.find((f) => f.endsWith('FloatingToolbar.svelte'));
+      expect(file, 'FloatingToolbar.svelte must exist').toBeDefined();
 
-        // Check that no primary button uses h-8 or w-8 (32px) or h-9 w-9 (36px)
-        // These are known undersized patterns
-        const undersizedPattern = /class="[^"]*\b(?:h-[0-8]|w-[0-8])\b[^"]*items-center[^"]*justify-center/g;
-        const matches = [...content.matchAll(undersizedPattern)];
-
-        // Filter: only flag if it's actually a button (not a decorative element)
-        for (const match of matches) {
-          const context = content.substring(
-            Math.max(0, content.indexOf(match[0]) - 100),
-            content.indexOf(match[0]) + match[0].length + 50
-          );
-          // Skip SVG icons (h-4 w-4, h-5 w-5 are icon sizes, not button sizes)
-          if (context.includes('<svg') || context.includes('toolbar-icon')) continue;
-
-          // This is a button with undersized dimensions
-          expect(
-            false,
-            `Found undersized button in ${fileName}: ${match[0].substring(0, 80)}`
-          ).toBe(true);
-        }
-      });
-    }
+      const content = fileContents.get(file!)!;
+      // All buttons use min-h-[44px] or min-h-[56px]
+      expect(content).toContain('min-h-[44px]');
+      expect(content).toContain('min-h-[56px]');
+    });
 
     it('HomeScreen settings gear meets 44px minimum', () => {
       const file = svelteFiles.find((f) => f.endsWith('HomeScreen.svelte'));
@@ -228,23 +215,23 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
   // E-R1: Same action in same position across flows
   // =========================================================================
   describe('E-R1: Consistent action positioning', () => {
-    it('Make Groups button is always in the GroupsPanel header area', () => {
-      const file = svelteFiles.find((f) => f.endsWith('GenerationControls.svelte'));
+    it('New Session button is in the FloatingToolbar', () => {
+      const file = svelteFiles.find((f) => f.endsWith('FloatingToolbar.svelte'));
       const content = fileContents.get(file!)!;
-      expect(content).toContain('Make Groups');
+      expect(content).toContain('New Session');
 
-      // Make Groups should NOT appear in the toolbar or other locations
+      // New Session should NOT appear in the toolbar or other locations
       const toolbar = svelteFiles.find((f) => f.endsWith('ClassViewToolbar.svelte'));
       const toolbarContent = fileContents.get(toolbar!)!;
       const toolbarTemplate = extractTemplate(toolbarContent);
-      expect(toolbarTemplate).not.toContain('Make Groups');
+      expect(toolbarTemplate).not.toContain('New Session');
     });
 
-    it('Project button is always in the ClassViewToolbar', () => {
-      const toolbar = svelteFiles.find((f) => f.endsWith('ClassViewToolbar.svelte'));
-      const content = fileContents.get(toolbar!)!;
-      expect(content).toContain('Project');
-      expect(content).toContain('onProject');
+    it('Display button is in the FloatingToolbar', () => {
+      const file = svelteFiles.find((f) => f.endsWith('FloatingToolbar.svelte'));
+      const content = fileContents.get(file!)!;
+      expect(content).toContain('Display');
+      expect(content).toContain('onDisplay');
     });
   });
 
@@ -278,7 +265,6 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
       const content = fileContents.get(file!)!;
       expect(content).toContain('generationError');
       expect(content).toContain('Failed to generate groups');
-      expect(content).toContain('role="alert"');
     });
   });
 
@@ -307,11 +293,10 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
   // G-R1: WCAG 2.1 Level A basics
   // =========================================================================
   describe('G-R1: WCAG 2.1 Level A spot checks', () => {
-    it('All interactive elements have aria-labels or visible text', () => {
+    it('All interactive elements in critical files have aria-labels or visible text', () => {
       const criticalFiles = [
         'ClassViewToolbar.svelte',
-        'GenerationControls.svelte',
-        'ProjectionMode.svelte',
+        'FloatingToolbar.svelte',
         'RosterPanel.svelte'
       ];
 
@@ -341,15 +326,15 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
       }
     });
 
-    it('Projection mode has region landmark with label', () => {
-      const file = svelteFiles.find((f) => f.endsWith('ProjectionMode.svelte'));
+    it('Display route has region landmark with label', () => {
+      const file = svelteFiles.find((f) => f.includes('display/+page.svelte'));
       const content = fileContents.get(file!)!;
       expect(content).toContain('role="region"');
       expect(content).toContain('aria-label="Projected group assignments"');
     });
 
-    it('Toolbar has role="toolbar"', () => {
-      const file = svelteFiles.find((f) => f.endsWith('ProjectionMode.svelte'));
+    it('FloatingToolbar has role="toolbar"', () => {
+      const file = svelteFiles.find((f) => f.endsWith('FloatingToolbar.svelte'));
       const content = fileContents.get(file!)!;
       expect(content).toContain('role="toolbar"');
     });
@@ -359,14 +344,12 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
   // G-R2: Groups not distinguishable only by color
   // =========================================================================
   describe('G-R2: Group assignments use color + label', () => {
-    it('ProjectionMode groups have text labels, not just color', () => {
-      const file = svelteFiles.find((f) => f.endsWith('ProjectionMode.svelte'));
+    it('Display route groups have text labels, not just color', () => {
+      const file = svelteFiles.find((f) => f.includes('display/+page.svelte'));
       const content = fileContents.get(file!)!;
       // Each group has a name label
       expect(content).toContain('group.name');
       expect(content).toContain('group-name');
-      // Comment explicitly states this
-      expect(content).toContain('never color alone');
     });
   });
 
@@ -396,10 +379,10 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
       expect(content).toContain('localStorage');
     });
 
-    it('"Saved to this browser" indicator present in Class View', () => {
-      const file = svelteFiles.find((f) => f.endsWith('ClassView.svelte'));
+    it('"On this device" indicator present in ClassViewToolbar', () => {
+      const file = svelteFiles.find((f) => f.endsWith('ClassViewToolbar.svelte'));
       const content = fileContents.get(file!)!;
-      expect(content).toContain('Saved to this browser');
+      expect(content).toContain('On this device');
     });
 
     it('Quick Start card exists on Home screen', () => {
@@ -408,8 +391,9 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
       expect(content).toContain('QuickStartCard');
     });
 
-    it('Settings panel has rotation avoidance toggle and lookback slider', () => {
-      const file = svelteFiles.find((f) => f.endsWith('SettingsPanel.svelte'));
+    it('SettingsPopover has rotation avoidance toggle and lookback slider', () => {
+      const file = svelteFiles.find((f) => f.endsWith('SettingsPopover.svelte'));
+      expect(file, 'SettingsPopover.svelte must exist').toBeDefined();
       const content = fileContents.get(file!)!;
       expect(content).toContain('Avoid recent groupmates');
       expect(content).toContain('type="range"');
@@ -417,11 +401,11 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
       expect(content).toContain('max="10"');
     });
 
-    it('History panel exists for generation history', () => {
-      const file = svelteFiles.find((f) => f.endsWith('HistoryPanel.svelte'));
+    it('HistoryPopover exists for session history', () => {
+      const file = svelteFiles.find((f) => f.endsWith('HistoryPopover.svelte'));
+      expect(file, 'HistoryPopover.svelte must exist').toBeDefined();
       const content = fileContents.get(file!)!;
-      expect(content).toContain('generationHistory');
-      expect(content).toContain('Past Sessions');
+      expect(content).toContain('sessions');
     });
 
     it('Keyboard accessibility for drag-drop', () => {

@@ -20,9 +20,6 @@
   import RosterPanel from './RosterPanel.svelte';
   import RosterImportModal from './RosterImportModal.svelte';
   import GroupsPanel from './GroupsPanel.svelte';
-  // HistoryPanel replaced by HistoryPopover inside ClassViewToolbar (Step 4)
-  // SettingsPanel replaced by SettingsPopover inside FloatingToolbar (Step 2)
-  // ProjectionMode replaced by /activity/[id]/display route (Step 5)
   import AnalyticsPanel from '$lib/components/editing/AnalyticsPanel.svelte';
   import ScenarioComparison from '$lib/components/editing/ScenarioComparison.svelte';
   import ContextualHint from '$lib/components/common/ContextualHint.svelte';
@@ -42,10 +39,59 @@
   let vm = createClassViewVm(env);
 
   let importModalOpen = $state(false);
-  let rosterDrawerOpen = $state(true);
+
+  // Roster drawer: persist open/closed state per activity in localStorage
+  const rosterStorageKey = `groupwheel:roster:${activityId}`;
+  let rosterDrawerOpen = $state(
+    (() => {
+      try {
+        const stored = localStorage.getItem(rosterStorageKey);
+        return stored !== null ? stored === 'true' : true; // default open on first visit
+      } catch {
+        return true;
+      }
+    })()
+  );
 
   function handleToggleRoster() {
-    rosterDrawerOpen = !rosterDrawerOpen;
+    const opening = !rosterDrawerOpen;
+    rosterDrawerOpen = opening;
+    try { localStorage.setItem(rosterStorageKey, String(rosterDrawerOpen)); } catch { /* ignore */ }
+    // On mobile or when gap too small, auto-close student detail
+    if (opening && studentSidebarOpen && (!isDesktop || !canCoexist())) {
+      selectedStudentId = null;
+      studentSidebarMode = 'view';
+    }
+  }
+
+  // Responsive roster width: 280px at ≥1024, 320px at ≥1440
+  let rosterWidth = $state(280);
+  $effect(() => {
+    const wide = window.matchMedia('(min-width: 1440px)');
+    rosterWidth = wide.matches ? 320 : 280;
+    function onChange(e: MediaQueryListEvent) {
+      rosterWidth = e.matches ? 320 : 280;
+    }
+    wide.addEventListener('change', onChange);
+    return () => wide.removeEventListener('change', onChange);
+  });
+
+  // Student detail width
+  const studentDetailWidth = 320; // w-80 = 320px
+
+  // Coexistence rule: auto-close the older panel if gap < 400px on desktop (≥1024px)
+  let windowWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1280);
+  $effect(() => {
+    function onResize() { windowWidth = window.innerWidth; }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  });
+  const isDesktop = $derived(windowWidth >= 1024);
+  const MIN_GAP = 400;
+
+  /** Check whether both panels can coexist at the current viewport width */
+  function canCoexist(): boolean {
+    return isDesktop && windowWidth - rosterWidth - studentDetailWidth >= MIN_GAP;
   }
 
   // Derived state from VM
@@ -64,8 +110,6 @@
   let hasPlaceholderStudents = $derived(vm.state.hasPlaceholderStudents);
 
   let activityName = $derived(program?.name ?? 'Activity');
-  let canUndo = $derived(view?.canUndo ?? false);
-  let canRedo = $derived(view?.canRedo ?? false);
   let saveStatus = $derived(view?.saveStatus ?? 'idle');
   let lastSavedAt = $derived(view?.lastSavedAt ?? null);
   let draggingId = $derived(vm.state.draggingId);
@@ -73,7 +117,6 @@
   let hasGroups = $derived((view?.groups.length ?? 0) > 0);
   let newGroupId = $derived(vm.state.newGroupId);
   let isPublished = $derived(vm.state.isPublished);
-  let isPublishing = $derived(vm.state.isPublishing);
 
   // Preference-adaptive UI (WP8 / Decision 4)
   let studentPreferenceRanks = $derived(vm.state.studentPreferenceRanks);
@@ -173,14 +216,6 @@
     goto('/');
   }
 
-  function handleUndo() {
-    vm.state.editingStore?.undo();
-  }
-
-  function handleRedo() {
-    vm.state.editingStore?.redo();
-  }
-
   function handleRetrySave() {
     vm.state.editingStore?.retrySave();
   }
@@ -206,10 +241,6 @@
     vm.state.draggingId = null;
   }
 
-  function handleSortGroup(groupId: string, sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc') {
-    vm.actions.sortGroup(groupId, sortBy, direction);
-  }
-
   function handleCreateGroup() {
     vm.actions.createGroup();
   }
@@ -220,10 +251,6 @@
 
   function handleDeleteGroup(groupId: string) {
     vm.actions.deleteGroup(groupId);
-  }
-
-  function handlePublish() {
-    vm.actions.publishSession();
   }
 
   function handleDisplay() {
@@ -256,10 +283,6 @@
     vm.actions.renameSession(sessionId, name);
   }
 
-  function handleCompare() {
-    vm.actions.startComparison();
-  }
-
   function handleToggleHistory() {
     selectedStudentId = null;
     // When closing the history panel, return to current session
@@ -285,6 +308,11 @@
     if (settingsPanelOpen) vm.actions.toggleSettingsPanel();
     selectedStudentId = studentId;
     studentSidebarMode = 'view';
+    // On mobile or when gap too small, auto-close roster
+    if (rosterDrawerOpen && (!isDesktop || !canCoexist())) {
+      rosterDrawerOpen = false;
+      try { localStorage.setItem(rosterStorageKey, 'false'); } catch { /* ignore */ }
+    }
   }
 
   function handleCloseStudentDetail() {
@@ -297,6 +325,11 @@
     if (settingsPanelOpen) vm.actions.toggleSettingsPanel();
     selectedStudentId = null;
     studentSidebarMode = 'create';
+    // On mobile or when gap too small, auto-close roster
+    if (rosterDrawerOpen && (!isDesktop || !canCoexist())) {
+      rosterDrawerOpen = false;
+      try { localStorage.setItem(rosterStorageKey, 'false'); } catch { /* ignore */ }
+    }
   }
 
   async function handleSaveStudent(data: {
@@ -470,20 +503,14 @@
   {:else}
     <ClassViewToolbar
       {activityName}
-      {canUndo}
-      {canRedo}
       {saveStatus}
       {lastSavedAt}
       {hasGroups}
       {hasHistory}
       {historyPanelOpen}
       {isViewingHistory}
-      {isPublished}
-      onUndo={handleUndo}
-      onRedo={handleRedo}
       onBack={handleBack}
       onRetrySave={handleRetrySave}
-      onCompare={handleCompare}
       onToggleHistory={handleToggleHistory}
       onToggleRoster={handleToggleRoster}
       rosterOpen={rosterDrawerOpen}
@@ -497,7 +524,7 @@
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Center: Groups canvas (always full remaining width) -->
-      <div class="flex flex-1 flex-col overflow-hidden bg-gray-50">
+      <div class="flex flex-1 flex-col overflow-hidden bg-gray-50" style={isViewingHistory ? 'filter: sepia(0.08); opacity: 0.9' : ''}>
         {#if isViewingHistory}
           <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
             <div class="flex items-center justify-between">
@@ -514,8 +541,11 @@
                   vm.actions.selectSession(null);
                   vm.actions.selectHistoryEntry(-1);
                 }}
-                class="rounded-md bg-amber-600 px-3 py-1 text-sm font-medium text-white hover:bg-amber-700"
+                class="flex min-h-[44px] items-center gap-1.5 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-700"
               >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                </svg>
                 Back to current
               </button>
             </div>
@@ -550,8 +580,6 @@
           studentCount={students.length}
           readOnly={isPublished || isViewingHistory}
           onGenerate={(groupCount) => vm.actions.generateGroups(groupCount)}
-          onAssignAll={() => vm.actions.assignAll()}
-          onShuffle={() => vm.actions.shuffleGroups()}
           onImport={openImportModal}
           disabled={loading || !!loadError || isViewingHistory}
           {isGenerating}
@@ -562,7 +590,6 @@
           onReorder={hasGroups && !isViewingHistory ? handleReorder : undefined}
           onDragStart={hasGroups && !isViewingHistory ? handleDragStart : undefined}
           onDragEnd={hasGroups && !isViewingHistory ? handleDragEnd : undefined}
-          onSortGroup={hasGroups && !isViewingHistory ? handleSortGroup : undefined}
           onUpdateGroup={hasGroups && !isViewingHistory ? handleUpdateGroup : undefined}
           onDeleteGroup={hasGroups && !isViewingHistory ? handleDeleteGroup : undefined}
           onAddGroup={hasGroups && !isViewingHistory ? handleCreateGroup : undefined}
@@ -616,23 +643,6 @@
           </div>
         {/if}
 
-        <!-- Saved to this browser indicator (P4) -->
-        <div class="flex items-center gap-1.5 border-t bg-white px-4 py-1.5 text-xs text-gray-400">
-          <svg
-            class="h-3.5 w-3.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25A2.25 2.25 0 0 1 5.25 3h13.5A2.25 2.25 0 0 1 21 5.25Z"
-            />
-          </svg>
-          Saved to this browser
-        </div>
       </div>
     </div>
 
@@ -648,12 +658,38 @@
       {publishedSessionCount}
       onToggleAvoidance={(enabled) => vm.actions.setAvoidRecentGroupmates(enabled)}
       onLookbackChange={(sessions) => vm.actions.setLookbackSessions(sessions)}
+      groups={displayGroups}
+      onUpdateGroup={handleUpdateGroup}
+      onDeleteGroup={handleDeleteGroup}
+      onAddGroup={handleCreateGroup}
     />
+
+    <!-- Display-only toolbar when viewing history -->
+    {#if hasGroups && isViewingHistory}
+      <div
+        class="fixed bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center rounded-full bg-white px-2 py-1.5 shadow-lg"
+        role="toolbar"
+        aria-label="Display actions"
+      >
+        <button
+          type="button"
+          onclick={handleDisplay}
+          class="flex min-h-[44px] items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+          aria-label="Display groups fullscreen"
+          title="Display this session"
+        >
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+          </svg>
+          Display
+        </button>
+      </div>
+    {/if}
 
     <!-- Overlay panels (OverlaySheet, do not reflow the group canvas) -->
 
     <!-- Roster drawer (left) -->
-    <OverlaySheet open={rosterDrawerOpen} side="left" width="w-64" onClose={handleToggleRoster}>
+    <OverlaySheet open={rosterDrawerOpen} side="left" widthPx={rosterWidth} onClose={handleToggleRoster}>
       <RosterPanel
         {students}
         {loading}
@@ -668,7 +704,7 @@
     </OverlaySheet>
 
     <!-- Student Detail Sidebar (right) -->
-    <OverlaySheet open={studentSidebarOpen} side="right" width="w-80" onClose={handleCloseStudentDetail}>
+    <OverlaySheet open={studentSidebarOpen} side="right" widthPx={studentDetailWidth} onClose={handleCloseStudentDetail}>
       <StudentDetailSidebar
         student={selectedStudent}
         mode={studentSidebarMode}
@@ -682,7 +718,6 @@
       />
     </OverlaySheet>
 
-    <!-- History is now a popover inside ClassViewToolbar (Step 4) -->
   {/if}
 </div>
 
@@ -702,8 +737,6 @@
     onClose={() => vm.actions.closeComparison()}
   />
 {/if}
-
-<!-- Projection moved to /activity/[id]/display route (Step 5) -->
 
 {#if showRemoveConfirm && selectedStudent}
   <RemoveStudentConfirmDialog

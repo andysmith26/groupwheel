@@ -8,10 +8,8 @@
   import type { Group, Student } from '$lib/domain';
   import type { KeyboardMoveDirection } from '$lib/components/editing/DraggableStudentCard.svelte';
   import { Alert } from '$lib/components/ui';
-  import GenerationControls from './GenerationControls.svelte';
   import GroupEditingLayout from '$lib/components/editing/GroupEditingLayout.svelte';
   import DeleteGroupConfirmDialog from '$lib/components/editing/DeleteGroupConfirmDialog.svelte';
-  import ShuffleConfirmDialog from './ShuffleConfirmDialog.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
   import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
 
@@ -20,8 +18,6 @@
     studentsById: Record<string, Student>;
     studentCount: number;
     onGenerate: (groupCount?: number) => void;
-    onAssignAll: () => void;
-    onShuffle: () => void;
     onImport?: () => void;
     disabled?: boolean;
     isGenerating?: boolean;
@@ -39,7 +35,6 @@
     onReorder?: (payload: { groupId: string; studentId: string; newIndex: number }) => void;
     onDragStart?: (id: string) => void;
     onDragEnd?: () => void;
-    onSortGroup?: (groupId: string, sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc') => void;
     flashingIds?: Set<string>;
 
     // Keyboard drag-drop (P6/P11)
@@ -71,8 +66,6 @@
     studentsById,
     studentCount,
     onGenerate,
-    onAssignAll,
-    onShuffle,
     onImport,
     disabled = false,
     isGenerating = false,
@@ -83,7 +76,6 @@
     onReorder,
     onDragStart,
     onDragEnd,
-    onSortGroup,
     flashingIds = new Set<string>(),
     onUpdateGroup,
     onDeleteGroup,
@@ -99,39 +91,6 @@
     onStudentClick,
     readOnly = false
   }: Props = $props();
-
-  // --- Group selection state (for toolbar actions) ---
-  let selectedGroupId = $state<string | null>(null);
-
-  function handleSelectGroup(groupId: string) {
-    selectedGroupId = selectedGroupId === groupId ? null : groupId;
-  }
-
-  const selectedGroup = $derived(
-    selectedGroupId ? groups.find((g) => g.id === selectedGroupId) ?? null : null
-  );
-
-  // --- Sort dropdown state ---
-  let sortMenuOpen = $state(false);
-  let sortButtonEl = $state<HTMLButtonElement | null>(null);
-
-  function handleWindowClick(e: MouseEvent) {
-    if (sortMenuOpen && sortButtonEl && !sortButtonEl.contains(e.target as Node)) {
-      sortMenuOpen = false;
-    }
-  }
-
-  function handleSort(sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc') {
-    if (!selectedGroupId || !onSortGroup) return;
-    onSortGroup(selectedGroupId, sortBy, direction);
-    sortMenuOpen = false;
-  }
-
-  function handleToolbarDelete() {
-    if (!selectedGroupId) return;
-    handleRequestDelete(selectedGroupId);
-    selectedGroupId = null;
-  }
 
   // --- Preview group count (for the empty-state slider) ---
   // Stored as group count directly so every integer count is reachable.
@@ -151,43 +110,7 @@
     previewGroupCount = count;
   }
 
-  // --- Derived counts ---
-  const assignedStudentCount = $derived(groups.reduce((sum, g) => sum + g.memberIds.length, 0));
-
-  // --- Shuffle confirmation state ---
-  let showShuffleConfirm = $state(false);
-  const hasPlacedStudents = $derived(groups.some((g) => g.memberIds.length > 0));
-
-  function handleShuffle() {
-    if (hasPlacedStudents) {
-      showShuffleConfirm = true;
-      return;
-    }
-    onShuffle();
-  }
-
-  function handleConfirmShuffle() {
-    showShuffleConfirm = false;
-    onShuffle();
-  }
-
-  function handleCancelShuffle() {
-    showShuffleConfirm = false;
-  }
-
   const hasEditingCallbacks = $derived(!!onDrop);
-
-  // --- Rename from toolbar ---
-  let renamingGroupId = $state<string | null>(null);
-
-  function handleToolbarRename() {
-    if (!selectedGroupId) return;
-    renamingGroupId = selectedGroupId;
-  }
-
-  function handleRenameComplete() {
-    renamingGroupId = null;
-  }
 
   // --- Delete confirmation state ---
   let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
@@ -218,34 +141,7 @@
   }
 </script>
 
-<svelte:window onclick={handleWindowClick} />
-
 <div class="flex h-full flex-col bg-gray-50">
-  <!-- Header with Generation Controls -->
-  <div class="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-    <div>
-      <h2 class="text-lg font-medium text-gray-900">Groups</h2>
-      <p class="text-sm text-gray-500">
-        {#if readOnly}
-          Published &middot; {groups.length} groups
-        {:else}
-          {groups.length > 0 ? `${groups.length} groups generated` : 'No groups generated yet'}
-        {/if}
-      </p>
-    </div>
-    {#if !readOnly}
-      <GenerationControls
-        hasGroups={groups.length > 0}
-        onAssignAll={onAssignAll}
-        onShuffle={handleShuffle}
-        disabled={disabled || studentCount === 0}
-        {isGenerating}
-        {unplacedStudentCount}
-        {assignedStudentCount}
-      />
-    {/if}
-  </div>
-
   <!-- Groups Display -->
   <div class="flex-1 overflow-auto">
     {#if generationError}
@@ -276,76 +172,6 @@
     {/if}
 
     {#if groups.length > 0}
-      <!-- Group actions toolbar -->
-      {#if !readOnly && hasEditingCallbacks && (onSortGroup || onUpdateGroup || onDeleteGroup)}
-        <div class="flex items-center gap-2 border-b border-gray-200 bg-white px-6 py-2">
-          {#if onUpdateGroup}
-            <button
-              type="button"
-              onclick={handleToolbarRename}
-              disabled={!selectedGroup}
-              class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors {
-                !selectedGroup
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              }"
-            >
-              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-              </svg>
-              Rename
-            </button>
-          {/if}
-
-          {#if onSortGroup}
-            <div class="relative">
-              <button
-                bind:this={sortButtonEl}
-                type="button"
-                onclick={() => { sortMenuOpen = !sortMenuOpen; }}
-                disabled={!selectedGroup || selectedGroup.memberIds.length <= 1}
-                class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors {
-                  !selectedGroup || selectedGroup.memberIds.length <= 1
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }"
-              >
-                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-                </svg>
-                Sort
-              </button>
-              {#if sortMenuOpen}
-                <div class="absolute left-0 top-full z-10 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg" role="menu">
-                  <button type="button" onclick={() => handleSort('firstName', 'asc')} class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100" role="menuitem">First name A–Z</button>
-                  <button type="button" onclick={() => handleSort('firstName', 'desc')} class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100" role="menuitem">First name Z–A</button>
-                  <button type="button" onclick={() => handleSort('lastName', 'asc')} class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100" role="menuitem">Last name A–Z</button>
-                  <button type="button" onclick={() => handleSort('lastName', 'desc')} class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100" role="menuitem">Last name Z–A</button>
-                </div>
-              {/if}
-            </div>
-          {/if}
-
-          {#if onDeleteGroup}
-            <button
-              type="button"
-              onclick={handleToolbarDelete}
-              disabled={!selectedGroup}
-              class="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors {
-                !selectedGroup
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-red-600 hover:bg-red-50 hover:text-red-700'
-              }"
-            >
-              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-              </svg>
-              Delete
-            </button>
-          {/if}
-        </div>
-      {/if}
-
       <div class="h-full p-6" style={cardSizeStyle(uiSettings.cardSize)}>
         <GroupEditingLayout
           {groups}
@@ -368,10 +194,6 @@
           {onKeyboardMove}
           {studentPreferenceRanks}
           {studentHasPreferences}
-          {selectedGroupId}
-          onSelectGroup={handleSelectGroup}
-          {renamingGroupId}
-          onRenameComplete={handleRenameComplete}
           {onStudentClick}
         />
       </div>
@@ -506,9 +328,3 @@
   />
 {/if}
 
-{#if showShuffleConfirm}
-  <ShuffleConfirmDialog
-    onConfirm={handleConfirmShuffle}
-    onCancel={handleCancelShuffle}
-  />
-{/if}

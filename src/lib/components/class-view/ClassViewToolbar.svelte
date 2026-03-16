@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * ClassViewToolbar — Activity name, back button, undo/redo, save status,
-   * publish/display lifecycle buttons.
+   * ClassViewToolbar — Top bar with back, roster toggle, activity name,
+   * save status, history, and device indicator.
    *
    * See: project definition.md — Part 3 (Class View), WP4
    */
@@ -13,20 +13,14 @@
 
   interface Props {
     activityName: string;
-    canUndo: boolean;
-    canRedo: boolean;
     saveStatus: SaveStatus;
     lastSavedAt: Date | null;
     hasGroups: boolean;
     hasHistory?: boolean;
     historyPanelOpen?: boolean;
     isViewingHistory?: boolean;
-    isPublished?: boolean;
-    onUndo: () => void;
-    onRedo: () => void;
     onBack: () => void;
     onRetrySave?: () => void;
-    onCompare?: () => void;
     onToggleHistory?: () => void;
     onToggleRoster?: () => void;
     rosterOpen?: boolean;
@@ -40,20 +34,13 @@
 
   let {
     activityName,
-    canUndo,
-    canRedo,
     saveStatus,
     lastSavedAt,
-    hasGroups,
     hasHistory = false,
     historyPanelOpen = false,
     isViewingHistory = false,
-    isPublished = false,
-    onUndo,
-    onRedo,
     onBack,
     onRetrySave,
-    onCompare,
     onToggleHistory,
     onToggleRoster,
     rosterOpen = true,
@@ -104,22 +91,6 @@
   <div class="flex items-center gap-2">
     <SaveStatusIndicator status={saveStatus} {lastSavedAt} onRetry={onRetrySave} />
 
-    {#if hasGroups && onCompare && !isPublished}
-      <button
-        type="button"
-        onclick={onCompare}
-        disabled={isViewingHistory}
-        class="flex min-h-[44px] items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white"
-        aria-label="Compare with alternative arrangement"
-        title="Generate an alternative and compare side-by-side"
-      >
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-        </svg>
-        Compare
-      </button>
-    {/if}
-
     {#if onToggleHistory}
       <div class="relative">
         <button
@@ -155,41 +126,22 @@
       </div>
     {/if}
 
-    {#if !isPublished}
-      <div class="flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-1">
-        <button
-          type="button"
-          onclick={onUndo}
-          disabled={!canUndo}
-          class="flex h-11 w-11 items-center justify-center rounded text-gray-600 hover:bg-gray-200 disabled:text-gray-300 disabled:hover:bg-transparent"
-          aria-label="Undo"
-          title="Undo (Cmd+Z)"
-        >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onclick={onRedo}
-          disabled={!canRedo}
-          class="flex h-11 w-11 items-center justify-center rounded text-gray-600 hover:bg-gray-200 disabled:text-gray-300 disabled:hover:bg-transparent"
-          aria-label="Redo"
-          title="Redo (Cmd+Shift+Z)"
-        >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3"
-            />
-          </svg>
-        </button>
-      </div>
-    {/if}
+    <!-- Device indicator -->
+    <div class="flex items-center gap-1.5 text-xs text-gray-400">
+      <svg
+        class="h-3.5 w-3.5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="1.5"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25A2.25 2.25 0 0 1 5.25 3h13.5A2.25 2.25 0 0 1 21 5.25Z"
+        />
+      </svg>
+      On this device
+    </div>
   </div>
 </div>
