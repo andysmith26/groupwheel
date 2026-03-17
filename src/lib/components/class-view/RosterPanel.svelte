@@ -23,6 +23,10 @@
     onAddStudent?: () => void;
     /** Called when a student row is clicked */
     onStudentClick?: (studentId: string) => void;
+    /** Called when mouse enters a student row (for preference highlighting) */
+    onStudentHover?: (studentId: string) => void;
+    /** Called when mouse leaves a student row */
+    onStudentHoverEnd?: () => void;
     /** ID of currently selected student (for highlight) */
     selectedStudentId?: string | null;
   }
@@ -36,6 +40,8 @@
     hasPlaceholderStudents = false,
     onAddStudent,
     onStudentClick,
+    onStudentHover,
+    onStudentHoverEnd,
     selectedStudentId = null
   }: Props = $props();
 
@@ -159,6 +165,8 @@
           <button
             type="button"
             onclick={() => onStudentClick?.(student.id)}
+            onmouseenter={() => onStudentHover?.(student.id)}
+            onmouseleave={() => onStudentHoverEnd?.()}
             class="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm {hasPlaceholderStudents ? 'text-gray-400 italic' : 'text-gray-700'} {selectedStudentId === student.id ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-gray-50'} cursor-pointer"
           >
             <span

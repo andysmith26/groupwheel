@@ -174,6 +174,11 @@
     viewingSessionId ? sessions.find((s) => s.id === viewingSessionId) ?? null : null
   );
 
+  // Map group IDs to display names for preference display
+  let groupNameMap = $derived(
+    Object.fromEntries((view?.groups ?? []).map((g) => [g.id, g.name]))
+  );
+
   // Student detail sidebar
   let selectedStudentId = $state<string | null>(null);
   let studentSidebarMode = $state<'view' | 'edit' | 'create'>('view');
@@ -198,6 +203,17 @@
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
   });
+  // Preference highlighting state (separate from sidebar selection)
+  let groupClickStudentId = $state<string | null>(null);   // sticky: set by clicking student in groups
+  let rosterHoverStudentId = $state<string | null>(null);   // transient: set by hovering in roster
+
+  let activeStudentLikeGroupIds = $derived.by(() => {
+    const activeId = draggingId ?? groupClickStudentId ?? rosterHoverStudentId ?? selectedStudentId;
+    if (!activeId) return null;
+    const prefs = vm.state.preferenceMap[activeId];
+    return prefs?.likeGroupIds?.length ? prefs.likeGroupIds : null;
+  });
+
   let studentSidebarOpen = $derived(selectedStudent !== null || studentSidebarMode === 'create');
   let removeStudentIsInGroup = $derived.by(() => {
     if (!selectedStudentId || !view) return false;
@@ -234,6 +250,7 @@
   }
 
   function handleDragStart(id: string) {
+    groupClickStudentId = null; // clear sticky highlight during drag
     vm.state.draggingId = id;
   }
 
@@ -297,6 +314,7 @@
     vm.actions.toggleSettingsPanel();
   }
 
+  /** Roster click: open student profile sidebar */
   function handleStudentClick(studentId: string) {
     // Toggle: clicking the same student closes the sidebar
     if (selectedStudentId === studentId && studentSidebarMode === 'view') {
@@ -306,6 +324,7 @@
     // Close other sidebars
     if (historyPanelOpen) vm.actions.toggleHistoryPanel();
     if (settingsPanelOpen) vm.actions.toggleSettingsPanel();
+    groupClickStudentId = null; // clear sticky group highlight when opening sidebar
     selectedStudentId = studentId;
     studentSidebarMode = 'view';
     // On mobile or when gap too small, auto-close roster
@@ -313,6 +332,24 @@
       rosterDrawerOpen = false;
       try { localStorage.setItem(rosterStorageKey, 'false'); } catch { /* ignore */ }
     }
+  }
+
+  /** Group card click: toggle preference highlighting only (no sidebar) */
+  function handleGroupStudentClick(studentId: string) {
+    if (groupClickStudentId === studentId) {
+      groupClickStudentId = null;
+      return;
+    }
+    groupClickStudentId = studentId;
+  }
+
+  /** Roster hover: transient preference highlighting */
+  function handleRosterStudentHover(studentId: string) {
+    rosterHoverStudentId = studentId;
+  }
+
+  function handleRosterStudentHoverEnd() {
+    rosterHoverStudentId = null;
   }
 
   function handleCloseStudentDetail() {
@@ -601,7 +638,8 @@
           onKeyboardMove={hasGroups && !isViewingHistory ? vm.actions.keyboardMove : undefined}
           {studentPreferenceRanks}
           {studentHasPreferences}
-          onStudentClick={hasGroups && !isViewingHistory ? handleStudentClick : undefined}
+          onStudentClick={hasGroups && !isViewingHistory ? handleGroupStudentClick : undefined}
+          selectedStudentPreferences={activeStudentLikeGroupIds}
         />
 
         <!-- Analytics Panel — expandable, only when preference data warrants it (Decision 4, WP8) -->
@@ -699,6 +737,8 @@
         {hasPlaceholderStudents}
         onAddStudent={handleStartAddStudent}
         onStudentClick={handleStudentClick}
+        onStudentHover={handleRosterStudentHover}
+        onStudentHoverEnd={handleRosterStudentHoverEnd}
         {selectedStudentId}
       />
     </OverlaySheet>
@@ -709,6 +749,7 @@
         student={selectedStudent}
         mode={studentSidebarMode}
         preferences={selectedStudentPreferences}
+        {groupNameMap}
         recentGroupmates={selectedStudentRecentGroupmates}
         onClose={handleCloseStudentDetail}
         onSave={handleSaveStudent}

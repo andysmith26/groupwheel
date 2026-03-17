@@ -16,6 +16,8 @@
     listActivities,
     renameActivity,
     deleteActivity,
+    exportActivityData,
+    importActivity,
     type ActivityDisplay
   } from '$lib/services/appEnvUseCases';
   import { isErr, isOk } from '$lib/types/result';
@@ -24,6 +26,12 @@
   import ActivityCard from './ActivityCard.svelte';
   import InlineActivityCreator from './InlineActivityCreator.svelte';
   import QuickStartCard from './QuickStartCard.svelte';
+  import {
+    downloadActivityFile,
+    generateExportFilename,
+    parseActivityFile,
+    readFileAsText
+  } from '$lib/utils/activityFile';
 
   let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
 
@@ -44,6 +52,15 @@
   let deleteModalOpen = $state(false);
   let deleteTarget = $state<ActivityDisplay | null>(null);
   let isDeleting = $state(false);
+
+  // Import state
+  let importFileInput = $state<HTMLInputElement>();
+  let isImporting = $state(false);
+  let importError = $state<string | null>(null);
+  let importSuccess = $state<string | null>(null);
+
+  // Export state
+  let isExporting = $state(false);
 
   let now = $state(new Date());
 
@@ -154,6 +171,68 @@
     deleteTarget = null;
   }
 
+  async function handleExportActivity(activity: ActivityDisplay) {
+    if (!env) return;
+    openMenuId = null;
+    isExporting = true;
+    importError = null;
+    importSuccess = null;
+
+    try {
+      const result = await exportActivityData(env, { programId: activity.program.id });
+      if (isErr(result)) {
+        importError = result.error.message;
+        return;
+      }
+
+      const filename = generateExportFilename(activity.program.name);
+      downloadActivityFile(result.value, filename);
+    } catch (e) {
+      importError = e instanceof Error ? e.message : 'Export failed.';
+    } finally {
+      isExporting = false;
+    }
+  }
+
+  async function handleImportFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || !env) return;
+
+    importError = null;
+    importSuccess = null;
+    isImporting = true;
+
+    try {
+      const text = await readFileAsText(file);
+      const validation = parseActivityFile(text);
+
+      if (!validation.valid) {
+        importError = validation.error;
+        return;
+      }
+
+      const result = await importActivity(env, {
+        exportData: validation.data,
+        ownerStaffId: 'owner-1'
+      });
+
+      if (isErr(result)) {
+        importError = result.error.message;
+        return;
+      }
+
+      const r = result.value;
+      importSuccess = `Imported "${r.program.name}" with ${r.studentsImported} students`;
+      await loadActivities();
+    } catch (e) {
+      importError = e instanceof Error ? e.message : 'Import failed.';
+    } finally {
+      isImporting = false;
+      input.value = '';
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       if (renameModalOpen) {
@@ -178,16 +257,54 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="mx-auto max-w-4xl space-y-6 p-4">
+  <!-- Hidden file input for import -->
+  <input
+    bind:this={importFileInput}
+    type="file"
+    accept=".json"
+    class="hidden"
+    onchange={handleImportFile}
+  />
+
+  {#if importError}
+    <Alert variant="error" dismissible onDismiss={() => (importError = null)}>
+      {importError}
+    </Alert>
+  {/if}
+
+  {#if importSuccess}
+    <Alert variant="success" dismissible autoDismiss={5000} onDismiss={() => (importSuccess = null)}>
+      {importSuccess}
+    </Alert>
+  {/if}
+
   <header class="flex items-center justify-between gap-4">
     <div>
       <h1 class="text-2xl font-semibold text-gray-900">Your Activities</h1>
       <p class="text-sm text-gray-600">Create and manage student groupings for your classes.</p>
     </div>
-    <a
-      href="/settings"
-      class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-      aria-label="Settings"
-    >
+    <div class="flex items-center gap-1">
+      <button
+        type="button"
+        class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        aria-label="Import activity from file"
+        title="Import activity"
+        disabled={isImporting}
+        onclick={() => importFileInput?.click()}
+      >
+        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+          />
+        </svg>
+      </button>
+      <a
+        href="/settings"
+        class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        aria-label="Settings"
+      >
       <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
         <path
           stroke-linecap="round"
@@ -201,6 +318,7 @@
         />
       </svg>
     </a>
+    </div>
   </header>
 
   {#if loading}
@@ -231,6 +349,7 @@
           {openMenuId}
           onRename={handleRenameRequest}
           onDelete={handleDeleteRequest}
+          onExport={handleExportActivity}
           onToggleMenu={toggleMenu}
         />
       {/each}

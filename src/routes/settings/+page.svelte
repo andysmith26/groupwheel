@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import SheetsSyncSettings from '$lib/components/sync/SheetsSyncSettings.svelte';
+  import DataBackupSettings from '$lib/components/settings/DataBackupSettings.svelte';
 </script>
 
 <svelte:head>
@@ -19,6 +20,10 @@
         with others.
       </p>
       <SheetsSyncSettings />
+    </section>
+
+    <section class="mb-8">
+      <DataBackupSettings />
     </section>
   {:else}
     <p class="text-gray-500">Loading settings...</p>

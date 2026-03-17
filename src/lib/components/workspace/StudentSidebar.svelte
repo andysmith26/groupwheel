@@ -4,6 +4,7 @@
   const {
     students = [],
     preferenceMap = {},
+    groupNameMap = {},
     selectedStudentId = null,
     programId = '',
     onSelect,
@@ -11,17 +12,18 @@
   } = $props<{
     students?: Student[];
     preferenceMap?: Record<string, StudentPreference>;
+    groupNameMap?: Record<string, string>;
     selectedStudentId?: string | null;
     programId?: string;
     onSelect?: (id: string) => void;
     onClose?: () => void;
   }>();
 
-  // Get group choices for a student (now showing requested group IDs)
+  // Get group choices for a student, resolving IDs to display names
   function getGroupChoices(studentId: string): string[] {
     const pref = preferenceMap[studentId];
     if (!pref?.likeGroupIds?.length) return [];
-    return pref.likeGroupIds;
+    return pref.likeGroupIds.map((id: string) => groupNameMap[id] ?? id);
   }
 
   const studentsWithPrefs = $derived(

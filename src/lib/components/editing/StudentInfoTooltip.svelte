@@ -14,6 +14,7 @@
   const {
     student,
     preferences = null,
+    groupNameMap = {},
     recentGroupmates = [],
     x = 0,
     y = 0,
@@ -22,6 +23,7 @@
   } = $props<{
     student: Student;
     preferences?: StudentPreference | null;
+    groupNameMap?: Record<string, string>;
     /** Recent groupmates sorted by frequency (most frequent first) */
     recentGroupmates?: RecentGroupmate[];
     x?: number;
@@ -33,8 +35,10 @@
 
   const fullName = $derived(`${student.firstName} ${student.lastName ?? ''}`.trim() || student.id);
 
-  const firstChoice = $derived(preferences?.likeGroupIds?.[0] ?? null);
-  const secondChoice = $derived(preferences?.likeGroupIds?.[1] ?? null);
+  const firstChoiceId = $derived(preferences?.likeGroupIds?.[0] ?? null);
+  const secondChoiceId = $derived(preferences?.likeGroupIds?.[1] ?? null);
+  const firstChoice = $derived(firstChoiceId ? (groupNameMap[firstChoiceId] ?? firstChoiceId) : null);
+  const secondChoice = $derived(secondChoiceId ? (groupNameMap[secondChoiceId] ?? secondChoiceId) : null);
 
   // Show top 3 recent groupmates
   const topGroupmates = $derived(recentGroupmates.slice(0, 3));

@@ -76,6 +76,11 @@ import {
   type ImportActivityResult,
   type ImportActivityError
 } from '$lib/application/useCases/importActivity';
+import {
+  exportActivity as exportActivityUseCase,
+  type ExportActivityInput,
+  type ExportActivityError
+} from '$lib/application/useCases/exportActivity';
 import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
@@ -362,10 +367,32 @@ export async function importActivity(
       programRepo: env.programRepo,
       preferenceRepo: env.preferenceRepo,
       scenarioRepo: env.scenarioRepo,
+      sessionRepo: env.sessionRepo,
+      placementRepo: env.placementRepo,
+      observationRepo: env.observationRepo,
       idGenerator: env.idGenerator,
       clock: env.clock
     },
     { ...input, userId }
+  );
+}
+
+export async function exportActivityData(
+  env: InMemoryEnvironment,
+  input: ExportActivityInput
+): Promise<Result<import('$lib/utils/activityFile').ActivityExportData, ExportActivityError>> {
+  return exportActivityUseCase(
+    {
+      programRepo: env.programRepo,
+      poolRepo: env.poolRepo,
+      studentRepo: env.studentRepo,
+      preferenceRepo: env.preferenceRepo,
+      scenarioRepo: env.scenarioRepo,
+      sessionRepo: env.sessionRepo,
+      placementRepo: env.placementRepo,
+      observationRepo: env.observationRepo
+    },
+    input
   );
 }
 

@@ -15,9 +15,10 @@ import type { ProgramType } from '$lib/domain/program';
 
 /**
  * Schema version for the export format.
- * Increment when making breaking changes to the schema.
+ * v1: roster, preferences, scenario (groups)
+ * v2: adds sessions, placements, observations, pool metadata
  */
-export const ACTIVITY_FILE_VERSION = 1;
+export const ACTIVITY_FILE_VERSION = 2;
 
 /**
  * Student data for export (subset of domain Student).
@@ -61,7 +62,57 @@ export interface ExportedScenario {
 }
 
 /**
+ * Session data for export (v2+).
+ */
+export interface ExportedSession {
+  id: string;
+  name: string;
+  academicYear: string;
+  startDate: string; // ISO
+  endDate: string; // ISO
+  status: string;
+  scenarioId?: string;
+  publishedAt?: string; // ISO
+  createdAt: string; // ISO
+}
+
+/**
+ * Placement data for export (v2+).
+ */
+export interface ExportedPlacement {
+  id: string;
+  sessionId: string;
+  studentId: string;
+  groupId: string;
+  groupName: string;
+  preferenceRank: number | null;
+  preferenceSnapshot?: string[];
+  assignedAt: string; // ISO
+  startDate: string; // ISO
+  endDate?: string; // ISO
+  type: string;
+  correctsPlacementId?: string;
+  reason?: string;
+}
+
+/**
+ * Observation data for export (v2+).
+ */
+export interface ExportedObservation {
+  id: string;
+  sessionId?: string;
+  groupId: string;
+  groupName: string;
+  content: string;
+  sentiment?: string;
+  tags?: string[];
+  createdAt: string; // ISO
+}
+
+/**
  * Complete activity export data structure.
+ * v1 fields: activity, roster, preferences, scenario
+ * v2 fields: sessions, placements, observations, pool
  */
 export interface ActivityExportData {
   version: number;
@@ -75,6 +126,14 @@ export interface ActivityExportData {
   };
   preferences: ExportedPreference[];
   scenario?: ExportedScenario;
+  // v2 fields
+  pool?: {
+    name: string;
+    type: string;
+  };
+  sessions?: ExportedSession[];
+  placements?: ExportedPlacement[];
+  observations?: ExportedObservation[];
 }
 
 // =============================================================================
@@ -312,6 +371,66 @@ export function parseActivityFile(jsonString: string): ActivityFileValidation {
       })),
       algorithmConfig: scenario.algorithmConfig
     };
+  }
+
+  // v2 fields: pool metadata
+  if (data.pool && typeof data.pool === 'object') {
+    const pool = data.pool as Record<string, unknown>;
+    validatedData.pool = {
+      name: typeof pool.name === 'string' ? pool.name : '',
+      type: typeof pool.type === 'string' ? pool.type : 'CLASS'
+    };
+  }
+
+  // v2 fields: sessions
+  if (Array.isArray(data.sessions)) {
+    validatedData.sessions = (data.sessions as Record<string, unknown>[]).map((s) => ({
+      id: String(s.id ?? ''),
+      name: String(s.name ?? ''),
+      academicYear: String(s.academicYear ?? ''),
+      startDate: String(s.startDate ?? ''),
+      endDate: String(s.endDate ?? ''),
+      status: String(s.status ?? 'DRAFT'),
+      scenarioId: typeof s.scenarioId === 'string' ? s.scenarioId : undefined,
+      publishedAt: typeof s.publishedAt === 'string' ? s.publishedAt : undefined,
+      createdAt: String(s.createdAt ?? new Date().toISOString())
+    }));
+  }
+
+  // v2 fields: placements
+  if (Array.isArray(data.placements)) {
+    validatedData.placements = (data.placements as Record<string, unknown>[]).map((p) => ({
+      id: String(p.id ?? ''),
+      sessionId: String(p.sessionId ?? ''),
+      studentId: String(p.studentId ?? ''),
+      groupId: String(p.groupId ?? ''),
+      groupName: String(p.groupName ?? ''),
+      preferenceRank: typeof p.preferenceRank === 'number' ? p.preferenceRank : null,
+      preferenceSnapshot: Array.isArray(p.preferenceSnapshot)
+        ? (p.preferenceSnapshot as string[])
+        : undefined,
+      assignedAt: String(p.assignedAt ?? ''),
+      startDate: String(p.startDate ?? ''),
+      endDate: typeof p.endDate === 'string' ? p.endDate : undefined,
+      type: String(p.type ?? 'INITIAL'),
+      correctsPlacementId:
+        typeof p.correctsPlacementId === 'string' ? p.correctsPlacementId : undefined,
+      reason: typeof p.reason === 'string' ? p.reason : undefined
+    }));
+  }
+
+  // v2 fields: observations
+  if (Array.isArray(data.observations)) {
+    validatedData.observations = (data.observations as Record<string, unknown>[]).map((o) => ({
+      id: String(o.id ?? ''),
+      sessionId: typeof o.sessionId === 'string' ? o.sessionId : undefined,
+      groupId: String(o.groupId ?? ''),
+      groupName: String(o.groupName ?? ''),
+      content: String(o.content ?? ''),
+      sentiment: typeof o.sentiment === 'string' ? o.sentiment : undefined,
+      tags: Array.isArray(o.tags) ? (o.tags as string[]) : undefined,
+      createdAt: String(o.createdAt ?? new Date().toISOString())
+    }));
   }
 
   return { valid: true, data: validatedData };

@@ -57,6 +57,9 @@
     // Student detail click
     onStudentClick?: (studentId: string) => void;
 
+    // Preference highlighting for selected/dragged student
+    selectedStudentPreferences?: string[] | null;
+
     // Read-only mode (published session)
     readOnly?: boolean;
   }
@@ -89,7 +92,8 @@
     studentPreferenceRanks = new Map(),
     studentHasPreferences = new Map(),
     onStudentClick,
-    readOnly = false
+    readOnly = false,
+    selectedStudentPreferences = null
   }: Props = $props();
 
   // --- Preview group count (for the empty-state slider) ---
@@ -195,6 +199,7 @@
           {studentPreferenceRanks}
           {studentHasPreferences}
           {onStudentClick}
+          {selectedStudentPreferences}
         />
       </div>
     {:else}

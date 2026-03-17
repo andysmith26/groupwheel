@@ -144,6 +144,16 @@
       };
     }
 
+    if (preferenceRank === 3) {
+      return {
+        borderColor: 'border-orange-400',
+        bgColor: 'bg-orange-50',
+        textColor: 'text-orange-700',
+        badgeBg: 'bg-orange-100',
+        label
+      };
+    }
+
     // Other choices: default styling, no highlight
     return {
       borderColor: 'border-gray-200',

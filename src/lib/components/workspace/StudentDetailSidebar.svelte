@@ -25,6 +25,7 @@
   interface Props {
     student: Student | null;
     preferences?: StudentPreference | null;
+    groupNameMap?: Record<string, string>;
     recentGroupmates?: RecentGroupmate[];
     mode: 'view' | 'edit' | 'create';
     onClose: () => void;
@@ -42,6 +43,7 @@
   let {
     student,
     preferences = null,
+    groupNameMap = {},
     recentGroupmates = [],
     mode,
     onClose,
@@ -58,7 +60,10 @@
   let loading = $state(true);
   let loadError = $state<string | null>(null);
 
-  // --- Section states ---
+  // --- Sub-view state ---
+  let showHistory = $state(false);
+
+  // --- Section states (within history view) ---
   let historyExpanded = $state(true);
   let observationsExpanded = $state(true);
   let groupmatesExpanded = $state(false);
@@ -110,9 +115,10 @@
     }
   });
 
-  // Load profile when student changes (view mode only)
+  // Reset sub-view and load profile when student changes (view mode only)
   $effect(() => {
     if (canonicalId && mode === 'view') {
+      showHistory = false;
       loadProfile(canonicalId);
     }
   });
@@ -325,202 +331,231 @@
     {:else if student}
       <!-- View Mode -->
       <div class="space-y-4 px-4 py-3">
-        <!-- Current Preferences -->
-        {#if preferences}
-          {@const likeGroups = preferences.likeGroupIds ?? []}
-          {#if likeGroups.length > 0}
-            <div>
-              <h3 class="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
-                Preferences
-              </h3>
-              <div class="flex flex-wrap gap-1.5">
-                {#each likeGroups as choice, i}
-                  <span
-                    class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700"
-                  >
-                    {i + 1}. {choice}
-                  </span>
-                {/each}
-              </div>
-            </div>
-          {/if}
-        {/if}
+        {#if showHistory}
+          <!-- History sub-view -->
+          <button
+            type="button"
+            onclick={() => (showHistory = false)}
+            class="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800"
+          >
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+            Back to overview
+          </button>
 
-        <!-- Recent Groupmates (from current activity pairing stats) -->
-        {#if recentGroupmates.length > 0}
-          <div>
-            <h3 class="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
-              Recent Groupmates
-            </h3>
-            <div class="space-y-1">
-              {#each recentGroupmates.slice(0, 5) as groupmate}
-                <div class="flex items-center justify-between text-xs">
-                  <span class="truncate text-gray-700">{groupmate.studentName}</span>
-                  <span class="ml-2 flex-shrink-0 text-gray-400">{groupmate.count}x</span>
+          {#if loading}
+            <div class="space-y-3 pt-2">
+              <Skeleton width="100%" height="1rem" />
+              <Skeleton width="80%" height="0.75rem" />
+              <Skeleton width="100%" height="3rem" rounded="md" />
+              <Skeleton width="100%" height="3rem" rounded="md" />
+            </div>
+          {:else if loadError}
+            <div class="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              {loadError}
+            </div>
+          {:else if profile}
+            <!-- Profile Summary -->
+            {#if profile.summary.totalGroupings > 0}
+              <div class="grid grid-cols-3 gap-2">
+                <div class="rounded-md border border-gray-200 p-2 text-center">
+                  <p class="text-sm font-semibold text-gray-900">{profile.summary.activityCount}</p>
+                  <p class="text-[10px] text-gray-500">Activities</p>
                 </div>
-              {/each}
-            </div>
-          </div>
-        {/if}
+                <div class="rounded-md border border-gray-200 p-2 text-center">
+                  <p class="text-sm font-semibold text-gray-900">{profile.summary.totalGroupings}</p>
+                  <p class="text-[10px] text-gray-500">Groupings</p>
+                </div>
+                <div class="rounded-md border border-gray-200 p-2 text-center">
+                  <p class="text-sm font-semibold text-green-600">
+                    {profile.summary.firstChoicePercentage}%
+                  </p>
+                  <p class="text-[10px] text-gray-500">1st Choice</p>
+                </div>
+              </div>
+            {/if}
 
-        <!-- Loading state for profile data -->
-        {#if loading}
-          <div class="space-y-3 pt-2">
-            <Skeleton width="100%" height="1rem" />
-            <Skeleton width="80%" height="0.75rem" />
-            <Skeleton width="100%" height="3rem" rounded="md" />
-            <Skeleton width="100%" height="3rem" rounded="md" />
-          </div>
-        {:else if loadError}
-          <div class="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-            {loadError}
-          </div>
-        {:else if profile}
-          <!-- Profile Summary -->
-          {#if profile.summary.totalGroupings > 0}
-            <div class="grid grid-cols-3 gap-2">
-              <div class="rounded-md border border-gray-200 p-2 text-center">
-                <p class="text-sm font-semibold text-gray-900">{profile.summary.activityCount}</p>
-                <p class="text-[10px] text-gray-500">Activities</p>
-              </div>
-              <div class="rounded-md border border-gray-200 p-2 text-center">
-                <p class="text-sm font-semibold text-gray-900">{profile.summary.totalGroupings}</p>
-                <p class="text-[10px] text-gray-500">Groupings</p>
-              </div>
-              <div class="rounded-md border border-gray-200 p-2 text-center">
-                <p class="text-sm font-semibold text-green-600">
-                  {profile.summary.firstChoicePercentage}%
-                </p>
-                <p class="text-[10px] text-gray-500">1st Choice</p>
-              </div>
-            </div>
-          {/if}
+            <!-- Grouping History -->
+            {#if profile.placementHistory.length > 0}
+              <CollapsibleSection
+                title="Grouping History"
+                summary="{profile.placementHistory.length} placements"
+                isExpanded={historyExpanded}
+                onToggle={(expanded) => (historyExpanded = expanded)}
+              >
+                <div class="space-y-1.5">
+                  {#each profile.placementHistory.slice(0, 10) as item}
+                    <div class="rounded border border-gray-100 px-2.5 py-1.5 text-xs">
+                      <div class="flex items-center justify-between">
+                        <span class="font-medium text-gray-900">{item.groupName}</span>
+                        {#if item.placement.preferenceRank === 1}
+                          <span
+                            class="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-800"
+                            >1st</span
+                          >
+                        {:else if item.placement.preferenceRank === 2}
+                          <span
+                            class="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800"
+                            >2nd</span
+                          >
+                        {:else if item.placement.preferenceRank !== null}
+                          <span
+                            class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600"
+                            >{formatPreferenceRank(item.placement.preferenceRank)}</span
+                          >
+                        {/if}
+                      </div>
+                      <div class="mt-0.5 text-gray-500">
+                        {item.activityName}{item.session?.name ? ` · ${item.session.name}` : ''} · {formatDate(item.session?.startDate)}
+                      </div>
+                    </div>
+                  {/each}
+                  {#if profile.placementHistory.length > 10}
+                    <p class="text-center text-[10px] text-gray-400">
+                      +{profile.placementHistory.length - 10} more
+                    </p>
+                  {/if}
+                </div>
+              </CollapsibleSection>
+            {/if}
 
-          <!-- Grouping History -->
-          {#if profile.placementHistory.length > 0}
-            <CollapsibleSection
-              title="Grouping History"
-              summary="{profile.placementHistory.length} placements"
-              isExpanded={historyExpanded}
-              onToggle={(expanded) => (historyExpanded = expanded)}
-            >
-              <div class="space-y-1.5">
-                {#each profile.placementHistory.slice(0, 10) as item}
-                  <div class="rounded border border-gray-100 px-2.5 py-1.5 text-xs">
-                    <div class="flex items-center justify-between">
-                      <span class="font-medium text-gray-900">{item.groupName}</span>
-                      {#if item.placement.preferenceRank === 1}
-                        <span
-                          class="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-800"
-                          >1st</span
-                        >
-                      {:else if item.placement.preferenceRank === 2}
-                        <span
-                          class="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800"
-                          >2nd</span
-                        >
-                      {:else if item.placement.preferenceRank !== null}
-                        <span
-                          class="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600"
-                          >{formatPreferenceRank(item.placement.preferenceRank)}</span
-                        >
+            <!-- Past Observations -->
+            {#if profile.observations.length > 0}
+              <CollapsibleSection
+                title="Past Observations"
+                summary="{profile.observations.length} notes"
+                isExpanded={observationsExpanded}
+                onToggle={(expanded) => (observationsExpanded = expanded)}
+              >
+                <div class="space-y-1.5">
+                  {#each profile.observations.slice(0, 5) as obs}
+                    <div class="rounded border border-gray-100 px-2.5 py-1.5 text-xs">
+                      <div class="flex items-center gap-1.5">
+                        {#if obs.sentiment === 'POSITIVE'}
+                          <span class="text-green-500">+</span>
+                        {:else if obs.sentiment === 'NEGATIVE'}
+                          <span class="text-red-500">-</span>
+                        {:else}
+                          <span class="text-gray-400">o</span>
+                        {/if}
+                        <span class="text-gray-500">{formatDate(obs.createdAt)}</span>
+                      </div>
+                      {#if obs.content}
+                        <p class="mt-0.5 text-gray-700">{obs.content}</p>
                       {/if}
                     </div>
-                    <div class="mt-0.5 text-gray-500">
-                      {item.activityName}{item.session?.name ? ` · ${item.session.name}` : ''} · {formatDate(item.session?.startDate)}
+                  {/each}
+                  {#if profile.observations.length > 5}
+                    <p class="text-center text-[10px] text-gray-400">
+                      +{profile.observations.length - 5} more
+                    </p>
+                  {/if}
+                </div>
+              </CollapsibleSection>
+            {/if}
+
+            <!-- Frequent Groupmates (cross-activity) -->
+            {#if profile.pairingStats.length > 0}
+              <CollapsibleSection
+                title="Frequent Groupmates"
+                summary="{profile.pairingStats.length} students"
+                isExpanded={groupmatesExpanded}
+                onToggle={(expanded) => (groupmatesExpanded = expanded)}
+              >
+                <div class="space-y-1">
+                  {#each profile.pairingStats.slice(0, 8) as stat}
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="truncate text-gray-700">{stat.otherStudentName}</span>
+                      <span class="ml-2 flex-shrink-0 text-gray-400">{stat.count}x</span>
                     </div>
-                  </div>
-                {/each}
-                {#if profile.placementHistory.length > 10}
-                  <p class="text-center text-[10px] text-gray-400">
-                    +{profile.placementHistory.length - 10} more
-                  </p>
-                {/if}
-              </div>
-            </CollapsibleSection>
-          {/if}
+                  {/each}
+                </div>
+              </CollapsibleSection>
+            {/if}
 
-          <!-- Past Observations -->
-          {#if profile.observations.length > 0}
-            <CollapsibleSection
-              title="Past Observations"
-              summary="{profile.observations.length} notes"
-              isExpanded={observationsExpanded}
-              onToggle={(expanded) => (observationsExpanded = expanded)}
-            >
-              <div class="space-y-1.5">
-                {#each profile.observations.slice(0, 5) as obs}
-                  <div class="rounded border border-gray-100 px-2.5 py-1.5 text-xs">
-                    <div class="flex items-center gap-1.5">
-                      {#if obs.sentiment === 'POSITIVE'}
-                        <span class="text-green-500">+</span>
-                      {:else if obs.sentiment === 'NEGATIVE'}
-                        <span class="text-red-500">-</span>
-                      {:else}
-                        <span class="text-gray-400">o</span>
-                      {/if}
-                      <span class="text-gray-500">{formatDate(obs.createdAt)}</span>
-                    </div>
-                    {#if obs.content}
-                      <p class="mt-0.5 text-gray-700">{obs.content}</p>
-                    {/if}
-                  </div>
-                {/each}
-                {#if profile.observations.length > 5}
-                  <p class="text-center text-[10px] text-gray-400">
-                    +{profile.observations.length - 5} more
-                  </p>
-                {/if}
+            <!-- Empty state -->
+            {#if profile.summary.totalGroupings === 0 && profile.observations.length === 0}
+              <div class="rounded-md border-2 border-dashed border-gray-200 p-4 text-center">
+                <p class="text-xs text-gray-500">No history yet for this student.</p>
               </div>
-            </CollapsibleSection>
-          {/if}
-
-          <!-- Frequent Groupmates (cross-activity) -->
-          {#if profile.pairingStats.length > 0}
-            <CollapsibleSection
-              title="Frequent Groupmates"
-              summary="{profile.pairingStats.length} students"
-              isExpanded={groupmatesExpanded}
-              onToggle={(expanded) => (groupmatesExpanded = expanded)}
-            >
-              <div class="space-y-1">
-                {#each profile.pairingStats.slice(0, 8) as stat}
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="truncate text-gray-700">{stat.otherStudentName}</span>
-                    <span class="ml-2 flex-shrink-0 text-gray-400">{stat.count}x</span>
-                  </div>
-                {/each}
-              </div>
-            </CollapsibleSection>
-          {/if}
-
-          <!-- Empty state -->
-          {#if profile.summary.totalGroupings === 0 && profile.observations.length === 0}
+            {/if}
+          {:else}
+            <!-- No canonical identity — show limited view -->
             <div class="rounded-md border-2 border-dashed border-gray-200 p-4 text-center">
-              <p class="text-xs text-gray-500">No history yet for this student.</p>
+              <p class="text-xs text-gray-500">No cross-activity history available.</p>
+              <p class="mt-1 text-[10px] text-gray-400">History builds as you save sessions.</p>
             </div>
           {/if}
         {:else}
-          <!-- No canonical identity — show limited view -->
-          <div class="rounded-md border-2 border-dashed border-gray-200 p-4 text-center">
-            <p class="text-xs text-gray-500">No cross-activity history available.</p>
-            <p class="mt-1 text-[10px] text-gray-400">History builds as you save sessions.</p>
+          <!-- Overview sub-view (default): preferences & recent groupmates -->
+
+          <!-- Current Preferences -->
+          {#if preferences}
+            {@const likeGroups = preferences.likeGroupIds ?? []}
+            {#if likeGroups.length > 0}
+              <div>
+                <h3 class="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
+                  Preferences
+                </h3>
+                <div class="flex flex-wrap gap-1.5">
+                  {#each likeGroups as choice, i}
+                    <span
+                      class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700"
+                    >
+                      {i + 1}. {groupNameMap[choice] ?? choice}
+                    </span>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          {/if}
+
+          <!-- Recent Groupmates (from current activity pairing stats) -->
+          {#if recentGroupmates.length > 0}
+            <div>
+              <h3 class="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
+                Recent Groupmates
+              </h3>
+              <div class="space-y-1">
+                {#each recentGroupmates.slice(0, 5) as groupmate}
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="truncate text-gray-700">{groupmate.studentName}</span>
+                    <span class="ml-2 flex-shrink-0 text-gray-400">{groupmate.count}x</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
+          <!-- View History link -->
+          {#if !loading && profile && (profile.summary.totalGroupings > 0 || profile.observations.length > 0)}
+            <button
+              type="button"
+              onclick={() => (showHistory = true)}
+              class="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800"
+            >
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              View history ({profile.summary.totalGroupings} groupings)
+            </button>
+          {/if}
+
+          <!-- Remove from roster -->
+          <div class="border-t border-gray-100 pt-3">
+            <button
+              type="button"
+              onclick={onDelete}
+              class="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
+            >
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+              </svg>
+              Remove from roster
+            </button>
           </div>
         {/if}
-
-        <!-- Remove from roster -->
-        <div class="border-t border-gray-100 pt-3">
-          <button
-            type="button"
-            onclick={onDelete}
-            class="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
-          >
-            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
-            </svg>
-            Remove from roster
-          </button>
-        </div>
       </div>
     {/if}
   </div>

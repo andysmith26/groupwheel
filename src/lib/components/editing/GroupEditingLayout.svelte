@@ -101,14 +101,13 @@
     return groups.filter((g: Group) => g.id !== groupId).map((g: Group) => g.name);
   }
 
-  // Helper to get preference rank for a group
-  function getPreferenceRank(groupId: string): number | null {
+  // Helper to get preference rank for a group (likeGroupIds stores group IDs)
+  function getPreferenceRank(group: Group): number | null {
     if (!selectedStudentPreferences || selectedStudentPreferences.length === 0) {
       return null;
     }
-    const index = selectedStudentPreferences.indexOf(groupId);
-    const rank = index >= 0 ? index + 1 : null;
-    return rank;
+    const index = selectedStudentPreferences.indexOf(group.id);
+    return index >= 0 ? index + 1 : null;
   }
 </script>
 
@@ -135,7 +134,7 @@
           {onUpdateGroup}
           focusNameOnMount={group.id === newGroupId}
           siblingGroupNames={getSiblingNames(group.id)}
-          preferenceRank={getPreferenceRank(group.id)}
+          preferenceRank={getPreferenceRank(group)}
           {studentPreferenceRanks}
           {studentHasPreferences}
           {onStudentHoverStart}
@@ -172,7 +171,7 @@
         {onUpdateGroup}
         focusNameOnMount={group.id === newGroupId}
         siblingGroupNames={getSiblingNames(group.id)}
-        preferenceRank={getPreferenceRank(group.id)}
+        preferenceRank={getPreferenceRank(group)}
         {studentPreferenceRanks}
         {studentHasPreferences}
         {onStudentHoverStart}

@@ -353,7 +353,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
           ranks.set(studentId, null);
           continue;
         }
-        const rank = prefs.indexOf(group.name);
+        const rank = prefs.indexOf(group.id);
         ranks.set(studentId, rank >= 0 ? rank + 1 : null);
       }
     }

@@ -14,10 +14,13 @@ import type {
   ProgramRepository,
   PreferenceRepository,
   ScenarioRepository,
+  SessionRepository,
+  PlacementRepository,
+  ObservationRepository,
   IdGenerator,
   Clock
 } from '$lib/application/ports';
-import type { Pool, Program, Student, Scenario } from '$lib/domain';
+import type { Pool, Program, Student, Scenario, Session, Placement, Observation } from '$lib/domain';
 import type { Preference, StudentPreference } from '$lib/domain/preference';
 import type { Group } from '$lib/domain/group';
 import type { Result } from '$lib/types/result';
@@ -50,6 +53,9 @@ export interface ImportActivityResult {
   studentsImported: number;
   preferencesImported: number;
   groupsImported: number;
+  sessionsImported: number;
+  placementsImported: number;
+  observationsImported: number;
 }
 
 export type ImportActivityError =
@@ -67,6 +73,9 @@ export interface ImportActivityDeps {
   programRepo: ProgramRepository;
   preferenceRepo: PreferenceRepository;
   scenarioRepo: ScenarioRepository;
+  sessionRepo?: SessionRepository;
+  placementRepo?: PlacementRepository;
+  observationRepo?: ObservationRepository;
   idGenerator: IdGenerator;
   clock: Clock;
 }
@@ -141,8 +150,8 @@ export async function importActivity(
     const poolId = deps.idGenerator.generateId();
     const pool: Pool = {
       id: poolId,
-      name: `${exportData.activity.name} Roster`,
-      type: 'CLASS' as const,
+      name: exportData.pool?.name || `${exportData.activity.name} Roster`,
+      type: (exportData.pool?.type as Pool['type']) || ('CLASS' as const),
       memberIds: students.map((s) => s.id),
       status: 'ACTIVE' as const,
       primaryStaffOwnerId: ownerStaffId,
@@ -270,6 +279,119 @@ export async function importActivity(
     }
 
     // -------------------------------------------------------------------------
+    // Step 8: Import Sessions (v2+)
+    // -------------------------------------------------------------------------
+
+    const sessionIdMap = new Map<string, string>();
+    let sessionsImported = 0;
+
+    if (deps.sessionRepo && exportData.sessions && exportData.sessions.length > 0) {
+      for (const exportedSession of exportData.sessions) {
+        const newSessionId = deps.idGenerator.generateId();
+        sessionIdMap.set(exportedSession.id, newSessionId);
+
+        // Remap scenarioId if it matches the scenario we just created
+        const newScenarioId = scenario ? scenario.id : undefined;
+
+        const session: Session = {
+          id: newSessionId,
+          programId: program.id,
+          name: String(exportedSession.name),
+          academicYear: String(exportedSession.academicYear),
+          startDate: new Date(exportedSession.startDate),
+          endDate: new Date(exportedSession.endDate),
+          status: exportedSession.status as Session['status'],
+          scenarioId: exportedSession.scenarioId ? newScenarioId : undefined,
+          publishedAt: exportedSession.publishedAt
+            ? new Date(exportedSession.publishedAt)
+            : undefined,
+          createdAt: new Date(exportedSession.createdAt),
+          userId
+        };
+
+        await deps.sessionRepo.save(session);
+        sessionsImported++;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 9: Import Placements (v2+)
+    // -------------------------------------------------------------------------
+
+    let placementsImported = 0;
+
+    if (deps.placementRepo && exportData.placements && exportData.placements.length > 0) {
+      const placementsToSave: Placement[] = [];
+
+      for (const exportedPlacement of exportData.placements) {
+        const newSessionId = sessionIdMap.get(exportedPlacement.sessionId);
+        const newStudentId = studentIdMap.get(exportedPlacement.studentId);
+        const newGroupId = groupIdMap.get(exportedPlacement.groupId);
+
+        // Skip placements that reference missing sessions or students
+        if (!newSessionId || !newStudentId) continue;
+
+        const placement: Placement = {
+          id: deps.idGenerator.generateId(),
+          sessionId: newSessionId,
+          studentId: newStudentId,
+          groupId: newGroupId ?? exportedPlacement.groupId,
+          groupName: String(exportedPlacement.groupName),
+          preferenceRank: exportedPlacement.preferenceRank,
+          preferenceSnapshot: exportedPlacement.preferenceSnapshot?.map(
+            (gId) => groupIdMap.get(gId) ?? gId
+          ),
+          assignedAt: new Date(exportedPlacement.assignedAt),
+          startDate: new Date(exportedPlacement.startDate),
+          endDate: exportedPlacement.endDate
+            ? new Date(exportedPlacement.endDate)
+            : undefined,
+          type: exportedPlacement.type as Placement['type'],
+          correctsPlacementId: exportedPlacement.correctsPlacementId,
+          reason: exportedPlacement.reason
+        };
+
+        placementsToSave.push(placement);
+      }
+
+      if (placementsToSave.length > 0) {
+        await deps.placementRepo.saveBatch(placementsToSave);
+        placementsImported = placementsToSave.length;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 10: Import Observations (v2+)
+    // -------------------------------------------------------------------------
+
+    let observationsImported = 0;
+
+    if (deps.observationRepo && exportData.observations && exportData.observations.length > 0) {
+      for (const exportedObs of exportData.observations) {
+        const newSessionId = exportedObs.sessionId
+          ? sessionIdMap.get(exportedObs.sessionId)
+          : undefined;
+        const newGroupId = groupIdMap.get(exportedObs.groupId);
+
+        const observation: Observation = {
+          id: deps.idGenerator.generateId(),
+          programId: program.id,
+          sessionId: newSessionId,
+          groupId: newGroupId ?? exportedObs.groupId,
+          groupName: String(exportedObs.groupName),
+          content: String(exportedObs.content),
+          sentiment: exportedObs.sentiment as Observation['sentiment'],
+          tags: exportedObs.tags,
+          createdAt: new Date(exportedObs.createdAt),
+          userId
+        };
+
+        await deps.observationRepo.save(observation);
+        observationsImported++;
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // Return Result
     // -------------------------------------------------------------------------
 
@@ -279,7 +401,10 @@ export async function importActivity(
       scenario,
       studentsImported: students.length,
       preferencesImported,
-      groupsImported
+      groupsImported,
+      sessionsImported,
+      placementsImported,
+      observationsImported
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Unknown error during import';
