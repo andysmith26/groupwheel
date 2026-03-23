@@ -11,6 +11,8 @@
   import { isErr } from '$lib/types/result';
   import type { Program, Scenario, Student, Group, Pool } from '$lib/domain';
   import { getActiveMemberIds } from '$lib/domain/pool';
+  import { sortStudentIds } from '$lib/utils/csvExport';
+  import type { SortBy } from '$lib/utils/csvExport';
 
   // --- Environment ---
   let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -31,6 +33,23 @@
   );
 
   let groups = $derived<Group[]>(scenario?.groups ?? []);
+
+  // Read sort order from URL query parameter
+  let sortBy = $derived<SortBy>(
+    $page.url.searchParams.get('sort') === 'firstName' ? 'firstName' : 'lastName'
+  );
+
+  // Sort student IDs within each group for display
+  let sortedGroups = $derived(
+    groups.map((g) => ({
+      ...g,
+      sortedMemberIds: sortStudentIds(
+        g.memberIds,
+        new Map(Object.entries(studentsById)),
+        sortBy
+      )
+    }))
+  );
 
   onMount(async () => {
     env = getAppEnvContext();
@@ -154,7 +173,7 @@
       {:else}
         <!-- Groups grid -->
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {#each groups as group}
+          {#each sortedGroups as group}
             <div class="print-group rounded-lg border border-gray-300 bg-white p-4">
               <!-- Group header -->
               <div class="mb-3 border-b border-gray-200 pb-2">
@@ -169,7 +188,7 @@
 
               <!-- Student list -->
               <ul class="space-y-1">
-                {#each group.memberIds as studentId}
+                {#each group.sortedMemberIds as studentId}
                   <li class="text-sm text-gray-700">
                     {getStudentName(studentId)}
                   </li>

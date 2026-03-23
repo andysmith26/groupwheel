@@ -86,29 +86,6 @@
   const capacityStatus = $derived(getCapacityStatus(group));
   const leftBorderColor = $derived(resolveGroupColorHex(group));
 
-  // Drag destination rank preview (draggedStudentPreferences is already cleaned/resolved to group IDs)
-  const previewRank = $derived.by(() => {
-    if (!draggingId || !draggedStudentPreferences) return null;
-    const rank = draggedStudentPreferences.indexOf(group.id);
-    return rank >= 0 ? rank + 1 : null;
-  });
-
-  const previewBadgeText = $derived.by(() => {
-    if (previewRank === null) return 'Not preferred';
-    if (previewRank === 1) return 'Would be 1st';
-    if (previewRank === 2) return 'Would be 2nd';
-    if (previewRank === 3) return 'Would be 3rd';
-    return `Would be ${previewRank}th`;
-  });
-
-  const previewBadgeClass = $derived.by(() => {
-    if (previewRank === null) return 'bg-gray-100 text-gray-500';
-    if (previewRank === 1) return 'bg-green-100 text-green-700';
-    if (previewRank === 2) return 'bg-yellow-100 text-yellow-700';
-    if (previewRank === 3) return 'bg-orange-100 text-orange-700';
-    return 'bg-red-100 text-red-700';
-  });
-
   // Preference rank styling — highlights top 4 choices
   const preferenceStyles = $derived(() => {
     if (preferenceRank === null || preferenceRank > 4) return null;
@@ -330,7 +307,7 @@
   <!-- Preference choice label above the group (hidden during drag since header shows preview badge) -->
   {#if preferenceStyles() && !draggingId}
     <div
-      class={`absolute -top-5 left-0 right-0 z-10 text-center text-[11px] font-semibold ${preferenceStyles()!.textColor}`}
+      class={`absolute -top-5 right-0 left-0 z-10 text-center text-[11px] font-semibold ${preferenceStyles()!.textColor}`}
       transition:fade={{ duration: 100 }}
     >
       {preferenceStyles()!.label}
@@ -349,122 +326,120 @@
     <!-- Top color bar -->
     <div class="h-1.5 w-full shrink-0" style={`background-color: ${leftBorderColor};`}></div>
 
-  <!-- Header: name + count -->
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="flex items-center gap-1 border-b border-gray-200 px-2 py-1.5"
-    onclick={handleHeaderClick}
-  >
-    {#if isEditingName}
-      <input
-        bind:this={nameInputEl}
-        type="text"
-        bind:value={editingName}
-        onblur={commitName}
-        oninput={handleNameInput}
-        onkeydown={handleNameKeydown}
-        onclick={(e) => e.stopPropagation()}
-        class="min-w-0 flex-1 rounded border border-teal-400 bg-white px-1 py-0.5 text-sm font-semibold text-gray-900 outline-none focus:ring-1 focus:ring-teal-400"
-      />
-    {:else}
-      <span
-        class="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900"
-        ondblclick={handleNameDblClick}
-        title={onUpdateGroup && !readonly ? `Double-click to rename "${editingName}"` : editingName}
-      >
-        {editingName}
-      </span>
-    {/if}
-    {#if draggingId && draggedStudentPreferences}
-      <span class={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${previewBadgeClass}`}>
-        {previewBadgeText}
-      </span>
-    {:else}
-      <span
-        class={`shrink-0 text-xs ${
-          capacityStatus.isOverEnrolled ? 'font-medium text-violet-600' : 'text-gray-400'
-        }`}
-      >
-        {capacityLabel()}
-      </span>
-    {/if}
-  </div>
-
-  {#if nameError}
-    <p
-      class="absolute top-10 left-2 z-20 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-500 shadow-sm"
-      transition:fade={{ duration: 150 }}
+    <!-- Header: name + count -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="flex items-center gap-1 border-b border-gray-200 px-2 py-1.5"
+      onclick={handleHeaderClick}
     >
-      {nameError}
-    </p>
-  {/if}
+      {#if isEditingName}
+        <input
+          bind:this={nameInputEl}
+          type="text"
+          bind:value={editingName}
+          onblur={commitName}
+          oninput={handleNameInput}
+          onkeydown={handleNameKeydown}
+          onclick={(e) => e.stopPropagation()}
+          class="min-w-0 flex-1 rounded border border-teal-400 bg-white px-1 py-0.5 text-sm font-semibold text-gray-900 outline-none focus:ring-1 focus:ring-teal-400"
+        />
+      {:else}
+        <span
+          class="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900"
+          ondblclick={handleNameDblClick}
+          title={onUpdateGroup && !readonly
+            ? `Double-click to rename "${editingName}"`
+            : editingName}
+        >
+          {editingName}
+        </span>
+      {/if}
+      {#if !draggingId || !draggedStudentPreferences}
+        <span
+          class={`shrink-0 text-xs ${
+            capacityStatus.isOverEnrolled ? 'font-medium text-violet-600' : 'text-gray-400'
+          }`}
+        >
+          {capacityLabel()}
+        </span>
+      {/if}
+    </div>
 
-  <div
-    use:droppable={{ container: group.id, callbacks: { onDrop: handleContainerDrop } }}
-    class={`grid flex-1 place-items-center content-start px-1 py-1 ${draggingId ? 'bg-white' : ''}`}
-    style="grid-template-columns: 1fr; gap: var(--card-gap, 4px);"
-  >
-    {#if memberIds.length === 0}
-      <p class="col-span-full py-6 text-center text-xs text-gray-500">
-        {readonly ? 'No students' : 'Drop students here'}
+    {#if nameError}
+      <p
+        class="absolute top-10 left-2 z-20 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-500 shadow-sm"
+        transition:fade={{ duration: 150 }}
+      >
+        {nameError}
       </p>
-    {:else}
-      {#each memberIds as memberId, index (memberId)}
-        {#if studentsById[memberId]}
-          <div class="relative">
-            <DropIndicator
-              edge="top"
-              visible={hoveredItemId === memberId &&
-                hoveredEdge === 'top' &&
-                draggingId !== memberId}
-            />
+    {/if}
 
-            <DraggableStudentCard
-              student={studentsById[memberId]}
-              container={group.id}
-              {index}
-              isDragging={draggingId === memberId}
-              onDragStart={() => onDragStart?.(memberId)}
-              {onDragEnd}
-              flash={flashingIds.has(memberId)}
-              preferenceRank={studentPreferenceRanks.get(memberId) ?? null}
-              hasPreferences={studentHasPreferences.get(memberId) ?? false}
-              onHoverStart={onStudentHoverStart}
-              onHoverEnd={onStudentHoverEnd}
-              onEdgeChange={(edge) => handleEdgeChange(memberId, edge)}
-              onItemDrop={handleItemDrop}
-              isPickedUp={pickedUpStudentId === memberId}
-              isSelected={clickedStudentId === memberId}
-              {onKeyboardPickUp}
-              {onKeyboardDrop}
-              {onKeyboardCancel}
-              {onKeyboardMove}
-              {onStudentClick}
-              {readonly}
-            />
-
-            {#if index === memberIds.length - 1}
+    <div
+      use:droppable={{ container: group.id, callbacks: { onDrop: handleContainerDrop } }}
+      class={`grid flex-1 place-items-center content-start px-1 py-1 ${draggingId ? 'bg-white' : ''}`}
+      style="grid-template-columns: 1fr; gap: var(--card-gap, 4px);"
+    >
+      {#if memberIds.length === 0}
+        <p class="col-span-full py-6 text-center text-xs text-gray-500">
+          {readonly ? 'No students' : 'Drop students here'}
+        </p>
+      {:else}
+        {#each memberIds as memberId, index (memberId)}
+          {#if studentsById[memberId]}
+            <div class="relative">
               <DropIndicator
-                edge="bottom"
+                edge="top"
                 visible={hoveredItemId === memberId &&
-                  hoveredEdge === 'bottom' &&
+                  hoveredEdge === 'top' &&
                   draggingId !== memberId}
               />
-            {/if}
-          </div>
-        {/if}
-      {/each}
-    {/if}
-    <div
-      style="width: var(--card-width, 112px);"
-      class="pointer-events-none mx-auto p-0.5 opacity-0 select-none"
-      aria-hidden="true"
-    >
-      <div style="font-size: var(--card-font-size, 15px);" class="px-0.5 py-0.5 font-semibold">
-        &nbsp;
+
+              <DraggableStudentCard
+                student={studentsById[memberId]}
+                container={group.id}
+                {index}
+                isDragging={draggingId === memberId}
+                onDragStart={() => onDragStart?.(memberId)}
+                {onDragEnd}
+                flash={flashingIds.has(memberId)}
+                preferenceRank={studentPreferenceRanks.get(memberId) ?? null}
+                hasPreferences={studentHasPreferences.get(memberId) ?? false}
+                onHoverStart={onStudentHoverStart}
+                onHoverEnd={onStudentHoverEnd}
+                onEdgeChange={(edge) => handleEdgeChange(memberId, edge)}
+                onItemDrop={handleItemDrop}
+                isPickedUp={pickedUpStudentId === memberId}
+                isSelected={clickedStudentId === memberId}
+                {onKeyboardPickUp}
+                {onKeyboardDrop}
+                {onKeyboardCancel}
+                {onKeyboardMove}
+                {onStudentClick}
+                {readonly}
+              />
+
+              {#if index === memberIds.length - 1}
+                <DropIndicator
+                  edge="bottom"
+                  visible={hoveredItemId === memberId &&
+                    hoveredEdge === 'bottom' &&
+                    draggingId !== memberId}
+                />
+              {/if}
+            </div>
+          {/if}
+        {/each}
+      {/if}
+      <div
+        style="width: var(--card-width, 112px);"
+        class="pointer-events-none mx-auto p-0.5 opacity-0 select-none"
+        aria-hidden="true"
+      >
+        <div style="font-size: var(--card-font-size, 15px);" class="px-0.5 py-0.5 font-semibold">
+          &nbsp;
+        </div>
       </div>
     </div>
   </div>
-</div>
 </div>

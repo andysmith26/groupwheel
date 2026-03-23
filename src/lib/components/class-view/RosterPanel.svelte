@@ -55,14 +55,6 @@
   let inactiveCount = $derived(inactiveStudentIds.size);
   let activeStudents = $derived(students.filter((s) => !inactiveStudentIds.has(s.id)));
   let inactiveStudents = $derived(students.filter((s) => inactiveStudentIds.has(s.id)));
-  let preferencesCollectedCount = $derived.by(() => {
-    if (!hasPreferenceData) return 0;
-    let count = 0;
-    for (const [, has] of studentHasPreferences) {
-      if (has) count++;
-    }
-    return count;
-  });
 </script>
 
 <div class="flex h-full flex-col border-r bg-white">
@@ -76,13 +68,6 @@
       {#if hasPlaceholderStudents}
         <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
           Placeholders
-        </span>
-      {:else if hasPreferenceData}
-        <span
-          class="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700"
-          title="{preferencesCollectedCount} of {studentCount} students have preferences"
-        >
-          {preferencesCollectedCount} prefs
         </span>
       {/if}
     </div>
@@ -107,27 +92,7 @@
           </svg>
         </button>
       {/if}
-      <button
-        type="button"
-        onclick={onImport}
-        class="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-        aria-label={hasPlaceholderStudents ? 'Import real roster' : 'Import roster'}
-      >
-        <svg
-          class="h-4 w-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="1.5"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
-          />
-        </svg>
-        Import
-      </button>
+
     </div>
   </div>
 

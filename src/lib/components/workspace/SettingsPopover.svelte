@@ -8,7 +8,9 @@
    */
 
   import type { Group } from '$lib/domain';
+  import type { Session } from '$lib/domain';
   import DeleteGroupConfirmDialog from '$lib/components/editing/DeleteGroupConfirmDialog.svelte';
+  import HistoryPopover from './HistoryPopover.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
 
   interface Props {
@@ -22,6 +24,16 @@
     onDeleteGroup: (groupId: string) => void;
     onAddGroup: () => void;
     onClose: () => void;
+    onDisplay?: () => void;
+    onToggleHistory?: () => void;
+    hasHistory?: boolean;
+    historyPanelOpen?: boolean;
+    sessions?: Session[];
+    viewingSessionId?: string | null;
+    currentSessionId?: string | null;
+    onSelectSession?: (sessionId: string | null) => void;
+    onDeleteSession?: (sessionId: string) => void;
+    onRenameSession?: (sessionId: string, name: string) => void;
   }
 
   let {
@@ -35,6 +47,16 @@
     onDeleteGroup,
     onAddGroup,
     onClose,
+    onDisplay,
+    onToggleHistory,
+    hasHistory = false,
+    historyPanelOpen = false,
+    sessions = [],
+    viewingSessionId = null,
+    currentSessionId = null,
+    onSelectSession,
+    onDeleteSession,
+    onRenameSession,
   }: Props = $props();
 
   let popoverEl = $state<HTMLDivElement | null>(null);
@@ -137,10 +159,61 @@
   onclick={(e) => e.stopPropagation()}
 >
   <div class="border-b border-gray-200 px-4 py-3">
-    <h3 class="text-sm font-semibold text-gray-900">Settings</h3>
+    <h3 class="text-sm font-semibold text-gray-900">Options</h3>
   </div>
 
   <div class="max-h-[calc(100vh-120px)] overflow-y-auto">
+    <!-- Quick Actions Section -->
+    {#if onDisplay || onToggleHistory}
+      <div class="border-b border-gray-200 px-4 py-3">
+        <div class="flex flex-col gap-1">
+          {#if onDisplay}
+            <button
+              type="button"
+              onclick={() => { onDisplay?.(); onClose(); }}
+              class="flex min-h-[44px] items-center gap-3 rounded-md px-2 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <svg class="h-5 w-5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+              </svg>
+              Display fullscreen
+            </button>
+          {/if}
+          {#if onToggleHistory}
+            <div class="relative">
+              <button
+                type="button"
+                onclick={onToggleHistory}
+                class="flex min-h-[44px] w-full items-center gap-3 rounded-md px-2 py-2 text-sm {historyPanelOpen
+                  ? 'bg-teal-50 text-teal-700'
+                  : 'text-gray-700 hover:bg-gray-50'}"
+              >
+                <svg class="h-5 w-5 shrink-0 {historyPanelOpen ? 'text-teal-500' : 'text-gray-400'}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                Session history
+                {#if hasHistory}
+                  <span class="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
+                {/if}
+              </button>
+
+              {#if historyPanelOpen}
+                <HistoryPopover
+                  {sessions}
+                  {viewingSessionId}
+                  {currentSessionId}
+                  onSelectSession={onSelectSession ?? (() => {})}
+                  onClose={onToggleHistory}
+                  {onDeleteSession}
+                  {onRenameSession}
+                />
+              {/if}
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/if}
+
     <!-- Group Management Section -->
     {#if groups.length > 0}
       <div class="border-b border-gray-200 px-4 py-4">

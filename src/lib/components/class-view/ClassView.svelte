@@ -14,6 +14,10 @@
   import { createClassViewVm } from '$lib/stores/class-view-vm.svelte';
   import { addStudentToPool } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
+  import { exportGroupsToColumnsTSV } from '$lib/utils/csvExport';
+  import type { SortBy } from '$lib/utils/csvExport';
+  import { downloadActivityFile, generateExportFilename } from '$lib/utils/activityFile';
+  import { prepareWorkspaceExport } from '$lib/services/appEnvUseCases';
   import { Alert, OverlaySheet } from '$lib/components/ui';
   import { detectSimpleNameList } from '$lib/utils/pasteDetection';
   import ClassViewToolbar from './ClassViewToolbar.svelte';
@@ -28,6 +32,7 @@
   import RemoveStudentConfirmDialog from './RemoveStudentConfirmDialog.svelte';
   import DeleteSessionConfirmDialog from './DeleteSessionConfirmDialog.svelte';
   import NewSessionConfirmDialog from './NewSessionConfirmDialog.svelte';
+  import SortOrderDialog from './SortOrderDialog.svelte';
   import { hintState } from '$lib/stores/hintState.svelte';
 
   interface Props {
@@ -132,7 +137,9 @@
   let hasPreferenceData = $derived(vm.state.hasPreferenceData);
   let studentsWithPreferencesCount = $derived(vm.state.studentsWithPreferencesCount);
   /** Analytics panel appears when >=3 students have preferences (Banked Note #1) */
-  let showAnalytics = $derived(studentsWithPreferencesCount >= 3 && hasGroups);
+  // TODO: Re-enable preference analytics when ready to bring it back
+  // let showAnalytics = $derived(studentsWithPreferencesCount >= 3 && hasGroups);
+  let showAnalytics = false;
   let analyticsOpen = $state(false);
   let baseline = $derived(view?.baseline ?? null);
   let currentAnalytics = $derived(view?.currentAnalytics ?? null);
@@ -300,8 +307,84 @@
     window.open(`/activity/${activityId}/display`, '_blank');
   }
 
+  function handlePrint() {
+    pendingExportAction = 'print';
+    showSortDialog = true;
+  }
+
+  async function handleCopyForSpreadsheet() {
+    pendingExportAction = 'copy';
+    showSortDialog = true;
+  }
+
+  function handleMoveToComputer() {
+    pendingExportAction = 'move';
+    showSortDialog = true;
+  }
+
+  function handleSortCancel() {
+    showSortDialog = false;
+    pendingExportAction = null;
+  }
+
+  async function handleSortSelected(sortBy: SortBy) {
+    showSortDialog = false;
+    const action = pendingExportAction;
+    pendingExportAction = null;
+
+    // Sort the groups on the UI as well
+    if (vm.state.editingStore && vm.state.view && !isViewingHistory) {
+      for (const group of vm.state.view.groups) {
+        const sorted = [...group.memberIds].sort((a, b) => {
+          const sa = vm.state.studentsById[a];
+          const sb = vm.state.studentsById[b];
+          if (!sa || !sb) return 0;
+          const primaryA = sortBy === 'firstName' ? (sa.firstName ?? '') : (sa.lastName ?? '');
+          const primaryB = sortBy === 'firstName' ? (sb.firstName ?? '') : (sb.lastName ?? '');
+          const secondaryA = sortBy === 'firstName' ? (sa.lastName ?? '') : (sa.firstName ?? '');
+          const secondaryB = sortBy === 'firstName' ? (sb.lastName ?? '') : (sb.firstName ?? '');
+          const primaryCmp = primaryA.localeCompare(primaryB, undefined, { sensitivity: 'base' });
+          if (primaryCmp !== 0) return primaryCmp;
+          return secondaryA.localeCompare(secondaryB, undefined, { sensitivity: 'base' });
+        });
+        vm.state.editingStore.reorderGroup(group.id, sorted);
+      }
+    }
+
+    if (action === 'print') {
+      window.open(`/activity/${activityId}/print?sort=${sortBy}`, '_blank');
+    } else if (action === 'copy') {
+      const groups = displayGroups;
+      if (!groups.length) return;
+      const studentsMap = new Map(Object.entries(studentsById));
+      const tsv = exportGroupsToColumnsTSV(groups, studentsMap, sortBy);
+      try {
+        await env?.clipboard?.writeText(tsv);
+      } catch {
+        // silent fail
+      }
+    } else if (action === 'move') {
+      if (!program || !view) return;
+      const exportResult = prepareWorkspaceExport(env, {
+        program,
+        students,
+        preferences: vm.state.preferences,
+        groups: view.groups,
+        algorithmConfig: vm.state.scenario?.algorithmConfig,
+        rowLayout: null,
+      });
+      if (exportResult.status === 'err') return;
+      const filename = generateExportFilename(program.name);
+      downloadActivityFile(exportResult.value.activityExportData, filename);
+    }
+  }
+
   // New session confirmation
   let showNewSessionConfirm = $state(false);
+
+  // Sort order dialog for export/print/copy actions
+  let showSortDialog = $state(false);
+  let pendingExportAction = $state<'print' | 'copy' | 'move' | null>(null);
 
   function handleRequestNewSession() {
     showNewSessionConfirm = true;
@@ -588,20 +671,11 @@
       {saveStatus}
       {lastSavedAt}
       {hasGroups}
-      {hasHistory}
-      {historyPanelOpen}
       {isViewingHistory}
       onBack={handleBack}
       onRetrySave={handleRetrySave}
-      onToggleHistory={handleToggleHistory}
       onToggleRoster={handleToggleRoster}
       rosterOpen={rosterDrawerOpen}
-      {sessions}
-      {viewingSessionId}
-      currentSessionId={isPublished ? (vm.state.latestPublishedSession?.id ?? null) : null}
-      onSelectSession={(sessionId) => vm.actions.selectSession(sessionId)}
-      onDeleteSession={handleRequestDeleteSession}
-      onRenameSession={handleRenameSession}
     />
 
     <div class="flex flex-1 overflow-hidden">
@@ -773,7 +847,6 @@
       {isPublished}
       onShowToClass={handleShowToClass}
       onMakeNewGroups={handleRequestNewSession}
-      onDisplay={handleDisplay}
       onToggleSettings={handleToggleSettings}
       {settingsPanelOpen}
       {avoidRecentGroupmates}
@@ -785,6 +858,19 @@
       onUpdateGroup={handleUpdateGroup}
       onDeleteGroup={handleDeleteGroup}
       onAddGroup={handleCreateGroup}
+      onDisplay={handleDisplay}
+      onToggleHistory={handleToggleHistory}
+      {hasHistory}
+      {historyPanelOpen}
+      {sessions}
+      {viewingSessionId}
+      currentSessionId={isPublished ? (vm.state.latestPublishedSession?.id ?? null) : null}
+      onSelectSession={(sessionId) => vm.actions.selectSession(sessionId)}
+      onDeleteSession={handleRequestDeleteSession}
+      onRenameSession={handleRenameSession}
+      onPrint={handlePrint}
+      onCopyForSpreadsheet={handleCopyForSpreadsheet}
+      onMoveToComputer={handleMoveToComputer}
     />
 
     <!-- Display-only toolbar when viewing history -->
@@ -908,4 +994,8 @@
 
 {#if showNewSessionConfirm}
   <NewSessionConfirmDialog onConfirm={handleConfirmNewSession} onCancel={handleCancelNewSession} />
+{/if}
+
+{#if showSortDialog}
+  <SortOrderDialog onSelect={handleSortSelected} onCancel={handleSortCancel} />
 {/if}

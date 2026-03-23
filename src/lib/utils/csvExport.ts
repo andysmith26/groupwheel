@@ -11,36 +11,45 @@ import type { Group } from '$lib/domain/group';
 import type { Student } from '$lib/domain/student';
 import { getStudentDisplayName } from '$lib/domain/student';
 
+export type SortBy = 'firstName' | 'lastName';
+
 /**
- * Compare two students for sorting: by last name, then first name, then ID.
- * Matches the sort order used in the UI (EditableGroupColumn).
+ * Compare two students for sorting.
+ * When sortBy is 'lastName' (default): last name, then first name, then ID.
+ * When sortBy is 'firstName': first name, then last name, then ID.
  */
-function compareStudents(a: Student | null, b: Student | null, aId: string, bId: string): number {
+function compareStudents(a: Student | null, b: Student | null, aId: string, bId: string, sortBy: SortBy = 'lastName'): number {
   if (!a && !b) return aId.localeCompare(bId);
   if (!a) return 1;
   if (!b) return -1;
 
-  const aLast = (a.lastName ?? '').trim();
-  const bLast = (b.lastName ?? '').trim();
-  const lastCompare = aLast.localeCompare(bLast, undefined, { sensitivity: 'base' });
-  if (lastCompare !== 0) return lastCompare;
-
   const aFirst = (a.firstName ?? '').trim();
   const bFirst = (b.firstName ?? '').trim();
-  const firstCompare = aFirst.localeCompare(bFirst, undefined, { sensitivity: 'base' });
-  if (firstCompare !== 0) return firstCompare;
+  const aLast = (a.lastName ?? '').trim();
+  const bLast = (b.lastName ?? '').trim();
+
+  const primaryA = sortBy === 'firstName' ? aFirst : aLast;
+  const primaryB = sortBy === 'firstName' ? bFirst : bLast;
+  const secondaryA = sortBy === 'firstName' ? aLast : aFirst;
+  const secondaryB = sortBy === 'firstName' ? bLast : bFirst;
+
+  const primaryCompare = primaryA.localeCompare(primaryB, undefined, { sensitivity: 'base' });
+  if (primaryCompare !== 0) return primaryCompare;
+
+  const secondaryCompare = secondaryA.localeCompare(secondaryB, undefined, { sensitivity: 'base' });
+  if (secondaryCompare !== 0) return secondaryCompare;
 
   return a.id.localeCompare(b.id);
 }
 
 /**
- * Sort student IDs by last name, then first name (matching UI display order).
+ * Sort student IDs by the given sort order.
  */
-function sortStudentIds(memberIds: string[], studentsById: Map<string, Student>): string[] {
+export function sortStudentIds(memberIds: string[], studentsById: Map<string, Student>, sortBy: SortBy = 'lastName'): string[] {
   return [...memberIds].sort((aId, bId) => {
     const a = studentsById.get(aId) ?? null;
     const b = studentsById.get(bId) ?? null;
-    return compareStudents(a, b, aId, bId);
+    return compareStudents(a, b, aId, bId, sortBy);
   });
 }
 
@@ -60,13 +69,13 @@ export interface ExportableAssignment {
  */
 export function buildAssignmentList(
   groups: Group[],
-  studentsById: Map<string, Student>
+  studentsById: Map<string, Student>,
+  sortBy: SortBy = 'lastName'
 ): ExportableAssignment[] {
   const assignments: ExportableAssignment[] = [];
 
   for (const group of groups) {
-    // Sort students by last name, then first name (matching UI display order)
-    const sortedIds = sortStudentIds(group.memberIds, studentsById);
+    const sortedIds = sortStudentIds(group.memberIds, studentsById, sortBy);
 
     for (const studentId of sortedIds) {
       const student = studentsById.get(studentId);
@@ -196,17 +205,16 @@ export function exportToTSV(
 
 /**
  * Export a group-centric view (one row per group with student names).
- * Preserves the order of groups as given, with students sorted alphabetically within each group.
+ * Preserves the order of groups as given, with students sorted within each group.
  */
-export function exportGroupsToCSV(groups: Group[], studentsById: Map<string, Student>): string {
+export function exportGroupsToCSV(groups: Group[], studentsById: Map<string, Student>, sortBy: SortBy = 'lastName'): string {
   const rows: string[] = [];
 
   // Header
   rows.push('Group,Member Count,Students');
 
   for (const group of groups) {
-    // Sort students by last name, then first name (matching UI display order)
-    const sortedIds = sortStudentIds(group.memberIds, studentsById);
+    const sortedIds = sortStudentIds(group.memberIds, studentsById, sortBy);
     const memberNames = sortedIds
       .map((id) => {
         const student = studentsById.get(id);
@@ -224,20 +232,21 @@ export function exportGroupsToCSV(groups: Group[], studentsById: Map<string, Stu
 
 /**
  * Export groups as columns for Google Sheets (group names as header row).
- * Preserves group order as given, with students sorted by last name then first name within each group.
+ * Preserves group order as given, with students sorted within each group.
  */
 export function exportGroupsToColumnsTSV(
   groups: Group[],
-  studentsById: Map<string, Student>
+  studentsById: Map<string, Student>,
+  sortBy: SortBy = 'lastName'
 ): string {
   const rows: string[] = [];
 
   const header = groups.map((group) => group.name);
   rows.push(header.join('\t'));
 
-  // Sort students within each group (matching UI display order)
+  // Sort students within each group
   const sortedMemberIdsByGroup = groups.map((group) =>
-    sortStudentIds(group.memberIds, studentsById)
+    sortStudentIds(group.memberIds, studentsById, sortBy)
   );
 
   const maxMembers = groups.reduce((max, group) => Math.max(max, group.memberIds.length), 0);

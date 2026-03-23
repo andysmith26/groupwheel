@@ -1,55 +1,35 @@
 <script lang="ts">
   /**
    * ClassViewToolbar — Top bar with back, roster toggle, activity name,
-   * save status, history, and device indicator.
+   * and save status.
    *
    * See: project definition.md — Part 3 (Class View), WP4
    */
 
   import SaveStatusIndicator from '$lib/components/editing/SaveStatusIndicator.svelte';
-  import HistoryPopover from '$lib/components/workspace/HistoryPopover.svelte';
   import type { SaveStatus } from '$lib/stores/scenarioEditingStore';
-  import type { Session } from '$lib/domain';
 
   interface Props {
     activityName: string;
     saveStatus: SaveStatus;
     lastSavedAt: Date | null;
     hasGroups: boolean;
-    hasHistory?: boolean;
-    historyPanelOpen?: boolean;
     isViewingHistory?: boolean;
     onBack: () => void;
     onRetrySave?: () => void;
-    onToggleHistory?: () => void;
     onToggleRoster?: () => void;
     rosterOpen?: boolean;
-    sessions?: Session[];
-    viewingSessionId?: string | null;
-    currentSessionId?: string | null;
-    onSelectSession?: (sessionId: string | null) => void;
-    onDeleteSession?: (sessionId: string) => void;
-    onRenameSession?: (sessionId: string, name: string) => void;
   }
 
   let {
     activityName,
     saveStatus,
     lastSavedAt,
-    hasHistory = false,
-    historyPanelOpen = false,
     isViewingHistory = false,
     onBack,
     onRetrySave,
-    onToggleHistory,
     onToggleRoster,
     rosterOpen = true,
-    sessions = [],
-    viewingSessionId = null,
-    currentSessionId = null,
-    onSelectSession,
-    onDeleteSession,
-    onRenameSession,
   }: Props = $props();
 </script>
 
@@ -90,41 +70,6 @@
 
   <div class="flex items-center gap-2">
     <SaveStatusIndicator status={saveStatus} {lastSavedAt} onRetry={onRetrySave} />
-
-    {#if onToggleHistory}
-      <div class="relative">
-        <button
-          type="button"
-          onclick={onToggleHistory}
-          class="flex min-h-[44px] items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium shadow-sm {historyPanelOpen
-            ? 'border-teal-300 bg-teal-50 text-teal-700'
-            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}"
-          aria-label="{historyPanelOpen ? 'Close' : 'Open'} history"
-          aria-expanded={historyPanelOpen}
-          title="View session history"
-        >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-          </svg>
-          History
-          {#if hasHistory}
-            <span class="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
-          {/if}
-        </button>
-
-        {#if historyPanelOpen}
-          <HistoryPopover
-            {sessions}
-            {viewingSessionId}
-            {currentSessionId}
-            onSelectSession={onSelectSession ?? (() => {})}
-            onClose={onToggleHistory}
-            {onDeleteSession}
-            {onRenameSession}
-          />
-        {/if}
-      </div>
-    {/if}
 
   </div>
 </div>
