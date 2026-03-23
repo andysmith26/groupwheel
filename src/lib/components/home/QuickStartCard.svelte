@@ -17,9 +17,11 @@
   import { isErr } from '$lib/types/result';
 
   let {
-    onCreated
+    onCreated,
+    compact = false
   }: {
     onCreated?: (programId: string) => void;
+    compact?: boolean;
   } = $props();
 
   const env = getAppEnvContext();
@@ -95,11 +97,12 @@
   }
 </script>
 
-<div class="rounded-xl border border-teal/30 bg-teal-light p-5">
-  <h3 class="text-base font-semibold text-gray-900">Try it now</h3>
-  <p class="mt-1 text-sm text-gray-600">See instant groups — no roster needed.</p>
+<div class={compact ? '' : 'rounded-xl border border-teal/30 bg-teal-light p-5'}>
+  {#if !compact}
+    <h3 class="text-base font-semibold text-gray-900">Try it now</h3>
+  {/if}
 
-  <div class="mt-4 flex items-end gap-3">
+  <div class={compact ? 'flex items-end gap-3' : 'mt-4 flex items-end gap-3'}>
     <div class="flex-1">
       <label for="qs-students" class="block text-xs font-medium text-gray-700"> Students </label>
       <input

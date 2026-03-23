@@ -2,7 +2,11 @@
   /**
    * FloatingToolbar — Fixed pill at bottom-center of the canvas.
    *
-   * Contains primary actions: New Session, Settings gear (with popover), Display.
+   * State-driven primary action:
+   *  - Draft (groups exist, not shared): "Done — Share" button
+   *  - Shared (groups published): "Make New Groups" button
+   *
+   * Also contains Settings gear (with popover) and Display button.
    * Visible when groups exist and not viewing history.
    */
 
@@ -11,7 +15,9 @@
 
   interface Props {
     visible: boolean;
-    onNewSession: () => void;
+    isPublished: boolean;
+    onShowToClass: () => void;
+    onMakeNewGroups: () => void;
     onDisplay: () => void;
     onToggleSettings: () => void;
     settingsPanelOpen: boolean;
@@ -28,7 +34,9 @@
 
   let {
     visible,
-    onNewSession,
+    isPublished,
+    onShowToClass,
+    onMakeNewGroups,
     onDisplay,
     onToggleSettings,
     settingsPanelOpen,
@@ -84,19 +92,35 @@
       {/if}
     </div>
 
-    <!-- Primary action: New Session -->
-    <button
-      type="button"
-      onclick={onNewSession}
-      class="flex min-h-[56px] items-center gap-2 rounded-full bg-teal-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700"
-      aria-label="Start new session"
-      title="Generate new groups"
-    >
-      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-      </svg>
-      New Session
-    </button>
+    {#if !isPublished}
+      <!-- Draft state: share groups with the class -->
+      <button
+        type="button"
+        onclick={onShowToClass}
+        class="flex min-h-[56px] items-center gap-2 rounded-full bg-teal-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700"
+        aria-label="Share groups with class"
+        title="Share these groups with your class"
+      >
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+        </svg>
+        Done &mdash; Share
+      </button>
+    {:else}
+      <!-- Shared state: start fresh with new groups -->
+      <button
+        type="button"
+        onclick={onMakeNewGroups}
+        class="flex min-h-[56px] items-center gap-2 rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+        aria-label="Make new groups"
+        title="Clear current groups and start fresh"
+      >
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Make New Groups
+      </button>
+    {/if}
 
     <!-- Display -->
     <button

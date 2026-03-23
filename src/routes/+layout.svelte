@@ -15,7 +15,6 @@
   import { BrowserClipboardAdapter } from '$lib/infrastructure/clipboard';
   import { GoogleSheetsAdapter } from '$lib/infrastructure/sheets';
   import { syncSettings } from '$lib/stores/syncSettings.svelte';
-  import LoginButton from '$lib/components/auth/LoginButton.svelte';
   import TrackResponsesNavControls from '$lib/components/track-responses/TrackResponsesNavControls.svelte';
   import { trackResponsesSession } from '$lib/stores/trackResponsesSession.svelte';
   import { OfflineBanner, ToastContainer } from '$lib/components/ui';
@@ -153,12 +152,6 @@
             {#if isTrackResponses && trackResponsesSession.isConnected}
               <TrackResponsesNavControls />
             {/if}
-
-            <div class="ml-auto flex items-center gap-3">
-              {#if browser}
-                <LoginButton />
-              {/if}
-            </div>
           </nav>
         {/if}
       </div>

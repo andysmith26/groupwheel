@@ -27,6 +27,7 @@
   import FloatingToolbar from '$lib/components/workspace/FloatingToolbar.svelte';
   import RemoveStudentConfirmDialog from './RemoveStudentConfirmDialog.svelte';
   import DeleteSessionConfirmDialog from './DeleteSessionConfirmDialog.svelte';
+  import NewSessionConfirmDialog from './NewSessionConfirmDialog.svelte';
   import { hintState } from '$lib/stores/hintState.svelte';
 
   interface Props {
@@ -270,12 +271,32 @@
     vm.actions.deleteGroup(groupId);
   }
 
-  function handleDisplay() {
+  async function handleShowToClass() {
+    await vm.actions.publishSession();
+  }
+
+  async function handleDisplay() {
+    // Auto-save as a session when displaying unpublished groups
+    if (hasGroups && !isPublished) {
+      await vm.actions.publishSession();
+    }
     window.open(`/activity/${activityId}/display`, '_blank');
   }
 
-  function handleNewSession() {
+  // New session confirmation
+  let showNewSessionConfirm = $state(false);
+
+  function handleRequestNewSession() {
+    showNewSessionConfirm = true;
+  }
+
+  function handleConfirmNewSession() {
+    showNewSessionConfirm = false;
     vm.actions.startNewSession();
+  }
+
+  function handleCancelNewSession() {
+    showNewSessionConfirm = false;
   }
 
   function handleRequestDeleteSession(sessionId: string) {
@@ -587,6 +608,15 @@
               </button>
             </div>
           </div>
+        {:else if isPublished}
+          <div class="border-b border-teal-200 bg-teal-50 px-4 py-2 text-sm text-teal-800">
+            <div class="flex items-center gap-2">
+              <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+              <span>Groups shared with your class. Saved to history.</span>
+            </div>
+          </div>
         {/if}
         <!-- Rotation avoidance one-time hint (Decision 6, WP10) -->
         {#if showRotationHint}
@@ -687,7 +717,9 @@
     <!-- Floating Toolbar — primary actions at bottom-center -->
     <FloatingToolbar
       visible={hasGroups && !isViewingHistory}
-      onNewSession={handleNewSession}
+      {isPublished}
+      onShowToClass={handleShowToClass}
+      onMakeNewGroups={handleRequestNewSession}
       onDisplay={handleDisplay}
       onToggleSettings={handleToggleSettings}
       {settingsPanelOpen}
@@ -793,5 +825,12 @@
     sessionName={deletingSession.name}
     onConfirm={handleConfirmDeleteSession}
     onCancel={handleCancelDeleteSession}
+  />
+{/if}
+
+{#if showNewSessionConfirm}
+  <NewSessionConfirmDialog
+    onConfirm={handleConfirmNewSession}
+    onCancel={handleCancelNewSession}
   />
 {/if}

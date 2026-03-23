@@ -204,7 +204,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
         </svg>
         <p class="text-sm text-gray-500">No past sessions</p>
-        <p class="mt-1 text-xs text-gray-400">Publish groups to start building session history.</p>
+        <p class="mt-1 text-xs text-gray-400">After sharing groups with your class, they'll appear here.</p>
       </div>
     {/if}
   </div>

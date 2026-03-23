@@ -26,6 +26,8 @@
   import ActivityCard from './ActivityCard.svelte';
   import InlineActivityCreator from './InlineActivityCreator.svelte';
   import QuickStartCard from './QuickStartCard.svelte';
+  import ImportRosterCard from './ImportRosterCard.svelte';
+  import PasteRosterCard from './PasteRosterCard.svelte';
   import {
     downloadActivityFile,
     generateExportFilename,
@@ -256,7 +258,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="mx-auto max-w-4xl space-y-6 p-4">
+<div class="mx-auto max-w-5xl space-y-6 p-4">
   <!-- Hidden file input for import -->
   <input
     bind:this={importFileInput}
@@ -280,26 +282,9 @@
 
   <header class="flex items-center justify-between gap-4">
     <div>
-      <h1 class="text-2xl font-semibold text-gray-900">Your Activities</h1>
-      <p class="text-sm text-gray-600">Create and manage student groupings for your classes.</p>
+      <h1 class="text-2xl font-semibold text-gray-900">{activities.length === 0 && !loading ? 'Getting Started' : 'Your Activities'}</h1>
     </div>
     <div class="flex items-center gap-1">
-      <button
-        type="button"
-        class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-        aria-label="Import activity from file"
-        title="Import activity"
-        disabled={isImporting}
-        onclick={() => importFileInput?.click()}
-      >
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
-          />
-        </svg>
-      </button>
       <a
         href="/settings"
         class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -330,16 +315,46 @@
   {:else if error}
     <Alert variant="error">{error}</Alert>
   {:else if activities.length === 0}
-    <QuickStartCard onCreated={() => loadActivities()} />
-    <div class="relative">
+    <!-- Primary: Import roster -->
+    <ImportRosterCard onCreated={() => loadActivities()} />
+
+    <!-- Secondary options -->
+    <div class="relative mt-4">
       <div class="absolute inset-0 flex items-center" aria-hidden="true">
         <div class="w-full border-t border-gray-200"></div>
       </div>
       <div class="relative flex justify-center">
-        <span class="bg-white px-3 text-xs text-gray-400">or create with a name</span>
+        <span class="bg-white px-3 text-xs text-gray-400">or start another way</span>
       </div>
     </div>
-    <InlineActivityCreator onCreated={() => loadActivities()} />
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <!-- Quick Start -->
+      <div class="rounded-xl border border-gray-200 bg-white p-5">
+        <div class="mb-3 flex items-center gap-3">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+            </svg>
+          </div>
+          <h3 class="text-sm font-semibold text-gray-900">Quick demo</h3>
+        </div>
+        <QuickStartCard compact onCreated={() => loadActivities()} />
+      </div>
+
+      <!-- Start from scratch -->
+      <div class="rounded-xl border border-gray-200 bg-white p-5">
+        <div class="mb-3 flex items-center gap-3">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+            </svg>
+          </div>
+          <h3 class="text-sm font-semibold text-gray-900">Start from scratch</h3>
+        </div>
+        <PasteRosterCard onCreated={() => loadActivities()} />
+      </div>
+    </div>
   {:else}
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {#each activities as activity (activity.program.id)}
