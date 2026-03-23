@@ -20,7 +20,15 @@ import type {
   IdGenerator,
   Clock
 } from '$lib/application/ports';
-import type { Pool, Program, Student, Scenario, Session, Placement, Observation } from '$lib/domain';
+import type {
+  Pool,
+  Program,
+  Student,
+  Scenario,
+  Session,
+  Placement,
+  Observation
+} from '$lib/domain';
 import type { Preference, StudentPreference } from '$lib/domain/preference';
 import type { Group } from '$lib/domain/group';
 import type { Result } from '$lib/types/result';
@@ -195,18 +203,22 @@ export async function importActivity(
           continue;
         }
 
-        // Copy arrays to plain arrays to avoid proxy issues with IndexedDB
+        // Remap all IDs to their new equivalents (students and groups get new IDs on import)
         const preference: Preference = {
           id: deps.idGenerator.generateId(),
           programId: program.id,
           studentId: newStudentId,
           payload: {
             studentId: newStudentId,
-            likeGroupIds: [...exportedPref.likeGroupIds],
+            likeGroupIds: [...exportedPref.likeGroupIds].map(
+              (oldId) => groupIdMap.get(oldId) ?? oldId
+            ),
             avoidStudentIds: [...exportedPref.avoidStudentIds]
               .map((oldId) => studentIdMap.get(oldId))
               .filter((id): id is string => id !== undefined),
-            avoidGroupIds: [...exportedPref.avoidGroupIds]
+            avoidGroupIds: [...exportedPref.avoidGroupIds].map(
+              (oldId) => groupIdMap.get(oldId) ?? oldId
+            )
           } satisfies StudentPreference
         };
 
@@ -343,9 +355,7 @@ export async function importActivity(
           ),
           assignedAt: new Date(exportedPlacement.assignedAt),
           startDate: new Date(exportedPlacement.startDate),
-          endDate: exportedPlacement.endDate
-            ? new Date(exportedPlacement.endDate)
-            : undefined,
+          endDate: exportedPlacement.endDate ? new Date(exportedPlacement.endDate) : undefined,
           type: exportedPlacement.type as Placement['type'],
           correctsPlacementId: exportedPlacement.correctsPlacementId,
           reason: exportedPlacement.reason
