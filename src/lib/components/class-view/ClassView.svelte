@@ -57,7 +57,11 @@
   function handleToggleRoster() {
     const opening = !rosterDrawerOpen;
     rosterDrawerOpen = opening;
-    try { localStorage.setItem(rosterStorageKey, String(rosterDrawerOpen)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(rosterStorageKey, String(rosterDrawerOpen));
+    } catch {
+      /* ignore */
+    }
     // On mobile or when gap too small, auto-close student detail
     if (opening && studentSidebarOpen && (!isDesktop || !canCoexist())) {
       selectedStudentId = null;
@@ -83,7 +87,9 @@
   // Coexistence rule: auto-close the older panel if gap < 400px on desktop (≥1024px)
   let windowWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1280);
   $effect(() => {
-    function onResize() { windowWidth = window.innerWidth; }
+    function onResize() {
+      windowWidth = window.innerWidth;
+    }
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   });
@@ -106,6 +112,7 @@
   let view = $derived(vm.state.view);
   let pool = $derived(vm.state.pool);
   let unplacedStudentCount = $derived(vm.state.unplacedStudentCount);
+  let unassignedStudentIds = $derived(vm.state.unassignedStudentIds);
 
   // Quick Start upgrade path (WP11 / Decision 5)
   let hasPlaceholderStudents = $derived(vm.state.hasPlaceholderStudents);
@@ -145,9 +152,7 @@
    * Shows once after 2+ published sessions, then never returns.
    */
   let showRotationHint = $derived(
-    publishedSessionCount >= 2 &&
-    hasGroups &&
-    !hintState.isDismissed('rotationAvoidance')
+    publishedSessionCount >= 2 && hasGroups && !hintState.isDismissed('rotationAvoidance')
   );
 
   // History & comparison (WP9)
@@ -163,22 +168,29 @@
     sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED').length > 0
   );
   /** Groups to display: past session placements, generation history entry, or current view */
-  let displayGroups = $derived(
+  let rawDisplayGroups = $derived(
     viewingSessionId
       ? viewingSessionGroups
       : selectedHistoryIndex >= 0 && selectedHistoryIndex < generationHistory.length
         ? generationHistory[selectedHistoryIndex].groups
         : (view?.groups ?? [])
   );
+  /** Filter inactive students out of group memberIds so they don't appear on the canvas */
+  let displayGroups = $derived(
+    vm.state.inactiveStudentIds.size > 0
+      ? rawDisplayGroups.map((g) => ({
+          ...g,
+          memberIds: g.memberIds.filter((id) => !vm.state.inactiveStudentIds.has(id))
+        }))
+      : rawDisplayGroups
+  );
   let isViewingHistory = $derived(viewingSessionId !== null || selectedHistoryIndex >= 0);
   let viewingSession = $derived(
-    viewingSessionId ? sessions.find((s) => s.id === viewingSessionId) ?? null : null
+    viewingSessionId ? (sessions.find((s) => s.id === viewingSessionId) ?? null) : null
   );
 
   // Map group IDs to display names for preference display
-  let groupNameMap = $derived(
-    Object.fromEntries((view?.groups ?? []).map((g) => [g.id, g.name]))
-  );
+  let groupNameMap = $derived(Object.fromEntries((view?.groups ?? []).map((g) => [g.id, g.name])));
 
   // Student detail sidebar
   let selectedStudentId = $state<string | null>(null);
@@ -186,9 +198,11 @@
   let showRemoveConfirm = $state(false);
   let deletingSessionId = $state<string | null>(null);
   let deletingSession = $derived(
-    deletingSessionId ? sessions.find((s) => s.id === deletingSessionId) ?? null : null
+    deletingSessionId ? (sessions.find((s) => s.id === deletingSessionId) ?? null) : null
   );
-  let selectedStudent = $derived(selectedStudentId ? (studentsById[selectedStudentId] ?? null) : null);
+  let selectedStudent = $derived(
+    selectedStudentId ? (studentsById[selectedStudentId] ?? null) : null
+  );
   let selectedStudentPreferences = $derived(
     selectedStudentId ? (vm.state.preferenceMap[selectedStudentId] ?? null) : null
   );
@@ -205,8 +219,8 @@
       .slice(0, 5);
   });
   // Preference highlighting state (separate from sidebar selection)
-  let groupClickStudentId = $state<string | null>(null);   // sticky: set by clicking student in groups
-  let rosterHoverStudentId = $state<string | null>(null);   // transient: set by hovering in roster
+  let groupClickStudentId = $state<string | null>(null); // sticky: set by clicking student in groups
+  let rosterHoverStudentId = $state<string | null>(null); // transient: set by hovering in roster
 
   let activeStudentLikeGroupIds = $derived.by(() => {
     const activeId = draggingId ?? groupClickStudentId ?? rosterHoverStudentId ?? selectedStudentId;
@@ -263,7 +277,10 @@
     vm.actions.createGroup();
   }
 
-  function handleUpdateGroup(groupId: string, changes: Partial<Pick<import('$lib/domain').Group, 'name' | 'capacity'>>) {
+  function handleUpdateGroup(
+    groupId: string,
+    changes: Partial<Pick<import('$lib/domain').Group, 'name' | 'capacity'>>
+  ) {
     vm.actions.updateGroup(groupId, changes);
   }
 
@@ -351,7 +368,11 @@
     // On mobile or when gap too small, auto-close roster
     if (rosterDrawerOpen && (!isDesktop || !canCoexist())) {
       rosterDrawerOpen = false;
-      try { localStorage.setItem(rosterStorageKey, 'false'); } catch { /* ignore */ }
+      try {
+        localStorage.setItem(rosterStorageKey, 'false');
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -386,7 +407,11 @@
     // On mobile or when gap too small, auto-close roster
     if (rosterDrawerOpen && (!isDesktop || !canCoexist())) {
       rosterDrawerOpen = false;
-      try { localStorage.setItem(rosterStorageKey, 'false'); } catch { /* ignore */ }
+      try {
+        localStorage.setItem(rosterStorageKey, 'false');
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -532,7 +557,6 @@
   }
 </script>
 
-
 <svelte:head>
   <title>{activityName} | Groupwheel</title>
 </svelte:head>
@@ -574,7 +598,7 @@
       rosterOpen={rosterDrawerOpen}
       {sessions}
       {viewingSessionId}
-      currentSessionId={isPublished ? vm.state.latestPublishedSession?.id ?? null : null}
+      currentSessionId={isPublished ? (vm.state.latestPublishedSession?.id ?? null) : null}
       onSelectSession={(sessionId) => vm.actions.selectSession(sessionId)}
       onDeleteSession={handleRequestDeleteSession}
       onRenameSession={handleRenameSession}
@@ -582,7 +606,10 @@
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Center: Groups canvas (always full remaining width) -->
-      <div class="flex flex-1 flex-col overflow-hidden bg-gray-50" style={isViewingHistory ? 'filter: sepia(0.08); opacity: 0.9' : ''}>
+      <div
+        class="flex flex-1 flex-col overflow-hidden bg-gray-50"
+        style={isViewingHistory ? 'filter: sepia(0.08); opacity: 0.9' : ''}
+      >
         {#if isViewingHistory}
           <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
             <div class="flex items-center justify-between">
@@ -601,8 +628,18 @@
                 }}
                 class="flex min-h-[44px] items-center gap-1.5 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-700"
               >
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                <svg
+                  class="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="2"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"
+                  />
                 </svg>
                 Back to current
               </button>
@@ -611,7 +648,13 @@
         {:else if isPublished}
           <div class="border-b border-teal-200 bg-teal-50 px-4 py-2 text-sm text-teal-800">
             <div class="flex items-center gap-2">
-              <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <svg
+                class="h-4 w-4 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+              >
                 <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
               </svg>
               <span>Groups shared with your class. Saved to history.</span>
@@ -632,7 +675,10 @@
                 <button
                   type="button"
                   class="font-medium text-teal-800 underline hover:text-teal-900"
-                  onclick={() => { handleDismissRotationHint(); handleToggleSettings(); }}
+                  onclick={() => {
+                    handleDismissRotationHint();
+                    handleToggleSettings();
+                  }}
                 >
                   Change this in Settings
                 </button>
@@ -652,6 +698,7 @@
           {isGenerating}
           {generationError}
           unplacedStudentCount={isViewingHistory ? 0 : unplacedStudentCount}
+          unassignedStudentIds={isViewingHistory ? [] : unassignedStudentIds}
           draggingId={hasGroups && !isViewingHistory ? draggingId : null}
           onDrop={hasGroups && !isViewingHistory ? handleDrop : undefined}
           onReorder={hasGroups && !isViewingHistory ? handleReorder : undefined}
@@ -670,6 +717,7 @@
           {studentHasPreferences}
           onStudentClick={hasGroups && !isViewingHistory ? handleGroupStudentClick : undefined}
           selectedStudentPreferences={activeStudentLikeGroupIds}
+          clickedStudentId={groupClickStudentId}
         />
 
         <!-- Analytics Panel — expandable, only when preference data warrants it (Decision 4, WP8) -->
@@ -689,11 +737,17 @@
                 stroke-width="2"
                 stroke="currentColor"
               >
-                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                />
               </svg>
               Preference Analytics
               {#if currentAnalytics}
-                <span class="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700">
+                <span
+                  class="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700"
+                >
                   {Math.round(currentAnalytics.percentAssignedTopChoice)}% top choice
                 </span>
               {/if}
@@ -710,7 +764,6 @@
             </div>
           </div>
         {/if}
-
       </div>
     </div>
 
@@ -748,8 +801,18 @@
           aria-label="Display groups fullscreen"
           title="Display this session"
         >
-          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+          <svg
+            class="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+            />
           </svg>
           Display
         </button>
@@ -759,7 +822,12 @@
     <!-- Overlay panels (OverlaySheet, do not reflow the group canvas) -->
 
     <!-- Roster drawer (left) -->
-    <OverlaySheet open={rosterDrawerOpen} side="left" widthPx={rosterWidth} onClose={handleToggleRoster}>
+    <OverlaySheet
+      open={rosterDrawerOpen}
+      side="left"
+      widthPx={rosterWidth}
+      onClose={handleToggleRoster}
+    >
       <RosterPanel
         {students}
         {loading}
@@ -772,11 +840,18 @@
         onStudentHover={handleRosterStudentHover}
         onStudentHoverEnd={handleRosterStudentHoverEnd}
         {selectedStudentId}
+        inactiveStudentIds={vm.state.inactiveStudentIds}
+        onToggleActive={(studentId) => vm.actions.toggleStudentActive(studentId)}
       />
     </OverlaySheet>
 
     <!-- Student Detail Sidebar (right) -->
-    <OverlaySheet open={studentSidebarOpen} side="right" widthPx={studentDetailWidth} onClose={handleCloseStudentDetail}>
+    <OverlaySheet
+      open={studentSidebarOpen}
+      side="right"
+      widthPx={studentDetailWidth}
+      onClose={handleCloseStudentDetail}
+    >
       <StudentDetailSidebar
         student={selectedStudent}
         mode={studentSidebarMode}
@@ -788,9 +863,12 @@
         onDelete={handleRequestRemoveStudent}
         onEditMode={handleEditStudent}
         onCancelEdit={handleCancelEditStudent}
+        isInactive={selectedStudentId ? vm.state.inactiveStudentIds.has(selectedStudentId) : false}
+        onToggleActive={selectedStudentId
+          ? () => vm.actions.toggleStudentActive(selectedStudentId!)
+          : undefined}
       />
     </OverlaySheet>
-
   {/if}
 </div>
 
@@ -829,8 +907,5 @@
 {/if}
 
 {#if showNewSessionConfirm}
-  <NewSessionConfirmDialog
-    onConfirm={handleConfirmNewSession}
-    onCancel={handleCancelNewSession}
-  />
+  <NewSessionConfirmDialog onConfirm={handleConfirmNewSession} onCancel={handleCancelNewSession} />
 {/if}

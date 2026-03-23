@@ -4,6 +4,8 @@ export type PoolStatus = 'ACTIVE' | 'ARCHIVED';
 
 export type PoolSource = 'IMPORT' | 'MANUAL';
 
+export type MemberStatus = 'active' | 'inactive';
+
 export interface PoolTimeSpan {
   start: Date;
   end?: Date;
@@ -24,6 +26,11 @@ export interface Pool {
   status: PoolStatus;
   source?: PoolSource;
   parentPoolId?: string;
+  /**
+   * Per-member participation status. Missing entries or missing map = 'active'.
+   * Used to exclude students from scenarios without removing them from the roster.
+   */
+  memberStatuses?: Record<string, MemberStatus>;
   /**
    * ID of the authenticated user who owns this pool.
    * Used for multi-tenant data isolation.
@@ -49,6 +56,7 @@ export function createPool(params: {
   status?: PoolStatus;
   source?: PoolSource;
   parentPoolId?: string;
+  memberStatuses?: Record<string, MemberStatus>;
   userId?: string;
 }): Pool {
   const name = params.name.trim();
@@ -70,6 +78,31 @@ export function createPool(params: {
     status: params.status ?? 'ACTIVE',
     source: params.source,
     parentPoolId: params.parentPoolId,
+    memberStatuses: params.memberStatuses,
     userId: params.userId
+  };
+}
+
+/**
+ * Return only member IDs whose status is 'active' (or unset, which defaults to active).
+ */
+export function getActiveMemberIds(pool: Pool): string[] {
+  if (!pool.memberStatuses) return pool.memberIds;
+  return pool.memberIds.filter(
+    (id) => !pool.memberStatuses![id] || pool.memberStatuses![id] === 'active'
+  );
+}
+
+/**
+ * Return a new Pool with the given member's status updated.
+ * Does not mutate the original pool.
+ */
+export function setMemberStatus(pool: Pool, studentId: string, status: MemberStatus): Pool {
+  return {
+    ...pool,
+    memberStatuses: {
+      ...pool.memberStatuses,
+      [studentId]: status
+    }
   };
 }

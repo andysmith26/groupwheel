@@ -29,6 +29,10 @@
     onStudentHoverEnd?: () => void;
     /** ID of currently selected student (for highlight) */
     selectedStudentId?: string | null;
+    /** Set of student IDs marked inactive at pool level */
+    inactiveStudentIds?: Set<string>;
+    /** Called when the active/inactive toggle is clicked for a student */
+    onToggleActive?: (studentId: string) => void;
   }
 
   let {
@@ -42,10 +46,15 @@
     onStudentClick,
     onStudentHover,
     onStudentHoverEnd,
-    selectedStudentId = null
+    selectedStudentId = null,
+    inactiveStudentIds = new Set(),
+    onToggleActive
   }: Props = $props();
 
   let studentCount = $derived(students.length);
+  let inactiveCount = $derived(inactiveStudentIds.size);
+  let activeStudents = $derived(students.filter((s) => !inactiveStudentIds.has(s.id)));
+  let inactiveStudents = $derived(students.filter((s) => inactiveStudentIds.has(s.id)));
   let preferencesCollectedCount = $derived.by(() => {
     if (!hasPreferenceData) return 0;
     let count = 0;
@@ -61,7 +70,8 @@
     <div class="flex items-center gap-2">
       <h2 class="text-sm font-semibold text-gray-900">Roster</h2>
       <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-        {studentCount}
+        {studentCount}{#if inactiveCount > 0}
+          <span class="text-gray-400">({inactiveCount} inactive)</span>{/if}
       </span>
       {#if hasPlaceholderStudents}
         <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
@@ -86,7 +96,13 @@
           aria-label="Add student"
           title="Add student"
         >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+          >
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
         </button>
@@ -97,7 +113,13 @@
         class="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
         aria-label={hasPlaceholderStudents ? 'Import real roster' : 'Import roster'}
       >
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <svg
+          class="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+        >
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -112,9 +134,7 @@
   <!-- WP11: Gentle upgrade prompt for quick-start placeholder students -->
   {#if hasPlaceholderStudents}
     <div class="border-b border-amber-200 bg-amber-50 px-4 py-3">
-      <p class="text-sm text-amber-800">
-        These are placeholder names.
-      </p>
+      <p class="text-sm text-amber-800">These are placeholder names.</p>
       <button
         type="button"
         onclick={onImport}
@@ -160,50 +180,119 @@
       </div>
     {:else}
       <ul class="space-y-0.5" role="list">
-        {#each students as student (student.id)}
+        {#each activeStudents as student (student.id)}
           <li>
-          <button
-            type="button"
-            onclick={() => onStudentClick?.(student.id)}
-            onmouseenter={() => onStudentHover?.(student.id)}
-            onmouseleave={() => onStudentHoverEnd?.()}
-            class="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm {hasPlaceholderStudents ? 'text-gray-400 italic' : 'text-gray-700'} {selectedStudentId === student.id ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-gray-50'} cursor-pointer"
-          >
-            <span
-              class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full {hasPlaceholderStudents ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 text-gray-600'} text-xs font-medium"
+            <button
+              type="button"
+              onclick={() => onStudentClick?.(student.id)}
+              onmouseenter={() => onStudentHover?.(student.id)}
+              onmouseleave={() => onStudentHoverEnd?.()}
+              oncontextmenu={(e) => {
+                if (onToggleActive) {
+                  e.preventDefault();
+                  onToggleActive(student.id);
+                }
+              }}
+              class="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm {hasPlaceholderStudents
+                ? 'text-gray-400 italic'
+                : 'text-gray-700'} {selectedStudentId === student.id
+                ? 'bg-teal-50 ring-1 ring-teal-200'
+                : 'hover:bg-gray-50'} cursor-pointer"
             >
-              {(student.firstName?.[0] ?? student.lastName?.[0] ?? '?').toUpperCase()}
-            </span>
-            <span class="min-w-0 flex-1 truncate">
-              {#if student.firstName && student.lastName}
-                {student.firstName} {student.lastName}
-              {:else if student.firstName}
-                {student.firstName}
-              {:else if student.lastName}
-                {student.lastName}
-              {:else}
-                Student
+              <span
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full {hasPlaceholderStudents
+                  ? 'bg-gray-100 text-gray-400'
+                  : 'bg-gray-200 text-gray-600'} text-xs font-medium"
+              >
+                {(student.firstName?.[0] ?? student.lastName?.[0] ?? '?').toUpperCase()}
+              </span>
+              <span class="min-w-0 flex-1 truncate">
+                {#if student.firstName && student.lastName}
+                  {student.firstName} {student.lastName}
+                {:else if student.firstName}
+                  {student.firstName}
+                {:else if student.lastName}
+                  {student.lastName}
+                {:else}
+                  Student
+                {/if}
+              </span>
+              {#if hasPreferenceData && !hasPlaceholderStudents}
+                {#if studentHasPreferences.get(student.id)}
+                  <span
+                    class="h-2 w-2 shrink-0 rounded-full bg-teal-500"
+                    title="Has preferences"
+                    aria-label="Has preferences"
+                  ></span>
+                {:else}
+                  <span
+                    class="h-2 w-2 shrink-0 rounded-full bg-gray-300"
+                    title="No preferences"
+                    aria-label="No preferences"
+                  ></span>
+                {/if}
               {/if}
-            </span>
-            {#if hasPreferenceData && !hasPlaceholderStudents}
-              {#if studentHasPreferences.get(student.id)}
-                <span
-                  class="h-2 w-2 shrink-0 rounded-full bg-teal-500"
-                  title="Has preferences"
-                  aria-label="Has preferences"
-                ></span>
-              {:else}
-                <span
-                  class="h-2 w-2 shrink-0 rounded-full bg-gray-300"
-                  title="No preferences"
-                  aria-label="No preferences"
-                ></span>
-              {/if}
-            {/if}
-          </button>
+            </button>
           </li>
         {/each}
       </ul>
+
+      {#if inactiveStudents.length > 0}
+        <div class="mt-3 border-t border-gray-100 pt-2">
+          <p class="px-3 pb-1 text-xs font-medium text-gray-400">Inactive</p>
+          <ul class="space-y-0.5" role="list">
+            {#each inactiveStudents as student (student.id)}
+              <li>
+                <button
+                  type="button"
+                  onclick={() => onStudentClick?.(student.id)}
+                  oncontextmenu={(e) => {
+                    if (onToggleActive) {
+                      e.preventDefault();
+                      onToggleActive(student.id);
+                    }
+                  }}
+                  class="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-gray-400 italic {selectedStudentId ===
+                  student.id
+                    ? 'bg-gray-100 ring-1 ring-gray-200'
+                    : 'hover:bg-gray-50'} cursor-pointer"
+                >
+                  <span
+                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-400"
+                  >
+                    {(student.firstName?.[0] ?? student.lastName?.[0] ?? '?').toUpperCase()}
+                  </span>
+                  <span class="min-w-0 flex-1 truncate">
+                    {#if student.firstName && student.lastName}
+                      {student.firstName} {student.lastName}
+                    {:else if student.firstName}
+                      {student.firstName}
+                    {:else if student.lastName}
+                      {student.lastName}
+                    {:else}
+                      Student
+                    {/if}
+                  </span>
+                  <!-- Eye-off icon for inactive -->
+                  <svg
+                    class="h-3.5 w-3.5 shrink-0 text-gray-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"
+                    />
+                  </svg>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
     {/if}
   </div>
 </div>

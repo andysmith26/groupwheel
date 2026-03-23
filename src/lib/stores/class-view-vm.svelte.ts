@@ -1,5 +1,14 @@
 import type { AppEnvContext } from '$lib/contexts/appEnv';
-import type { Group, Placement, Pool, Preference, Program, Scenario, Session, Student } from '$lib/domain';
+import type {
+  Group,
+  Placement,
+  Pool,
+  Preference,
+  Program,
+  Scenario,
+  Session,
+  Student
+} from '$lib/domain';
 import type { ScenarioSatisfaction } from '$lib/domain/analytics';
 import type { StudentPreference } from '$lib/domain/preference';
 import {
@@ -13,9 +22,12 @@ import {
   removeStudentFromPool,
   showToClass,
   deleteSession as deleteSessionUseCase,
+  setStudentActiveStatus,
   type PairingStat
 } from '$lib/services/appEnvUseCases';
 import { isErr } from '$lib/types/result';
+import { getActiveMemberIds } from '$lib/domain/pool';
+import type { MemberStatus } from '$lib/domain/pool';
 import {
   ScenarioEditingStore,
   type SaveStatus,
@@ -23,10 +35,7 @@ import {
 } from '$lib/stores/scenarioEditingStore';
 import { getGenerationErrorMessage } from '$lib/utils/generationErrorMessages';
 import { buildPreferenceMap } from '$lib/utils/preferenceAdapter';
-import {
-  getGenerationSettings,
-  saveGenerationSettings
-} from '$lib/utils/generationSettings';
+import { getGenerationSettings, saveGenerationSettings } from '$lib/utils/generationSettings';
 
 /**
  * A snapshot of a past generation for the history panel.
@@ -137,6 +146,12 @@ export interface ClassViewVmState {
   // Unplaced student tracking
   unplacedStudentCount: number;
 
+  // Unassigned student IDs (bench) — students in scenario but not in any group
+  unassignedStudentIds: string[];
+
+  // Inactive student IDs — students marked as not participating at pool level
+  inactiveStudentIds: Set<string>;
+
   // Quick Start upgrade path (WP11 / Decision 5, Banked Note #2)
   hasPlaceholderStudents: boolean;
 
@@ -170,12 +185,12 @@ export interface ClassViewVm {
       target: string;
       targetIndex?: number;
     }) => void;
-    reorderStudent: (payload: {
-      groupId: string;
-      studentId: string;
-      newIndex: number;
-    }) => void;
-    sortGroup: (groupId: string, sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc') => void;
+    reorderStudent: (payload: { groupId: string; studentId: string; newIndex: number }) => void;
+    sortGroup: (
+      groupId: string,
+      sortBy: 'firstName' | 'lastName',
+      direction: 'asc' | 'desc'
+    ) => void;
 
     // Group CRUD
     createGroup: () => void;
@@ -230,6 +245,7 @@ export interface ClassViewVm {
       gender?: string;
     }) => Promise<boolean>;
     removeStudent: (studentId: string) => Promise<boolean>;
+    toggleStudentActive: (studentId: string) => Promise<boolean>;
   };
 }
 
@@ -283,6 +299,10 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
 
     unplacedStudentCount: 0,
 
+    unassignedStudentIds: [],
+
+    inactiveStudentIds: new Set(),
+
     hasPlaceholderStudents: false,
 
     draggingId: null,
@@ -308,9 +328,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
   function detectPlaceholderStudents() {
     state.hasPlaceholderStudents =
       state.students.length > 0 &&
-      state.students.every(
-        (s) => /^Student$/.test(s.firstName) && /^\d+$/.test(s.lastName ?? '')
-      );
+      state.students.every((s) => /^Student$/.test(s.firstName) && /^\d+$/.test(s.lastName ?? ''));
   }
 
   function persistSettings() {
@@ -345,6 +363,14 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       state.studentPreferenceRanks = new Map();
       return;
     }
+
+    // Build a name→id map for fallback matching
+    // (preferences may store group names instead of IDs)
+    const groupNameToId = new Map<string, string>();
+    for (const group of view.groups) {
+      groupNameToId.set(group.name.toLowerCase(), group.id);
+    }
+
     const ranks = new Map<string, number | null>();
     for (const group of view.groups) {
       for (const studentId of group.memberIds) {
@@ -353,7 +379,11 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
           ranks.set(studentId, null);
           continue;
         }
-        const rank = prefs.indexOf(group.id);
+        // Try matching by ID first, then by name (case-insensitive)
+        let rank = prefs.indexOf(group.id);
+        if (rank === -1) {
+          rank = prefs.findIndex((choice) => groupNameToId.get(choice.toLowerCase()) === group.id);
+        }
         ranks.set(studentId, rank >= 0 ? rank + 1 : null);
       }
     }
@@ -363,6 +393,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
   function computeUnplacedStudentCount() {
     if (!state.view || state.view.groups.length === 0) {
       state.unplacedStudentCount = 0;
+      state.unassignedStudentIds = [];
       return;
     }
     const placedIds = new Set<string>();
@@ -371,7 +402,30 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
         placedIds.add(id);
       }
     }
-    state.unplacedStudentCount = state.students.filter((s) => !placedIds.has(s.id)).length;
+    // Exclude inactive students from "unplaced" count and unassigned list
+    state.unplacedStudentCount = state.students.filter(
+      (s) => !placedIds.has(s.id) && !state.inactiveStudentIds.has(s.id)
+    ).length;
+    state.unassignedStudentIds = state.view.unassignedStudentIds.filter(
+      (id) => !state.inactiveStudentIds.has(id)
+    );
+  }
+
+  function computeInactiveStudentIds() {
+    if (!state.pool) {
+      state.inactiveStudentIds = new Set();
+      return;
+    }
+    const statuses = state.pool.memberStatuses;
+    if (!statuses) {
+      state.inactiveStudentIds = new Set();
+      return;
+    }
+    state.inactiveStudentIds = new Set(
+      Object.entries(statuses)
+        .filter(([, s]) => s === 'inactive')
+        .map(([id]) => id)
+    );
   }
 
   function initializeEditingStore(scenario: Scenario) {
@@ -460,6 +514,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       rebuildStudentsById();
       detectPlaceholderStudents();
       computePreferenceState();
+      computeInactiveStudentIds();
 
       // Load pairing stats if 2+ published sessions (for rotation avoidance)
       const publishedSessions = state.sessions.filter(
@@ -603,9 +658,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     if (!state.editingStore) return;
 
     // Normalize source: find the actual group the student is in
-    const currentGroup = state.view?.groups.find((g) =>
-      g.memberIds.includes(payload.studentId)
-    );
+    const currentGroup = state.view?.groups.find((g) => g.memberIds.includes(payload.studentId));
     const normalizedSource = currentGroup ? currentGroup.id : 'unassigned';
 
     state.editingStore.dispatch({
@@ -617,11 +670,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     });
   }
 
-  function reorderStudent(payload: {
-    groupId: string;
-    studentId: string;
-    newIndex: number;
-  }): void {
+  function reorderStudent(payload: { groupId: string; studentId: string; newIndex: number }): void {
     if (!state.editingStore || !state.view) return;
 
     if (payload.groupId === 'unassigned') {
@@ -647,7 +696,11 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     state.editingStore.reorderGroup(payload.groupId, newOrder);
   }
 
-  function sortGroup(groupId: string, sortBy: 'firstName' | 'lastName', direction: 'asc' | 'desc'): void {
+  function sortGroup(
+    groupId: string,
+    sortBy: 'firstName' | 'lastName',
+    direction: 'asc' | 'desc'
+  ): void {
     if (!state.editingStore || !state.view) return;
 
     const group = state.view.groups.find((g) => g.id === groupId);
@@ -657,13 +710,15 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       const sa = state.studentsById[a];
       const sb = state.studentsById[b];
       if (!sa || !sb) return 0;
-      const primary = sortBy === 'firstName'
-        ? (sa.firstName ?? '').toLowerCase().localeCompare((sb.firstName ?? '').toLowerCase())
-        : (sa.lastName ?? '').toLowerCase().localeCompare((sb.lastName ?? '').toLowerCase());
+      const primary =
+        sortBy === 'firstName'
+          ? (sa.firstName ?? '').toLowerCase().localeCompare((sb.firstName ?? '').toLowerCase())
+          : (sa.lastName ?? '').toLowerCase().localeCompare((sb.lastName ?? '').toLowerCase());
       if (primary !== 0) return direction === 'asc' ? primary : -primary;
-      const secondary = sortBy === 'firstName'
-        ? (sa.lastName ?? '').toLowerCase().localeCompare((sb.lastName ?? '').toLowerCase())
-        : (sa.firstName ?? '').toLowerCase().localeCompare((sb.firstName ?? '').toLowerCase());
+      const secondary =
+        sortBy === 'firstName'
+          ? (sa.lastName ?? '').toLowerCase().localeCompare((sb.lastName ?? '').toLowerCase())
+          : (sa.firstName ?? '').toLowerCase().localeCompare((sb.firstName ?? '').toLowerCase());
       return direction === 'asc' ? secondary : -secondary;
     });
 
@@ -680,10 +735,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     }
   }
 
-  function updateGroup(
-    groupId: string,
-    changes: Partial<Pick<Group, 'name' | 'capacity'>>
-  ): void {
+  function updateGroup(groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>): void {
     if (!state.editingStore) return;
     state.editingStore.updateGroup(groupId, changes);
   }
@@ -695,7 +747,11 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
 
   // --- Group reordering ---
 
-  function reorderGroups(payload: { draggedGroupId: string; targetGroupId: string; edge: 'left' | 'right' }): void {
+  function reorderGroups(payload: {
+    draggedGroupId: string;
+    targetGroupId: string;
+    edge: 'left' | 'right';
+  }): void {
     if (!state.editingStore || !state.view) return;
 
     const currentIds = state.view.groups.map((g) => g.id);
@@ -745,9 +801,14 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
         const ids = state.view.unassignedStudentIds;
         const idx = ids.indexOf(state.pickedUpStudentId);
         if (idx === -1) return;
-        const newIdx = direction === 'up' ? Math.max(0, idx - 1) : Math.min(ids.length - 1, idx + 1);
+        const newIdx =
+          direction === 'up' ? Math.max(0, idx - 1) : Math.min(ids.length - 1, idx + 1);
         if (newIdx !== idx) {
-          reorderStudent({ groupId: 'unassigned', studentId: state.pickedUpStudentId, newIndex: newIdx });
+          reorderStudent({
+            groupId: 'unassigned',
+            studentId: state.pickedUpStudentId,
+            newIndex: newIdx
+          });
           state.pickedUpIndex = newIdx;
         }
       } else {
@@ -755,9 +816,14 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
         if (!group) return;
         const idx = group.memberIds.indexOf(state.pickedUpStudentId);
         if (idx === -1) return;
-        const newIdx = direction === 'up' ? Math.max(0, idx - 1) : Math.min(group.memberIds.length - 1, idx + 1);
+        const newIdx =
+          direction === 'up' ? Math.max(0, idx - 1) : Math.min(group.memberIds.length - 1, idx + 1);
         if (newIdx !== idx) {
-          reorderStudent({ groupId: currentContainer, studentId: state.pickedUpStudentId, newIndex: newIdx });
+          reorderStudent({
+            groupId: currentContainer,
+            studentId: state.pickedUpStudentId,
+            newIndex: newIdx
+          });
           state.pickedUpIndex = newIdx;
         }
       }
@@ -1157,9 +1223,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
 
     // If student is in a group, move them to unassigned first (editing store)
     if (state.editingStore && state.view) {
-      const groupWithStudent = state.view.groups.find((g) =>
-        g.memberIds.includes(studentId)
-      );
+      const groupWithStudent = state.view.groups.find((g) => g.memberIds.includes(studentId));
       if (groupWithStudent) {
         state.editingStore.dispatch({
           type: 'MOVE_STUDENT',
@@ -1179,9 +1243,46 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     if (isErr(result)) return false;
 
     state.students = state.students.filter((s) => s.id !== studentId);
-    state.pool = { ...state.pool, memberIds: state.pool.memberIds.filter((id) => id !== studentId) };
+    state.pool = {
+      ...state.pool,
+      memberIds: state.pool.memberIds.filter((id) => id !== studentId)
+    };
     rebuildStudentsById();
     detectPlaceholderStudents();
+    computeUnplacedStudentCount();
+    return true;
+  }
+
+  async function toggleStudentActive(studentId: string): Promise<boolean> {
+    if (!state.pool) return false;
+
+    const currentlyInactive = state.inactiveStudentIds.has(studentId);
+    const newStatus: MemberStatus = currentlyInactive ? 'active' : 'inactive';
+
+    const result = await setStudentActiveStatus(state.env, {
+      poolId: state.pool.id,
+      studentId,
+      status: newStatus
+    });
+
+    if (isErr(result)) return false;
+
+    state.pool = result.value;
+    computeInactiveStudentIds();
+
+    if (newStatus === 'inactive' && state.editingStore && state.view) {
+      // If student is in a group, move to unassigned first
+      const groupWithStudent = state.view.groups.find((g) => g.memberIds.includes(studentId));
+      if (groupWithStudent) {
+        state.editingStore.dispatch({
+          type: 'MOVE_STUDENT',
+          studentId,
+          source: groupWithStudent.id,
+          target: 'unassigned'
+        });
+      }
+    }
+
     computeUnplacedStudentCount();
     return true;
   }
@@ -1225,7 +1326,8 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       upgradeRoster,
       addStudent,
       updateStudent: updateStudentAction,
-      removeStudent: removeStudentAction
+      removeStudent: removeStudentAction,
+      toggleStudentActive
     }
   };
 }

@@ -239,10 +239,10 @@ export async function createGroupingActivity(
 
   let preferencesImported = 0;
   let preferencesSkipped = 0;
+  const preferencesToSave: Preference[] = [];
 
   if (input.preferences && input.preferences.length > 0) {
     const studentIdSet = new Set(students.map((s) => s.id.toLowerCase()));
-    const preferencesToSave: Preference[] = [];
 
     for (const parsedPref of input.preferences) {
       const studentId = parsedPref.studentId.toLowerCase();
@@ -313,6 +313,32 @@ export async function createGroupingActivity(
         colorIndex: index
       };
     });
+
+    // Update saved preferences to use group IDs instead of group names
+    if (preferencesImported > 0) {
+      const updatedPreferences: Preference[] = [];
+      for (const pref of preferencesToSave) {
+        const payload = pref.payload as StudentPreference;
+        const mappedIds = payload.likeGroupIds.map(
+          (nameOrId) => groupNameToId.get(nameOrId) ?? nameOrId
+        );
+        updatedPreferences.push({
+          ...pref,
+          payload: { ...payload, likeGroupIds: mappedIds }
+        });
+      }
+      preferencesToSave.length = 0;
+      preferencesToSave.push(...updatedPreferences);
+
+      // Re-save preferences with corrected group IDs
+      if (typeof deps.preferenceRepo.setForProgram === 'function') {
+        await deps.preferenceRepo.setForProgram(program.id, preferencesToSave);
+      } else {
+        for (const pref of preferencesToSave) {
+          await deps.preferenceRepo.save(pref);
+        }
+      }
+    }
 
     // Seed group members based on strategy
     if (input.seedingStrategy === 'top-choice' && input.preferences) {

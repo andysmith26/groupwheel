@@ -36,7 +36,8 @@
     selected = false,
     onSelect,
     renamingGroupId = null,
-    onRenameComplete
+    onRenameComplete,
+    clickedStudentId = null
   } = $props<{
     group: Group;
     studentsById: Record<string, Student>;
@@ -78,12 +79,14 @@
     renamingGroupId?: string | null;
     /** Called when rename completes or is cancelled, to clear the toolbar state. */
     onRenameComplete?: () => void;
+    /** ID of the click-selected student (for blue border in card). */
+    clickedStudentId?: string | null;
   }>();
 
   const capacityStatus = $derived(getCapacityStatus(group));
   const leftBorderColor = $derived(resolveGroupColorHex(group));
 
-  // Drag destination rank preview
+  // Drag destination rank preview (draggedStudentPreferences is already cleaned/resolved to group IDs)
   const previewRank = $derived.by(() => {
     if (!draggingId || !draggedStudentPreferences) return null;
     const rank = draggedStudentPreferences.indexOf(group.id);
@@ -106,62 +109,49 @@
     return 'bg-red-100 text-red-700';
   });
 
-  // Configuration: only highlight top N choices with border/background (future: make this user-configurable)
-  const MAX_HIGHLIGHTED_RANK = 1;
-
-  // Preference rank styling
+  // Preference rank styling — highlights top 4 choices
   const preferenceStyles = $derived(() => {
-    if (preferenceRank === null) return null;
+    if (preferenceRank === null || preferenceRank > 4) return null;
 
-    // Determine label
-    const label =
-      preferenceRank === 1
-        ? '1st Choice'
-        : preferenceRank === 2
-          ? '2nd Choice'
-          : preferenceRank === 3
-            ? '3rd Choice'
-            : `Choice ${preferenceRank}`;
-
-    // Highlight top choice with border and background
-    if (preferenceRank <= MAX_HIGHLIGHTED_RANK) {
+    if (preferenceRank === 1) {
       return {
         borderColor: 'border-green-500',
         bgColor: 'bg-green-50',
         textColor: 'text-green-700',
         badgeBg: 'bg-green-100',
-        label
+        label: '1st Choice'
       };
     }
 
     if (preferenceRank === 2) {
       return {
-        borderColor: 'border-yellow-400',
-        bgColor: 'bg-yellow-50',
-        textColor: 'text-yellow-700',
-        badgeBg: 'bg-yellow-100',
-        label
+        borderColor: 'border-amber-400',
+        bgColor: 'bg-amber-50',
+        textColor: 'text-amber-700',
+        badgeBg: 'bg-amber-100',
+        label: '2nd Choice'
       };
     }
 
-    if (preferenceRank === 3) {
-      return {
-        borderColor: 'border-orange-400',
-        bgColor: 'bg-orange-50',
-        textColor: 'text-orange-700',
-        badgeBg: 'bg-orange-100',
-        label
-      };
-    }
-
-    // Other choices: default styling, no highlight
+    // 3rd and 4th: moderate, similar styling
     return {
-      borderColor: 'border-gray-200',
-      bgColor: 'bg-gray-50',
-      textColor: 'text-gray-700',
-      badgeBg: 'bg-gray-100',
-      label
+      borderColor: 'border-orange-300',
+      bgColor: 'bg-orange-50/60',
+      textColor: 'text-orange-600',
+      badgeBg: 'bg-orange-100',
+      label: preferenceRank === 3 ? '3rd Choice' : '4th Choice'
     };
+  });
+
+  // Ring highlight for preferred groups — bold for 1st/2nd, subtle for 3rd/4th
+  const highlightRingClass = $derived.by(() => {
+    if (preferenceRank === null || preferenceRank > 4) return '';
+    if (preferenceRank === 1)
+      return 'ring-2 ring-offset-1 ring-green-400 shadow-lg shadow-green-200/50';
+    if (preferenceRank === 2)
+      return 'ring-2 ring-offset-1 ring-amber-400 shadow-lg shadow-amber-200/50';
+    // 3rd/4th: light ring
+    return 'ring-1 ring-orange-300';
   });
 
   // Local editing state for inline rename
@@ -206,7 +196,9 @@
   function showNameError(msg: string) {
     nameError = msg;
     if (nameErrorTimeout) clearTimeout(nameErrorTimeout);
-    nameErrorTimeout = setTimeout(() => { nameError = null; }, 2000);
+    nameErrorTimeout = setTimeout(() => {
+      nameError = null;
+    }, 2000);
   }
 
   function isDuplicateName(name: string): boolean {
@@ -334,19 +326,28 @@
   }
 </script>
 
-<div
-  class={`relative flex flex-col rounded-xl border-2 shadow-sm overflow-hidden ${
-    preferenceStyles()
-      ? `${preferenceStyles()!.borderColor} ${preferenceStyles()!.bgColor}`
-      : selected ? 'border-teal-400 bg-gray-50' : 'border-gray-200 bg-gray-50'
-  }`}
-  style={`grid-row: span ${rowSpan}; height: 100%;`}
->
-  <!-- Top color bar -->
+<div class="relative" style={`grid-row: span ${rowSpan}; height: 100%;`}>
+  <!-- Preference choice label above the group (hidden during drag since header shows preview badge) -->
+  {#if preferenceStyles() && !draggingId}
+    <div
+      class={`absolute -top-5 left-0 right-0 z-10 text-center text-[11px] font-semibold ${preferenceStyles()!.textColor}`}
+      transition:fade={{ duration: 100 }}
+    >
+      {preferenceStyles()!.label}
+    </div>
+  {/if}
+
   <div
-    class="h-1.5 w-full shrink-0"
-    style={`background-color: ${leftBorderColor};`}
-  ></div>
+    class={`flex h-full flex-col overflow-hidden rounded-xl border-2 shadow-sm ${
+      preferenceStyles()
+        ? `${preferenceStyles()!.borderColor} ${preferenceStyles()!.bgColor}`
+        : selected
+          ? 'border-teal-400 bg-gray-50'
+          : 'border-gray-200 bg-gray-50'
+    } ${highlightRingClass}`}
+  >
+    <!-- Top color bar -->
+    <div class="h-1.5 w-full shrink-0" style={`background-color: ${leftBorderColor};`}></div>
 
   <!-- Header: name + count -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -391,7 +392,12 @@
   </div>
 
   {#if nameError}
-    <p class="absolute left-2 top-10 z-20 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-500 shadow-sm" transition:fade={{ duration: 150 }}>{nameError}</p>
+    <p
+      class="absolute top-10 left-2 z-20 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-500 shadow-sm"
+      transition:fade={{ duration: 150 }}
+    >
+      {nameError}
+    </p>
   {/if}
 
   <div
@@ -400,7 +406,9 @@
     style="grid-template-columns: 1fr; gap: var(--card-gap, 4px);"
   >
     {#if memberIds.length === 0}
-      <p class="col-span-full py-6 text-center text-xs text-gray-500">{readonly ? 'No students' : 'Drop students here'}</p>
+      <p class="col-span-full py-6 text-center text-xs text-gray-500">
+        {readonly ? 'No students' : 'Drop students here'}
+      </p>
     {:else}
       {#each memberIds as memberId, index (memberId)}
         {#if studentsById[memberId]}
@@ -427,6 +435,7 @@
               onEdgeChange={(edge) => handleEdgeChange(memberId, edge)}
               onItemDrop={handleItemDrop}
               isPickedUp={pickedUpStudentId === memberId}
+              isSelected={clickedStudentId === memberId}
               {onKeyboardPickUp}
               {onKeyboardDrop}
               {onKeyboardCancel}
@@ -457,4 +466,5 @@
       </div>
     </div>
   </div>
+</div>
 </div>

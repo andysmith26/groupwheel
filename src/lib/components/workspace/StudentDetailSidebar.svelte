@@ -38,6 +38,10 @@
     onDelete: () => void;
     onEditMode: () => void;
     onCancelEdit: () => void;
+    /** Whether this student is marked inactive at pool level */
+    isInactive?: boolean;
+    /** Toggle active/inactive status */
+    onToggleActive?: () => void;
   }
 
   let {
@@ -50,7 +54,9 @@
     onSave,
     onDelete,
     onEditMode,
-    onCancelEdit
+    onCancelEdit,
+    isInactive = false,
+    onToggleActive
   }: Props = $props();
 
   let env = $derived(getAppEnvContext());
@@ -205,8 +211,29 @@
       {:else if mode === 'edit'}
         <h2 class="truncate text-sm font-semibold text-gray-900">Edit Student</h2>
       {:else}
-        <h2 class="truncate text-sm font-semibold text-gray-900">{fullName}</h2>
-        {#if student?.gradeLevel}
+        <h2 class="truncate text-sm font-semibold {isInactive ? 'text-gray-400' : 'text-gray-900'}">
+          {fullName}
+        </h2>
+        {#if isInactive}
+          <span
+            class="mt-0.5 inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500"
+          >
+            <svg
+              class="h-3 w-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"
+              />
+            </svg>
+            Not participating
+          </span>
+        {:else if student?.gradeLevel}
           <p class="text-xs text-gray-500">Grade {student.gradeLevel}</p>
         {/if}
       {/if}
@@ -220,8 +247,18 @@
           aria-label="Edit student"
           title="Edit student"
         >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+            />
           </svg>
         </button>
       {/if}
@@ -250,7 +287,10 @@
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <form
         class="space-y-4 px-4 py-4"
-        onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}
+        onsubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
         onkeydown={handleFormKeydown}
       >
         <div>
@@ -310,13 +350,16 @@
         </div>
 
         {#if formError}
-          <InlineError message={formError} size="xs" dismissible onDismiss={() => (formError = null)} />
+          <InlineError
+            message={formError}
+            size="xs"
+            dismissible
+            onDismiss={() => (formError = null)}
+          />
         {/if}
 
         <div class="flex justify-end gap-2 border-t border-gray-100 pt-3">
-          <Button variant="ghost" onclick={onCancelEdit} disabled={isSaving}>
-            Cancel
-          </Button>
+          <Button variant="ghost" onclick={onCancelEdit} disabled={isSaving}>Cancel</Button>
           <Button variant="primary" onclick={handleSubmit} disabled={isSaving}>
             {#if isSaving}
               Saving...
@@ -338,8 +381,18 @@
             onclick={() => (showHistory = false)}
             class="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800"
           >
-            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            <svg
+              class="h-3.5 w-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15.75 19.5 8.25 12l7.5-7.5"
+              />
             </svg>
             Back to overview
           </button>
@@ -364,7 +417,9 @@
                   <p class="text-[10px] text-gray-500">Activities</p>
                 </div>
                 <div class="rounded-md border border-gray-200 p-2 text-center">
-                  <p class="text-sm font-semibold text-gray-900">{profile.summary.totalGroupings}</p>
+                  <p class="text-sm font-semibold text-gray-900">
+                    {profile.summary.totalGroupings}
+                  </p>
                   <p class="text-[10px] text-gray-500">Groupings</p>
                 </div>
                 <div class="rounded-md border border-gray-200 p-2 text-center">
@@ -407,7 +462,9 @@
                         {/if}
                       </div>
                       <div class="mt-0.5 text-gray-500">
-                        {item.activityName}{item.session?.name ? ` · ${item.session.name}` : ''} · {formatDate(item.session?.startDate)}
+                        {item.activityName}{item.session?.name ? ` · ${item.session.name}` : ''} · {formatDate(
+                          item.session?.startDate
+                        )}
                       </div>
                     </div>
                   {/each}
@@ -535,11 +592,71 @@
               onclick={() => (showHistory = true)}
               class="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800"
             >
-              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              <svg
+                class="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                />
               </svg>
               View history ({profile.summary.totalGroupings} groupings)
             </button>
+          {/if}
+
+          <!-- Toggle active/inactive status -->
+          {#if onToggleActive}
+            <div class="border-t border-gray-100 pt-3">
+              <button
+                type="button"
+                onclick={onToggleActive}
+                class="flex items-center gap-1 text-xs {isInactive
+                  ? 'text-teal-600 hover:text-teal-800'
+                  : 'text-gray-500 hover:text-gray-700'}"
+              >
+                {#if isInactive}
+                  <svg
+                    class="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="2"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                    />
+                  </svg>
+                  Mark as active
+                {:else}
+                  <svg
+                    class="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="2"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"
+                    />
+                  </svg>
+                  Mark as inactive
+                {/if}
+              </button>
+            </div>
           {/if}
 
           <!-- Remove from roster -->
@@ -549,8 +666,18 @@
               onclick={onDelete}
               class="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
             >
-              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+              <svg
+                class="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z"
+                />
               </svg>
               Remove from roster
             </button>

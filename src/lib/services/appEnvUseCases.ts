@@ -1301,6 +1301,12 @@ export type {
 // =============================================================================
 
 import {
+  setStudentActiveStatus as setStudentActiveStatusUseCase,
+  type SetStudentActiveStatusInput,
+  type SetStudentActiveStatusError
+} from '$lib/application/useCases/setStudentActiveStatus';
+
+import {
   addStudentToPool as addStudentToPoolUseCase,
   type AddStudentToPoolInput,
   type AddStudentToPoolError,
@@ -1320,6 +1326,16 @@ import {
   type UpdateStudentError,
   type UpdateStudentResult
 } from '$lib/application/useCases/updateStudent';
+
+/**
+ * Set a student's active/inactive status on a pool.
+ */
+export async function setStudentActiveStatus(
+  env: InMemoryEnvironment,
+  input: SetStudentActiveStatusInput
+): Promise<Result<import('$lib/domain').Pool, SetStudentActiveStatusError>> {
+  return setStudentActiveStatusUseCase({ poolRepo: env.poolRepo }, input);
+}
 
 /**
  * Add a new student to a pool (roster).
@@ -1371,6 +1387,8 @@ export async function updateStudent(
 
 // Re-export student pool types
 export type {
+  SetStudentActiveStatusInput,
+  SetStudentActiveStatusError,
   AddStudentToPoolInput,
   AddStudentToPoolError,
   AddStudentToPoolResult,

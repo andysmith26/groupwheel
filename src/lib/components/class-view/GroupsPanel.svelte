@@ -9,7 +9,9 @@
   import type { KeyboardMoveDirection } from '$lib/components/editing/DraggableStudentCard.svelte';
   import { Alert } from '$lib/components/ui';
   import GroupEditingLayout from '$lib/components/editing/GroupEditingLayout.svelte';
+  import UnassignedArea from '$lib/components/editing/UnassignedArea.svelte';
   import DeleteGroupConfirmDialog from '$lib/components/editing/DeleteGroupConfirmDialog.svelte';
+  import { droppable, type DropState } from '$lib/utils/pragmatic-dnd';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
   import { cardSizeStyle } from '$lib/utils/cardSizeTokens';
 
@@ -23,6 +25,9 @@
     isGenerating?: boolean;
     generationError?: string | null;
     unplacedStudentCount?: number;
+
+    // Unassigned bench zone (Phase 4)
+    unassignedStudentIds?: string[];
 
     // Drag-drop editing callbacks (WP6)
     draggingId?: string | null;
@@ -60,6 +65,9 @@
     // Preference highlighting for selected/dragged student
     selectedStudentPreferences?: string[] | null;
 
+    // Click-selected student ID for card highlight
+    clickedStudentId?: string | null;
+
     // Read-only mode (published session)
     readOnly?: boolean;
   }
@@ -74,6 +82,7 @@
     isGenerating = false,
     generationError = null,
     unplacedStudentCount = 0,
+    unassignedStudentIds = [],
     draggingId = null,
     onDrop,
     onReorder,
@@ -93,15 +102,28 @@
     studentHasPreferences = new Map(),
     onStudentClick,
     readOnly = false,
-    selectedStudentPreferences = null
+    selectedStudentPreferences = null,
+    clickedStudentId = null
   }: Props = $props();
+
+  /** Drop handler for the bench zone — appends to end of unassigned list */
+  function handleBenchDrop(event: DropState) {
+    onDrop?.({
+      studentId: event.draggedItem.id,
+      source: event.sourceContainer ?? 'unassigned',
+      target: 'unassigned',
+      targetIndex: unassignedStudentIds.length
+    });
+  }
 
   // --- Preview group count (for the empty-state slider) ---
   // Stored as group count directly so every integer count is reachable.
   const minGroups = $derived(Math.max(1, Math.ceil(studentCount / 10)));
   const maxGroups = $derived(Math.max(1, Math.floor(studentCount / 2)));
   // Default to ~4 students per group
-  const defaultGroupCount = $derived(Math.max(minGroups, Math.min(maxGroups, Math.ceil(studentCount / 4))));
+  const defaultGroupCount = $derived(
+    Math.max(minGroups, Math.min(maxGroups, Math.ceil(studentCount / 4)))
+  );
   let previewGroupCount = $state<number | null>(null);
   const effectiveGroupCount = $derived(
     previewGroupCount !== null
@@ -156,21 +178,51 @@
       </div>
     {/if}
 
-    {#if unplacedStudentCount > 0 && groups.length > 0}
-      <div class="px-4 pt-4">
-        <div class="rounded-md bg-amber-50 p-3" role="status">
-          <div class="flex items-center gap-2">
-            <svg class="h-4 w-4 shrink-0 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fill-rule="evenodd"
-                d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            <p class="text-sm text-amber-800">
-              {unplacedStudentCount} {unplacedStudentCount === 1 ? 'student' : 'students'} not yet in groups. Tap "Assign All" to place them.
-            </p>
+    {#if groups.length > 0}
+      <div class="border-b border-gray-200 px-4 pt-4 pb-3">
+        <div
+          use:droppable={{ container: 'unassigned', callbacks: { onDrop: handleBenchDrop } }}
+          class="rounded-xl border p-3 {unassignedStudentIds.length > 0
+            ? 'border-amber-200 bg-amber-50/50'
+            : 'border-gray-200 bg-gray-100/50'}"
+        >
+          <div class="mb-2 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span
+                class="text-xs font-semibold {unassignedStudentIds.length > 0
+                  ? 'text-amber-800'
+                  : 'text-gray-500'}"
+              >
+                Unassigned
+              </span>
+              <span
+                class="rounded-full px-1.5 py-0.5 text-xs font-medium {unassignedStudentIds.length >
+                0
+                  ? 'bg-amber-200 text-amber-800'
+                  : 'bg-gray-200 text-gray-500'}"
+              >
+                {unassignedStudentIds.length}
+              </span>
+            </div>
           </div>
+          <UnassignedArea
+            {studentsById}
+            unassignedIds={unassignedStudentIds}
+            {draggingId}
+            {onDrop}
+            {onReorder}
+            {onDragStart}
+            {onDragEnd}
+            {flashingIds}
+            {studentHasPreferences}
+            {pickedUpStudentId}
+            {onKeyboardPickUp}
+            {onKeyboardDrop}
+            {onKeyboardCancel}
+            {onKeyboardMove}
+            {onStudentClick}
+            compact
+          />
         </div>
       </div>
     {/if}
@@ -200,6 +252,7 @@
           {studentHasPreferences}
           {onStudentClick}
           {selectedStudentPreferences}
+          {clickedStudentId}
         />
       </div>
     {:else}
@@ -251,9 +304,13 @@
 
             <!-- Slider — drives number of groups directly, so every count is reachable -->
             <div class="mb-5">
-              <div class="flex items-center justify-between mb-2">
-                <label for="group-count-slider" class="text-sm font-medium text-gray-700">Number of groups</label>
-                <span class="text-sm font-semibold text-teal-700 tabular-nums">{effectiveGroupCount}</span>
+              <div class="mb-2 flex items-center justify-between">
+                <label for="group-count-slider" class="text-sm font-medium text-gray-700"
+                  >Number of groups</label
+                >
+                <span class="text-sm font-semibold text-teal-700 tabular-nums"
+                  >{effectiveGroupCount}</span
+                >
               </div>
               <input
                 id="group-count-slider"
@@ -264,16 +321,16 @@
                 step="1"
                 oninput={handleSliderInput}
                 disabled={disabled || isGenerating}
-                class="w-full h-2 rounded-lg appearance-none cursor-pointer accent-teal-600 bg-gray-200"
+                class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-teal-600"
               />
-              <div class="flex justify-between mt-1 text-xs text-gray-400">
+              <div class="mt-1 flex justify-between text-xs text-gray-400">
                 <span>{minGroups}</span>
                 <span>{maxGroups}</span>
               </div>
             </div>
 
             <!-- Summary -->
-            <div class="mb-5 rounded-lg bg-teal-50 border border-teal-100 px-4 py-3 text-center">
+            <div class="mb-5 rounded-lg border border-teal-100 bg-teal-50 px-4 py-3 text-center">
               <p class="text-sm text-teal-800">
                 {#if remainder === 0}
                   <span class="font-semibold">{effectiveGroupCount}</span>
@@ -294,14 +351,16 @@
             <div class="mb-6 flex flex-wrap justify-center gap-3">
               {#each Array(effectiveGroupCount) as _, i}
                 {@const membersInThisGroup = i < remainder ? largeSize : smallSize}
-                <div class="flex flex-col items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm min-w-[68px]">
+                <div
+                  class="flex min-w-[68px] flex-col items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm"
+                >
                   <span class="text-[11px] font-medium text-gray-500">Group {i + 1}</span>
                   <div class="flex flex-wrap justify-center gap-1">
                     {#each Array(membersInThisGroup) as _}
                       <div class="h-4 w-4 rounded-full bg-teal-200"></div>
                     {/each}
                   </div>
-                  <span class="text-[11px] tabular-nums text-gray-400">{membersInThisGroup}</span>
+                  <span class="text-[11px] text-gray-400 tabular-nums">{membersInThisGroup}</span>
                 </div>
               {/each}
             </div>
@@ -312,7 +371,7 @@
                 type="button"
                 onclick={() => onGenerate(effectiveGroupCount)}
                 disabled={disabled || isGenerating}
-                class="min-h-[44px] rounded-md bg-teal-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-teal-700 disabled:opacity-50 transition-colors"
+                class="min-h-[44px] rounded-md bg-teal-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-teal-700 disabled:opacity-50"
               >
                 Make Groups
               </button>
@@ -332,4 +391,3 @@
     onCancel={handleCancelDelete}
   />
 {/if}
-

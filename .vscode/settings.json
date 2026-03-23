@@ -3,5 +3,8 @@
   "editor.formatOnSave": true,
   "[svelte]": {
     "editor.defaultFormatter": "svelte.svelte-vscode"
+  },
+  "chat.tools.terminal.autoApprove": {
+    "npx vitest": true
   }
 }

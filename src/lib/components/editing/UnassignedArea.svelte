@@ -23,7 +23,8 @@
     onKeyboardMove,
     onStudentClick,
     onAlphabetize,
-    vertical = false
+    vertical = false,
+    compact = false
   } = $props<{
     studentsById: Record<string, Student>;
     unassignedIds?: string[];
@@ -49,6 +50,8 @@
     onStudentClick?: (studentId: string) => void;
     onAlphabetize?: () => void;
     vertical?: boolean;
+    /** When true, hides the header and outer wrapper (for embedding in a parent bench zone) */
+    compact?: boolean;
   }>();
 
   // Track which item has edge hover and which edge
@@ -116,44 +119,48 @@
 </script>
 
 <div
-  class={vertical
-    ? 'flex h-full flex-col rounded-xl bg-gray-50 p-1.5'
-    : 'flex flex-col gap-2 rounded-xl bg-gray-50 p-1.5'}
+  class={compact
+    ? 'flex flex-col'
+    : vertical
+      ? 'flex h-full flex-col rounded-xl bg-gray-50 p-1.5'
+      : 'flex flex-col gap-2 rounded-xl bg-gray-50 p-1.5'}
 >
-  <!-- Header matching EditableGroupColumn style -->
-  <div class="flex items-center justify-between gap-2">
-    <span class="min-w-0 flex-1 truncate px-1 py-0.5 text-xs font-semibold text-gray-900">
-      Unassigned
-    </span>
-    <div class="flex items-center gap-1">
-      {#if unassignedIds.length > 1 && onAlphabetize}
-        <button
-          type="button"
-          onclick={() => onAlphabetize?.()}
-          class="rounded p-0.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
-          title="Sort alphabetically"
-          aria-label="Sort alphabetically"
-        >
-          <svg
-            class="h-3.5 w-3.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
-            />
-          </svg>
-        </button>
-      {/if}
-      <span class="text-xs font-medium text-gray-600">
-        {unassignedIds.length}
+  {#if !compact}
+    <!-- Header matching EditableGroupColumn style -->
+    <div class="flex items-center justify-between gap-2">
+      <span class="min-w-0 flex-1 truncate px-1 py-0.5 text-xs font-semibold text-gray-900">
+        Unassigned
       </span>
+      <div class="flex items-center gap-1">
+        {#if unassignedIds.length > 1 && onAlphabetize}
+          <button
+            type="button"
+            onclick={() => onAlphabetize?.()}
+            class="rounded p-0.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
+            title="Sort alphabetically"
+            aria-label="Sort alphabetically"
+          >
+            <svg
+              class="h-3.5 w-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
+              />
+            </svg>
+          </button>
+        {/if}
+        <span class="text-xs font-medium text-gray-600">
+          {unassignedIds.length}
+        </span>
+      </div>
     </div>
-  </div>
+  {/if}
 
   <div
     use:droppable={{ container: 'unassigned', callbacks: { onDrop: handleContainerDrop } }}
@@ -166,7 +173,7 @@
         }`}
     style={vertical
       ? 'grid-template-columns: 1fr; gap: var(--card-gap, 4px);'
-      : 'grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--card-gap, 4px);'}
+      : 'grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--card-gap, 8px);'}
   >
     {#if unassignedIds.length === 0}
       <p

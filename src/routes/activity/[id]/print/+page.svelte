@@ -9,7 +9,8 @@
   import { getAppEnvContext } from '$lib/contexts/appEnv';
   import { getActivityData } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
-  import type { Program, Scenario, Student, Group } from '$lib/domain';
+  import type { Program, Scenario, Student, Group, Pool } from '$lib/domain';
+  import { getActiveMemberIds } from '$lib/domain/pool';
 
   // --- Environment ---
   let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
@@ -18,6 +19,7 @@
   let program = $state<Program | null>(null);
   let scenario = $state<Scenario | null>(null);
   let students = $state<Student[]>([]);
+  let pool = $state<Pool | null>(null);
 
   // --- Loading states ---
   let loading = $state(true);
@@ -56,6 +58,7 @@
     program = data.program;
     scenario = data.scenario;
     students = data.students;
+    pool = data.pool;
     loading = false;
   });
 
@@ -108,19 +111,14 @@
     <div class="p-8">
       <div class="rounded-lg border border-red-200 bg-red-50 p-4">
         <p class="text-red-700">{loadError}</p>
-        <a href="/" class="mt-2 inline-block text-sm text-blue-600 underline">
-          ← Back to Home
-        </a>
+        <a href="/" class="mt-2 inline-block text-sm text-blue-600 underline"> ← Back to Home </a>
       </div>
     </div>
   {:else if program}
     <!-- Navigation bar (hidden when printing) -->
     <div class="no-print border-b border-gray-200 bg-gray-50 px-4 py-3">
       <div class="mx-auto flex max-w-5xl items-center justify-between">
-        <a
-          href="/activity/{program.id}"
-          class="text-sm text-gray-600 hover:text-gray-900"
-        >
+        <a href="/activity/{program.id}" class="text-sm text-gray-600 hover:text-gray-900">
           ← Back to Activity
         </a>
         <button
@@ -183,9 +181,12 @@
           {/each}
         </div>
 
-        <!-- Unassigned students -->
+        <!-- Unassigned students (exclude inactive) -->
         {@const assignedIds = new Set(groups.flatMap((g) => g.memberIds))}
-        {@const unassigned = students.filter((s) => !assignedIds.has(s.id))}
+        {@const activeIds = pool
+          ? new Set(getActiveMemberIds(pool))
+          : new Set(students.map((s) => s.id))}
+        {@const unassigned = students.filter((s) => !assignedIds.has(s.id) && activeIds.has(s.id))}
         {#if unassigned.length > 0}
           <div class="mt-8">
             <h2 class="mb-3 text-lg font-semibold text-gray-700">

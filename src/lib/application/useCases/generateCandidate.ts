@@ -1,4 +1,5 @@
 import type { Group, ScenarioSatisfaction } from '$lib/domain';
+import { getActiveMemberIds } from '$lib/domain/pool';
 import type {
   ProgramRepository,
   PoolRepository,
@@ -101,6 +102,14 @@ export async function generateCandidate(
     });
   }
 
+  const activeStudentIds = getActiveMemberIds(pool);
+  if (!activeStudentIds.length) {
+    return err({
+      type: 'POOL_HAS_NO_MEMBERS',
+      poolId: primaryPoolId
+    });
+  }
+
   const preferences = await deps.preferenceRepo.listByProgramId(program.id);
   const sanitizedConfig = sanitizeAlgorithmConfig(input.algorithmConfig);
   const seed = input.seed ?? Date.now();
@@ -108,7 +117,7 @@ export async function generateCandidate(
 
   const groupingResult = await deps.groupingAlgorithm.generateGroups({
     programId: program.id,
-    studentIds: pool.memberIds,
+    studentIds: activeStudentIds,
     algorithmConfig: candidateConfig
   });
 

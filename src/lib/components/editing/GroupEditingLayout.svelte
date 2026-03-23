@@ -52,7 +52,8 @@
     selectedGroupId = null,
     onSelectGroup,
     renamingGroupId = null,
-    onRenameComplete
+    onRenameComplete,
+    clickedStudentId = null
   } = $props<{
     groups?: Group[];
     studentsById?: Record<string, Student>;
@@ -94,6 +95,8 @@
     renamingGroupId?: string | null;
     /** Called when rename completes or is cancelled. */
     onRenameComplete?: () => void;
+    /** ID of the click-selected student (for blue border highlight). */
+    clickedStudentId?: string | null;
   }>();
 
   // Helper to get sibling group names for duplicate validation
@@ -101,12 +104,42 @@
     return groups.filter((g: Group) => g.id !== groupId).map((g: Group) => g.name);
   }
 
-  // Helper to get preference rank for a group (likeGroupIds stores group IDs)
-  function getPreferenceRank(group: Group): number | null {
-    if (!selectedStudentPreferences || selectedStudentPreferences.length === 0) {
-      return null;
+  /**
+   * Resolve a preference entry (ID or name) to a group ID.
+   * Returns null if the preference doesn't match any existing group.
+   */
+  function resolveToGroupId(choice: string): string | null {
+    // Direct ID match
+    const byId = groups.find((g: Group) => g.id === choice);
+    if (byId) return byId.id;
+    // Fallback: case-insensitive name match
+    const lower = choice.toLowerCase();
+    const byName = groups.find((g: Group) => g.name.toLowerCase() === lower);
+    return byName ? byName.id : null;
+  }
+
+  /**
+   * Sanitized preferences: resolve to group IDs, drop non-existent groups,
+   * skip blanks, and deduplicate (keep first occurrence only).
+   */
+  const cleanedPreferences = $derived.by(() => {
+    if (!selectedStudentPreferences || selectedStudentPreferences.length === 0) return null;
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const choice of selectedStudentPreferences) {
+      if (!choice) continue; // skip empty/blank entries
+      const gid = resolveToGroupId(choice);
+      if (!gid || seen.has(gid)) continue; // skip unknown groups & duplicates
+      seen.add(gid);
+      result.push(gid);
     }
-    const index = selectedStudentPreferences.indexOf(group.id);
+    return result.length > 0 ? result : null;
+  });
+
+  // Helper to get preference rank for a group using cleaned preferences
+  function getPreferenceRank(group: Group): number | null {
+    if (!cleanedPreferences) return null;
+    const index = cleanedPreferences.indexOf(group.id);
     return index >= 0 ? index + 1 : null;
   }
 </script>
@@ -145,11 +178,12 @@
           {onKeyboardCancel}
           {onKeyboardMove}
           {onStudentClick}
-          draggedStudentPreferences={selectedStudentPreferences}
+          draggedStudentPreferences={cleanedPreferences}
           selected={selectedGroupId === group.id}
           onSelect={onSelectGroup}
           {renamingGroupId}
           {onRenameComplete}
+          {clickedStudentId}
         />
       {/each}
     </div>
@@ -182,11 +216,12 @@
         {onKeyboardCancel}
         {onKeyboardMove}
         {onStudentClick}
-        draggedStudentPreferences={selectedStudentPreferences}
+        draggedStudentPreferences={cleanedPreferences}
         selected={selectedGroupId === group.id}
         onSelect={onSelectGroup}
         {renamingGroupId}
         {onRenameComplete}
+        {clickedStudentId}
       />
     {/each}
 

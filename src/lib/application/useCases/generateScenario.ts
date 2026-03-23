@@ -1,5 +1,6 @@
 import type { Scenario } from '$lib/domain';
 import { createScenario } from '$lib/domain/scenario';
+import { getActiveMemberIds } from '$lib/domain/pool';
 import type {
   ProgramRepository,
   PoolRepository,
@@ -95,6 +96,14 @@ export async function generateScenarioForProgram(
     });
   }
 
+  const activeStudentIds = getActiveMemberIds(pool);
+  if (!activeStudentIds.length) {
+    return err({
+      type: 'POOL_HAS_NO_MEMBERS',
+      poolId: primaryPoolId
+    });
+  }
+
   // Sanitize algorithm config to ensure no proxies or non-serializable data
   const sanitizedConfig = input.algorithmConfig
     ? JSON.parse(JSON.stringify(input.algorithmConfig))
@@ -103,7 +112,7 @@ export async function generateScenarioForProgram(
   // Call grouping algorithm.
   const groupingResult = await deps.groupingAlgorithm.generateGroups({
     programId: program.id,
-    studentIds: pool.memberIds,
+    studentIds: activeStudentIds,
     algorithmConfig: sanitizedConfig
   });
 
@@ -127,7 +136,7 @@ export async function generateScenarioForProgram(
         capacity: g.capacity,
         memberIds: g.memberIds
       })),
-      participantIds: pool.memberIds,
+      participantIds: activeStudentIds,
       createdAt,
       createdByStaffId: input.createdByStaffId,
       algorithmConfig: sanitizedConfig
