@@ -64,6 +64,9 @@
   // Export state
   let isExporting = $state(false);
 
+  // "Start another way" modal state
+  let startAnotherWayOpen = $state(false);
+
   let now = $state(new Date());
 
   onMount(() => {
@@ -237,6 +240,9 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
+      if (startAnotherWayOpen) {
+        startAnotherWayOpen = false;
+      }
       if (renameModalOpen) {
         renameModalOpen = false;
         renameTarget = null;
@@ -318,42 +324,15 @@
     <!-- Primary: Import roster -->
     <ImportRosterCard onCreated={() => loadActivities()} />
 
-    <!-- Secondary options -->
-    <div class="relative mt-4">
-      <div class="absolute inset-0 flex items-center" aria-hidden="true">
-        <div class="w-full border-t border-gray-200"></div>
-      </div>
-      <div class="relative flex justify-center">
-        <span class="bg-white px-3 text-xs text-gray-400">or start another way</span>
-      </div>
-    </div>
-
-    <div class="grid gap-4 sm:grid-cols-2">
-      <!-- Quick Start -->
-      <div class="rounded-xl border border-gray-200 bg-white p-5">
-        <div class="mb-3 flex items-center gap-3">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
-            </svg>
-          </div>
-          <h3 class="text-sm font-semibold text-gray-900">Quick demo</h3>
-        </div>
-        <QuickStartCard compact onCreated={() => loadActivities()} />
-      </div>
-
-      <!-- Start from scratch -->
-      <div class="rounded-xl border border-gray-200 bg-white p-5">
-        <div class="mb-3 flex items-center gap-3">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-            </svg>
-          </div>
-          <h3 class="text-sm font-semibold text-gray-900">Start from scratch</h3>
-        </div>
-        <PasteRosterCard onCreated={() => loadActivities()} />
-      </div>
+    <!-- Subtle button to open "start another way" modal -->
+    <div class="mt-4 flex justify-center">
+      <button
+        type="button"
+        class="text-xs text-gray-400 underline decoration-gray-300 underline-offset-2 transition-colors hover:text-gray-600 hover:decoration-gray-400"
+        onclick={() => (startAnotherWayOpen = true)}
+      >
+        Start another way
+      </button>
     </div>
   {:else}
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -372,6 +351,67 @@
     <InlineActivityCreator onCreated={() => loadActivities()} />
   {/if}
 </div>
+
+<!-- Start Another Way Modal -->
+{#if startAnotherWayOpen}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    transition:fade={{ duration: 150 }}
+    role="dialog"
+    tabindex="-1"
+    aria-modal="true"
+    aria-label="Start another way"
+    onclick={(e) => { if (e.target === e.currentTarget) startAnotherWayOpen = false; }}
+    onkeydown={(e) => { if (e.key === 'Escape') startAnotherWayOpen = false; }}
+  >
+    <div
+      class="mx-4 w-full max-w-lg rounded-lg bg-white p-6 shadow-xl"
+      transition:scale={{ duration: 150, start: 0.95 }}
+    >
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-medium text-gray-900">Start another way</h3>
+        <button
+          type="button"
+          class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          onclick={() => (startAnotherWayOpen = false)}
+          aria-label="Close"
+        >
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="mt-5 space-y-4">
+        <!-- Quick demo -->
+        <div class="rounded-xl border border-gray-200 bg-white p-5">
+          <div class="mb-3 flex items-center gap-3">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+              </svg>
+            </div>
+            <h3 class="text-sm font-semibold text-gray-900">Quick demo</h3>
+          </div>
+          <QuickStartCard compact onCreated={() => { startAnotherWayOpen = false; loadActivities(); }} />
+        </div>
+
+        <!-- Start from scratch -->
+        <div class="rounded-xl border border-gray-200 bg-white p-5">
+          <div class="mb-3 flex items-center gap-3">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+              </svg>
+            </div>
+            <h3 class="text-sm font-semibold text-gray-900">Start from scratch</h3>
+          </div>
+          <PasteRosterCard onCreated={() => { startAnotherWayOpen = false; loadActivities(); }} />
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <!-- Rename Modal -->
 {#if renameModalOpen && renameTarget}
