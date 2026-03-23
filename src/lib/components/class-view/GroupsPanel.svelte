@@ -232,7 +232,7 @@
         <GroupEditingLayout
           {groups}
           {studentsById}
-          layout="masonry"
+          layout={uiSettings.groupLayout === 'scroll' ? 'row' : 'masonry'}
           readonly={readOnly || !hasEditingCallbacks}
           {draggingId}
           {onDrop}
