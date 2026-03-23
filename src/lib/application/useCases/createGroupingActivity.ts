@@ -21,10 +21,13 @@ import type {
   StudentRepository,
   ProgramRepository,
   PreferenceRepository,
+  ScenarioRepository,
   IdGenerator,
   Clock
 } from '$lib/application/ports';
-import type { Pool, Program, Student } from '$lib/domain';
+import type { Pool, Program, Student, Group } from '$lib/domain';
+import type { Scenario } from '$lib/domain/scenario';
+import { createScenario } from '$lib/domain/scenario';
 import type { Preference, StudentPreference } from '$lib/domain/preference';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
@@ -58,6 +61,14 @@ export interface ParsedPreference {
 }
 
 /**
+ * Strategy for initial group member assignment when groups are created.
+ *
+ * - 'none': Create empty groups with no members assigned.
+ * - 'top-choice': Assign each student who has preferences to their 1st choice group.
+ */
+export type SeedingStrategy = 'none' | 'top-choice';
+
+/**
  * Input for creating a grouping activity.
  */
 export interface CreateGroupingActivityInput {
@@ -69,6 +80,12 @@ export interface CreateGroupingActivityInput {
 
   /** Parsed preferences from preferences paste (optional) */
   preferences?: ParsedPreference[];
+
+  /** Group names extracted from the import file (e.g. unique choice values from CSV) */
+  groupNames?: string[];
+
+  /** How to seed initial group assignments. Defaults to 'none'. */
+  seedingStrategy?: SeedingStrategy;
 
   /** If reusing an existing roster, the Pool ID */
   existingPoolId?: string;
@@ -90,6 +107,7 @@ export interface CreateGroupingActivityInput {
 export interface CreateGroupingActivityResult {
   pool: Pool;
   program: Program;
+  scenario?: Scenario;
   preferencesImported: number;
   preferencesSkipped: number;
   warnings: string[];
@@ -114,6 +132,7 @@ export interface CreateGroupingActivityDeps {
   studentRepo: StudentRepository;
   programRepo: ProgramRepository;
   preferenceRepo: PreferenceRepository;
+  scenarioRepo: ScenarioRepository;
   idGenerator: IdGenerator;
   clock: Clock;
 }
@@ -275,12 +294,65 @@ export async function createGroupingActivity(
   }
 
   // -------------------------------------------------------------------------
+  // Step 4: Create Scenario with groups (if group names provided)
+  // -------------------------------------------------------------------------
+
+  let scenario: Scenario | undefined;
+
+  if (input.groupNames && input.groupNames.length > 0) {
+    // Build a name→id map for the groups
+    const groupNameToId = new Map<string, string>();
+    const groups: Group[] = input.groupNames.map((name, index) => {
+      const id = deps.idGenerator.generateId();
+      groupNameToId.set(name, id);
+      return {
+        id,
+        name,
+        capacity: null,
+        memberIds: [],
+        colorIndex: index
+      };
+    });
+
+    // Seed group members based on strategy
+    if (input.seedingStrategy === 'top-choice' && input.preferences) {
+      const groupIdToGroup = new Map(groups.map((g) => [g.id, g]));
+
+      for (const pref of input.preferences) {
+        const firstChoice = pref.likeGroupIds?.[0];
+        if (!firstChoice) continue;
+
+        // likeGroupIds contain group names (raw strings from CSV)
+        const groupId = groupNameToId.get(firstChoice);
+        if (!groupId) continue;
+
+        const group = groupIdToGroup.get(groupId);
+        if (group) {
+          group.memberIds.push(pref.studentId);
+        }
+      }
+    }
+
+    scenario = createScenario({
+      id: deps.idGenerator.generateId(),
+      programId: program.id,
+      groups,
+      participantIds: pool.memberIds,
+      createdAt: deps.clock.now(),
+      createdByStaffId: input.ownerStaffId
+    });
+
+    await deps.scenarioRepo.save(scenario);
+  }
+
+  // -------------------------------------------------------------------------
   // Return Result
   // -------------------------------------------------------------------------
 
   return ok({
     pool,
     program,
+    scenario,
     preferencesImported,
     preferencesSkipped,
     warnings

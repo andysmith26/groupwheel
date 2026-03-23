@@ -68,7 +68,8 @@ import {
   type CreateGroupingActivityInput,
   type CreateGroupingActivityResult,
   type CreateGroupingActivityError,
-  type ParsedPreference
+  type ParsedPreference,
+  type SeedingStrategy
 } from '$lib/application/useCases/createGroupingActivity';
 import {
   importActivity as importActivityUseCase,
@@ -343,6 +344,7 @@ export async function createGroupingActivity(
       studentRepo: env.studentRepo,
       programRepo: env.programRepo,
       preferenceRepo: env.preferenceRepo,
+      scenarioRepo: env.scenarioRepo,
       idGenerator: env.idGenerator,
       clock: env.clock
     },
@@ -442,6 +444,7 @@ export type {
   CreateGroupingActivityInput,
   CreateGroupingActivityResult,
   CreateGroupingActivityError,
+  SeedingStrategy,
   ParsedStudent,
   ParsedPreference
 } from '$lib/application/useCases/createGroupingActivity';

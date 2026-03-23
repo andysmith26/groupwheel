@@ -14,10 +14,8 @@
   import { goto } from '$app/navigation';
   import { getAppEnvContext } from '$lib/contexts/appEnv';
   import { InlineError } from '$lib/components/ui';
-  import {
-    createGroupingActivity,
-    importActivity
-  } from '$lib/services/appEnvUseCases';
+  import { createGroupingActivity, importActivity } from '$lib/services/appEnvUseCases';
+  import type { SeedingStrategy } from '$lib/services/appEnvUseCases';
   import { parseActivityFile, readFileAsText } from '$lib/utils/activityFile';
   import { parseCsvRoster, looksLikeCsv } from '$lib/utils/csvRosterParser';
   import { isErr } from '$lib/types/result';
@@ -36,21 +34,26 @@
   let selectedFile = $state<File | null>(null);
 
   // Preview state after file is parsed
-  let preview = $state<{
-    type: 'json';
-    name: string;
-    studentCount: number;
-  } | {
-    type: 'csv';
-    studentCount: number;
-    groupNames: string[];
-    choiceColumns: number;
-    warnings: string[];
-    /** Raw parse result for submission */
-    parsed: import('$lib/utils/csvRosterParser').CsvRosterParseResult;
-  } | null>(null);
+  let preview = $state<
+    | {
+        type: 'json';
+        name: string;
+        studentCount: number;
+      }
+    | {
+        type: 'csv';
+        studentCount: number;
+        groupNames: string[];
+        choiceColumns: number;
+        warnings: string[];
+        /** Raw parse result for submission */
+        parsed: import('$lib/utils/csvRosterParser').CsvRosterParseResult;
+      }
+    | null
+  >(null);
 
   let activityName = $state('');
+  let seedingStrategy = $state<SeedingStrategy>('top-choice');
 
   function handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -89,8 +92,8 @@
 
       // Try CSV/TSV
       const parsed = parseCsvRoster(text);
-      const choiceColumns = parsed.columnMatches.filter(
-        (m) => m.matchedTo.startsWith('choice')
+      const choiceColumns = parsed.columnMatches.filter((m) =>
+        m.matchedTo.startsWith('choice')
       ).length;
 
       // Default activity name from filename without extension
@@ -207,6 +210,8 @@
       activityName: name,
       students: builtStudents,
       preferences: builtPreferences,
+      groupNames: parsed.groupNames.length > 0 ? parsed.groupNames : undefined,
+      seedingStrategy: parsed.groupNames.length > 0 ? seedingStrategy : undefined,
       ownerStaffId: 'owner-1'
     });
 
@@ -224,15 +229,22 @@
     preview = null;
     error = null;
     activityName = '';
+    seedingStrategy = 'top-choice';
     if (fileInput) fileInput.value = '';
   }
 </script>
 
 <div class="rounded-xl border-2 border-teal/40 bg-teal-light p-5">
   <div class="flex items-center gap-3">
-    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal/15 text-teal">
+    <div
+      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal/15 text-teal"
+    >
       <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+        />
       </svg>
     </div>
     <h3 class="text-base font-semibold text-gray-900">Import an activity</h3>
@@ -254,21 +266,33 @@
       onclick={() => fileInput?.click()}
     >
       <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+        />
       </svg>
       Choose file
     </button>
-    <p class="mt-2 text-center text-xs text-gray-400">
-      Accepts .csv, .tsv, or .json
-    </p>
+    <p class="mt-2 text-center text-xs text-gray-400">Accepts .csv, .tsv, or .json</p>
   {:else}
     <!-- Preview -->
     <div class="mt-4 space-y-3">
       <!-- File info -->
       <div class="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
         <div class="flex items-center gap-2 text-sm">
-          <svg class="h-4 w-4 text-teal" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          <svg
+            class="h-4 w-4 text-teal"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+            />
           </svg>
           <span class="font-medium text-gray-700">{selectedFile?.name}</span>
         </div>
@@ -292,16 +316,25 @@
           <p><span class="font-medium">Students:</span> {preview.studentCount}</p>
           {#if preview.choiceColumns > 0}
             <p><span class="font-medium">Choice columns:</span> {preview.choiceColumns}</p>
-            <p><span class="font-medium">Groups found:</span> {preview.groupNames.length}
+            <p>
+              <span class="font-medium">Groups found:</span>
+              {preview.groupNames.length}
               {#if preview.groupNames.length > 0}
-                <span class="text-gray-400">({preview.groupNames.slice(0, 4).join(', ')}{preview.groupNames.length > 4 ? `, +${preview.groupNames.length - 4} more` : ''})</span>
+                <span class="text-gray-400"
+                  >({preview.groupNames.slice(0, 4).join(', ')}{preview.groupNames.length > 4
+                    ? `, +${preview.groupNames.length - 4} more`
+                    : ''})</span
+                >
               {/if}
             </p>
           {:else}
             <p class="text-gray-400">No choice columns detected — roster only.</p>
           {/if}
           {#if preview.warnings.length > 0}
-            <p class="mt-1 text-xs text-amber-600">{preview.warnings.length} warning{preview.warnings.length !== 1 ? 's' : ''} (rows skipped or incomplete)</p>
+            <p class="mt-1 text-xs text-amber-600">
+              {preview.warnings.length} warning{preview.warnings.length !== 1 ? 's' : ''} (rows skipped
+              or incomplete)
+            </p>
           {/if}
         </div>
 
@@ -317,6 +350,45 @@
             disabled={isImporting}
           />
         </div>
+
+        {#if preview.choiceColumns > 0 && preview.groupNames.length > 0}
+          <!-- Seeding strategy -->
+          <fieldset class="space-y-1.5" disabled={isImporting}>
+            <legend class="block text-xs font-medium text-gray-700"
+              >Initial group assignments</legend
+            >
+            <label
+              class="flex cursor-pointer items-start gap-2 rounded-md bg-white/80 px-3 py-2 hover:bg-white"
+            >
+              <input
+                type="radio"
+                name="seeding"
+                value="top-choice"
+                bind:group={seedingStrategy}
+                class="mt-0.5 accent-teal"
+              />
+              <div>
+                <span class="text-sm font-medium text-gray-700">Top choice</span>
+                <p class="text-xs text-gray-500">Place each student in their 1st choice group</p>
+              </div>
+            </label>
+            <label
+              class="flex cursor-pointer items-start gap-2 rounded-md bg-white/80 px-3 py-2 hover:bg-white"
+            >
+              <input
+                type="radio"
+                name="seeding"
+                value="none"
+                bind:group={seedingStrategy}
+                class="mt-0.5 accent-teal"
+              />
+              <div>
+                <span class="text-sm font-medium text-gray-700">Empty groups</span>
+                <p class="text-xs text-gray-500">Create groups with no students assigned yet</p>
+              </div>
+            </label>
+          </fieldset>
+        {/if}
       {/if}
 
       <button
@@ -325,7 +397,11 @@
         onclick={handleImport}
         disabled={isImporting}
       >
-        {isImporting ? 'Importing...' : preview.type === 'json' ? 'Restore Activity' : 'Create Activity'}
+        {isImporting
+          ? 'Importing...'
+          : preview.type === 'json'
+            ? 'Restore Activity'
+            : 'Create Activity'}
       </button>
     </div>
   {/if}
