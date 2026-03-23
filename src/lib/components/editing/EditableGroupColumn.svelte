@@ -303,19 +303,18 @@
   }
 </script>
 
-<div class="relative" style={`grid-row: span ${rowSpan}; height: 100%;`}>
-  <!-- Preference choice label above the group (hidden during drag since header shows preview badge) -->
-  {#if preferenceStyles() && !draggingId}
+<div class="relative flex flex-col" style={`grid-row: span ${rowSpan}; height: 100%;`}>
+  <!-- Preference choice label: single stable div avoids layout shift when switching students -->
+  {#if studentPreferenceRanks.size > 0}
     <div
-      class={`absolute -top-5 right-0 left-0 z-10 text-center text-[11px] font-semibold ${preferenceStyles()!.textColor}`}
-      transition:fade={{ duration: 100 }}
+      class={`shrink-0 pb-0.5 text-center text-[11px] font-semibold ${preferenceStyles() ? preferenceStyles()!.textColor : 'text-transparent'}`}
     >
-      {preferenceStyles()!.label}
+      {preferenceStyles() && !draggingId ? preferenceStyles()!.label : '\u00A0'}
     </div>
   {/if}
 
   <div
-    class={`flex h-full flex-col overflow-hidden rounded-xl border-2 shadow-sm ${
+    class={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 shadow-sm ${
       preferenceStyles()
         ? `${preferenceStyles()!.borderColor} ${preferenceStyles()!.bgColor}`
         : selected
