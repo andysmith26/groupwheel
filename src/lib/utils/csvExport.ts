@@ -18,7 +18,13 @@ export type SortBy = 'firstName' | 'lastName';
  * When sortBy is 'lastName' (default): last name, then first name, then ID.
  * When sortBy is 'firstName': first name, then last name, then ID.
  */
-function compareStudents(a: Student | null, b: Student | null, aId: string, bId: string, sortBy: SortBy = 'lastName'): number {
+function compareStudents(
+  a: Student | null,
+  b: Student | null,
+  aId: string,
+  bId: string,
+  sortBy: SortBy = 'lastName'
+): number {
   if (!a && !b) return aId.localeCompare(bId);
   if (!a) return 1;
   if (!b) return -1;
@@ -45,7 +51,11 @@ function compareStudents(a: Student | null, b: Student | null, aId: string, bId:
 /**
  * Sort student IDs by the given sort order.
  */
-export function sortStudentIds(memberIds: string[], studentsById: Map<string, Student>, sortBy: SortBy = 'lastName'): string[] {
+export function sortStudentIds(
+  memberIds: string[],
+  studentsById: Map<string, Student>,
+  sortBy: SortBy = 'lastName'
+): string[] {
   return [...memberIds].sort((aId, bId) => {
     const a = studentsById.get(aId) ?? null;
     const b = studentsById.get(bId) ?? null;
@@ -207,7 +217,11 @@ export function exportToTSV(
  * Export a group-centric view (one row per group with student names).
  * Preserves the order of groups as given, with students sorted within each group.
  */
-export function exportGroupsToCSV(groups: Group[], studentsById: Map<string, Student>, sortBy: SortBy = 'lastName'): string {
+export function exportGroupsToCSV(
+  groups: Group[],
+  studentsById: Map<string, Student>,
+  sortBy: SortBy = 'lastName'
+): string {
   const rows: string[] = [];
 
   // Header

@@ -39,15 +39,23 @@
   >
     <div class="flex items-start gap-3">
       <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-100">
-        <svg class="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5-4.5L16.5 16.5m0 0L12 12m4.5 4.5V3" />
+        <svg
+          class="h-5 w-5 text-teal-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5-4.5L16.5 16.5m0 0L12 12m4.5 4.5V3"
+          />
         </svg>
       </div>
       <div>
         <h3 class="text-base font-semibold text-gray-900">Alphabetize students?</h3>
-        <p class="mt-1 text-sm text-gray-500">
-          Choose how to sort students within each group.
-        </p>
+        <p class="mt-1 text-sm text-gray-500">Choose how to sort students within each group.</p>
       </div>
     </div>
 
@@ -55,7 +63,7 @@
       <button
         type="button"
         onclick={() => onSelect('lastName')}
-        class="flex min-h-[44px] w-full items-center gap-3 rounded-md border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-teal-50 hover:border-teal-300"
+        class="flex min-h-[44px] w-full items-center gap-3 rounded-md border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:border-teal-300 hover:bg-teal-50"
       >
         <span class="text-gray-400">A→Z</span>
         By last name
@@ -63,7 +71,7 @@
       <button
         type="button"
         onclick={() => onSelect('firstName')}
-        class="flex min-h-[44px] w-full items-center gap-3 rounded-md border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-teal-50 hover:border-teal-300"
+        class="flex min-h-[44px] w-full items-center gap-3 rounded-md border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:border-teal-300 hover:bg-teal-50"
       >
         <span class="text-gray-400">A→Z</span>
         By first name

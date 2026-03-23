@@ -371,7 +371,7 @@
         preferences: vm.state.preferences,
         groups: view.groups,
         algorithmConfig: vm.state.scenario?.algorithmConfig,
-        rowLayout: null,
+        rowLayout: null
       });
       if (exportResult.status === 'err') return;
       const filename = generateExportFilename(program.name);

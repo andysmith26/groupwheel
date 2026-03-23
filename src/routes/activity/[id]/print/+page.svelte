@@ -43,11 +43,7 @@
   let sortedGroups = $derived(
     groups.map((g) => ({
       ...g,
-      sortedMemberIds: sortStudentIds(
-        g.memberIds,
-        new Map(Object.entries(studentsById)),
-        sortBy
-      )
+      sortedMemberIds: sortStudentIds(g.memberIds, new Map(Object.entries(studentsById)), sortBy)
     }))
   );
 
