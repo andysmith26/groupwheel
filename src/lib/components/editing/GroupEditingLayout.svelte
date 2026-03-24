@@ -2,7 +2,6 @@
   import type { Group, Student } from '$lib/domain';
   import { calculateRowSpan } from '$lib/utils/groups';
   import EditableGroupColumn from './EditableGroupColumn.svelte';
-  import AddGroupCard from './AddGroupCard.svelte';
   import HorizontalScrollContainer from '$lib/components/ui/HorizontalScrollContainer.svelte';
   import type { KeyboardMoveDirection } from './DraggableStudentCard.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
@@ -146,7 +145,7 @@
 
 {#if layout === 'row'}
   <HorizontalScrollContainer
-    totalItems={groups.length + (onAddGroup ? 1 : 0)}
+    totalItems={groups.length}
     config={rowConfig}
     showProgress={false}
     ariaLabel="Group cards"
@@ -224,10 +223,6 @@
         {clickedStudentId}
       />
     {/each}
-
-    {#if onAddGroup && !readonly}
-      <AddGroupCard {onAddGroup} rowSpan={groups.length > 0 ? calculateRowSpan(groups[0]) : 4} />
-    {/if}
   </div>
 {/if}
 

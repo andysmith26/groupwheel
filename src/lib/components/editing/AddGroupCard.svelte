@@ -1,28 +1,5 @@
 <script lang="ts">
-  /**
-   * AddGroupCard.svelte
-   *
-   * A card that appears at the end of the group grid, allowing users
-   * to add new groups in the workspace.
-   */
-
-  interface Props {
-    onAddGroup: () => void;
-    rowSpan?: number;
-  }
-
-  const { onAddGroup, rowSpan = 4 }: Props = $props();
+  /** @deprecated This component is no longer used. Add Group moved to SettingsPopover. Safe to delete. */
 </script>
 
-<button
-  type="button"
-  class="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 transition-colors hover:border-gray-300 hover:bg-gray-100"
-  style={`grid-row: span ${rowSpan};`}
-  onclick={onAddGroup}
-  aria-label="Add new group"
->
-  <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-  </svg>
-  <span class="text-xs font-medium text-gray-400">Add Group</span>
-</button>
+<!-- This component is deprecated and unused. Safe to delete. -->

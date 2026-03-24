@@ -2,16 +2,13 @@
   /**
    * SettingsPopover — Group management and generation settings.
    *
-   * Opens upward from the FloatingToolbar gear button.
-   * Contains: group count stepper, group management list (rename, delete),
+   * Opens downward from the ClassViewToolbar gear button.
+   * Contains: group list (color dot, name, max indicator, edit button),
    * add group, and rotation avoidance settings.
    */
 
   import type { Group } from '$lib/domain';
-  import type { Session } from '$lib/domain';
-  import DeleteGroupConfirmDialog from '$lib/components/editing/DeleteGroupConfirmDialog.svelte';
-  import HistoryPopover from './HistoryPopover.svelte';
-  import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { GROUP_COLOR_HEX } from '$lib/utils/groupColors';
 
   interface Props {
     groups: Group[];
@@ -20,20 +17,9 @@
     publishedSessionCount: number;
     onToggleAvoidance: (enabled: boolean) => void;
     onLookbackChange: (sessions: number) => void;
-    onUpdateGroup: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
-    onDeleteGroup: (groupId: string) => void;
+    onEditGroup: (groupId: string) => void;
     onAddGroup: () => void;
     onClose: () => void;
-    onDisplay?: () => void;
-    onToggleHistory?: () => void;
-    hasHistory?: boolean;
-    historyPanelOpen?: boolean;
-    sessions?: Session[];
-    viewingSessionId?: string | null;
-    currentSessionId?: string | null;
-    onSelectSession?: (sessionId: string | null) => void;
-    onDeleteSession?: (sessionId: string) => void;
-    onRenameSession?: (sessionId: string, name: string) => void;
   }
 
   let {
@@ -43,36 +29,23 @@
     publishedSessionCount,
     onToggleAvoidance,
     onLookbackChange,
-    onUpdateGroup,
-    onDeleteGroup,
+    onEditGroup,
     onAddGroup,
-    onClose,
-    onDisplay,
-    onToggleHistory,
-    hasHistory = false,
-    historyPanelOpen = false,
-    sessions = [],
-    viewingSessionId = null,
-    currentSessionId = null,
-    onSelectSession,
-    onDeleteSession,
-    onRenameSession,
+    onClose
   }: Props = $props();
 
   let popoverEl = $state<HTMLDivElement | null>(null);
   let ready = $state(false);
 
-  // Inline rename state
-  let renamingGroupId = $state<string | null>(null);
-  let renameValue = $state('');
-
-  // Delete confirmation state
-  let groupToDelete = $state<{ id: string; name: string; memberCount: number } | null>(null);
-
   // Defer click-outside detection to avoid catching the same click that opened the popover
   $effect(() => {
-    const timer = setTimeout(() => { ready = true; }, 0);
-    return () => { clearTimeout(timer); ready = false; };
+    const timer = setTimeout(() => {
+      ready = true;
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      ready = false;
+    };
   });
 
   function handleToggle(event: Event) {
@@ -87,11 +60,6 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
-      if (renamingGroupId) {
-        renamingGroupId = null;
-        e.stopPropagation();
-        return;
-      }
       e.stopPropagation();
       onClose();
     }
@@ -103,48 +71,14 @@
     }
   }
 
-  function startRename(group: Group) {
-    renamingGroupId = group.id;
-    renameValue = group.name;
+  function resolveColor(group: Group): string {
+    return group.colorIndex != null
+      ? GROUP_COLOR_HEX[group.colorIndex % GROUP_COLOR_HEX.length]
+      : GROUP_COLOR_HEX[0];
   }
 
-  function commitRename() {
-    if (renamingGroupId && renameValue.trim()) {
-      onUpdateGroup(renamingGroupId, { name: renameValue.trim() });
-    }
-    renamingGroupId = null;
-  }
-
-  function handleRenameKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitRename();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      renamingGroupId = null;
-    }
-  }
-
-  function requestDelete(group: Group) {
-    if (uiSettings.skipDeleteGroupConfirm) {
-      onDeleteGroup(group.id);
-      return;
-    }
-    groupToDelete = { id: group.id, name: group.name, memberCount: group.memberIds.length };
-  }
-
-  function handleConfirmDelete(dontAskAgain: boolean) {
-    if (!groupToDelete) return;
-    if (dontAskAgain) {
-      uiSettings.setSkipDeleteGroupConfirm(true);
-    }
-    onDeleteGroup(groupToDelete.id);
-    groupToDelete = null;
-  }
-
-  function handleCancelDelete() {
-    groupToDelete = null;
+  function formatMax(group: Group): string {
+    return group.capacity != null ? `max: ${group.capacity}` : 'max: —';
   }
 </script>
 
@@ -153,124 +87,62 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   bind:this={popoverEl}
-  class="absolute bottom-full left-0 z-30 mb-2 w-80 rounded-lg border border-gray-200 bg-white shadow-xl"
+  class="absolute top-full right-0 z-30 mt-2 w-80 rounded-lg border border-gray-200 bg-white shadow-xl"
   role="dialog"
-  aria-label="Generation settings"
+  aria-label="Settings"
   onclick={(e) => e.stopPropagation()}
 >
   <div class="border-b border-gray-200 px-4 py-3">
-    <h3 class="text-sm font-semibold text-gray-900">Options</h3>
+    <h3 class="text-sm font-semibold text-gray-900">Settings</h3>
   </div>
 
   <div class="max-h-[calc(100vh-120px)] overflow-y-auto">
-    <!-- Quick Actions Section -->
-    {#if onDisplay || onToggleHistory}
-      <div class="border-b border-gray-200 px-4 py-3">
-        <div class="flex flex-col gap-1">
-          {#if onDisplay}
-            <button
-              type="button"
-              onclick={() => { onDisplay?.(); onClose(); }}
-              class="flex min-h-[44px] items-center gap-3 rounded-md px-2 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              <svg class="h-5 w-5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-              </svg>
-              Display fullscreen
-            </button>
-          {/if}
-          {#if onToggleHistory}
-            <div class="relative">
-              <button
-                type="button"
-                onclick={onToggleHistory}
-                class="flex min-h-[44px] w-full items-center gap-3 rounded-md px-2 py-2 text-sm {historyPanelOpen
-                  ? 'bg-teal-50 text-teal-700'
-                  : 'text-gray-700 hover:bg-gray-50'}"
-              >
-                <svg class="h-5 w-5 shrink-0 {historyPanelOpen ? 'text-teal-500' : 'text-gray-400'}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                Session history
-                {#if hasHistory}
-                  <span class="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
-                {/if}
-              </button>
-
-              {#if historyPanelOpen}
-                <HistoryPopover
-                  {sessions}
-                  {viewingSessionId}
-                  {currentSessionId}
-                  onSelectSession={onSelectSession ?? (() => {})}
-                  onClose={onToggleHistory}
-                  {onDeleteSession}
-                  {onRenameSession}
-                />
-              {/if}
-            </div>
-          {/if}
-        </div>
-      </div>
-    {/if}
-
     <!-- Group Management Section -->
     {#if groups.length > 0}
       <div class="border-b border-gray-200 px-4 py-4">
-        <h4 class="mb-3 text-xs font-medium uppercase tracking-wider text-gray-500">
+        <h4 class="mb-3 text-xs font-medium tracking-wider text-gray-500 uppercase">
           Manage Groups
         </h4>
 
         <div class="space-y-1">
           {#each groups as group (group.id)}
-            <div class="group/row flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50">
+            <div class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50">
               <!-- Color dot -->
-              <div class="h-3 w-3 shrink-0 rounded-full bg-teal-500" style:background-color={group.colorIndex != null ? ['#0d9488', '#2563eb', '#7c3aed', '#dc2626', '#b45309', '#059669', '#4338ca', '#be185d'][group.colorIndex % 8] : '#0d9488'}></div>
+              <div
+                class="h-3 w-3 shrink-0 rounded-full"
+                style:background-color={resolveColor(group)}
+              ></div>
 
-              <!-- Name (editable or static) -->
-              {#if renamingGroupId === group.id}
-                <input
-                  type="text"
-                  bind:value={renameValue}
-                  onblur={commitRename}
-                  onkeydown={handleRenameKeydown}
-                  class="min-w-0 flex-1 rounded border border-teal-300 px-1.5 py-0.5 text-sm text-gray-900 outline-none focus:ring-1 focus:ring-teal-500"
-                  autofocus
-                />
-              {:else}
-                <span class="min-w-0 flex-1 truncate text-sm text-gray-700">
-                  {group.name}
-                </span>
-              {/if}
+              <!-- Name -->
+              <span class="min-w-0 flex-1 truncate text-sm text-gray-700">
+                {group.name}
+              </span>
 
-              <!-- Member count -->
-              <span class="shrink-0 text-xs text-gray-400">{group.memberIds.length}</span>
+              <!-- Max indicator -->
+              <span class="shrink-0 text-xs text-gray-400">{formatMax(group)}</span>
 
-              <!-- Actions (visible on hover) -->
-              <div class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100">
-                <button
-                  type="button"
-                  onclick={() => startRename(group)}
-                  class="flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-700"
-                  aria-label="Rename {group.name}"
-                  title="Rename"
+              <!-- Edit button -->
+              <button
+                type="button"
+                onclick={() => onEditGroup(group.id)}
+                class="flex h-7 w-7 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+                aria-label="Edit {group.name}"
+                title="Edit"
+              >
+                <svg
+                  class="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
                 >
-                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onclick={() => requestDelete(group)}
-                  class="flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-600"
-                  aria-label="Delete {group.name}"
-                  title="Delete"
-                >
-                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                  </svg>
-                </button>
-              </div>
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+                  />
+                </svg>
+              </button>
             </div>
           {/each}
         </div>
@@ -281,7 +153,13 @@
           onclick={onAddGroup}
           class="mt-2 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-teal-700 hover:bg-teal-50"
         >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+          >
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
           Add Group
@@ -291,7 +169,7 @@
 
     <!-- Rotation Avoidance Section -->
     <div class="px-4 py-4">
-      <h4 class="mb-3 text-xs font-medium uppercase tracking-wider text-gray-500">
+      <h4 class="mb-3 text-xs font-medium tracking-wider text-gray-500 uppercase">
         Group Rotation
       </h4>
 
@@ -342,12 +220,3 @@
     </div>
   </div>
 </div>
-
-{#if groupToDelete}
-  <DeleteGroupConfirmDialog
-    groupName={groupToDelete.name}
-    memberCount={groupToDelete.memberCount}
-    onConfirm={handleConfirmDelete}
-    onCancel={handleCancelDelete}
-  />
-{/if}

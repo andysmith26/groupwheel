@@ -28,7 +28,8 @@
   import ScenarioComparison from '$lib/components/editing/ScenarioComparison.svelte';
   import ContextualHint from '$lib/components/common/ContextualHint.svelte';
   import StudentDetailSidebar from '$lib/components/workspace/StudentDetailSidebar.svelte';
-  import FloatingToolbar from '$lib/components/workspace/FloatingToolbar.svelte';
+  import HistoryPopover from '$lib/components/workspace/HistoryPopover.svelte';
+  import EditGroupModal from './EditGroupModal.svelte';
   import RemoveStudentConfirmDialog from './RemoveStudentConfirmDialog.svelte';
   import DeleteSessionConfirmDialog from './DeleteSessionConfirmDialog.svelte';
   import NewSessionConfirmDialog from './NewSessionConfirmDialog.svelte';
@@ -150,7 +151,6 @@
   // Settings & rotation avoidance (WP10 / Decision 6)
   let avoidRecentGroupmates = $derived(vm.state.avoidRecentGroupmates);
   let lookbackSessions = $derived(vm.state.lookbackSessions);
-  let settingsPanelOpen = $derived(vm.state.settingsPanelOpen);
   let publishedSessionCount = $derived(
     vm.state.sessions.filter((s) => s.status === 'PUBLISHED' || s.status === 'ARCHIVED').length
   );
@@ -290,7 +290,7 @@
 
   function handleUpdateGroup(
     groupId: string,
-    changes: Partial<Pick<import('$lib/domain').Group, 'name' | 'capacity'>>
+    changes: Partial<Pick<import('$lib/domain').Group, 'name' | 'capacity' | 'colorIndex'>>
   ) {
     vm.actions.updateGroup(groupId, changes);
   }
@@ -389,6 +389,31 @@
   // New session confirmation
   let showNewSessionConfirm = $state(false);
 
+  // Edit group modal
+  let editingGroupId = $state<string | null>(null);
+  let editingGroup = $derived(
+    editingGroupId ? (displayGroups.find((g) => g.id === editingGroupId) ?? null) : null
+  );
+  let editingSiblingNames = $derived(
+    editingGroupId ? displayGroups.filter((g) => g.id !== editingGroupId).map((g) => g.name) : []
+  );
+
+  function handleEditGroup(groupId: string) {
+    editingGroupId = groupId;
+  }
+
+  function handleEditGroupSave(
+    changes: Partial<Pick<import('$lib/domain').Group, 'name' | 'capacity' | 'colorIndex'>>
+  ) {
+    if (editingGroupId) {
+      vm.actions.updateGroup(editingGroupId, changes);
+    }
+  }
+
+  function handleEditGroupDelete(groupId: string) {
+    vm.actions.deleteGroup(groupId);
+  }
+
   // Sort order dialog for export/print/copy actions
   let showSortDialog = $state(false);
   let pendingExportAction = $state<'print' | 'copy' | 'move' | null>(null);
@@ -437,11 +462,6 @@
     vm.actions.toggleHistoryPanel();
   }
 
-  function handleToggleSettings() {
-    selectedStudentId = null;
-    vm.actions.toggleSettingsPanel();
-  }
-
   /** Roster click: open student profile sidebar */
   function handleStudentClick(studentId: string) {
     // Toggle: clicking the same student closes the sidebar
@@ -451,7 +471,6 @@
     }
     // Close other sidebars
     if (historyPanelOpen) vm.actions.toggleHistoryPanel();
-    if (settingsPanelOpen) vm.actions.toggleSettingsPanel();
     groupClickStudentId = null; // clear sticky group highlight when opening sidebar
     selectedStudentId = studentId;
     studentSidebarMode = 'view';
@@ -469,7 +488,14 @@
   /** Group card click: toggle preference highlighting only (no sidebar) */
   function handleGroupStudentClick(studentId: string) {
     // DEBUG: remove after fixing preference label bug
-    console.log('[pref-debug] handleGroupStudentClick', studentId, 'prefMap keys:', Object.keys(vm.state.preferenceMap).length, 'has student:', studentId in vm.state.preferenceMap);
+    console.log(
+      '[pref-debug] handleGroupStudentClick',
+      studentId,
+      'prefMap keys:',
+      Object.keys(vm.state.preferenceMap).length,
+      'has student:',
+      studentId in vm.state.preferenceMap
+    );
     if (groupClickStudentId === studentId) {
       groupClickStudentId = null;
       return;
@@ -493,7 +519,6 @@
 
   function handleStartAddStudent() {
     if (historyPanelOpen) vm.actions.toggleHistoryPanel();
-    if (settingsPanelOpen) vm.actions.toggleSettingsPanel();
     selectedStudentId = null;
     studentSidebarMode = 'create';
     // On mobile or when gap too small, auto-close roster
@@ -685,6 +710,22 @@
       onRetrySave={handleRetrySave}
       onToggleRoster={handleToggleRoster}
       rosterOpen={rosterDrawerOpen}
+      onToggleHistory={handleToggleHistory}
+      {historyPanelOpen}
+      {hasHistory}
+      groups={displayGroups}
+      {avoidRecentGroupmates}
+      {lookbackSessions}
+      {publishedSessionCount}
+      onToggleAvoidance={(enabled) => vm.actions.setAvoidRecentGroupmates(enabled)}
+      onLookbackChange={(s) => vm.actions.setLookbackSessions(s)}
+      onEditGroup={handleEditGroup}
+      onAddGroup={handleCreateGroup}
+      onCopyForSpreadsheet={handleCopyForSpreadsheet}
+      onSave={handleMoveToComputer}
+      onPrint={handlePrint}
+      onDisplay={handleDisplay}
+      onPublish={handleShowToClass}
     />
 
     <div class="flex flex-1 overflow-hidden">
@@ -760,7 +801,6 @@
                   class="font-medium text-teal-800 underline hover:text-teal-900"
                   onclick={() => {
                     handleDismissRotationHint();
-                    handleToggleSettings();
                   }}
                 >
                   Change this in Settings
@@ -850,37 +890,20 @@
       </div>
     </div>
 
-    <!-- Floating Toolbar — primary actions at bottom-center -->
-    <FloatingToolbar
-      visible={hasGroups && !isViewingHistory}
-      {isPublished}
-      onShowToClass={handleShowToClass}
-      onMakeNewGroups={handleRequestNewSession}
-      onToggleSettings={handleToggleSettings}
-      {settingsPanelOpen}
-      {avoidRecentGroupmates}
-      {lookbackSessions}
-      {publishedSessionCount}
-      onToggleAvoidance={(enabled) => vm.actions.setAvoidRecentGroupmates(enabled)}
-      onLookbackChange={(sessions) => vm.actions.setLookbackSessions(sessions)}
-      groups={displayGroups}
-      onUpdateGroup={handleUpdateGroup}
-      onDeleteGroup={handleDeleteGroup}
-      onAddGroup={handleCreateGroup}
-      onDisplay={handleDisplay}
-      onToggleHistory={handleToggleHistory}
-      {hasHistory}
-      {historyPanelOpen}
-      {sessions}
-      {viewingSessionId}
-      currentSessionId={isPublished ? (vm.state.latestPublishedSession?.id ?? null) : null}
-      onSelectSession={(sessionId) => vm.actions.selectSession(sessionId)}
-      onDeleteSession={handleRequestDeleteSession}
-      onRenameSession={handleRenameSession}
-      onPrint={handlePrint}
-      onCopyForSpreadsheet={handleCopyForSpreadsheet}
-      onMoveToComputer={handleMoveToComputer}
-    />
+    <!-- History popover — rendered as a dropdown from the toolbar area -->
+    {#if historyPanelOpen}
+      <div class="fixed top-14 right-4 z-30">
+        <HistoryPopover
+          {sessions}
+          {viewingSessionId}
+          currentSessionId={isPublished ? (vm.state.latestPublishedSession?.id ?? null) : null}
+          onSelectSession={(sessionId) => vm.actions.selectSession(sessionId)}
+          onClose={handleToggleHistory}
+          onDeleteSession={handleRequestDeleteSession}
+          onRenameSession={handleRenameSession}
+        />
+      </div>
+    {/if}
 
     <!-- Display-only toolbar when viewing history -->
     {#if hasGroups && isViewingHistory}
@@ -1007,4 +1030,14 @@
 
 {#if showSortDialog}
   <SortOrderDialog onSelect={handleSortSelected} onCancel={handleSortCancel} />
+{/if}
+
+{#if editingGroup}
+  <EditGroupModal
+    group={editingGroup}
+    siblingGroupNames={editingSiblingNames}
+    onSave={handleEditGroupSave}
+    onDelete={handleEditGroupDelete}
+    onClose={() => (editingGroupId = null)}
+  />
 {/if}

@@ -36,8 +36,8 @@ export type DeleteGroupCommand = {
 export type UpdateGroupCommand = {
   type: 'UPDATE_GROUP';
   groupId: string;
-  changes: Partial<Pick<Group, 'name' | 'capacity'>>;
-  previousValues: Partial<Pick<Group, 'name' | 'capacity'>>;
+  changes: Partial<Pick<Group, 'name' | 'capacity' | 'colorIndex'>>;
+  previousValues: Partial<Pick<Group, 'name' | 'capacity' | 'colorIndex'>>;
 };
 
 export type ReorderGroupCommand = {
@@ -526,7 +526,7 @@ export class ScenarioEditingStore {
   }
   updateGroup(
     groupId: string,
-    changes: Partial<Pick<Group, 'name' | 'capacity'>>
+    changes: Partial<Pick<Group, 'name' | 'capacity' | 'colorIndex'>>
   ): { success: boolean; reason?: string } {
     this.ensureInitialized();
 
@@ -555,9 +555,10 @@ export class ScenarioEditingStore {
     }
 
     // Build previous values for undo
-    const previousValues: Partial<Pick<Group, 'name' | 'capacity'>> = {};
+    const previousValues: Partial<Pick<Group, 'name' | 'capacity' | 'colorIndex'>> = {};
     if ('name' in changes) previousValues.name = targetGroup.name;
     if ('capacity' in changes) previousValues.capacity = targetGroup.capacity;
+    if ('colorIndex' in changes) previousValues.colorIndex = targetGroup.colorIndex;
 
     // Coalesce rapid updates to same group into single command
     if (this.pendingUpdateCommand?.groupId === groupId) {
