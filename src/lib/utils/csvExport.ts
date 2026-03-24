@@ -11,7 +11,7 @@ import type { Group } from '$lib/domain/group';
 import type { Student } from '$lib/domain/student';
 import { getStudentDisplayName } from '$lib/domain/student';
 
-export type SortBy = 'firstName' | 'lastName';
+export type SortBy = 'firstName' | 'lastName' | 'none';
 
 /**
  * Compare two students for sorting.
@@ -56,6 +56,7 @@ export function sortStudentIds(
   studentsById: Map<string, Student>,
   sortBy: SortBy = 'lastName'
 ): string[] {
+  if (sortBy === 'none') return [...memberIds];
   return [...memberIds].sort((aId, bId) => {
     const a = studentsById.get(aId) ?? null;
     const b = studentsById.get(bId) ?? null;

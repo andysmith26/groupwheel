@@ -34,6 +34,7 @@
   import NewSessionConfirmDialog from './NewSessionConfirmDialog.svelte';
   import SortOrderDialog from './SortOrderDialog.svelte';
   import { hintState } from '$lib/stores/hintState.svelte';
+  import { toastStore } from '$lib/stores/toast.svelte';
 
   interface Props {
     activityId: string;
@@ -52,7 +53,7 @@
     (() => {
       try {
         const stored = localStorage.getItem(rosterStorageKey);
-        return stored !== null ? stored === 'true' : true; // default open on first visit
+        return stored !== null ? stored === 'true' : false; // default closed on first visit
       } catch {
         return true;
       }
@@ -233,7 +234,10 @@
     const activeId = draggingId ?? groupClickStudentId ?? rosterHoverStudentId ?? selectedStudentId;
     if (!activeId) return null;
     const prefs = vm.state.preferenceMap[activeId];
-    return prefs?.likeGroupIds?.length ? prefs.likeGroupIds : null;
+    const result = prefs?.likeGroupIds?.length ? prefs.likeGroupIds : null;
+    // DEBUG: remove after fixing preference label bug
+    console.log('[pref-debug] activeId=', activeId, 'prefs=', prefs, 'likeGroupIds=', result);
+    return result;
   });
 
   let studentSidebarOpen = $derived(selectedStudent !== null || studentSidebarMode === 'create');
@@ -333,7 +337,7 @@
     pendingExportAction = null;
 
     // Sort the groups on the UI as well
-    if (vm.state.editingStore && vm.state.view && !isViewingHistory) {
+    if (sortBy !== 'none' && vm.state.editingStore && vm.state.view && !isViewingHistory) {
       for (const group of vm.state.view.groups) {
         const sorted = [...group.memberIds].sort((a, b) => {
           const sa = vm.state.studentsById[a];
@@ -353,6 +357,7 @@
 
     if (action === 'print') {
       window.open(`/activity/${activityId}/print?sort=${sortBy}`, '_blank');
+      toastStore.success('Print view opened in a new tab');
     } else if (action === 'copy') {
       const groups = displayGroups;
       if (!groups.length) return;
@@ -360,8 +365,9 @@
       const tsv = exportGroupsToColumnsTSV(groups, studentsMap, sortBy);
       try {
         await env?.clipboard?.writeText(tsv);
+        toastStore.success('Copied to clipboard — paste into a spreadsheet');
       } catch {
-        // silent fail
+        toastStore.error('Failed to copy to clipboard');
       }
     } else if (action === 'move') {
       if (!program || !view) return;
@@ -376,6 +382,7 @@
       if (exportResult.status === 'err') return;
       const filename = generateExportFilename(program.name);
       downloadActivityFile(exportResult.value.activityExportData, filename);
+      toastStore.success('Activity file saved');
     }
   }
 
@@ -461,6 +468,8 @@
 
   /** Group card click: toggle preference highlighting only (no sidebar) */
   function handleGroupStudentClick(studentId: string) {
+    // DEBUG: remove after fixing preference label bug
+    console.log('[pref-debug] handleGroupStudentClick', studentId, 'prefMap keys:', Object.keys(vm.state.preferenceMap).length, 'has student:', studentId in vm.state.preferenceMap);
     if (groupClickStudentId === studentId) {
       groupClickStudentId = null;
       return;

@@ -36,7 +36,11 @@
 
   // Read sort order from URL query parameter
   let sortBy = $derived<SortBy>(
-    $page.url.searchParams.get('sort') === 'firstName' ? 'firstName' : 'lastName'
+    $page.url.searchParams.get('sort') === 'firstName'
+      ? 'firstName'
+      : $page.url.searchParams.get('sort') === 'none'
+        ? 'none'
+        : 'lastName'
   );
 
   // Sort student IDs within each group for display

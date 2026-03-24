@@ -6,8 +6,9 @@
 
   import { fade, scale } from 'svelte/transition';
   import { Button } from '$lib/components/ui';
+  import type { SortBy } from '$lib/utils/csvExport';
 
-  export type SortOrder = 'firstName' | 'lastName';
+  export type SortOrder = SortBy;
 
   interface Props {
     onSelect: (sortOrder: SortOrder) => void;
@@ -54,7 +55,7 @@
         </svg>
       </div>
       <div>
-        <h3 class="text-base font-semibold text-gray-900">Alphabetize students?</h3>
+        <h3 class="text-base font-semibold text-gray-900">Sort students?</h3>
         <p class="mt-1 text-sm text-gray-500">Choose how to sort students within each group.</p>
       </div>
     </div>
@@ -75,6 +76,14 @@
       >
         <span class="text-gray-400">A→Z</span>
         By first name
+      </button>
+      <button
+        type="button"
+        onclick={() => onSelect('none')}
+        class="flex min-h-[44px] w-full items-center gap-3 rounded-md border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:border-teal-300 hover:bg-teal-50"
+      >
+        <span class="text-gray-400">—</span>
+        Keep current order
       </button>
     </div>
 
