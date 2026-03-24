@@ -43,6 +43,7 @@
     enableScrollSnap = true,
     enableKeyboardNav = true,
     ariaLabel = 'Scrollable content',
+    fillHeight = false,
     children
   } = $props<{
     /** Total number of items (for progress indicator) */
@@ -65,6 +66,8 @@
     enableKeyboardNav?: boolean;
     /** Accessible label for the scroll region */
     ariaLabel?: string;
+    /** When true, stretch to fill parent height so scrollbar sits at bottom */
+    fillHeight?: boolean;
     /** Slot content */
     children?: any;
   }>();
@@ -76,13 +79,16 @@
   // STATE
   // =============================================================================
   let scrollContainer: HTMLDivElement | null = $state(null);
+  let wrapperEl: HTMLDivElement | null = $state(null);
   let canScrollLeft = $state(false);
   let canScrollRight = $state(true);
   let currentIndex = $state(0);
   let visibleCount = $state(1);
   let isDragging = $state(false);
   let dragStartX = $state(0);
+  let dragStartY = $state(0);
   let dragScrollLeft = $state(0);
+  let dragScrollTop = $state(0);
   let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Computed scroll amount
@@ -180,6 +186,10 @@
     isDragging = true;
     dragStartX = event.pageX - scrollContainer.offsetLeft;
     dragScrollLeft = scrollContainer.scrollLeft;
+    if (fillHeight) {
+      dragStartY = event.pageY - scrollContainer.offsetTop;
+      dragScrollTop = scrollContainer.scrollTop;
+    }
     scrollContainer.style.cursor = 'grabbing';
     scrollContainer.style.userSelect = 'none';
   }
@@ -188,8 +198,13 @@
     if (!isDragging || !scrollContainer) return;
     event.preventDefault();
     const x = event.pageX - scrollContainer.offsetLeft;
-    const walk = (x - dragStartX) * 1.5; // Scroll speed multiplier
-    scrollContainer.scrollLeft = dragScrollLeft - walk;
+    const walkX = (x - dragStartX) * 1.5; // Scroll speed multiplier
+    scrollContainer.scrollLeft = dragScrollLeft - walkX;
+    if (fillHeight) {
+      const y = event.pageY - scrollContainer.offsetTop;
+      const walkY = (y - dragStartY) * 1.5;
+      scrollContainer.scrollTop = dragScrollTop - walkY;
+    }
   }
 
   function handleMouseUp() {
@@ -234,7 +249,9 @@
 </script>
 
 <div
+  bind:this={wrapperEl}
   class="scroll-container-wrapper"
+  class:fill-height={fillHeight}
   role="region"
   aria-label={ariaLabel}
   onmouseleave={handleMouseLeave}
@@ -267,6 +284,7 @@
     class="scroll-container"
     class:snap-enabled={enableScrollSnap}
     class:draggable={enableDragScroll && !isDragging}
+    class:fill-height={fillHeight}
     style:--item-width="{cfg.itemWidth}px"
     style:--item-gap="{cfg.itemGap}px"
     onscroll={handleScroll}
@@ -321,6 +339,13 @@
     width: 100%;
   }
 
+  .scroll-container-wrapper.fill-height {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .scroll-container {
     display: flex;
     flex-direction: row;
@@ -333,6 +358,29 @@
     scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
     padding: 4px 0;
     outline: none;
+  }
+
+  .scroll-container.fill-height {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .scroll-container.fill-height::-webkit-scrollbar:vertical {
+    width: 6px;
+  }
+
+  .scroll-container.fill-height::-webkit-scrollbar-track:vertical {
+    background: transparent;
+  }
+
+  .scroll-container.fill-height::-webkit-scrollbar-thumb:vertical {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+
+  .scroll-container.fill-height::-webkit-scrollbar-thumb:vertical:hover {
+    background-color: rgba(0, 0, 0, 0.3);
   }
 
   .scroll-container:focus-visible {
@@ -433,11 +481,11 @@
   }
 
   .nav-button-left {
-    left: 8px;
+    left: 20px;
   }
 
   .nav-button-right {
-    right: 8px;
+    right: 20px;
   }
 
   /* Progress indicator wrapper */

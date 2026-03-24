@@ -52,7 +52,8 @@
     onSelectGroup,
     renamingGroupId = null,
     onRenameComplete,
-    clickedStudentId = null
+    clickedStudentId = null,
+    fillHeight = false
   } = $props<{
     groups?: Group[];
     studentsById?: Record<string, Student>;
@@ -96,6 +97,8 @@
     onRenameComplete?: () => void;
     /** ID of the click-selected student (for blue border highlight). */
     clickedStudentId?: string | null;
+    /** When true, stretch the scroll container to fill parent height. */
+    fillHeight?: boolean;
   }>();
 
   // Helper to get sibling group names for duplicate validation
@@ -149,6 +152,7 @@
     config={rowConfig}
     showProgress={false}
     ariaLabel="Group cards"
+    {fillHeight}
   >
     <div class="group-row">
       {#each groups as group, i (`${group.id}-${i}`)}

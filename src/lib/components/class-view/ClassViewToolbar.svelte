@@ -215,9 +215,9 @@
             shareOpen = !shareOpen;
             settingsOpen = false;
           }}
-          class="flex h-9 items-center gap-1.5 rounded-md px-3 transition-colors {shareOpen
-            ? 'bg-teal-50 text-teal-700'
-            : 'text-gray-700 hover:bg-gray-100'}"
+          class="flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium shadow-sm transition-colors {shareOpen
+            ? 'bg-teal-700 text-white'
+            : 'bg-teal-600 text-white hover:bg-teal-700'}"
           aria-label="{shareOpen ? 'Close' : 'Open'} share menu"
           aria-expanded={shareOpen}
           aria-haspopup="true"

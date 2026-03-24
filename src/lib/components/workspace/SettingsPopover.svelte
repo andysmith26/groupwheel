@@ -8,7 +8,7 @@
    */
 
   import type { Group } from '$lib/domain';
-  import { GROUP_COLOR_HEX } from '$lib/utils/groupColors';
+  import { resolveGroupColorHex } from '$lib/utils/groupColors';
 
   interface Props {
     groups: Group[];
@@ -72,9 +72,7 @@
   }
 
   function resolveColor(group: Group): string {
-    return group.colorIndex != null
-      ? GROUP_COLOR_HEX[group.colorIndex % GROUP_COLOR_HEX.length]
-      : GROUP_COLOR_HEX[0];
+    return resolveGroupColorHex(group);
   }
 
   function formatMax(group: Group): string {

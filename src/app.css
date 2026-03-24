@@ -67,3 +67,19 @@
     opacity: 0.7;
   }
 }
+
+/* Toast auto-dismiss progress bar */
+.toast-progress-bar {
+  background-color: currentColor;
+  opacity: 0.3;
+  animation: toast-progress-shrink linear forwards;
+}
+
+@keyframes toast-progress-shrink {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
