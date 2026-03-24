@@ -2,7 +2,12 @@
   import type { Student } from '$lib/domain';
   import DraggableStudentCard, { type KeyboardMoveDirection } from './DraggableStudentCard.svelte';
   import DropIndicator from './DropIndicator.svelte';
-  import { droppable, type Edge, type SortableDropState } from '$lib/utils/pragmatic-dnd';
+  import {
+    droppable,
+    monitorDrag,
+    type Edge,
+    type SortableDropState
+  } from '$lib/utils/pragmatic-dnd';
 
   const {
     studentsById,
@@ -58,33 +63,108 @@
   let hoveredItemId = $state<string | null>(null);
   let hoveredEdge = $state<Edge | null>(null);
 
+  // Reference to the grid container for gap-position computation
+  let gridEl = $state<HTMLElement | null>(null);
+
+  /**
+   * Compute insertion slot from cursor position relative to grid children.
+   * Returns { itemId, edge } so we can show the indicator even when the cursor
+   * is over the gap between cards (where no sortableItem fires onDrag).
+   */
+  function computeSlotFromCursor(
+    clientX: number,
+    clientY: number
+  ): { itemId: string; edge: Edge } | null {
+    if (!gridEl || unassignedIds.length === 0) return null;
+
+    // Get all card wrappers (direct children with data-unassigned-slot)
+    const cells = gridEl.querySelectorAll<HTMLElement>('[data-unassigned-slot]');
+    if (cells.length === 0) return null;
+
+    let closestIdx = 0;
+    let closestDist = Infinity;
+
+    for (let i = 0; i < cells.length; i++) {
+      const rect = cells[i].getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dist = Math.hypot(clientX - cx, clientY - cy);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestIdx = i;
+      }
+    }
+
+    const rect = cells[closestIdx].getBoundingClientRect();
+    const isVert = vertical;
+    const edge: Edge = isVert
+      ? clientY < rect.top + rect.height / 2
+        ? 'top'
+        : 'bottom'
+      : clientX < rect.left + rect.width / 2
+        ? 'left'
+        : 'right';
+
+    const slotId = cells[closestIdx].getAttribute('data-unassigned-slot');
+    if (!slotId) return null;
+    return { itemId: slotId, edge };
+  }
+
+  /**
+   * Compute the insertion index from the current hoveredItemId + hoveredEdge.
+   * Matches the same logic sortableItem uses internally.
+   */
+  function insertionIndexFromIndicator(): number {
+    if (!hoveredItemId) return unassignedIds.length;
+    const idx = unassignedIds.indexOf(hoveredItemId);
+    if (idx === -1) return unassignedIds.length;
+    if (hoveredEdge === 'right' || hoveredEdge === 'bottom') return idx + 1;
+    return idx;
+  }
+
   function handleContainerDrop(event: {
     draggedItem: { id: string };
     sourceContainer: string | null;
     targetContainer: string | null;
   }) {
-    // When dropping on the container (not on a specific item), append to end
-    onDrop?.({
-      studentId: event.draggedItem.id,
-      source: event.sourceContainer ?? 'unassigned',
-      target: 'unassigned',
-      targetIndex: unassignedIds.length
-    });
+    // Use the indicator position if one is visible, otherwise append to end
+    const insertIndex = hoveredItemId ? insertionIndexFromIndicator() : unassignedIds.length;
+
+    const sourceIndex = unassignedIds.indexOf(event.draggedItem.id);
+    const isWithinUnassigned = event.sourceContainer === 'unassigned' && sourceIndex !== -1;
+
+    if (isWithinUnassigned) {
+      let adjustedIndex = insertIndex;
+      if (sourceIndex < adjustedIndex) adjustedIndex--;
+      if (sourceIndex !== adjustedIndex && onReorder) {
+        onReorder({
+          groupId: 'unassigned',
+          studentId: event.draggedItem.id,
+          newIndex: adjustedIndex
+        });
+      }
+    } else {
+      onDrop?.({
+        studentId: event.draggedItem.id,
+        source: event.sourceContainer ?? 'unassigned',
+        target: 'unassigned',
+        targetIndex: insertIndex
+      });
+    }
+
+    hoveredItemId = null;
+    hoveredEdge = null;
   }
 
   function handleItemDrop(state: SortableDropState) {
+    // targetIndex from sortableItem already accounts for edge direction
     let insertIndex = state.targetIndex ?? 0;
 
-    // Check if this is a within-unassigned reorder
     const sourceIndex = unassignedIds.indexOf(state.draggedItem.id);
     const isWithinUnassignedMove = state.sourceContainer === 'unassigned' && sourceIndex !== -1;
 
     if (isWithinUnassignedMove) {
-      // Adjust index for within-unassigned moves
-      if (sourceIndex < insertIndex) {
-        insertIndex--;
-      }
-      // Only reorder if position actually changes
+      if (sourceIndex < insertIndex) insertIndex--;
       if (sourceIndex !== insertIndex && onReorder) {
         onReorder({
           groupId: 'unassigned',
@@ -93,7 +173,6 @@
         });
       }
     } else {
-      // Cross-group move: use onDrop with position
       onDrop?.({
         studentId: state.draggedItem.id,
         source: state.sourceContainer ?? 'unassigned',
@@ -102,7 +181,6 @@
       });
     }
 
-    // Clear hover state
     hoveredItemId = null;
     hoveredEdge = null;
   }
@@ -115,6 +193,34 @@
       hoveredItemId = null;
       hoveredEdge = null;
     }
+  }
+
+  /**
+   * Monitor-based hover tracking: fires on every drag frame so we can show an
+   * indicator even when the cursor is over the gap between cards.
+   */
+  function handleMonitorDrag(clientX: number, clientY: number) {
+    if (!gridEl) return;
+    // Only update if the cursor is within the grid bounds
+    const gridRect = gridEl.getBoundingClientRect();
+    if (
+      clientX < gridRect.left ||
+      clientX > gridRect.right ||
+      clientY < gridRect.top ||
+      clientY > gridRect.bottom
+    ) {
+      return; // Outside grid — let card-level onEdgeChange handle clearing
+    }
+    const slot = computeSlotFromCursor(clientX, clientY);
+    if (slot) {
+      hoveredItemId = slot.itemId;
+      hoveredEdge = slot.edge;
+    }
+  }
+
+  function handleMonitorDragEnd() {
+    hoveredItemId = null;
+    hoveredEdge = null;
   }
 </script>
 
@@ -163,12 +269,14 @@
   {/if}
 
   <div
+    bind:this={gridEl}
     use:droppable={{ container: 'unassigned', callbacks: { onDrop: handleContainerDrop } }}
+    use:monitorDrag={{ onDrag: handleMonitorDrag, onDragEnd: handleMonitorDragEnd }}
     class={vertical
       ? `grid flex-1 place-items-center content-start overflow-x-hidden overflow-y-auto rounded-lg px-1 py-1 ${
           draggingId ? 'bg-white' : ''
         }`
-      : `grid content-start justify-items-center rounded-lg px-1 py-1 ${
+      : `grid content-start justify-items-center overflow-visible rounded-lg px-1 py-1 ${
           draggingId ? 'bg-white' : ''
         }`}
     style={vertical
@@ -187,7 +295,7 @@
       {#each unassignedIds as studentId, index (studentId)}
         {#if studentsById[studentId]}
           {#if vertical}
-            <div class="relative">
+            <div class="relative" data-unassigned-slot={studentId}>
               <DropIndicator
                 edge="top"
                 visible={hoveredItemId === studentId &&
@@ -226,26 +334,45 @@
               {/if}
             </div>
           {:else}
-            <DraggableStudentCard
-              student={studentsById[studentId]}
-              container="unassigned"
-              {index}
-              isDragging={draggingId === studentId}
-              onDragStart={() => onDragStart?.(studentId)}
-              {onDragEnd}
-              flash={flashingIds.has(studentId)}
-              hasPreferences={studentHasPreferences.get(studentId) ?? false}
-              onHoverStart={onStudentHoverStart}
-              onHoverEnd={onStudentHoverEnd}
-              onEdgeChange={(edge) => handleEdgeChange(studentId, edge)}
-              onItemDrop={handleItemDrop}
-              isPickedUp={pickedUpStudentId === studentId}
-              {onKeyboardPickUp}
-              {onKeyboardDrop}
-              {onKeyboardCancel}
-              {onKeyboardMove}
-              {onStudentClick}
-            />
+            <div class="relative overflow-visible" data-unassigned-slot={studentId}>
+              <DropIndicator
+                edge="left"
+                visible={hoveredItemId === studentId &&
+                  hoveredEdge === 'left' &&
+                  draggingId !== studentId}
+              />
+
+              <DraggableStudentCard
+                student={studentsById[studentId]}
+                container="unassigned"
+                {index}
+                isDragging={draggingId === studentId}
+                onDragStart={() => onDragStart?.(studentId)}
+                {onDragEnd}
+                flash={flashingIds.has(studentId)}
+                hasPreferences={studentHasPreferences.get(studentId) ?? false}
+                onHoverStart={onStudentHoverStart}
+                onHoverEnd={onStudentHoverEnd}
+                onEdgeChange={(edge) => handleEdgeChange(studentId, edge)}
+                onItemDrop={handleItemDrop}
+                isPickedUp={pickedUpStudentId === studentId}
+                {onKeyboardPickUp}
+                {onKeyboardDrop}
+                {onKeyboardCancel}
+                {onKeyboardMove}
+                {onStudentClick}
+                allowedEdges={['left', 'right']}
+              />
+
+              {#if index === unassignedIds.length - 1}
+                <DropIndicator
+                  edge="right"
+                  visible={hoveredItemId === studentId &&
+                    hoveredEdge === 'right' &&
+                    draggingId !== studentId}
+                />
+              {/if}
+            </div>
           {/if}
         {/if}
       {/each}

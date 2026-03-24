@@ -237,7 +237,9 @@
     return result;
   });
 
-  let studentSidebarOpen = $derived(selectedStudent !== null || studentSidebarMode === 'create');
+  let studentSidebarOpen = $derived(
+    (selectedStudent !== null && studentSidebarMode === 'edit') || studentSidebarMode === 'create'
+  );
   let removeStudentIsInGroup = $derived.by(() => {
     if (!selectedStudentId || !view) return false;
     return view.groups.some((g) => g.memberIds.includes(selectedStudentId!));
@@ -459,28 +461,17 @@
     vm.actions.toggleHistoryPanel();
   }
 
-  /** Roster click: open student profile sidebar */
+  /** Roster click: toggle inline student detail in roster panel */
   function handleStudentClick(studentId: string) {
-    // Toggle: clicking the same student closes the sidebar
-    if (selectedStudentId === studentId && studentSidebarMode === 'view') {
+    // Toggle: clicking the same student collapses the detail
+    if (selectedStudentId === studentId) {
       selectedStudentId = null;
       return;
     }
-    // Close other sidebars
-    if (historyPanelOpen) vm.actions.toggleHistoryPanel();
-    groupClickStudentId = null; // clear sticky group highlight when opening sidebar
     selectedStudentId = studentId;
     studentSidebarMode = 'view';
-    // On mobile or when gap too small, auto-close roster
-    if (rosterDrawerOpen && (!isDesktop || !canCoexist())) {
-      rosterDrawerOpen = false;
-      try {
-        localStorage.setItem(rosterStorageKey, 'false');
-      } catch {
-        /* ignore */
-      }
-    }
   }
+
 
   /** Group card click: toggle preference highlighting only (no sidebar) */
   function handleGroupStudentClick(studentId: string) {
@@ -492,8 +483,13 @@
   }
 
   function handleCloseStudentDetail() {
-    selectedStudentId = null;
+    // When closing the edit/create sidebar, keep student selected in roster
+    // but return to view mode (which shows inline detail, not sidebar)
     studentSidebarMode = 'view';
+    if (!selectedStudentId) {
+      // Only clear if we were in create mode (no student to go back to)
+      selectedStudentId = null;
+    }
   }
 
   function handleStartAddStudent() {
@@ -937,6 +933,10 @@
         {selectedStudentId}
         inactiveStudentIds={vm.state.inactiveStudentIds}
         onToggleActive={(studentId) => vm.actions.toggleStudentActive(studentId)}
+        selectedStudentPreferences={selectedStudentPreferences}
+        {groupNameMap}
+        selectedStudentRecentGroupmates={selectedStudentRecentGroupmates}
+        onEditStudent={handleEditStudent}
       />
     </OverlaySheet>
 

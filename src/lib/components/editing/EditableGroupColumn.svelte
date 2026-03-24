@@ -314,7 +314,7 @@
   {/if}
 
   <div
-    class={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 shadow-sm ${
+    class={`group-column-border flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 shadow-sm ${
       preferenceStyles()
         ? `${preferenceStyles()!.borderColor} ${preferenceStyles()!.bgColor}`
         : selected
@@ -442,3 +442,13 @@
     </div>
   </div>
 </div>
+
+<style>
+  .group-column-border {
+    transition: box-shadow 150ms ease-out;
+  }
+
+  .group-column-border:has(:global(.drop-target-active)) {
+    box-shadow: 0 0 14px 3px rgb(59 130 246 / 0.35);
+  }
+</style>

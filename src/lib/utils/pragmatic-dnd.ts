@@ -207,6 +207,48 @@ export function droppable(element: HTMLElement, config: DroppableConfig) {
   };
 }
 
+// =============================================================================
+// Monitor action — fires on every drag frame for cursor-position tracking
+// =============================================================================
+
+export type MonitorDragConfig = {
+  onDrag: (clientX: number, clientY: number) => void;
+  onDragEnd?: () => void;
+};
+
+/**
+ * Svelte action that attaches a global drag monitor.
+ * Fires `onDrag(clientX, clientY)` on every pointer move during a drag,
+ * so the host component can compute insertion position from cursor coordinates
+ * (e.g. to show a drop indicator even when hovering over a gap in a grid).
+ */
+export function monitorDrag(_element: HTMLElement, config: MonitorDragConfig) {
+  if (!isBrowser) {
+    return { update() {}, destroy() {} };
+  }
+
+  let currentConfig = config;
+
+  const cleanup = monitorForElements({
+    onDrag: ({ location }) => {
+      const { clientX, clientY } = location.current.input;
+      currentConfig.onDrag(clientX, clientY);
+    },
+    onDrop: () => {
+      currentConfig.onDragEnd?.();
+    }
+  });
+
+  return {
+    update(newConfig: MonitorDragConfig) {
+      currentConfig = newConfig;
+    },
+    destroy() {
+      cleanup();
+    }
+  };
+}
+
 // Sortable item action configuration
 export type SortableItemConfig = {
   container: string; // The ID of the container this item belongs to
@@ -214,6 +256,8 @@ export type SortableItemConfig = {
   dragData: DragData;
   /** When true, disables both dragging and drop-target behavior. */
   disabled?: boolean;
+  /** Which edges to use for closest-edge detection. Defaults to ['top', 'bottom']. */
+  allowedEdges?: Edge[];
   callbacks?: {
     onDragStart?: () => void;
     onDragEnd?: () => void;
@@ -304,7 +348,7 @@ export function sortableItem(element: HTMLElement, config: SortableItemConfig) {
         {
           input,
           element: el,
-          allowedEdges: ['top', 'bottom']
+          allowedEdges: currentConfig.allowedEdges ?? ['top', 'bottom']
         }
       );
     },
@@ -330,7 +374,7 @@ export function sortableItem(element: HTMLElement, config: SortableItemConfig) {
 
       // Calculate insertion index based on edge
       let insertIndex = targetIndex;
-      if (edge === 'bottom') {
+      if (edge === 'bottom' || edge === 'right') {
         insertIndex = targetIndex + 1;
       }
 

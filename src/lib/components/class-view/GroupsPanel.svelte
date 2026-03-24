@@ -167,6 +167,15 @@
   }
 
   const isRowLayout = $derived(uiSettings.groupLayout === 'scroll');
+
+  let unassignedCollapsed = $state(false);
+
+  // Auto-expand when dragging starts (so user can drop into unassigned)
+  $effect(() => {
+    if (draggingId && unassignedCollapsed) {
+      unassignedCollapsed = false;
+    }
+  });
 </script>
 
 <div class="flex h-full flex-col bg-gray-50">
@@ -187,8 +196,27 @@
           ? 'border-amber-200 bg-amber-50/50'
           : 'border-gray-200 bg-gray-100/50'}"
       >
-        <div class="mb-2 flex items-center justify-between">
+        <button
+          type="button"
+          onclick={() => (unassignedCollapsed = !unassignedCollapsed)}
+          class="flex w-full items-center justify-between {unassignedCollapsed ? '' : 'mb-2'}"
+          aria-expanded={!unassignedCollapsed}
+          aria-controls="unassigned-content"
+        >
           <div class="flex items-center gap-2">
+            <svg
+              class="h-3.5 w-3.5 transition-transform {unassignedCollapsed
+                ? '-rotate-90'
+                : 'rotate-0'} {unassignedStudentIds.length > 0
+                ? 'text-amber-600'
+                : 'text-gray-400'}"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
             <span
               class="text-xs font-semibold {unassignedStudentIds.length > 0
                 ? 'text-amber-800'
@@ -204,25 +232,29 @@
               {unassignedStudentIds.length}
             </span>
           </div>
-        </div>
-        <UnassignedArea
-          {studentsById}
-          unassignedIds={unassignedStudentIds}
-          {draggingId}
-          {onDrop}
-          {onReorder}
-          {onDragStart}
-          {onDragEnd}
-          {flashingIds}
-          {studentHasPreferences}
-          {pickedUpStudentId}
-          {onKeyboardPickUp}
-          {onKeyboardDrop}
-          {onKeyboardCancel}
-          {onKeyboardMove}
-          {onStudentClick}
-          compact
-        />
+        </button>
+        {#if !unassignedCollapsed}
+          <div id="unassigned-content">
+            <UnassignedArea
+              {studentsById}
+              unassignedIds={unassignedStudentIds}
+              {draggingId}
+              {onDrop}
+              {onReorder}
+              {onDragStart}
+              {onDragEnd}
+              {flashingIds}
+              {studentHasPreferences}
+              {pickedUpStudentId}
+              {onKeyboardPickUp}
+              {onKeyboardDrop}
+              {onKeyboardCancel}
+              {onKeyboardMove}
+              {onStudentClick}
+              compact
+            />
+          </div>
+        {/if}
       </div>
     </div>
 

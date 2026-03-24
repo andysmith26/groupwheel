@@ -26,7 +26,8 @@
     onKeyboardCancel,
     onKeyboardMove,
     onStudentClick,
-    readonly = false
+    readonly = false,
+    allowedEdges
   } = $props<{
     student: Student;
     container: string;
@@ -52,6 +53,8 @@
     onStudentClick?: (studentId: string) => void;
     /** When true, suppresses drag, keyboard pick-up, and click interactions. */
     readonly?: boolean;
+    /** Which edges to use for closest-edge detection. */
+    allowedEdges?: Edge[];
   }>();
 
   const fullName = `${student.firstName} ${student.lastName ?? ''}`.trim() || student.id;
@@ -190,6 +193,7 @@
     index,
     dragData: { id: student.id },
     disabled: readonly,
+    allowedEdges,
     callbacks: {
       onDragStart: handleDragStartInternal,
       onDragEnd,
