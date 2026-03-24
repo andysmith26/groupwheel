@@ -309,7 +309,7 @@
     <div
       class={`shrink-0 pb-0.5 text-center text-[11px] font-semibold ${preferenceStyles() ? preferenceStyles()!.textColor : 'text-transparent'}`}
     >
-      {preferenceStyles() && !draggingId ? preferenceStyles()!.label : '\u00A0'}
+      {preferenceStyles() ? preferenceStyles()!.label : '\u00A0'}
     </div>
   {/if}
 

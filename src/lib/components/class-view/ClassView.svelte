@@ -228,15 +228,12 @@
   });
   // Preference highlighting state (separate from sidebar selection)
   let groupClickStudentId = $state<string | null>(null); // sticky: set by clicking student in groups
-  let rosterHoverStudentId = $state<string | null>(null); // transient: set by hovering in roster
 
   let activeStudentLikeGroupIds = $derived.by(() => {
-    const activeId = draggingId ?? groupClickStudentId ?? rosterHoverStudentId ?? selectedStudentId;
+    const activeId = draggingId ?? groupClickStudentId;
     if (!activeId) return null;
     const prefs = vm.state.preferenceMap[activeId];
     const result = prefs?.likeGroupIds?.length ? prefs.likeGroupIds : null;
-    // DEBUG: remove after fixing preference label bug
-    console.log('[pref-debug] activeId=', activeId, 'prefs=', prefs, 'likeGroupIds=', result);
     return result;
   });
 
@@ -487,29 +484,11 @@
 
   /** Group card click: toggle preference highlighting only (no sidebar) */
   function handleGroupStudentClick(studentId: string) {
-    // DEBUG: remove after fixing preference label bug
-    console.log(
-      '[pref-debug] handleGroupStudentClick',
-      studentId,
-      'prefMap keys:',
-      Object.keys(vm.state.preferenceMap).length,
-      'has student:',
-      studentId in vm.state.preferenceMap
-    );
     if (groupClickStudentId === studentId) {
       groupClickStudentId = null;
       return;
     }
     groupClickStudentId = studentId;
-  }
-
-  /** Roster hover: transient preference highlighting */
-  function handleRosterStudentHover(studentId: string) {
-    rosterHoverStudentId = studentId;
-  }
-
-  function handleRosterStudentHoverEnd() {
-    rosterHoverStudentId = null;
   }
 
   function handleCloseStudentDetail() {
@@ -955,8 +934,6 @@
         {hasPlaceholderStudents}
         onAddStudent={handleStartAddStudent}
         onStudentClick={handleStudentClick}
-        onStudentHover={handleRosterStudentHover}
-        onStudentHoverEnd={handleRosterStudentHoverEnd}
         {selectedStudentId}
         inactiveStudentIds={vm.state.inactiveStudentIds}
         onToggleActive={(studentId) => vm.actions.toggleStudentActive(studentId)}
