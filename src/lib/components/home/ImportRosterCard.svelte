@@ -21,9 +21,11 @@
   import { isErr } from '$lib/types/result';
 
   let {
-    onCreated
+    onCreated,
+    compact = false
   }: {
     onCreated?: (programId: string) => void;
+    compact?: boolean;
   } = $props();
 
   const env = getAppEnvContext();
@@ -39,6 +41,11 @@
         type: 'json';
         name: string;
         studentCount: number;
+        studentNames: string[];
+        groupCount: number;
+        groupNames: string[];
+        /** Full validated data for submission */
+        data: import('$lib/utils/activityFile').ActivityExportData;
       }
     | {
         type: 'csv';
@@ -54,6 +61,29 @@
 
   let activityName = $state('');
   let seedingStrategy = $state<SeedingStrategy>('top-choice');
+
+  // Derived preview summaries for the confirmation screen
+  let previewStudentNames = $derived(
+    preview?.type === 'json'
+      ? preview.studentNames
+      : preview?.type === 'csv'
+        ? preview.parsed.students.map((s) => [s.firstName, s.lastName].filter(Boolean).join(' '))
+        : []
+  );
+  let previewGroupNames = $derived(
+    preview?.type === 'json'
+      ? preview.groupNames
+      : preview?.type === 'csv'
+        ? preview.groupNames
+        : []
+  );
+  let previewGroupCount = $derived(
+    preview?.type === 'json'
+      ? preview.groupCount
+      : preview?.type === 'csv'
+        ? preview.groupNames.length
+        : 0
+  );
 
   function handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -75,11 +105,20 @@
       if (file.name.endsWith('.json') || text.trimStart().startsWith('{')) {
         const validation = parseActivityFile(text);
         if (validation.valid) {
-          activityName = validation.data.activity.name;
+          const d = validation.data;
+          activityName = d.activity.name;
+          const students = d.roster.students;
+          const groups = d.scenario?.groups ?? [];
           preview = {
             type: 'json',
-            name: validation.data.activity.name,
-            studentCount: validation.data.roster.students.length
+            name: d.activity.name,
+            studentCount: students.length,
+            studentNames: students.map((s) =>
+              [s.firstName, s.lastName].filter(Boolean).join(' ')
+            ),
+            groupCount: groups.length,
+            groupNames: groups.map((g) => g.name),
+            data: d
           };
           return;
         }
@@ -133,17 +172,13 @@
   }
 
   async function handleJsonImport() {
-    if (!selectedFile) return;
+    if (!preview || preview.type !== 'json') return;
 
-    const text = await readFileAsText(selectedFile);
-    const validation = parseActivityFile(text);
-    if (!validation.valid) {
-      error = validation.error;
-      return;
-    }
+    // Apply any name changes the user made
+    const exportData = { ...preview.data, activity: { ...preview.data.activity, name: activityName.trim() || preview.data.activity.name } };
 
     const result = await importActivity(env, {
-      exportData: validation.data,
+      exportData,
       ownerStaffId: 'owner-1'
     });
 
@@ -234,21 +269,23 @@
   }
 </script>
 
-<div class="rounded-xl border-2 border-teal/40 bg-teal-light p-5">
-  <div class="flex items-center gap-3">
-    <div
-      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal/15 text-teal"
-    >
-      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
-        />
-      </svg>
+<div class={compact ? '' : 'rounded-xl border-2 border-teal/40 bg-teal-light p-5'}>
+  {#if !compact}
+    <div class="flex items-center gap-3">
+      <div
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal/15 text-teal"
+      >
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+          />
+        </svg>
+      </div>
+      <h3 class="text-base font-semibold text-gray-900">Import an activity</h3>
     </div>
-    <h3 class="text-base font-semibold text-gray-900">Import an activity</h3>
-  </div>
+  {/if}
 
   <input
     bind:this={fileInput}
@@ -262,7 +299,7 @@
     <!-- File picker -->
     <button
       type="button"
-      class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-teal/30 bg-white/60 px-4 py-6 text-sm font-medium text-gray-600 transition-colors hover:border-teal hover:bg-white hover:text-teal focus:ring-2 focus:ring-teal focus:ring-offset-2 focus:outline-none"
+      class="{compact ? '' : 'mt-4'} flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-teal/30 bg-white/60 px-4 py-6 text-sm font-medium text-gray-600 transition-colors hover:border-teal hover:bg-white hover:text-teal focus:ring-2 focus:ring-teal focus:ring-offset-2 focus:outline-none"
       onclick={() => fileInput?.click()}
     >
       <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -274,18 +311,19 @@
       </svg>
       Choose file
     </button>
-    <p class="mt-2 text-center text-xs text-gray-400">Accepts .csv, .tsv, or .json</p>
+    <p class="{compact ? 'mt-1' : 'mt-2'} text-center text-xs text-gray-400">Accepts .csv, .tsv, or .json</p>
   {:else}
-    <!-- Preview -->
-    <div class="mt-4 space-y-3">
-      <!-- File info -->
-      <div class="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
-        <div class="flex items-center gap-2 text-sm">
+    <!-- Preview / Confirmation -->
+    <div class="{compact ? '' : 'mt-5'}">
+
+      <!-- 1. File status — small, muted, out of the way -->
+      <div class="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2">
+        <div class="flex min-w-0 items-center gap-2 text-xs text-gray-500">
           <svg
-            class="h-4 w-4 text-teal"
+            class="h-3.5 w-3.5 shrink-0 text-teal"
             fill="none"
             viewBox="0 0 24 24"
-            stroke-width="1.5"
+            stroke-width="2"
             stroke="currentColor"
           >
             <path
@@ -294,11 +332,11 @@
               d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
             />
           </svg>
-          <span class="font-medium text-gray-700">{selectedFile?.name}</span>
+          <span class="truncate">{selectedFile?.name}</span>
         </div>
         <button
           type="button"
-          class="text-xs text-gray-400 hover:text-gray-600"
+          class="shrink-0 text-xs text-gray-400 hover:text-gray-600"
           onclick={clearFile}
           disabled={isImporting}
         >
@@ -306,103 +344,108 @@
         </button>
       </div>
 
-      {#if preview.type === 'json'}
-        <div class="rounded-lg bg-white/80 px-3 py-2 text-sm text-gray-600">
-          <p><span class="font-medium">Activity:</span> {preview.name}</p>
-          <p><span class="font-medium">Students:</span> {preview.studentCount}</p>
-        </div>
-      {:else}
-        <div class="rounded-lg bg-white/80 px-3 py-2 text-sm text-gray-600">
-          <p><span class="font-medium">Students:</span> {preview.studentCount}</p>
-          {#if preview.choiceColumns > 0}
-            <p><span class="font-medium">Choice columns:</span> {preview.choiceColumns}</p>
-            <p>
-              <span class="font-medium">Groups found:</span>
-              {preview.groupNames.length}
-              {#if preview.groupNames.length > 0}
-                <span class="text-gray-400"
-                  >({preview.groupNames.slice(0, 4).join(', ')}{preview.groupNames.length > 4
-                    ? `, +${preview.groupNames.length - 4} more`
-                    : ''})</span
-                >
-              {/if}
-            </p>
-          {:else}
-            <p class="text-gray-400">No choice columns detected — roster only.</p>
-          {/if}
-          {#if preview.warnings.length > 0}
-            <p class="mt-1 text-xs text-amber-600">
-              {preview.warnings.length} warning{preview.warnings.length !== 1 ? 's' : ''} (rows skipped
-              or incomplete)
+      <!-- 2. Activity name — the primary input -->
+      <div class="mt-5">
+        <label for={compact ? 'ir-name-modal' : 'ir-name'} class="block text-xs font-medium text-gray-700">Activity name</label>
+        <input
+          id={compact ? 'ir-name-modal' : 'ir-name'}
+          type="text"
+          class="mt-1.5 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
+          placeholder="e.g. 3rd Period Science"
+          bind:value={activityName}
+          disabled={isImporting}
+        />
+      </div>
+
+      <!-- 3. Data summary — what's inside the file -->
+      <div class="mt-5 space-y-1.5">
+        <div class="rounded-md border border-gray-100 bg-gray-50/60 px-3.5 py-2.5">
+          <span class="text-sm font-medium text-gray-700">
+            {preview.studentCount} {preview.studentCount === 1 ? 'student' : 'students'}
+          </span>
+          {#if previewStudentNames.length > 0}
+            <p class="mt-0.5 text-xs leading-relaxed text-gray-400">
+              {previewStudentNames.slice(0, 3).join(', ')}{previewStudentNames.length > 3
+                ? ` +${previewStudentNames.length - 3} more`
+                : ''}
             </p>
           {/if}
         </div>
 
-        <!-- Activity name for CSV -->
-        <div>
-          <label for="ir-name" class="block text-xs font-medium text-gray-700">Activity name</label>
-          <input
-            id="ir-name"
-            type="text"
-            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
-            placeholder="e.g. 3rd Period Science"
-            bind:value={activityName}
-            disabled={isImporting}
-          />
-        </div>
-
-        {#if preview.choiceColumns > 0 && preview.groupNames.length > 0}
-          <!-- Seeding strategy -->
-          <fieldset class="space-y-1.5" disabled={isImporting}>
-            <legend class="block text-xs font-medium text-gray-700"
-              >Initial group assignments</legend
-            >
-            <label
-              class="flex cursor-pointer items-start gap-2 rounded-md bg-white/80 px-3 py-2 hover:bg-white"
-            >
-              <input
-                type="radio"
-                name="seeding"
-                value="top-choice"
-                bind:group={seedingStrategy}
-                class="mt-0.5 accent-teal"
-              />
-              <div>
-                <span class="text-sm font-medium text-gray-700">Top choice</span>
-                <p class="text-xs text-gray-500">Place each student in their 1st choice group</p>
-              </div>
-            </label>
-            <label
-              class="flex cursor-pointer items-start gap-2 rounded-md bg-white/80 px-3 py-2 hover:bg-white"
-            >
-              <input
-                type="radio"
-                name="seeding"
-                value="none"
-                bind:group={seedingStrategy}
-                class="mt-0.5 accent-teal"
-              />
-              <div>
-                <span class="text-sm font-medium text-gray-700">Empty groups</span>
-                <p class="text-xs text-gray-500">Create groups with no students assigned yet</p>
-              </div>
-            </label>
-          </fieldset>
+        {#if previewGroupCount > 0}
+          <div class="rounded-md border border-gray-100 bg-gray-50/60 px-3.5 py-2.5">
+            <span class="text-sm font-medium text-gray-700">
+              {previewGroupCount} {previewGroupCount === 1 ? 'group' : 'groups'}
+            </span>
+            {#if previewGroupNames.length > 0}
+              <p class="mt-0.5 text-xs leading-relaxed text-gray-400">
+                {previewGroupNames.slice(0, 3).join(', ')}{previewGroupNames.length > 3
+                  ? ` +${previewGroupNames.length - 3} more`
+                  : ''}
+              </p>
+            {/if}
+          </div>
         {/if}
+
+        {#if preview.type === 'csv' && preview.choiceColumns === 0}
+          <p class="px-1 pt-0.5 text-xs text-gray-400">Roster only — no group preferences detected.</p>
+        {/if}
+
+        {#if preview.type === 'csv' && preview.warnings.length > 0}
+          <p class="px-1 pt-0.5 text-xs text-amber-600">
+            {preview.warnings.length} warning{preview.warnings.length !== 1 ? 's' : ''} (rows skipped or incomplete)
+          </p>
+        {/if}
+      </div>
+
+      <!-- 4. Seeding strategy (CSV with groups only) -->
+      {#if preview.type === 'csv' && preview.choiceColumns > 0 && preview.groupNames.length > 0}
+        <fieldset class="mt-5 space-y-1.5" disabled={isImporting}>
+          <legend class="block text-xs font-medium text-gray-700">Initial group assignments</legend>
+          <label
+            class="mt-1.5 flex cursor-pointer items-start gap-2.5 rounded-md border border-gray-100 bg-gray-50/60 px-3.5 py-2.5 transition-colors hover:bg-gray-50"
+          >
+            <input
+              type="radio"
+              name={compact ? 'seeding-modal' : 'seeding'}
+              value="top-choice"
+              bind:group={seedingStrategy}
+              class="mt-0.5 accent-teal"
+            />
+            <div>
+              <span class="text-sm font-medium text-gray-700">Top choice</span>
+              <p class="text-xs text-gray-500">Place each student in their 1st choice group</p>
+            </div>
+          </label>
+          <label
+            class="flex cursor-pointer items-start gap-2.5 rounded-md border border-gray-100 bg-gray-50/60 px-3.5 py-2.5 transition-colors hover:bg-gray-50"
+          >
+            <input
+              type="radio"
+              name={compact ? 'seeding-modal' : 'seeding'}
+              value="none"
+              bind:group={seedingStrategy}
+              class="mt-0.5 accent-teal"
+            />
+            <div>
+              <span class="text-sm font-medium text-gray-700">Empty groups</span>
+              <p class="text-xs text-gray-500">Create groups with no students assigned yet</p>
+            </div>
+          </label>
+        </fieldset>
       {/if}
 
-      <button
-        type="button"
-        class="w-full rounded-md bg-teal px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-teal-dark focus:ring-2 focus:ring-teal focus:ring-offset-2 focus:outline-none disabled:opacity-50"
-        onclick={handleImport}
-        disabled={isImporting}
-      >
-        {isImporting
-          ? 'Importing...'
-          : preview.type === 'json'
-            ? 'Restore Activity'
-            : 'Create Activity'}
-      </button>
+      <!-- 5. Action — visually separated from content above -->
+      <div class="mt-6">
+        <button
+          type="button"
+          class="w-full rounded-md bg-teal px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-teal-dark focus:ring-2 focus:ring-teal focus:ring-offset-2 focus:outline-none disabled:opacity-50"
+          onclick={handleImport}
+          disabled={isImporting}
+        >
+          {isImporting ? 'Importing...' : 'Import Activity'}
+        </button>
+      </div>
     </div>
   {/if}
 

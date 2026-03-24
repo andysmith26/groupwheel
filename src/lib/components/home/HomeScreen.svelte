@@ -24,10 +24,10 @@
   import { Button, Alert, InlineError } from '$lib/components/ui';
   import ActivityCardSkeleton from '$lib/components/ui/ActivityCardSkeleton.svelte';
   import ActivityCard from './ActivityCard.svelte';
-  import InlineActivityCreator from './InlineActivityCreator.svelte';
   import QuickStartCard from './QuickStartCard.svelte';
   import ImportRosterCard from './ImportRosterCard.svelte';
   import PasteRosterCard from './PasteRosterCard.svelte';
+  import NewActivityModal from './NewActivityModal.svelte';
   import {
     downloadActivityFile,
     generateExportFilename,
@@ -66,6 +66,9 @@
 
   // "Start another way" modal state
   let startAnotherWayOpen = $state(false);
+
+  // New activity modal state (used when activities already exist)
+  let newActivityModalOpen = $state(false);
 
   let now = $state(new Date());
 
@@ -240,6 +243,9 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
+      if (newActivityModalOpen) {
+        newActivityModalOpen = false;
+      }
       if (startAnotherWayOpen) {
         startAnotherWayOpen = false;
       }
@@ -360,8 +366,21 @@
           onToggleMenu={toggleMenu}
         />
       {/each}
+
+      <!-- New Activity card -->
+      <button
+        type="button"
+        class="group flex h-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-white p-5 shadow-sm transition-all hover:border-teal/50 hover:shadow-md focus:ring-2 focus:ring-teal focus:ring-offset-2 focus:outline-none"
+        onclick={() => (newActivityModalOpen = true)}
+      >
+        <div class="rounded-full bg-gray-100 p-3 transition-colors group-hover:bg-teal/10">
+          <svg class="h-6 w-6 text-gray-400 transition-colors group-hover:text-teal" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+        </div>
+        <span class="mt-3 text-sm font-medium text-gray-600 transition-colors group-hover:text-teal">New Activity</span>
+      </button>
     </div>
-    <InlineActivityCreator onCreated={() => loadActivities()} />
   {/if}
 </div>
 
@@ -408,7 +427,7 @@
       <div class="mt-5 space-y-4">
         <!-- Quick demo -->
         <div class="rounded-xl border border-gray-200 bg-white p-5">
-          <div class="mb-3 flex items-center gap-3">
+          <div class="mb-4 flex items-center gap-3">
             <div
               class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600"
             >
@@ -439,7 +458,7 @@
 
         <!-- Start from scratch -->
         <div class="rounded-xl border border-gray-200 bg-white p-5">
-          <div class="mb-3 flex items-center gap-3">
+          <div class="mb-4 flex items-center gap-3">
             <div
               class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500"
             >
@@ -470,6 +489,12 @@
     </div>
   </div>
 {/if}
+
+<!-- New Activity Modal -->
+<NewActivityModal
+  bind:open={newActivityModalOpen}
+  onCreated={() => loadActivities()}
+/>
 
 <!-- Rename Modal -->
 {#if renameModalOpen && renameTarget}
