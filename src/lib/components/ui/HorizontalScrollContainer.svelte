@@ -82,6 +82,8 @@
   let wrapperEl: HTMLDivElement | null = $state(null);
   let canScrollLeft = $state(false);
   let canScrollRight = $state(true);
+  let canScrollUp = $state(false);
+  let canScrollDown = $state(false);
   let currentIndex = $state(0);
   let visibleCount = $state(1);
   let isDragging = $state(false);
@@ -100,11 +102,18 @@
   function updateScrollState() {
     if (!scrollContainer) return;
 
-    const { scrollLeft, scrollWidth, clientWidth } = scrollContainer;
+    const { scrollLeft, scrollWidth, clientWidth, scrollTop, scrollHeight, clientHeight } =
+      scrollContainer;
 
-    // Update edge states
+    // Update horizontal edge states
     canScrollLeft = scrollLeft > cfg.edgeThreshold;
     canScrollRight = scrollLeft < scrollWidth - clientWidth - cfg.edgeThreshold;
+
+    // Update vertical edge states (only relevant when fillHeight is enabled)
+    if (fillHeight) {
+      canScrollUp = scrollTop > cfg.edgeThreshold;
+      canScrollDown = scrollTop < scrollHeight - clientHeight - cfg.edgeThreshold;
+    }
 
     // Calculate visible count and current index
     const itemTotalWidth = cfg.itemWidth + cfg.itemGap;
@@ -143,6 +152,24 @@
 
   function handleScrollRight() {
     scrollBy(scrollAmount);
+  }
+
+  function scrollVerticalBy(amount: number) {
+    if (!scrollContainer) return;
+    scrollContainer.scrollTo({
+      top: scrollContainer.scrollTop + amount,
+      behavior: 'smooth'
+    });
+  }
+
+  function handleScrollUp() {
+    if (!scrollContainer) return;
+    scrollVerticalBy(-scrollContainer.clientHeight * 0.75);
+  }
+
+  function handleScrollDown() {
+    if (!scrollContainer) return;
+    scrollVerticalBy(scrollContainer.clientHeight * 0.75);
   }
 
   // =============================================================================
@@ -256,6 +283,26 @@
   aria-label={ariaLabel}
   onmouseleave={handleMouseLeave}
 >
+  <!-- Top fade gradient -->
+  {#if showFades && fillHeight && canScrollUp}
+    <div class="fade-gradient fade-top" style:height="{cfg.fadeWidth}px" aria-hidden="true"></div>
+  {/if}
+
+  <!-- Top navigation button -->
+  {#if showButtons && fillHeight && canScrollUp}
+    <button
+      type="button"
+      class="nav-button nav-button-top"
+      onclick={handleScrollUp}
+      aria-label="Scroll up"
+      tabindex={-1}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="18 15 12 9 6 15"></polyline>
+      </svg>
+    </button>
+  {/if}
+
   <!-- Left fade gradient -->
   {#if showFades && canScrollLeft}
     <div class="fade-gradient fade-left" style:width="{cfg.fadeWidth}px" aria-hidden="true"></div>
@@ -317,6 +364,30 @@
   <!-- Right fade gradient -->
   {#if showFades && canScrollRight}
     <div class="fade-gradient fade-right" style:width="{cfg.fadeWidth}px" aria-hidden="true"></div>
+  {/if}
+
+  <!-- Bottom navigation button -->
+  {#if showButtons && fillHeight && canScrollDown}
+    <button
+      type="button"
+      class="nav-button nav-button-bottom"
+      onclick={handleScrollDown}
+      aria-label="Scroll down"
+      tabindex={-1}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+  {/if}
+
+  <!-- Bottom fade gradient -->
+  {#if showFades && fillHeight && canScrollDown}
+    <div
+      class="fade-gradient fade-bottom"
+      style:height="{cfg.fadeWidth}px"
+      aria-hidden="true"
+    ></div>
   {/if}
 
   <!-- Progress indicator -->
@@ -440,6 +511,22 @@
     background: linear-gradient(to left, white 0%, transparent 100%);
   }
 
+  .fade-top {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    background: linear-gradient(to bottom, white 0%, transparent 100%);
+  }
+
+  .fade-bottom {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    background: linear-gradient(to top, white 0%, transparent 100%);
+  }
+
   /* Navigation buttons */
   .nav-button {
     position: absolute;
@@ -474,6 +561,11 @@
     transform: translateY(-50%) scale(0.95);
   }
 
+  .nav-button-top:active,
+  .nav-button-bottom:active {
+    transform: translateX(-50%) scale(0.95);
+  }
+
   .nav-button svg {
     width: 18px;
     height: 18px;
@@ -486,6 +578,19 @@
 
   .nav-button-right {
     right: 20px;
+  }
+
+  .nav-button-top {
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .nav-button-bottom {
+    top: auto;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   /* Progress indicator wrapper */
