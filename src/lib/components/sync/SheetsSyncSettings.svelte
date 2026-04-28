@@ -100,9 +100,7 @@
   <h3 class="mb-3 text-sm font-medium text-gray-900">Google Sheets Storage</h3>
 
   {#if !isAuthenticated}
-    <p class="text-sm text-gray-500">
-      Sign in with Google to use a spreadsheet as your data storage.
-    </p>
+    <p class="text-sm text-gray-500">Google account connection is currently turned off.</p>
   {:else if !sheetsSyncService || !sheetsService}
     <p class="text-sm text-gray-500">Sheets sync is not available.</p>
   {:else if config}

@@ -73,7 +73,7 @@
 
   const tooltipText = $derived.by(() => {
     if (!status.enabled) {
-      if (!isAuthenticated) return 'Local only - sign in to enable cloud sync.';
+      if (!isAuthenticated) return 'Local only - cloud sync is currently unavailable.';
       if (!syncSettings.syncEnabled) return 'Local only - sync is off.';
       return 'Local only - sync disabled.';
     }

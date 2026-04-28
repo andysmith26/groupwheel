@@ -93,7 +93,7 @@
 </script>
 
 <svelte:head>
-  <title>{program?.name ?? 'Print'} | Groupwheel</title>
+  <title>{program?.name ?? 'Print'}</title>
   <style>
     @media print {
       /* Hide navigation and buttons when printing */

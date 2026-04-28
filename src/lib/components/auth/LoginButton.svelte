@@ -50,13 +50,6 @@
     syncUnsubscribe?.();
   });
 
-  async function handleLogin() {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem('post_login_redirect', window.location.pathname);
-    }
-    await authService?.login();
-  }
-
   async function handleLogout() {
     isLoggingOut = true;
     try {
@@ -93,7 +86,7 @@
   const canToggleLocalOnly = $derived(() => Boolean(syncService) && Boolean(user));
 
   const localOnlySubtitle = $derived(() => {
-    if (!user) return 'Sign in to enable cloud sync.';
+    if (!user) return 'Cloud sync is turned off.';
     if (localOnlyEnabled()) return 'Data stays on this device.';
     if (syncStatus.syncing) return 'Syncing changes to the cloud.';
     if (syncStatus.lastError) return 'Sync error - using local data.';
@@ -232,22 +225,15 @@
               loading={isLoggingOut}
               class="mt-2 w-full justify-center"
             >
-              {isLoggingOut ? 'Signing out...' : 'Sign out'}
+              {isLoggingOut ? 'Logging out...' : 'Log out'}
             </Button>
           </div>
         {:else}
           <div class="px-4 py-3">
-            <Button
-              variant="secondary"
-              size="sm"
-              onclick={handleLogin}
-              class="w-full justify-center"
-            >
-              Sign in with Google
-            </Button>
+            <p class="text-sm text-gray-600">Account login is currently disabled.</p>
             <a
               href="/help"
-              class="mt-2 block text-sm text-gray-600 hover:text-gray-900"
+              class="mt-3 block text-sm text-gray-600 hover:text-gray-900"
               role="menuitem"
             >
               Help / Documentation

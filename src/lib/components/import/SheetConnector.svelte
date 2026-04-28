@@ -9,7 +9,7 @@
    */
 
   import { getAppEnvContext } from '$lib/contexts/appEnv';
-  import { connectGoogleSheet, isAuthenticated } from '$lib/services/appEnvUseCases';
+  import { connectGoogleSheet } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
   import { Button, InlineError } from '$lib/components/ui';
   import type { SheetConnection } from '$lib/domain/sheetConnection';
@@ -40,7 +40,6 @@
   let error = $state('');
 
   // Derived
-  let isLoggedIn = $derived(isAuthenticated(env));
   let hasConnection = $derived(existingConnection !== null);
 
   async function handleConnect() {
@@ -59,7 +58,7 @@
     if (isErr(result)) {
       switch (result.error.type) {
         case 'NOT_AUTHENTICATED':
-          error = 'Please sign in to access Google Sheets';
+          error = 'Google Sheets account connection is turned off right now.';
           break;
         case 'PERMISSION_DENIED':
           error = 'You do not have permission to access this spreadsheet';
@@ -93,16 +92,7 @@
 </script>
 
 <div class="rounded-lg border border-gray-200 bg-white p-4">
-  {#if !isLoggedIn}
-    <div class="text-center">
-      <p class="mb-2 text-sm text-gray-600">
-        Sign in with Google to import from your Google Sheets
-      </p>
-      <p class="text-xs text-gray-500">
-        Your sheets stay private - we only read data you choose to import
-      </p>
-    </div>
-  {:else if hasConnection && existingConnection}
+  {#if hasConnection && existingConnection}
     <div class="space-y-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -162,9 +152,7 @@
         <InlineError message={error} dismissible onDismiss={() => (error = '')} />
       {/if}
 
-      <p class="text-xs text-gray-500">
-        Paste the URL of your Google Sheet. The sheet must be accessible with your Google account.
-      </p>
+      <p class="text-xs text-gray-500">Paste the URL of your Google Sheet.</p>
     </div>
   {/if}
 </div>

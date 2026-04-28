@@ -31,10 +31,7 @@
       const data = await exportAllData();
       downloadBackupFile(data);
 
-      const totalRecords = Object.values(data.stores).reduce(
-        (sum, arr) => sum + arr.length,
-        0
-      );
+      const totalRecords = Object.values(data.stores).reduce((sum, arr) => sum + arr.length, 0);
       success = `Backup exported successfully (${totalRecords} records).`;
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to export backup.';
@@ -123,8 +120,18 @@
 <section class="space-y-4">
   <h2 class="text-lg font-semibold text-gray-800">Backup & Restore</h2>
   <p class="text-sm text-gray-600">
-    Export all your data to a file and import it on another computer. The backup includes all
-    activities, rosters, groups, sessions, preferences, and observations.
+    Groupwheel keeps data on this device by default. Backup and import are here so you can move data
+    yourself, only when you choose.
+  </p>
+  <p class="text-sm text-gray-600">
+    Why this matters for student privacy: there is no automatic account sync, no always-on cloud
+    copy, and no third-party account required. Student information stays in your control unless you
+    create a backup file.
+  </p>
+  <p class="text-sm text-gray-600">
+    What this means for you: your class data is private by default, and you can still transfer it to
+    a new device with an exported backup file. Keep backup files in trusted school storage and avoid
+    sharing them by email or chat.
   </p>
 
   {#if error}
@@ -143,7 +150,8 @@
   <div class="rounded-lg border border-gray-200 bg-white p-4">
     <h3 class="text-sm font-medium text-gray-900">Export</h3>
     <p class="mt-1 text-sm text-gray-500">
-      Download a backup file containing all your Groupwheel data.
+      Download a backup file containing all your Groupwheel data. Use this when you want to keep
+      your own copy or move data to another device.
     </p>
     <div class="mt-3">
       <Button variant="secondary" size="sm" loading={exporting} onclick={handleExport}>
@@ -156,7 +164,8 @@
   <div class="rounded-lg border border-gray-200 bg-white p-4">
     <h3 class="text-sm font-medium text-gray-900">Import</h3>
     <p class="mt-1 text-sm text-gray-500">
-      Restore data from a previously exported backup file. This will replace all existing data.
+      Restore data from a previously exported backup file. This keeps transfer intentional and
+      teacher-controlled. Import will replace all existing data on this device.
     </p>
 
     {#if showConfirm && pendingSummary}
@@ -175,7 +184,11 @@
             <li>{pendingSummary.sessions} session{pendingSummary.sessions === 1 ? '' : 's'}</li>
           {/if}
           {#if pendingSummary.observations > 0}
-            <li>{pendingSummary.observations} observation{pendingSummary.observations === 1 ? '' : 's'}</li>
+            <li>
+              {pendingSummary.observations} observation{pendingSummary.observations === 1
+                ? ''
+                : 's'}
+            </li>
           {/if}
         </ul>
         <p class="mt-2 text-sm font-medium text-amber-800">

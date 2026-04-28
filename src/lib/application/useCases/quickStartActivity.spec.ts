@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { quickStartActivity, type QuickStartActivityDeps } from './quickStartActivity';
 import { isOk, isErr } from '$lib/types/result';
+import { isQuickStartPlaceholderName } from '$lib/utils/quickStartPlaceholderNames';
 import {
   InMemoryStudentRepository,
   InMemoryPoolRepository,
@@ -45,10 +46,13 @@ describe('quickStartActivity', () => {
     const students = await deps.studentRepository.listAll();
     expect(students).toHaveLength(28);
 
-    // Verify naming: "Student 1" through "Student 28"
-    const names = students.map((s) => `${s.firstName} ${s.lastName}`).sort();
-    expect(names).toContain('Student 1');
-    expect(names).toContain('Student 28');
+    // Verify naming: goofy nature placeholders with no numeric last names
+    const names = students.map((s) => `${s.firstName} ${s.lastName}`);
+    expect(new Set(names).size).toBe(28);
+    expect(students.every((s) => isQuickStartPlaceholderName(s.firstName, s.lastName ?? ''))).toBe(
+      true
+    );
+    expect(students.some((s) => /^\d+$/.test(s.lastName ?? ''))).toBe(false);
   });
 
   it('handles uneven division (remainder students)', async () => {

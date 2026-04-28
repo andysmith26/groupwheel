@@ -2,7 +2,7 @@
  * quickStartActivity use case.
  *
  * Creates a grouping activity from just two numbers: student count and group size.
- * Generates placeholder students ("Student 1", "Student 2", ...) and a program
+ * Generates placeholder students with goofy nature names and a program
  * with the appropriate number of groups. No scenario is generated — the teacher
  * uses "Generate & Show" from the activity detail page.
  *
@@ -20,6 +20,7 @@ import type {
 } from '$lib/application/ports';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
+import { buildQuickStartPlaceholderName } from '$lib/utils/quickStartPlaceholderNames';
 
 // =============================================================================
 // Input Types
@@ -102,10 +103,11 @@ export async function quickStartActivity(
     // 2. Generate placeholder students
     const students = Array.from({ length: input.studentCount }, (_, i) => {
       const id = deps.idGenerator.generateId();
+      const { firstName, lastName } = buildQuickStartPlaceholderName(i);
       return {
         id,
-        firstName: `Student`,
-        lastName: `${i + 1}`
+        firstName,
+        lastName
       };
     });
 

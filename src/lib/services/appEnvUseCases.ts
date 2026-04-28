@@ -1071,7 +1071,7 @@ export async function connectGoogleSheet(
   if (!env.sheetsService) {
     return err({
       type: 'NOT_AUTHENTICATED',
-      message: 'Google Sheets is not configured. Please sign in first.'
+      message: 'Google Sheets account connection is turned off right now.'
     });
   }
 
@@ -1096,7 +1096,7 @@ export async function importFromSheetTab(
   if (!env.sheetsService) {
     return err({
       type: 'NOT_AUTHENTICATED',
-      message: 'Google Sheets is not configured. Please sign in first.'
+      message: 'Google Sheets account connection is turned off right now.'
     });
   }
 

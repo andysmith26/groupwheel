@@ -100,7 +100,7 @@
 </script>
 
 <svelte:head>
-  <title>{program?.name ?? 'Display'} | Groupwheel</title>
+  <title>{program?.name ?? 'Display'}</title>
 </svelte:head>
 
 {#if loading}

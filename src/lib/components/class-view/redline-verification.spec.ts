@@ -178,8 +178,8 @@ describe('WP13: Red-Line Verification — Phase 1 Gate', () => {
       expect(content).toContain('min-h-[56px]');
     });
 
-    it('HomeScreen settings gear meets 44px minimum', () => {
-      const file = svelteFiles.find((f) => f.endsWith('HomeScreen.svelte'));
+    it('Top header settings gear meets 44px minimum', () => {
+      const file = svelteFiles.find((f) => f.endsWith('+layout.svelte'));
       const content = fileContents.get(file!)!;
       // Settings link should have min-h-[44px]
       expect(content).toMatch(/min-h-\[44px\].*min-w-\[44px\].*aria-label="Settings"/s);

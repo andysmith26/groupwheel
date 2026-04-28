@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createDemoActivity, type CreateDemoActivityDeps } from './createDemoActivity';
 import { isOk } from '$lib/types/result';
+import { isQuickStartPlaceholderName } from '$lib/utils/quickStartPlaceholderNames';
 import {
   InMemoryStudentRepository,
   InMemoryPoolRepository,
@@ -49,10 +50,13 @@ describe('createDemoActivity', () => {
     const students = await deps.studentRepository.listAll();
     expect(students).toHaveLength(24);
 
-    // Students have realistic names (not "Student N" placeholders)
-    const firstNames = students.map((s) => s.firstName);
-    expect(firstNames).toContain('Aisha');
-    expect(firstNames).toContain('Xavier');
+    // Students use quick-start style nature placeholders (not numeric suffixes)
+    const names = students.map((s) => `${s.firstName} ${s.lastName}`);
+    expect(new Set(names).size).toBe(24);
+    expect(students.every((s) => isQuickStartPlaceholderName(s.firstName, s.lastName ?? ''))).toBe(
+      true
+    );
+    expect(students.some((s) => /^\d+$/.test(s.lastName ?? ''))).toBe(false);
 
     // Program name starts with "Demo: "
     const programs = await deps.programRepository.listAll();

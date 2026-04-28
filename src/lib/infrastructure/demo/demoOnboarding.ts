@@ -12,34 +12,9 @@
 import type { Student, Pool, Program, Scenario, Session, Placement } from '$lib/domain';
 import type { Group } from '$lib/domain/group';
 import type { IdGenerator } from '$lib/application/ports';
+import { buildQuickStartPlaceholderName } from '$lib/utils/quickStartPlaceholderNames';
 
-// 24 diverse, realistic student names
-const STUDENT_NAMES: Array<{ firstName: string; lastName: string }> = [
-  { firstName: 'Aisha', lastName: 'Patel' },
-  { firstName: 'Ben', lastName: 'Rodriguez' },
-  { firstName: 'Carmen', lastName: 'Li' },
-  { firstName: 'David', lastName: 'Kim' },
-  { firstName: 'Elena', lastName: 'Okafor' },
-  { firstName: 'Felix', lastName: 'Johansson' },
-  { firstName: 'Grace', lastName: 'Tanaka' },
-  { firstName: 'Hassan', lastName: 'Ali' },
-  { firstName: 'Iris', lastName: 'Nguyen' },
-  { firstName: 'James', lastName: "O'Brien" },
-  { firstName: 'Keiko', lastName: 'Yamamoto' },
-  { firstName: 'Liam', lastName: 'Chen' },
-  { firstName: 'Maya', lastName: 'Gupta' },
-  { firstName: 'Noah', lastName: 'Larsen' },
-  { firstName: 'Olivia', lastName: 'Santos' },
-  { firstName: 'Pablo', lastName: 'Martinez' },
-  { firstName: 'Quinn', lastName: 'Davis' },
-  { firstName: 'Rosa', lastName: 'Kowalski' },
-  { firstName: 'Sam', lastName: 'Thompson' },
-  { firstName: 'Tara', lastName: 'Bhat' },
-  { firstName: 'Uma', lastName: 'Washington' },
-  { firstName: 'Victor', lastName: 'Petrov' },
-  { firstName: 'Wendy', lastName: 'Huang' },
-  { firstName: 'Xavier', lastName: 'Dubois' }
-];
+const ONBOARDING_DEMO_STUDENT_COUNT = 24;
 
 export interface OnboardingDemoData {
   students: Student[];
@@ -64,12 +39,15 @@ export function generateOnboardingDemoData(
 ): OnboardingDemoData {
   const now = new Date();
 
-  // Generate students
-  const students: Student[] = STUDENT_NAMES.map((name) => ({
-    id: idGenerator.generateId(),
-    firstName: name.firstName,
-    lastName: name.lastName
-  }));
+  // Generate students using the same placeholder naming style as quick-start.
+  const students: Student[] = Array.from({ length: ONBOARDING_DEMO_STUDENT_COUNT }, (_, i) => {
+    const { firstName, lastName } = buildQuickStartPlaceholderName(i);
+    return {
+      id: idGenerator.generateId(),
+      firstName,
+      lastName
+    };
+  });
 
   // Create pool
   const poolId = idGenerator.generateId();
@@ -132,10 +110,8 @@ export function generateOnboardingDemoData(
     academicYear: `${now.getFullYear()}`,
     startDate: now,
     endDate: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
-    status: 'PUBLISHED',
+    status: 'DRAFT',
     scenarioId,
-    publishedAt: now,
-    publishedByStaffId: staffId,
     createdAt: now,
     createdByStaffId: staffId
   };

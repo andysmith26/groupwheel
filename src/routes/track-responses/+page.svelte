@@ -39,8 +39,6 @@
 
   // Environment - initialized in onMount (SSR-safe)
   let env: ReturnType<typeof getAppEnvContext> | null = $state(null);
-  let authUnsubscribe: (() => void) | null = null;
-  let isLoggedIn = $state(false);
 
   // LocalStorage keys
   const STORAGE_KEY = 'groupwheel_response_tracker';
@@ -261,17 +259,10 @@
     loadRecentSheets();
     loadPersistedState();
     startAutoRefresh();
-
-    if (env?.authService) {
-      authUnsubscribe = env.authService.onAuthStateChange((user) => {
-        isLoggedIn = Boolean(user);
-      });
-    }
   });
 
   onDestroy(() => {
     stopAutoRefresh();
-    authUnsubscribe?.();
     trackResponsesSession.clear();
   });
 
@@ -357,7 +348,8 @@
     if (isErr(result)) {
       switch (result.error.type) {
         case 'NOT_AUTHENTICATED':
-          connectionError = 'Please sign in to access Google Sheets';
+          connectionError =
+            'Google Sheets account connection is turned off right now. This tool is available without sign-in only when sheet access is enabled again.';
           break;
         case 'PERMISSION_DENIED':
           connectionError = 'You do not have permission to access this spreadsheet';
@@ -380,13 +372,6 @@
 
     // Auto-detect tabs based on headers
     await autoDetectTabs();
-  }
-
-  async function handleLogin() {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem('post_login_redirect', '/track-responses');
-    }
-    await env?.authService?.login();
   }
 
   function handleDisconnect() {
@@ -763,7 +748,7 @@
 </script>
 
 <svelte:head>
-  <title>Track Responses | Groupwheel</title>
+  <title>Track Responses</title>
 </svelte:head>
 
 <div class="space-y-3">
@@ -785,293 +770,279 @@
     </div>
   </div>
 
-  {#if !isLoggedIn}
-    <!-- Auth required message -->
-    <div
-      class="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm"
-    >
-      <h2 class="text-lg font-semibold text-gray-900">Connect your Google account</h2>
-      <p class="mt-2 text-sm text-gray-600">
-        Sign in to connect a sheet and start tracking student responses.
-      </p>
-      <Button variant="secondary" class="mt-4 w-full justify-center" onclick={handleLogin} disabled>
-        Sign in with Google
-      </Button>
+  <!-- Sheet Connection -->
+  {#if connection && (autoDetectFailed || !rosterData || !responsesData)}
+    <div class="rounded-md border border-amber-200 bg-amber-50 p-3">
+      {#if isAutoDetecting}
+        <p class="text-sm text-teal">Detecting tabs...</p>
+      {:else}
+        <p class="text-sm text-amber-700">
+          Could not auto-detect all tabs. Please select manually:
+        </p>
+        <div class="mt-3 grid gap-3 md:grid-cols-2">
+          <div>
+            <label for="roster-tab" class="mb-1 block text-xs font-medium text-gray-600">
+              Roster Tab
+            </label>
+            <select
+              id="roster-tab"
+              value={rosterTabGid ?? ''}
+              onchange={(e) => selectRosterTab((e.target as HTMLSelectElement).value)}
+              class="block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
+            >
+              <option value="">Choose roster tab...</option>
+              {#each tabs as tab}
+                <option value={tab.gid}>{tab.title}</option>
+              {/each}
+            </select>
+            {#if rosterData}
+              <p class="mt-1 text-xs text-green-600">{rosterData.rows.length} students</p>
+            {/if}
+          </div>
+          <div>
+            <label for="responses-tab" class="mb-1 block text-xs font-medium text-gray-600">
+              Responses Tab
+            </label>
+            <select
+              id="responses-tab"
+              value={responsesTabGid ?? ''}
+              onchange={(e) => selectResponsesTab((e.target as HTMLSelectElement).value)}
+              class="block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
+            >
+              <option value="">Choose responses tab...</option>
+              {#each tabs as tab}
+                <option value={tab.gid}>{tab.title}</option>
+              {/each}
+            </select>
+            {#if responsesData}
+              <p class="mt-1 text-xs text-green-600">{responsesData.rows.length} responses</p>
+            {/if}
+          </div>
+        </div>
+      {/if}
     </div>
-  {:else}
-    <!-- Sheet Connection -->
-    {#if connection && (autoDetectFailed || !rosterData || !responsesData)}
-      <div class="rounded-md border border-amber-200 bg-amber-50 p-3">
-        {#if isAutoDetecting}
-          <p class="text-sm text-teal">Detecting tabs...</p>
-        {:else}
-          <p class="text-sm text-amber-700">
-            Could not auto-detect all tabs. Please select manually:
-          </p>
-          <div class="mt-3 grid gap-3 md:grid-cols-2">
-            <div>
-              <label for="roster-tab" class="mb-1 block text-xs font-medium text-gray-600">
-                Roster Tab
-              </label>
-              <select
-                id="roster-tab"
-                value={rosterTabGid ?? ''}
-                onchange={(e) => selectRosterTab((e.target as HTMLSelectElement).value)}
-                class="block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
-              >
-                <option value="">Choose roster tab...</option>
-                {#each tabs as tab}
-                  <option value={tab.gid}>{tab.title}</option>
-                {/each}
-              </select>
-              {#if rosterData}
-                <p class="mt-1 text-xs text-green-600">{rosterData.rows.length} students</p>
-              {/if}
+  {:else if !connection}
+    <div class="mx-auto max-w-2xl rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+      <div class="space-y-4">
+        <!-- Recent Sheets -->
+        {#if recentSheets.length > 0}
+          <div>
+            <p class="mb-2 block text-sm font-medium text-gray-700">Recent Spreadsheets</p>
+            <div class="space-y-2">
+              {#each recentSheets as sheet}
+                <div
+                  class="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2 transition-colors hover:border-teal hover:bg-teal/5"
+                >
+                  <button
+                    type="button"
+                    onclick={() => selectRecentSheet(sheet)}
+                    class="flex-1 text-left text-sm font-medium text-gray-900 hover:text-teal"
+                    disabled={isConnecting}
+                  >
+                    {sheet.title}
+                  </button>
+                  <button
+                    type="button"
+                    onclick={() => removeRecentSheet(sheet.url)}
+                    class="ml-2 p-1 text-gray-400 hover:text-red-500"
+                    title="Remove from list"
+                    aria-label={`Remove ${sheet.title} from recent spreadsheets`}
+                  >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              {/each}
             </div>
-            <div>
-              <label for="responses-tab" class="mb-1 block text-xs font-medium text-gray-600">
-                Responses Tab
-              </label>
-              <select
-                id="responses-tab"
-                value={responsesTabGid ?? ''}
-                onchange={(e) => selectResponsesTab((e.target as HTMLSelectElement).value)}
-                class="block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
-              >
-                <option value="">Choose responses tab...</option>
-                {#each tabs as tab}
-                  <option value={tab.gid}>{tab.title}</option>
-                {/each}
-              </select>
-              {#if responsesData}
-                <p class="mt-1 text-xs text-green-600">{responsesData.rows.length} responses</p>
-              {/if}
+          </div>
+          <div class="relative">
+            <div class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-gray-200"></div>
+            </div>
+            <div class="relative flex justify-center text-xs">
+              <span class="bg-white px-2 text-gray-500">or enter URL</span>
             </div>
           </div>
         {/if}
-      </div>
-    {:else if !connection}
-      <div class="mx-auto max-w-2xl rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        <div class="space-y-4">
-          <!-- Recent Sheets -->
-          {#if recentSheets.length > 0}
-            <div>
-              <label class="mb-2 block text-sm font-medium text-gray-700">
-                Recent Spreadsheets
-              </label>
-              <div class="space-y-2">
-                {#each recentSheets as sheet}
-                  <div
-                    class="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2 transition-colors hover:border-teal hover:bg-teal/5"
-                  >
-                    <button
-                      type="button"
-                      onclick={() => selectRecentSheet(sheet)}
-                      class="flex-1 text-left text-sm font-medium text-gray-900 hover:text-teal"
-                      disabled={isConnecting}
-                    >
-                      {sheet.title}
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => removeRecentSheet(sheet.url)}
-                      class="ml-2 p-1 text-gray-400 hover:text-red-500"
-                      title="Remove from list"
-                    >
-                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-            <div class="relative">
-              <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-gray-200"></div>
-              </div>
-              <div class="relative flex justify-center text-xs">
-                <span class="bg-white px-2 text-gray-500">or enter URL</span>
-              </div>
-            </div>
-          {/if}
 
-          <!-- URL Input -->
-          <div>
-            <label for="sheet-url" class="block text-sm font-medium text-gray-700">
-              Google Sheets URL
-            </label>
-            <div class="mt-1 flex gap-2">
-              <input
-                id="sheet-url"
-                type="url"
-                bind:value={sheetUrl}
-                onkeydown={handleKeydown}
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
-                disabled={isConnecting}
-              />
-              <Button
-                variant="secondary"
-                onclick={handleConnect}
-                disabled={isConnecting || !sheetUrl.trim()}
-                loading={isConnecting}
-              >
-                {isConnecting ? 'Connecting...' : 'Connect'}
-              </Button>
-            </div>
+        <!-- URL Input -->
+        <div>
+          <label for="sheet-url" class="block text-sm font-medium text-gray-700">
+            Google Sheets URL
+          </label>
+          <div class="mt-1 flex gap-2">
+            <input
+              id="sheet-url"
+              type="url"
+              bind:value={sheetUrl}
+              onkeydown={handleKeydown}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none"
+              disabled={isConnecting}
+            />
+            <Button
+              variant="secondary"
+              onclick={handleConnect}
+              disabled={isConnecting || !sheetUrl.trim()}
+              loading={isConnecting}
+            >
+              {isConnecting ? 'Connecting...' : 'Connect'}
+            </Button>
           </div>
+        </div>
 
-          {#if connectionError}
-            <InlineError message={connectionError} dismissible onDismiss={() => (connectionError = '')} />
-          {/if}
+        {#if connectionError}
+          <InlineError
+            message={connectionError}
+            dismissible
+            onDismiss={() => (connectionError = '')}
+          />
+        {/if}
 
-          <p class="text-xs text-gray-500">
-            Paste the URL of your Google Sheet containing both your class roster and form responses
-            (as separate tabs). Tabs will be auto-detected based on their headers.
-          </p>
+        <p class="text-xs text-gray-500">
+          Paste the URL of your Google Sheet containing both your class roster and form responses
+          (as separate tabs). Tabs will be auto-detected based on their headers.
+        </p>
+      </div>
+    </div>
+  {/if}
+
+  {#if matchResult}
+    {#if cantTrackCount() > 0}
+      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-medium text-amber-800">
+              Can't track {cantTrackCount()} students
+            </p>
+            <p class="text-xs text-amber-700">
+              Missing email addresses in the roster. Fix the roster to unblock readiness.
+            </p>
+          </div>
+          <a
+            href={connection?.url ?? sheetUrl}
+            target="_blank"
+            rel="noreferrer"
+            class="inline-flex items-center justify-center rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
+          >
+            Fix roster
+          </a>
         </div>
       </div>
     {/if}
 
-    {#if matchResult}
-      {#if cantTrackCount() > 0}
-        <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p class="text-sm font-medium text-amber-800">
-                Can't track {cantTrackCount()} students
-              </p>
-              <p class="text-xs text-amber-700">
-                Missing email addresses in the roster. Fix the roster to unblock readiness.
-              </p>
-            </div>
-            <a
-              href={connection?.url ?? sheetUrl}
-              target="_blank"
-              rel="noreferrer"
-              class="inline-flex items-center justify-center rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
-            >
-              Fix roster
-            </a>
-          </div>
-        </div>
-      {/if}
-
-      {#if filteredStudents().length === 0}
-        <div
-          class="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-sm text-gray-600"
-        >
-          {trackResponsesSession.searchQuery
-            ? 'No students match that search.'
-            : 'No students to display yet.'}
-        </div>
-      {:else}
-        <ul class="rounded-md border border-gray-200 bg-white">
-          {#each filteredStudents() as row}
-            <li
-              class="group flex items-center justify-between gap-3 border-b border-gray-200 px-3 py-2 last:border-b-0 hover:bg-gray-50"
-            >
-              <span class="truncate text-sm font-medium text-gray-900">{row.student.name}</span>
-              <div class="flex items-center gap-2">
-                <span
-                  class={`min-w-[110px] rounded-full px-2 py-0.5 text-center text-xs font-medium ${STATE_BADGE_CLASSES[row.state]}`}
-                >
-                  {STATE_LABELS[row.state]}
-                </span>
-                <button
-                  type="button"
-                  onclick={() =>
-                    row.state === 'ignored'
-                      ? unignoreStudent(row.student.email)
-                      : ignoreStudent(row.student.email)}
-                  class={`text-xs opacity-0 transition-opacity group-hover:opacity-100 ${
-                    row.state === 'ignored'
-                      ? 'text-amber-600 hover:text-amber-800'
-                      : 'text-gray-400 hover:text-gray-600'
-                  }`}
-                  title={row.state === 'ignored' ? 'Unignore' : 'Ignore'}
-                >
-                  {row.state === 'ignored' ? 'unignore' : 'ignore'}
-                </button>
-              </div>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-
-      <!-- Club Requests Section -->
-      {#if clubRequests().length > 0}
-        <div class="rounded-lg border border-gray-200 bg-white">
-          <button
-            type="button"
-            onclick={() => (showClubRequests = !showClubRequests)}
-            class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+    {#if filteredStudents().length === 0}
+      <div
+        class="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-sm text-gray-600"
+      >
+        {trackResponsesSession.searchQuery
+          ? 'No students match that search.'
+          : 'No students to display yet.'}
+      </div>
+    {:else}
+      <ul class="rounded-md border border-gray-200 bg-white">
+        {#each filteredStudents() as row}
+          <li
+            class="group flex items-center justify-between gap-3 border-b border-gray-200 px-3 py-2 last:border-b-0 hover:bg-gray-50"
           >
-            <div>
-              <h2 class="text-sm font-semibold text-gray-900">Requests by Club</h2>
-              <p class="text-xs text-gray-500">Peek at demand without leaving this page.</p>
-            </div>
-            <div class="flex items-center gap-2 text-xs text-gray-500">
-              <span>{clubRequests().length} clubs</span>
-              <svg
-                class={`h-4 w-4 text-gray-400 transition-transform ${showClubRequests ? 'rotate-180' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            <span class="truncate text-sm font-medium text-gray-900">{row.student.name}</span>
+            <div class="flex items-center gap-2">
+              <span
+                class={`min-w-[110px] rounded-full px-2 py-0.5 text-center text-xs font-medium ${STATE_BADGE_CLASSES[row.state]}`}
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
+                {STATE_LABELS[row.state]}
+              </span>
+              <button
+                type="button"
+                onclick={() =>
+                  row.state === 'ignored'
+                    ? unignoreStudent(row.student.email)
+                    : ignoreStudent(row.student.email)}
+                class={`text-xs opacity-0 transition-opacity group-hover:opacity-100 ${
+                  row.state === 'ignored'
+                    ? 'text-amber-600 hover:text-amber-800'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+                title={row.state === 'ignored' ? 'Unignore' : 'Ignore'}
+              >
+                {row.state === 'ignored' ? 'unignore' : 'ignore'}
+              </button>
             </div>
-          </button>
-          {#if showClubRequests}
-            <div class="space-y-3 border-t border-gray-100 p-4">
-              {#each clubRequests() as club}
-                <div class="rounded-lg border border-gray-200 bg-white">
-                  <div class="border-b border-gray-100 px-4 py-2">
-                    <h3 class="font-medium text-gray-900">{club.clubName}</h3>
-                  </div>
-                  <div class="grid grid-cols-4 divide-x divide-gray-100">
-                    {#each club.byRank as { rank, students }}
-                      <div class="p-3">
-                        <div class="mb-2 flex items-center gap-1">
-                          <span class="text-xs font-medium text-gray-500">
-                            {rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : '4th'}
-                          </span>
-                          <span
-                            class="rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600"
-                          >
-                            {students.length}
-                          </span>
-                        </div>
-                        {#if students.length === 0}
-                          <p class="text-xs text-gray-400 italic">none</p>
-                        {:else}
-                          <ul class="space-y-0.5">
-                            {#each students as name}
-                              <li class="truncate text-sm text-gray-700">{name}</li>
-                            {/each}
-                          </ul>
-                        {/if}
-                      </div>
-                    {/each}
-                  </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    <!-- Club Requests Section -->
+    {#if clubRequests().length > 0}
+      <div class="rounded-lg border border-gray-200 bg-white">
+        <button
+          type="button"
+          onclick={() => (showClubRequests = !showClubRequests)}
+          class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        >
+          <div>
+            <h2 class="text-sm font-semibold text-gray-900">Requests by Club</h2>
+            <p class="text-xs text-gray-500">Peek at demand without leaving this page.</p>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-gray-500">
+            <span>{clubRequests().length} clubs</span>
+            <svg
+              class={`h-4 w-4 text-gray-400 transition-transform ${showClubRequests ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </div>
+        </button>
+        {#if showClubRequests}
+          <div class="space-y-3 border-t border-gray-100 p-4">
+            {#each clubRequests() as club}
+              <div class="rounded-lg border border-gray-200 bg-white">
+                <div class="border-b border-gray-100 px-4 py-2">
+                  <h3 class="font-medium text-gray-900">{club.clubName}</h3>
                 </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/if}
+                <div class="grid grid-cols-4 divide-x divide-gray-100">
+                  {#each club.byRank as { rank, students }}
+                    <div class="p-3">
+                      <div class="mb-2 flex items-center gap-1">
+                        <span class="text-xs font-medium text-gray-500">
+                          {rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : '4th'}
+                        </span>
+                        <span class="rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+                          {students.length}
+                        </span>
+                      </div>
+                      {#if students.length === 0}
+                        <p class="text-xs text-gray-400 italic">none</p>
+                      {:else}
+                        <ul class="space-y-0.5">
+                          {#each students as name}
+                            <li class="truncate text-sm text-gray-700">{name}</li>
+                          {/each}
+                        </ul>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
     {/if}
   {/if}
 </div>

@@ -36,6 +36,7 @@ import {
 import { getGenerationErrorMessage } from '$lib/utils/generationErrorMessages';
 import { buildPreferenceMap } from '$lib/utils/preferenceAdapter';
 import { getGenerationSettings, saveGenerationSettings } from '$lib/utils/generationSettings';
+import { isQuickStartPlaceholderName } from '$lib/utils/quickStartPlaceholderNames';
 
 /**
  * A snapshot of a past generation for the history panel.
@@ -322,13 +323,13 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
   }
 
   /**
-   * Detect whether all students are quick-start placeholders ("Student 1", "Student 2", ...).
+   * Detect whether all students are quick-start placeholders.
    * Used to show the upgrade prompt (WP11 / Decision 5, Banked Note #2).
    */
   function detectPlaceholderStudents() {
     state.hasPlaceholderStudents =
       state.students.length > 0 &&
-      state.students.every((s) => /^Student$/.test(s.firstName) && /^\d+$/.test(s.lastName ?? ''));
+      state.students.every((s) => isQuickStartPlaceholderName(s.firstName, s.lastName ?? ''));
   }
 
   function persistSettings() {

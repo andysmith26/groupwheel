@@ -4,7 +4,7 @@
 </script>
 
 <svelte:head>
-  <title>Error | Groupwheel</title>
+  <title>Error</title>
 </svelte:head>
 
 <div class="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
