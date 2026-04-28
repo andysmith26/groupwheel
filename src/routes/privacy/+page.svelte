@@ -7,107 +7,77 @@
   <p class="mt-2 text-sm text-gray-600"><strong>Effective Date:</strong> April 27, 2026</p>
 
   <section class="mt-6 space-y-3 text-sm leading-6 text-gray-700">
-    <h2 class="text-lg font-semibold text-gray-900">Overview</h2>
+    <h2 class="text-lg font-semibold text-gray-900">Short Version</h2>
     <p>
-      Groupwheel is a free tool for K-12 teachers to form student groups. We built it with privacy
-      as a core value: your student roster data never leaves your browser. This policy explains what
-      information we handle and how.
+      Groupwheel is built to be simple and private. Student roster data stays on your device, in
+      your browser. We do not store it on our servers, sell it, or use it for advertising.
+    </p>
+    <p>
+      In normal use, Groupwheel cannot see your roster data because it does not leave your browser.
     </p>
   </section>
 
   <section class="mt-6 space-y-3 text-sm leading-6 text-gray-700">
-    <h2 class="text-lg font-semibold text-gray-900">What Data We Collect</h2>
-    <h3 class="font-semibold text-gray-900">If You Use Groupwheel Without Signing In</h3>
+    <h2 class="text-lg font-semibold text-gray-900">What We Collect</h2>
     <p>
-      We collect no personal information. All roster data you enter, such as student names,
-      identifiers, or other fields, is stored only in your browser storage on your own device. This
-      data is never transmitted to Groupwheel servers.
+      We do not collect or store student roster data on Groupwheel servers. Roster data (such as
+      names or IDs you enter) is stored locally in your browser, and Groupwheel does not have access
+      to it.
     </p>
-    <h3 class="font-semibold text-gray-900">If You Sign In with Google (Optional)</h3>
     <p>
-      Google sign-in is only required if you choose to import data from Google Sheets. When you sign
-      in, we receive from Google:
-    </p>
-    <ul class="list-disc space-y-1 pl-6">
-      <li>Your Google account name and email address</li>
-      <li>
-        OAuth access and refresh tokens used only to authenticate and fetch the Google Sheets you
-        explicitly choose
-      </li>
-    </ul>
-    <p>
-      We use this information only for authentication and Sheets access. We do not sell it, and we
-      do not use it for advertising.
+      We may receive basic technical information from your browser or hosting infrastructure (for
+      example, standard server logs such as IP address, user agent, and request timing) to keep the
+      site secure and operational.
     </p>
   </section>
 
   <section class="mt-6 space-y-3 text-sm leading-6 text-gray-700">
-    <h2 class="text-lg font-semibold text-gray-900">Student Data</h2>
+    <h2 class="text-lg font-semibold text-gray-900">How Your Data Is Used</h2>
     <p>
-      Groupwheel processes student names and any additional roster columns entirely in your browser.
-      Student data is not transmitted to or stored on Groupwheel servers.
+      Data you enter is used only to run Groupwheel features (for example, creating and showing
+      groups) in your browser.
     </p>
-    <p>You can remove locally stored data at any time by clearing browser storage for this site.</p>
-  </section>
-
-  <section class="mt-6 space-y-3 text-sm leading-6 text-gray-700">
-    <h2 class="text-lg font-semibold text-gray-900">FERPA</h2>
     <p>
-      Groupwheel is designed to support teacher compliance with FERPA. Because student records are
-      processed locally in your browser and not stored on our servers, Groupwheel does not receive
-      or retain student education records.
+      We do not sell personal information and do not use student data for profiling, ad targeting,
+      or marketing.
     </p>
   </section>
 
   <section class="mt-6 space-y-3 text-sm leading-6 text-gray-700">
-    <h2 class="text-lg font-semibold text-gray-900">COPPA</h2>
+    <h2 class="text-lg font-semibold text-gray-900">Storage and Retention</h2>
     <p>
-      Groupwheel is for teachers, not direct use by children. Students do not create Groupwheel
-      accounts. We do not knowingly collect personal information from children under 13.
+      Data saved by Groupwheel remains in your browser storage until you clear it. You can delete
+      this data anytime by clearing site data for Groupwheel in your browser settings.
+    </p>
+    <p>
+      If you export data from Groupwheel (for example, to a file), that exported copy is outside
+      Groupwheel's control. You are responsible for how exported files are stored, shared, and
+      secured after export.
     </p>
   </section>
 
   <section class="mt-6 space-y-3 text-sm leading-6 text-gray-700">
-    <h2 class="text-lg font-semibold text-gray-900">Cookies</h2>
+    <h2 class="text-lg font-semibold text-gray-900">Children and Schools</h2>
     <p>
-      If you use Google sign-in, we set a secure session cookie for authentication continuity. This
-      cookie is not used for advertising or cross-site tracking.
+      Groupwheel is intended for educators and school use. It is not designed for children to use
+      independently. We do not knowingly collect personal information directly from children.
     </p>
   </section>
 
   <section class="mt-6 space-y-3 text-sm leading-6 text-gray-700">
-    <h2 class="text-lg font-semibold text-gray-900">Third-Party Services</h2>
+    <h2 class="text-lg font-semibold text-gray-900">FERPA and COPPA Notes</h2>
     <p>
-      If you connect Google, authentication and API access rely on Google OAuth and Google Sheets
-      APIs. Google data practices are governed by
-      <a
-        href="https://policies.google.com/privacy"
-        target="_blank"
-        rel="noreferrer"
-        class="text-coral underline-offset-2 hover:underline"
-      >
-        Google's Privacy Policy
-      </a>
-      .
+      Because roster data is processed locally in your browser, Groupwheel is designed to minimize
+      transfer of student records to Groupwheel systems. Schools and teachers remain responsible for
+      their own legal compliance decisions, including FERPA and COPPA obligations.
     </p>
-    <p>Groupwheel does not use third-party ad trackers.</p>
   </section>
 
   <section class="mt-6 space-y-3 text-sm leading-6 text-gray-700">
-    <h2 class="text-lg font-semibold text-gray-900">Data Retention</h2>
-    <ul class="list-disc space-y-1 pl-6">
-      <li>Roster and grouping data remains in your browser until you clear it.</li>
-      <li>Google authentication session data remains until sign-out or cookie expiration.</li>
-      <li>Groupwheel does not retain student data on servers.</li>
-    </ul>
-  </section>
-
-  <section class="mt-6 space-y-3 text-sm leading-6 text-gray-700">
-    <h2 class="text-lg font-semibold text-gray-900">US User Rights</h2>
+    <h2 class="text-lg font-semibold text-gray-900">Your Rights (US)</h2>
     <p>
-      Depending on your state, you may have rights to access, correct, or delete personal
-      information we hold. Because we hold minimal account information, most requests can be
-      addressed by signing out and clearing browser data.
+      Depending on your state, you may have privacy rights regarding personal information. If you
+      have a request, contact us and we will respond as required by applicable US law.
     </p>
   </section>
 
@@ -123,8 +93,8 @@
     <h2 class="text-lg font-semibold text-gray-900">Contact</h2>
     <p>
       Questions about this policy can be sent to:
-      <a href="mailto:your-email@example.com" class="text-coral underline-offset-2 hover:underline"
-        >your-email@example.com</a
+      <a href="mailto:hello@groupwheel.app" class="text-coral underline-offset-2 hover:underline"
+        >hello@groupwheel.app</a
       >
     </p>
   </section>

@@ -74,7 +74,7 @@
     'background-color: #b45309', // amber-700
     'background-color: #059669', // emerald-600
     'background-color: #4338ca', // indigo-700
-    'background-color: #be185d', // pink-700
+    'background-color: #be185d' // pink-700
   ];
 
   function getProjectionColor(group: Group): string {
@@ -93,7 +93,7 @@
       const student = studentsById[id];
       return {
         id,
-        name: student ? getStudentDisplayName(student) : id,
+        name: student ? getStudentDisplayName(student) : id
       };
     });
   }
@@ -106,7 +106,9 @@
 {#if loading}
   <div class="flex h-screen items-center justify-center bg-gray-900">
     <div class="text-center">
-      <div class="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-600 border-t-teal-400"></div>
+      <div
+        class="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-600 border-t-teal-400"
+      ></div>
       <p class="mt-3 text-sm text-gray-400">Loading...</p>
     </div>
   </div>
@@ -143,7 +145,9 @@
           <div class="group-card">
             <div class="group-header" style={getProjectionColor(group)}>
               <h2 class="group-name">{group.name}</h2>
-              <span class="group-count">{members.length} {members.length === 1 ? 'student' : 'students'}</span>
+              <span class="group-count"
+                >{members.length} {members.length === 1 ? 'student' : 'students'}</span
+              >
             </div>
             <ul class="member-list" aria-label="{group.name} members">
               {#each members as member (member.id)}
@@ -156,7 +160,9 @@
     {/if}
 
     <!-- Minimal nav bar (for teacher, not visible to students at distance) -->
-    <div class="no-print fixed bottom-0 left-0 right-0 flex items-center justify-center gap-4 bg-black/60 px-4 py-2 backdrop-blur-sm">
+    <div
+      class="no-print fixed right-0 bottom-0 left-0 flex items-center justify-center gap-4 bg-black/60 px-4 py-2 backdrop-blur-sm"
+    >
       <a
         href="/activity/{program?.id}"
         class="rounded-md bg-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-600"
