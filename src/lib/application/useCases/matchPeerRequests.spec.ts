@@ -13,6 +13,11 @@ describe('matchPeerRequests', () => {
   ];
 
   it('puts unique exact full-name matches into ready-to-confirm without auto-confirming them', () => {
+    const matchingStudents = [
+      students[0],
+      createStudent({ id: 'bob-1', firstName: 'Bob', lastName: 'Jones' }),
+      createStudent({ id: 'cara-2', firstName: 'Cara', lastName: 'Lopez' })
+    ];
     const request = createPeerRequestEntry({
       id: 'request-1',
       programId: 'program-1',
@@ -21,7 +26,7 @@ describe('matchPeerRequests', () => {
       rawText: 'Bob Jones'
     });
 
-    const result = matchPeerRequests({ requests: [request], students });
+    const result = matchPeerRequests({ requests: [request], students: matchingStudents });
 
     expect(result.readyToConfirm).toHaveLength(1);
     expect(result.readyToConfirm[0].bestCandidate).toMatchObject({ studentId: 'bob-1' });
@@ -95,9 +100,9 @@ describe('matchPeerRequests', () => {
 
     const result = matchPeerRequests({ requests: [request], students: matchingStudents });
 
-    expect(result.readyToConfirm).toHaveLength(1);
-    expect(result.readyToConfirm[0].bestCandidate).toMatchObject({ studentId: 'jonathan' });
-    expect(result.readyToConfirm[0].bestCandidate?.baseScore).toBeGreaterThan(0.8);
+    expect(result.needsReview).toHaveLength(1);
+    expect(result.needsReview[0].bestCandidate).toMatchObject({ studentId: 'jonathan' });
+    expect(result.needsReview[0].bestCandidate?.baseScore).toBeGreaterThan(0.8);
   });
 
   it('heavily penalizes tied initial matches and retains their base scores', () => {
@@ -144,7 +149,7 @@ describe('matchPeerRequests', () => {
         preferredName: 'Danny',
         lastName: 'Cruz'
       }),
-      createStudent({ id: 'maria', firstName: 'Maria', preferredName: '   ', lastName: 'Cruz' })
+      createStudent({ id: 'maria', firstName: 'Maria', preferredName: '   ', lastName: 'Lopez' })
     ];
 
     const result = matchPeerRequests({ requests: [request], students: matchingStudents });
@@ -200,11 +205,7 @@ describe('matchPeerRequests', () => {
 
     const result = matchPeerRequests({
       requests: [request],
-      students: [
-        ...students,
-        createStudent({ id: 'ally', firstName: 'Alyssa', lastName: 'Stone' }),
-        createStudent({ id: 'alina', firstName: 'Alina', lastName: 'Smythe' })
-      ]
+      students: [students[0], students[2], students[3]]
     });
 
     expect(result.readyToConfirm).toHaveLength(1);

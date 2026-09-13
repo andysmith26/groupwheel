@@ -7,8 +7,7 @@
     ColumnMapping,
     MappedField,
     RawSheetData,
-    StudentIdRowLink,
-    UnmatchedStudentIdRow
+    StudentIdRowLink
   } from '$lib/domain/import';
   import { reconcileRowsByStudentId } from '$lib/domain/import';
   import { createPeerRequestColumnMappings } from '$lib/services/importFieldMatching';
@@ -52,7 +51,6 @@
 
   type Step = 'mapping' | 'unmatched' | 'review';
   type ReviewedUnmatchedRow = PreparedUnmatchedPeerRequestRow;
-  type UnmatchedSuggestionBucket = RowMatchSuggestion['bucket'];
 
   const peerRequestFields: MappedField[] = [
     'studentId',
@@ -322,13 +320,14 @@
     );
 
     matchedRowLinks = reconciliation.matched;
-    unmatchedRows = prepareUnmatchedPeerRequestRows(
+    const preparedUnmatchedRows = prepareUnmatchedPeerRequestRows(
       rawData,
       columnMappings,
       reconciliation.unmatched
     );
+    unmatchedRows = preparedUnmatchedRows;
     const rowSuggestions = suggestStudentMatchesForRows({
-      rows: unmatchedRows.map((row) => ({
+      rows: preparedUnmatchedRows.map((row) => ({
         rowIndex: row.rowIndex,
         name: row.matchName
       })),

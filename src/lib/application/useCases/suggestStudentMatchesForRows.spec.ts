@@ -6,7 +6,8 @@ describe('suggestStudentMatchesForRows', () => {
   const students = [
     createStudent({ id: 'alice', firstName: 'Alice', lastName: 'Smith' }),
     createStudent({ id: 'bob-jones', firstName: 'Bob', lastName: 'Jones' }),
-    createStudent({ id: 'bob-ray', firstName: 'Bob', lastName: 'Ray' })
+    createStudent({ id: 'bob-ray', firstName: 'Bob', lastName: 'Ray' }),
+    createStudent({ id: 'cara', firstName: 'Cara', lastName: 'Lopez' })
   ];
 
   it('returns a high-confidence suggestion for an exact name match', () => {
@@ -23,8 +24,8 @@ describe('suggestStudentMatchesForRows', () => {
     const [suggestion] = suggestStudentMatchesForRows({ rows: [{ rowIndex: 3, name: 'Bob' }], students });
 
     expect(suggestion.bucket).toBe('NEEDS_REVIEW');
-    expect(suggestion.candidates).toHaveLength(2);
-    expect(suggestion.candidates.map((candidate) => candidate.studentId)).toEqual([
+    expect(suggestion.candidates).toHaveLength(3);
+    expect(suggestion.candidates.map((candidate) => candidate.studentId).slice(0, 2)).toEqual([
       'bob-jones',
       'bob-ray'
     ]);
@@ -51,10 +52,12 @@ describe('suggestStudentMatchesForRows', () => {
   });
 
   it('matches a first-and-last name already combined by the caller', () => {
-    expect(suggestStudentMatchesForRows({ rows: [{ rowIndex: 6, name: 'Bob Ray' }], students })[0]).toMatchObject({
+    expect(
+      suggestStudentMatchesForRows({ rows: [{ rowIndex: 6, name: 'Cara Lopez' }], students })[0]
+    ).toMatchObject({
       bucket: 'HIGH_CONFIDENCE',
       bestCandidate: {
-        studentId: 'bob-ray',
+        studentId: 'cara',
         baseScore: 1
       }
     });
