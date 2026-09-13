@@ -745,19 +745,50 @@
     const errors: string[] = [];
     const addedStudents: typeof students = [];
 
+    const studentsToAdd: Array<{
+      firstName: string;
+      preferredName?: string;
+      lastName?: string;
+      sourceStudentId?: string;
+      tagIds: string[];
+    }> = [];
     for (const { firstName, preferredName, lastName, rawTags, sourceStudentId } of parsedStudents) {
-      const resolvedTags = program
-        ? await resolveOrCreateTags(env, {
-            programId: program.id,
-            rawTagNames: rawTags
-          })
-        : { status: 'ok', value: [] as string[] };
+      if (!program) {
+        studentsToAdd.push({
+          firstName,
+          preferredName,
+          lastName,
+          sourceStudentId,
+          tagIds: []
+        });
+        continue;
+      }
+
+      const resolvedTags = await resolveOrCreateTags(env, {
+        programId: program.id,
+        rawTagNames: rawTags
+      });
+      if (isErr(resolvedTags)) {
+        throw new Error(
+          `Failed to resolve tags for "${firstName} ${lastName}": ${resolvedTags.error.message}`
+        );
+      }
+      studentsToAdd.push({
+        firstName,
+        preferredName,
+        lastName,
+        sourceStudentId,
+        tagIds: resolvedTags.value
+      });
+    }
+
+    for (const { firstName, preferredName, lastName, sourceStudentId, tagIds } of studentsToAdd) {
       const result = await addStudentToPool(env, {
         poolId: pool.id,
         firstName,
         preferredName,
         lastName,
-        tagIds: resolvedTags.status === 'ok' ? resolvedTags.value : [],
+        tagIds,
         sourceStudentId
       });
 

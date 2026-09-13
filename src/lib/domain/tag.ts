@@ -29,6 +29,12 @@ export function createTag(input: {
   if (!input.name || typeof input.name !== 'string' || input.name.trim().length === 0) {
     throw new Error('Tag name must not be empty');
   }
+  if (
+    input.colorIndex !== undefined &&
+    (!Number.isInteger(input.colorIndex) || input.colorIndex < 0)
+  ) {
+    throw new Error('Tag colorIndex must be a non-negative integer');
+  }
 
   return {
     id: input.id.trim(),

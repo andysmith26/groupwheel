@@ -19,4 +19,13 @@ describe('createTag', () => {
       'Tag name must not be empty'
     );
   });
+
+  it('throws for invalid colorIndex values', () => {
+    expect(() =>
+      createTag({ id: 'tag-1', programId: 'program-1', name: 'Honors', colorIndex: -1 })
+    ).toThrow('Tag colorIndex must be a non-negative integer');
+    expect(() =>
+      createTag({ id: 'tag-1', programId: 'program-1', name: 'Honors', colorIndex: 1.2 })
+    ).toThrow('Tag colorIndex must be a non-negative integer');
+  });
 });

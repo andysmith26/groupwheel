@@ -302,7 +302,10 @@
         programId,
         rawTagNames: student.rawTags
       });
-      student.tagIds = resolvedTags.status === 'ok' ? resolvedTags.value : [];
+      if (isErr(resolvedTags)) {
+        throw new Error(`Failed to resolve tags for "${student.displayName}": ${resolvedTags.error.message}`);
+      }
+      student.tagIds = resolvedTags.value;
     }
 
     const rowStudentLinks = validation.validRows

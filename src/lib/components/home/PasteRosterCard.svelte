@@ -162,12 +162,17 @@
         programId: program.id,
         rawTagNames: rawTags
       });
+      if (isErr(resolvedTags)) {
+        error = `Failed to resolve tags for "${firstName} ${lastName}": ${resolvedTags.error.message}`;
+        isSubmitting = false;
+        return;
+      }
       await addStudentToPool(env, {
         poolId: pool.id,
         firstName,
         preferredName,
         lastName,
-        tagIds: resolvedTags.status === 'ok' ? resolvedTags.value : [],
+        tagIds: resolvedTags.value,
         sourceStudentId
       });
     }
