@@ -47,6 +47,7 @@ describe('importActivity', () => {
       sessionRepo: env.sessionRepo,
       placementRepo: env.placementRepo,
       observationRepo: env.observationRepo,
+      tagRepo: env.tagRepo,
       idGenerator: { generateId: () => `new-id-${++counter}` },
       clock: { now: () => new Date('2026-05-25T12:00:00.000Z') }
     };
@@ -124,6 +125,7 @@ describe('importActivity', () => {
         sessionRepo: env.sessionRepo,
         placementRepo: env.placementRepo,
         observationRepo: env.observationRepo,
+        tagRepo: env.tagRepo,
         idGenerator: {
           generateId: () => `new-id-${++counter}`
         },
@@ -177,5 +179,63 @@ describe('importActivity', () => {
         occurredAt: '2026-05-25T11:30:00.000Z'
       }
     ]);
+  });
+
+  it('imports top-level tags and remaps student tagIds', async () => {
+    const env = createInMemoryEnvironment(undefined, { useIndexedDb: false });
+    let counter = 0;
+
+    const exportData: ActivityExportData = {
+      version: ACTIVITY_FILE_VERSION,
+      exportedAt: '2026-05-25T12:00:00.000Z',
+      activity: { name: 'Tag Import', type: 'CLASS_ACTIVITY' },
+      roster: {
+        students: [
+          { id: 'old-alice', firstName: 'Alice', tagIds: ['tag-a'] },
+          { id: 'old-bob', firstName: 'Bob', tagIds: ['tag-b'] }
+        ]
+      },
+      tags: [
+        { id: 'tag-a', programId: 'old-program', name: 'Honors', colorIndex: 2 },
+        { id: 'tag-b', programId: 'old-program', name: 'ELL', colorIndex: 4 }
+      ],
+      preferences: []
+    };
+
+    const result = await importActivity(
+      {
+        poolRepo: env.poolRepo,
+        studentRepo: env.studentRepo,
+        programRepo: env.programRepo,
+        preferenceRepo: env.preferenceRepo,
+        scenarioRepo: env.scenarioRepo,
+        sessionRepo: env.sessionRepo,
+        placementRepo: env.placementRepo,
+        observationRepo: env.observationRepo,
+        tagRepo: env.tagRepo,
+        idGenerator: {
+          generateId: () => `new-id-${++counter}`
+        },
+        clock: {
+          now: () => new Date('2026-05-25T12:00:00.000Z')
+        }
+      },
+      { exportData, ownerStaffId: 'owner-1' }
+    );
+
+    expect(result.status).toBe('ok');
+    if (result.status !== 'ok') return;
+
+    const savedTags = await env.tagRepo.listByProgramId(result.value.program.id);
+    expect(savedTags).toHaveLength(2);
+    const savedTagIds = new Set(savedTags.map((tag) => tag.id));
+
+    const students = await env.studentRepo.listAll();
+    const importedAlice = students.find((student) => student.firstName === 'Alice');
+    const importedBob = students.find((student) => student.firstName === 'Bob');
+    expect(importedAlice?.tagIds).toHaveLength(1);
+    expect(importedBob?.tagIds).toHaveLength(1);
+    expect(savedTagIds.has(importedAlice?.tagIds?.[0] ?? '')).toBe(true);
+    expect(savedTagIds.has(importedBob?.tagIds?.[0] ?? '')).toBe(true);
   });
 });

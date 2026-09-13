@@ -17,6 +17,10 @@ export function randomColorIndex(): number {
   return Math.floor(Math.random() * TAG_COLOR_HEX.length);
 }
 
+function normalizeColorIndex(index: number, length: number): number {
+  return ((index % length) + length) % length;
+}
+
 function getTagColorHex(tagName: string): string {
   let hash = 0;
   for (let i = 0; i < tagName.length; i++) {
@@ -35,14 +39,14 @@ function getTagBadgeClass(tagName: string): string {
 
 export function resolveTagColorHex(tag: { name: string; colorIndex?: number }): string {
   if (tag.colorIndex != null) {
-    return TAG_COLOR_HEX[tag.colorIndex % TAG_COLOR_HEX.length];
+    return TAG_COLOR_HEX[normalizeColorIndex(tag.colorIndex, TAG_COLOR_HEX.length)];
   }
   return getTagColorHex(tag.name);
 }
 
 export function resolveTagBadgeClasses(tag: { name: string; colorIndex?: number }): string {
   if (tag.colorIndex != null) {
-    return TAG_BADGE_CLASS[tag.colorIndex % TAG_BADGE_CLASS.length];
+    return TAG_BADGE_CLASS[normalizeColorIndex(tag.colorIndex, TAG_BADGE_CLASS.length)];
   }
   return getTagBadgeClass(tag.name);
 }

@@ -81,7 +81,9 @@
     </div>
 
     <div class="mb-4 flex gap-2">
+      <label for="new-tag-name" class="sr-only">New tag name</label>
       <input
+        id="new-tag-name"
         type="text"
         bind:value={newTagName}
         placeholder="New tag name"
@@ -109,6 +111,7 @@
               <input
                 type="text"
                 value={tag.name}
+                aria-label="Tag name for {tag.name}"
                 onblur={(event) => handleRename(tag, (event.target as HTMLInputElement).value)}
                 class="block min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm"
               />

@@ -1,9 +1,9 @@
 import type { IdGenerator } from '$lib/application/ports/IdGenerator';
 import type { TagRepository } from '$lib/application/ports/TagRepository';
 import { normalizeStudentTags } from '$lib/domain/student';
-import { createTag } from '$lib/domain/tag';
 import { randomColorIndex } from '$lib/utils/tagColors';
-import { ok, err, type Result } from '$lib/types/result';
+import { isErr, ok, err, type Result } from '$lib/types/result';
+import { createTagUseCase } from './createTag';
 
 export interface ResolveOrCreateTagsForProgramInput {
   programId: string;
@@ -39,15 +39,38 @@ export async function resolveOrCreateTagsForProgram(
         continue;
       }
 
-      const tag = createTag({
-        id: deps.idGenerator.generateId(),
-        programId: input.programId,
-        name,
-        colorIndex: randomColorIndex()
-      });
-      await deps.tagRepo.save(tag);
-      tagsByName.set(key, { id: tag.id });
-      resolvedTagIds.push(tag.id);
+      const createResult = await createTagUseCase(
+        {
+          tagRepo: deps.tagRepo,
+          idGenerator: deps.idGenerator
+        },
+        {
+          programId: input.programId,
+          name,
+          colorIndex: randomColorIndex()
+        }
+      );
+
+      if (isErr(createResult)) {
+        if (createResult.error.type === 'DUPLICATE_NAME') {
+          const refreshedTags = await deps.tagRepo.listByProgramId(input.programId);
+          const match = refreshedTags.find(
+            (tag) => tag.name.trim().toLocaleLowerCase() === key
+          );
+          if (match) {
+            tagsByName.set(key, { id: match.id });
+            resolvedTagIds.push(match.id);
+            continue;
+          }
+        }
+        return err({
+          type: 'INTERNAL_ERROR',
+          message: createResult.error.message
+        });
+      }
+
+      tagsByName.set(key, { id: createResult.value.id });
+      resolvedTagIds.push(createResult.value.id);
     }
 
     return ok(resolvedTagIds);

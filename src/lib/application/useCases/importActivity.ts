@@ -35,6 +35,7 @@ import type {
 } from '$lib/domain';
 import type { Preference, StudentPreference } from '$lib/domain/preference';
 import type { Group } from '$lib/domain/group';
+import { createTag } from '$lib/domain/tag';
 import { createPeerRequestEntry } from '$lib/domain/peerRequest';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
@@ -143,11 +144,30 @@ export async function importActivity(
         }
       }
     }
+    const importedTagsByName = new Map<string, { id: string; name: string; colorIndex?: number }>();
     if (exportData.tags) {
       for (const exportedTag of exportData.tags) {
-        if (!tagIdMap.has(exportedTag.id)) {
-          tagIdMap.set(exportedTag.id, deps.idGenerator.generateId());
+        const rawName = String(exportedTag.name ?? '').trim();
+        if (!rawName) continue;
+        const nameKey = rawName.toLocaleLowerCase();
+
+        let importedTag = importedTagsByName.get(nameKey);
+        if (!importedTag) {
+          const validatedTag = createTag({
+            id: deps.idGenerator.generateId(),
+            programId: 'import-placeholder-program',
+            name: rawName,
+            colorIndex: exportedTag.colorIndex
+          });
+          importedTag = {
+            id: validatedTag.id,
+            name: validatedTag.name,
+            colorIndex: validatedTag.colorIndex
+          };
+          importedTagsByName.set(nameKey, importedTag);
         }
+
+        tagIdMap.set(exportedTag.id, importedTag.id);
       }
     }
 
@@ -207,12 +227,10 @@ export async function importActivity(
 
     await deps.programRepo.save(program);
 
-    if (deps.tagRepo && exportData.tags && exportData.tags.length > 0) {
-      const tagsToSave: Tag[] = exportData.tags.map((tag) => ({
-        id: tagIdMap.get(tag.id) ?? deps.idGenerator.generateId(),
-        programId: program.id,
-        name: String(tag.name),
-        colorIndex: tag.colorIndex
+    if (deps.tagRepo && importedTagsByName.size > 0) {
+      const tagsToSave: Tag[] = Array.from(importedTagsByName.values()).map((tag) => ({
+        ...tag,
+        programId: program.id
       }));
       for (const tag of tagsToSave) {
         await deps.tagRepo.save(tag);

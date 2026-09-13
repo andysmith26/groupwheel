@@ -362,15 +362,18 @@
     if (!onResolveOrCreateTagIds) return;
 
     isResolvingTags = true;
-    const resolvedTagIds = await onResolveOrCreateTagIds(tagNames);
-    const seen = new Set(formTagIds);
-    const additions = resolvedTagIds.filter((tagId) => {
-      if (seen.has(tagId)) return false;
-      seen.add(tagId);
-      return true;
-    });
-    formTagIds = [...formTagIds, ...additions];
-    isResolvingTags = false;
+    try {
+      const resolvedTagIds = await onResolveOrCreateTagIds(tagNames);
+      const seen = new Set(formTagIds);
+      const additions = resolvedTagIds.filter((tagId) => {
+        if (seen.has(tagId)) return false;
+        seen.add(tagId);
+        return true;
+      });
+      formTagIds = [...formTagIds, ...additions];
+    } finally {
+      isResolvingTags = false;
+    }
     tagInput = '';
   }
 

@@ -11,6 +11,15 @@ describe('tagColors', () => {
     expect(resolveTagColorHex({ name: 'Honors', colorIndex: 1 })).toBe(TAG_COLOR_HEX[1]);
   });
 
+  it('wraps out-of-range and negative color indexes safely', () => {
+    expect(resolveTagColorHex({ name: 'Honors', colorIndex: -1 })).toBe(
+      TAG_COLOR_HEX[TAG_COLOR_HEX.length - 1]
+    );
+    expect(resolveTagColorHex({ name: 'Honors', colorIndex: TAG_COLOR_HEX.length + 1 })).toBe(
+      TAG_COLOR_HEX[1]
+    );
+  });
+
   it('falls back deterministically when colorIndex is missing', () => {
     const a = resolveTagColorHex({ name: 'Honors' });
     const b = resolveTagColorHex({ name: 'Honors' });
@@ -26,5 +35,6 @@ describe('tagColors', () => {
   it('resolves badge classes with fallback', () => {
     expect(resolveTagBadgeClasses({ name: 'Honors', colorIndex: 0 })).toContain('bg-');
     expect(resolveTagBadgeClasses({ name: 'Honors' })).toContain('bg-');
+    expect(resolveTagBadgeClasses({ name: 'Honors', colorIndex: -1 })).toContain('bg-');
   });
 });
