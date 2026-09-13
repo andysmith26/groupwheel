@@ -5,7 +5,8 @@ export const MIN_PLAUSIBLE_SCORE = 0.6;
 const AMBIGUITY_THRESHOLD = 0.15;
 
 export const HIGH_CONFIDENCE_BASE_SCORE_FLOOR = 0.75;
-export const HIGH_CONFIDENCE_MARGIN = 0.3;
+export const HIGH_CONFIDENCE_MARGIN = 0.2;
+export const HIGH_CONFIDENCE_ABSOLUTE_SCORE_FLOOR = 0.9;
 
 interface NormalizedStudentName {
   firstName: string;
@@ -77,8 +78,7 @@ export function jaroWinklerSimilarity(left: string, right: string): number {
   }
 
   const jaro =
-    (matches / left.length + matches / right.length + (matches - transpositions / 2) / matches) /
-    3;
+    (matches / left.length + matches / right.length + (matches - transpositions / 2) / matches) / 3;
   if (jaro <= 0.7) return jaro;
 
   let prefixLength = 0;
@@ -178,7 +178,17 @@ export function rankStudentCandidates(
 export function isHighConfidence(candidates: { studentId: string; baseScore: number }[]): boolean {
   const [top, second] = candidates;
   if (!top) return false;
-  const margin = top.baseScore - (second?.baseScore ?? 0);
+
+  const secondBaseScore = second?.baseScore ?? 0;
+
+  if (
+    top.baseScore >= HIGH_CONFIDENCE_ABSOLUTE_SCORE_FLOOR &&
+    secondBaseScore < HIGH_CONFIDENCE_ABSOLUTE_SCORE_FLOOR
+  ) {
+    return true;
+  }
+
+  const margin = top.baseScore - secondBaseScore;
   return top.baseScore >= HIGH_CONFIDENCE_BASE_SCORE_FLOOR && margin >= HIGH_CONFIDENCE_MARGIN;
 }
 

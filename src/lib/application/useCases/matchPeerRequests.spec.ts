@@ -120,6 +120,7 @@ describe('matchPeerRequests', () => {
     });
 
     expect(result.needsReview).toHaveLength(1);
+    expect(result.needsReview[0].warning).toBe('Multiple equally strong matches found.');
     expect(result.needsReview[0].candidates.slice(0, 2)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
