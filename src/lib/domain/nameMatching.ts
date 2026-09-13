@@ -107,6 +107,7 @@ export function buildPermutations(student: Student): string[] {
     add(`${lastName} ${preferredName}`);
     add(`${preferredName} ${lastName[0]}`);
   }
+  add(preferredName);
   add(firstName);
   add(lastName);
 

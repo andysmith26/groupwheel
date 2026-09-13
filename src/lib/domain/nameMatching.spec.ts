@@ -40,6 +40,18 @@ describe('rankStudentCandidates', () => {
       baseScore: 1
     });
   });
+
+  it('matches a standalone preferred name exactly', () => {
+    const candidates = rankStudentCandidates(normalizeName('Danny'), [
+      createStudent({ id: 'daniel', firstName: 'Daniel', preferredName: 'Danny', lastName: 'Cruz' }),
+      createStudent({ id: 'maria', firstName: 'Maria', lastName: 'Lopez' })
+    ]);
+
+    expect(candidates[0]).toMatchObject({
+      studentId: 'daniel',
+      baseScore: 1
+    });
+  });
 });
 
 describe('isHighConfidence', () => {
