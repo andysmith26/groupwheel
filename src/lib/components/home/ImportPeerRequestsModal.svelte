@@ -686,6 +686,7 @@
                       type="checkbox"
                       class="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
                       checked={isHighConfidenceSelectionEnabled(row.rowIndex)}
+                      disabled={!bestCandidateStudentId}
                       onchange={(event) =>
                         setHighConfidenceSelection(
                           row.rowIndex,
