@@ -43,7 +43,12 @@ describe('rankStudentCandidates', () => {
 
   it('matches a standalone preferred name exactly', () => {
     const candidates = rankStudentCandidates(normalizeName('Danny'), [
-      createStudent({ id: 'daniel', firstName: 'Daniel', preferredName: 'Danny', lastName: 'Cruz' }),
+      createStudent({
+        id: 'daniel',
+        firstName: 'Daniel',
+        preferredName: 'Danny',
+        lastName: 'Cruz'
+      }),
       createStudent({ id: 'maria', firstName: 'Maria', lastName: 'Lopez' })
     ]);
 
@@ -81,13 +86,31 @@ describe('isHighConfidence', () => {
     expect(
       isHighConfidence([
         { studentId: 'alice', baseScore: 0.95 },
-        { studentId: 'bob', baseScore: 0.76 }
+        { studentId: 'bob', baseScore: 0.91 }
       ])
     ).toBe(false);
   });
 
   it('is true with only one candidate above the floor', () => {
     expect(isHighConfidence([{ studentId: 'alice', baseScore: 0.8 }])).toBe(true);
+  });
+
+  it('is true for an exact match with a plausible but sub-absolute-floor runner-up', () => {
+    expect(
+      isHighConfidence([
+        { studentId: 'alice', baseScore: 1 },
+        { studentId: 'bob', baseScore: 0.72 }
+      ])
+    ).toBe(true);
+  });
+
+  it('is true when the global 0.2 margin is met below the absolute-score bypass floor', () => {
+    expect(
+      isHighConfidence([
+        { studentId: 'alice', baseScore: 0.8 },
+        { studentId: 'bob', baseScore: 0.6 }
+      ])
+    ).toBe(true);
   });
 });
 
@@ -101,5 +124,32 @@ describe('classifyNameMatch', () => {
         { studentId: 'bob', baseScore: 0.7 }
       ])
     ).toBe('NEEDS_REVIEW');
+  });
+
+  it('classifies an exact top match as high confidence despite a strong but clearly worse runner-up', () => {
+    expect(
+      classifyNameMatch([
+        { studentId: 'alice', baseScore: 1 },
+        { studentId: 'bob', baseScore: 0.72 }
+      ])
+    ).toBe('HIGH_CONFIDENCE');
+  });
+
+  it('keeps genuine near-ties above the absolute floor in needs review', () => {
+    expect(
+      classifyNameMatch([
+        { studentId: 'alice', baseScore: 0.95 },
+        { studentId: 'bob', baseScore: 0.91 }
+      ])
+    ).toBe('NEEDS_REVIEW');
+  });
+
+  it('uses the lowered global margin for sub-0.9 top scores', () => {
+    expect(
+      classifyNameMatch([
+        { studentId: 'alice', baseScore: 0.8 },
+        { studentId: 'bob', baseScore: 0.6 }
+      ])
+    ).toBe('HIGH_CONFIDENCE');
   });
 });
