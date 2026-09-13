@@ -340,7 +340,8 @@
       rowSuggestions
         .filter(
           (suggestion) =>
-            suggestion.bucket === 'HIGH_CONFIDENCE' && suggestion.bestCandidate !== undefined
+            (suggestion.bucket === 'HIGH_CONFIDENCE' || suggestion.bucket === 'NEEDS_REVIEW') &&
+            suggestion.bestCandidate !== undefined
         )
         .map((suggestion) => [suggestion.rowIndex, suggestion.bestCandidate!.studentId])
     );

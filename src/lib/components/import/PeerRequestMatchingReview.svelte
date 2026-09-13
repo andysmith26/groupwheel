@@ -93,11 +93,20 @@
   }
 
   function setManualSelection(requestId: string, studentId: string) {
-    if (!studentId) {
-      manualSelections.delete(requestId);
-    } else {
-      manualSelections.set(requestId, studentId);
+    manualSelections.set(requestId, studentId);
+  }
+
+  function getManualSelection(match: MatchedPeerRequest): string {
+    const explicitSelection = manualSelections.get(match.request.id);
+    if (explicitSelection !== undefined) {
+      return explicitSelection;
     }
+
+    if (match.bucket === 'NEEDS_REVIEW') {
+      return match.bestCandidate?.studentId ?? '';
+    }
+
+    return '';
   }
 
   function getSelectableStudents(requesterStudentId: string): Student[] {
@@ -144,7 +153,7 @@
     for (const match of [...needsReview, ...noMatch, ...invalid]) {
       const selectedStudentId = leaveAllUnresolved
         ? undefined
-        : manualSelections.get(match.request.id);
+        : getManualSelection(match);
       decisions.push(
         selectedStudentId
           ? { requestId: match.request.id, action: 'SET_MANUAL', studentId: selectedStudentId }
@@ -394,8 +403,8 @@
                         {#each match.candidates as candidate (candidate.studentId)}
                           <button
                             type="button"
-                            class="flex w-full items-start justify-between rounded-md border px-3 py-2 text-left text-sm hover:border-teal hover:bg-teal-50 {manualSelections.get(
-                              match.request.id
+                            class="flex w-full items-start justify-between rounded-md border px-3 py-2 text-left text-sm hover:border-teal hover:bg-teal-50 {getManualSelection(
+                              match
                             ) === candidate.studentId
                               ? 'border-teal bg-teal-50'
                               : 'border-gray-200'}"
@@ -435,7 +444,7 @@
                       <select
                         id={`request-${match.request.id}`}
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
-                        value={manualSelections.get(match.request.id) ?? ''}
+                        value={getManualSelection(match)}
                         onchange={(event) =>
                           setManualSelection(
                             match.request.id,
