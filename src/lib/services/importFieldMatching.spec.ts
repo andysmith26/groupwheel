@@ -46,17 +46,19 @@ describe('createImportColumnMappings', () => {
 });
 
 describe('createPeerRequestColumnMappings', () => {
-  it('suggests only Student ID and peer request fields, ignoring unsupported columns', () => {
+  it('preserves Student ID, peer request, and matching-only name fields', () => {
     expect(
       createPeerRequestColumnMappings({
-        headers: ['Student ID', 'Peer Request 1', 'Choice 2', 'First Name'],
+        headers: ['Student ID', 'Peer Request 1', 'Choice 2', 'First Name', 'Name', 'Last Name'],
         rows: []
       })
     ).toEqual([
       { columnIndex: 0, headerName: 'Student ID', mappedTo: 'studentId' },
       { columnIndex: 1, headerName: 'Peer Request 1', mappedTo: 'peerRequest1' },
       { columnIndex: 2, headerName: 'Choice 2', mappedTo: 'peerRequest2' },
-      { columnIndex: 3, headerName: 'First Name', mappedTo: 'ignore' }
+      { columnIndex: 3, headerName: 'First Name', mappedTo: 'firstName' },
+      { columnIndex: 4, headerName: 'Name', mappedTo: 'displayName' },
+      { columnIndex: 5, headerName: 'Last Name', mappedTo: 'lastName' }
     ]);
   });
 });

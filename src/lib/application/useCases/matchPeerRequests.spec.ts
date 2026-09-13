@@ -95,8 +95,9 @@ describe('matchPeerRequests', () => {
 
     const result = matchPeerRequests({ requests: [request], students: matchingStudents });
 
-    expect(result.needsReview[0].bestCandidate).toMatchObject({ studentId: 'jonathan' });
-    expect(result.needsReview[0].bestCandidate?.baseScore).toBeGreaterThan(0.8);
+    expect(result.readyToConfirm).toHaveLength(1);
+    expect(result.readyToConfirm[0].bestCandidate).toMatchObject({ studentId: 'jonathan' });
+    expect(result.readyToConfirm[0].bestCandidate?.baseScore).toBeGreaterThan(0.8);
   });
 
   it('heavily penalizes tied initial matches and retains their base scores', () => {
@@ -186,5 +187,28 @@ describe('matchPeerRequests', () => {
 
     expect(result.noMatch).toHaveLength(1);
     expect(result.noMatch[0].candidates).toEqual([]);
+  });
+
+  it('puts decisive near-exact matches into ready-to-confirm even when they are not perfect strings', () => {
+    const request = createPeerRequestEntry({
+      id: 'request-9',
+      programId: 'program-1',
+      requesterStudentId: 'bob-1',
+      rank: 1,
+      rawText: 'Alise Smith'
+    });
+
+    const result = matchPeerRequests({
+      requests: [request],
+      students: [
+        ...students,
+        createStudent({ id: 'ally', firstName: 'Alyssa', lastName: 'Stone' }),
+        createStudent({ id: 'alina', firstName: 'Alina', lastName: 'Smythe' })
+      ]
+    });
+
+    expect(result.readyToConfirm).toHaveLength(1);
+    expect(result.readyToConfirm[0].bestCandidate).toMatchObject({ studentId: 'alice' });
+    expect(result.readyToConfirm[0].bestCandidate?.baseScore).toBeGreaterThanOrEqual(0.75);
   });
 });

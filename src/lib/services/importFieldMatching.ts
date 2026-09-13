@@ -120,7 +120,11 @@ export function createPeerRequestColumnMappings(data: RawSheetData): ColumnMappi
     const suggestedField = guessImportFieldMapping(headerName);
     const mappedTo = suggestedField?.startsWith('choice')
       ? (`peerRequest${suggestedField.slice('choice'.length)}` as MappedField)
-      : suggestedField === 'studentId' || suggestedField?.startsWith('peerRequest')
+      : suggestedField === 'studentId' ||
+          suggestedField === 'displayName' ||
+          suggestedField === 'firstName' ||
+          suggestedField === 'lastName' ||
+          suggestedField?.startsWith('peerRequest')
         ? suggestedField
         : 'ignore';
 

@@ -80,6 +80,18 @@
     selectedReady.set(requestId, !(selectedReady.get(requestId) ?? true));
   }
 
+  function confirmAllReady() {
+    for (const match of readyToConfirm) {
+      selectedReady.set(match.request.id, true);
+    }
+  }
+
+  function clearAllReady() {
+    for (const match of readyToConfirm) {
+      selectedReady.set(match.request.id, false);
+    }
+  }
+
   function setManualSelection(requestId: string, studentId: string) {
     if (!studentId) {
       manualSelections.delete(requestId);
@@ -234,9 +246,29 @@
               High-confidence matches are preselected but still require confirmation.
             </p>
           </div>
-          <span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
-            {readyToConfirm.length}
-          </span>
+          <div class="flex items-center gap-3">
+            <span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
+              {readyToConfirm.length}
+            </span>
+            {#if readyToConfirm.length > 0}
+              <div class="flex items-center gap-3 text-sm">
+                <button
+                  type="button"
+                  class="text-green-800 underline hover:text-green-900"
+                  onclick={confirmAllReady}
+                >
+                  Confirm all
+                </button>
+                <button
+                  type="button"
+                  class="text-green-800 underline hover:text-green-900"
+                  onclick={clearAllReady}
+                >
+                  Clear all
+                </button>
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
 
