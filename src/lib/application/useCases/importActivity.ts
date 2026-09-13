@@ -18,6 +18,7 @@ import type {
   SessionRepository,
   PlacementRepository,
   ObservationRepository,
+  TagRepository,
   IdGenerator,
   Clock
 } from '$lib/application/ports';
@@ -29,11 +30,12 @@ import type {
   Scenario,
   Session,
   Placement,
-  Observation
+  Observation,
+  Tag
 } from '$lib/domain';
-import { normalizeStudentTags } from '$lib/domain/student';
 import type { Preference, StudentPreference } from '$lib/domain/preference';
 import type { Group } from '$lib/domain/group';
+import { createTag } from '$lib/domain/tag';
 import { createPeerRequestEntry } from '$lib/domain/peerRequest';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
@@ -90,6 +92,7 @@ export interface ImportActivityDeps {
   sessionRepo?: SessionRepository;
   placementRepo?: PlacementRepository;
   observationRepo?: ObservationRepository;
+  tagRepo?: TagRepository;
   idGenerator: IdGenerator;
   clock: Clock;
 }
@@ -126,6 +129,7 @@ export async function importActivity(
     // Map old student IDs to new IDs (to avoid conflicts with existing data)
     const studentIdMap = new Map<string, string>();
     const groupIdMap = new Map<string, string>();
+    const tagIdMap = new Map<string, string>();
 
     for (const exportedStudent of exportData.roster.students) {
       const newId = deps.idGenerator.generateId();
@@ -138,6 +142,32 @@ export async function importActivity(
           const newId = deps.idGenerator.generateId();
           groupIdMap.set(exportedGroup.id, newId);
         }
+      }
+    }
+    const importedTagsByName = new Map<string, { id: string; name: string; colorIndex?: number }>();
+    if (exportData.tags) {
+      for (const exportedTag of exportData.tags) {
+        const rawName = String(exportedTag.name ?? '').trim();
+        if (!rawName) continue;
+        const nameKey = rawName.toLocaleLowerCase();
+
+        let importedTag = importedTagsByName.get(nameKey);
+        if (!importedTag) {
+          const validatedTag = createTag({
+            id: deps.idGenerator.generateId(),
+            programId: 'import-placeholder-program',
+            name: rawName,
+            colorIndex: exportedTag.colorIndex
+          });
+          importedTag = {
+            id: validatedTag.id,
+            name: validatedTag.name,
+            colorIndex: validatedTag.colorIndex
+          };
+          importedTagsByName.set(nameKey, importedTag);
+        }
+
+        tagIdMap.set(exportedTag.id, importedTag.id);
       }
     }
 
@@ -153,9 +183,9 @@ export async function importActivity(
       lastName: s.lastName ? String(s.lastName) : undefined,
       gradeLevel: s.gradeLevel ? String(s.gradeLevel) : undefined,
       gender: s.gender ? String(s.gender) : undefined,
-      tags: normalizeStudentTags(
-        Array.isArray(s.tags) ? s.tags.filter((tag): tag is string => typeof tag === 'string') : []
-      ),
+      tagIds: Array.isArray(s.tagIds)
+        ? s.tagIds.map((oldTagId) => tagIdMap.get(oldTagId)).filter((tagId): tagId is string => !!tagId)
+        : [],
       meta: s.meta ? JSON.parse(JSON.stringify(s.meta)) : undefined
     }));
 
@@ -196,6 +226,16 @@ export async function importActivity(
     };
 
     await deps.programRepo.save(program);
+
+    if (deps.tagRepo && importedTagsByName.size > 0) {
+      const tagsToSave: Tag[] = Array.from(importedTagsByName.values()).map((tag) => ({
+        ...tag,
+        programId: program.id
+      }));
+      for (const tag of tagsToSave) {
+        await deps.tagRepo.save(tag);
+      }
+    }
 
     // -------------------------------------------------------------------------
     // Step 6: Create Preferences (with remapped student IDs)

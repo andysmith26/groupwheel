@@ -8,7 +8,8 @@ import type {
   Program,
   Scenario,
   Session,
-  Student
+  Student,
+  Tag
 } from '$lib/domain';
 import { createPeerRequestEntry, getStudentDisplayName } from '$lib/domain';
 import type { ScenarioSatisfaction } from '$lib/domain/analytics';
@@ -25,6 +26,11 @@ import {
   showToClass,
   deleteSession as deleteSessionUseCase,
   setStudentActiveStatus,
+  listTagsForProgram,
+  createTagForProgram,
+  updateTag as updateTagUseCase,
+  deleteTag as deleteTagUseCase,
+  resolveOrCreateTags,
   type PairingStat
 } from '$lib/services/appEnvUseCases';
 import { isErr } from '$lib/types/result';
@@ -104,6 +110,8 @@ export interface ClassViewVmState {
 
   // Derived lookups
   studentsById: Record<string, Student>;
+  tags: Tag[];
+  tagsById: Record<string, Tag>;
 
   // Loading state
   loading: boolean;
@@ -213,6 +221,10 @@ export interface ClassViewVm {
     createGroup: () => void;
     updateGroup: (groupId: string, changes: Partial<Pick<Group, 'name' | 'capacity'>>) => void;
     deleteGroup: (groupId: string) => void;
+    createTag: (input: { name: string; colorIndex?: number }) => Promise<boolean>;
+    updateTag: (tagId: string, changes: { name?: string; colorIndex?: number }) => Promise<boolean>;
+    deleteTag: (tagId: string) => Promise<boolean>;
+    resolveOrCreateTagIds: (rawTagNames: readonly string[] | undefined) => Promise<string[]>;
 
     // Keyboard drag-drop
     keyboardPickUp: (studentId: string, container: string, index: number) => void;
@@ -254,7 +266,7 @@ export interface ClassViewVm {
       lastName?: string;
       gradeLevel?: string;
       gender?: string;
-      tags?: string[];
+      tagIds?: string[];
     }) => Promise<{ success: boolean; studentId?: string }>;
     refreshPeerRequests: () => Promise<void>;
     createPeerRequest: (payload: {
@@ -272,7 +284,7 @@ export interface ClassViewVm {
       lastName?: string;
       gradeLevel?: string;
       gender?: string;
-      tags?: string[];
+      tagIds?: string[];
       sourceStudentId?: string;
     }) => Promise<boolean>;
     updateStudentPreference: (input: StudentPreference) => Promise<boolean>;
@@ -298,6 +310,8 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     pairingStats: [],
 
     studentsById: {},
+    tags: [],
+    tagsById: {},
 
     loading: false,
     loadError: null,
@@ -355,6 +369,24 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       map[student.id] = student;
     }
     state.studentsById = map;
+  }
+
+  function rebuildTagsById() {
+    const map: Record<string, Tag> = {};
+    for (const tag of state.tags) {
+      map[tag.id] = tag;
+    }
+    state.tagsById = map;
+  }
+
+  async function refreshTags(): Promise<void> {
+    if (!state.program) {
+      state.tags = [];
+      state.tagsById = {};
+      return;
+    }
+    state.tags = await listTagsForProgram(state.env, state.program.id);
+    rebuildTagsById();
   }
 
   /**
@@ -709,6 +741,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       detectPlaceholderStudents();
       computePreferenceState();
       computeInactiveStudentIds();
+      await refreshTags();
 
       // Load pairing stats if 2+ published sessions (for rotation avoidance)
       const publishedSessions = state.sessions.filter(
@@ -943,6 +976,53 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
   function deleteGroup(groupId: string): void {
     if (!state.editingStore) return;
     state.editingStore.deleteGroup(groupId);
+  }
+
+  async function createTag(input: { name: string; colorIndex?: number }): Promise<boolean> {
+    if (!state.program) return false;
+    const result = await createTagForProgram(state.env, {
+      programId: state.program.id,
+      name: input.name,
+      colorIndex: input.colorIndex
+    });
+    if (isErr(result)) return false;
+    await refreshTags();
+    return true;
+  }
+
+  async function updateTagAction(
+    tagId: string,
+    changes: { name?: string; colorIndex?: number }
+  ): Promise<boolean> {
+    const result = await updateTagUseCase(state.env, {
+      tagId,
+      ...changes
+    });
+    if (isErr(result)) return false;
+    await refreshTags();
+    return true;
+  }
+
+  async function deleteTagAction(tagId: string): Promise<boolean> {
+    const result = await deleteTagUseCase(state.env, { tagId });
+    if (isErr(result)) return false;
+    if (state.program && state.pool) {
+      state.students = await state.env.studentRepo.getByIds(state.pool.memberIds);
+      rebuildStudentsById();
+    }
+    await refreshTags();
+    return true;
+  }
+
+  async function resolveOrCreateTagIds(rawTagNames: readonly string[] | undefined): Promise<string[]> {
+    if (!state.program) return [];
+    const result = await resolveOrCreateTags(state.env, {
+      programId: state.program.id,
+      rawTagNames
+    });
+    if (isErr(result)) return [];
+    await refreshTags();
+    return result.value;
   }
 
   // --- Group reordering ---
@@ -1237,7 +1317,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       firstName: string;
       preferredName?: string;
       lastName: string;
-      tags?: string[];
+      tagIds?: string[];
       sourceStudentId?: string;
     }>
   ): Promise<void> {
@@ -1391,6 +1471,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     lastName?: string;
     gradeLevel?: string;
     gender?: string;
+    tagIds?: string[];
     sourceStudentId?: string;
   }): Promise<{ success: boolean; studentId?: string }> {
     if (!state.pool) return { success: false };
@@ -1418,6 +1499,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     lastName?: string;
     gradeLevel?: string;
     gender?: string;
+    tagIds?: string[];
     sourceStudentId?: string;
   }): Promise<boolean> {
     const result = await updateStudentUseCase(state.env, input);
@@ -1550,6 +1632,10 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       createGroup,
       updateGroup,
       deleteGroup,
+      createTag,
+      updateTag: updateTagAction,
+      deleteTag: deleteTagAction,
+      resolveOrCreateTagIds,
       keyboardPickUp,
       keyboardDrop,
       keyboardCancel,

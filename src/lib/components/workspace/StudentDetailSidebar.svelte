@@ -9,9 +9,9 @@
   import {
     getStudentDisplayName,
     getStudentLongName,
-    normalizeStudentTags,
     type Group,
-    type Student
+    type Student,
+    type Tag
   } from '$lib/domain';
   import type { StudentPreference } from '$lib/domain/preference';
   import { createEmptyStudentPreference } from '$lib/domain/preference';
@@ -29,6 +29,7 @@
   import Skeleton from '$lib/components/ui/Skeleton.svelte';
   import { Button, InlineError } from '$lib/components/ui';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { resolveTagBadgeClasses } from '$lib/utils/tagColors';
 
   interface RecentGroupmate {
     studentName: string;
@@ -40,6 +41,8 @@
     preferences?: StudentPreference | null;
     students?: Student[];
     groups?: Group[];
+    tags?: Tag[];
+    tagsById?: Record<string, Tag>;
     peerRequestSummary?: StudentPeerRequestWorkspaceSummary | null;
     groupNameMap?: Record<string, string>;
     recentGroupmates?: RecentGroupmate[];
@@ -51,10 +54,11 @@
       lastName?: string;
       gradeLevel?: string;
       gender?: string;
-      tags?: string[];
+      tagIds?: string[];
       sourceStudentId?: string;
       preferences?: StudentPreference;
     }) => Promise<boolean>;
+    onResolveOrCreateTagIds?: (rawTagNames: readonly string[] | undefined) => Promise<string[]>;
     onAddPeerRequest?: (payload: {
       requesterStudentId: string;
       requestedStudentId: string;
@@ -83,12 +87,15 @@
     preferences = null,
     students = [],
     groups = [],
+    tags = [],
+    tagsById = {},
     peerRequestSummary = null,
     groupNameMap = {},
     recentGroupmates = [],
     mode,
     onClose,
     onSave,
+    onResolveOrCreateTagIds,
     onAddPeerRequest,
     onQuickEditPeerRequest,
     onClearPeerRequest,
@@ -123,8 +130,9 @@
   let formLastName = $state('');
   let formGradeLevel = $state('');
   let formGender = $state('');
-  let formTags = $state<string[]>([]);
+  let formTagIds = $state<string[]>([]);
   let tagInput = $state('');
+  let isResolvingTags = $state(false);
   let formSourceStudentId = $state('');
   let formLikeGroupIds = $state<string[]>([]);
   let formAvoidGroupIds = $state<string[]>([]);
@@ -145,7 +153,7 @@
         formPreferredName.trim() !== '' ||
         formLastName.trim() !== '' ||
         formSourceStudentId.trim() !== '' ||
-        formTags.length > 0
+        formTagIds.length > 0
       );
     }
     if (!student) return false;
@@ -157,7 +165,7 @@
       formLastName.trim() !== (student.lastName ?? '') ||
       formGradeLevel.trim() !== (student.gradeLevel ?? '') ||
       formGender !== (student.gender ?? '') ||
-      formTags.join('\x00') !== (student.tags ?? []).join('\x00') ||
+      formTagIds.join('\x00') !== (student.tagIds ?? []).join('\x00') ||
       formSourceStudentId.trim() !== (getSourceStudentId(student) ?? '') ||
       formLikeGroupIds.join('\x00') !== savedPrefs.likeGroupIds.join('\x00') ||
       sortStr(formAvoidGroupIds) !== sortStr(savedPrefs.avoidGroupIds) ||
@@ -186,6 +194,15 @@
       (group) => !formLikeGroupIds.includes(group.id) && !formAvoidGroupIds.includes(group.id)
     )
   );
+  const effectiveTagsById = $derived.by(() => {
+    if (Object.keys(tagsById).length > 0) return tagsById;
+    return Object.fromEntries(tags.map((tag) => [tag.id, tag]));
+  });
+  const formTags = $derived.by(() =>
+    formTagIds
+      .map((tagId) => effectiveTagsById[tagId] ?? null)
+      .filter((tag): tag is Tag => tag !== null)
+  );
 
   // Populate form when entering edit mode or switching students
   $effect(() => {
@@ -195,7 +212,7 @@
       formLastName = student.lastName ?? '';
       formGradeLevel = student.gradeLevel ?? '';
       formGender = student.gender ?? '';
-      formTags = [...(student.tags ?? [])];
+      formTagIds = [...(student.tagIds ?? [])];
       tagInput = '';
       formSourceStudentId = getSourceStudentId(student) ?? '';
       const savedPreferences = preferences ?? createEmptyStudentPreference(student.id);
@@ -210,7 +227,7 @@
       formLastName = '';
       formGradeLevel = '';
       formGender = '';
-      formTags = [];
+      formTagIds = [];
       tagInput = '';
       formSourceStudentId = '';
       formLikeGroupIds = [];
@@ -281,7 +298,7 @@
       lastName: formLastName.trim() || undefined,
       gradeLevel: formGradeLevel.trim() || undefined,
       gender: formGender.trim() || undefined,
-      tags: formTags,
+      tagIds: formTagIds,
       sourceStudentId: formSourceStudentId.trim() || undefined,
       preferences:
         mode === 'edit' && student
@@ -333,14 +350,38 @@
       : formAvoidStudentIds.filter((id) => id !== studentId);
   }
 
-  function addTags(rawTags: string = tagInput): void {
-    const tagsToAdd = rawTags.split(/[,;|]/);
-    formTags = normalizeStudentTags([...formTags, ...tagsToAdd]);
+  async function addTags(rawTags: string = tagInput): Promise<void> {
+    const tagNames = rawTags
+      .split(/[,;|]/)
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    if (tagNames.length === 0) {
+      tagInput = '';
+      return;
+    }
+    if (!onResolveOrCreateTagIds) {
+      tagInput = '';
+      return;
+    }
+
+    isResolvingTags = true;
+    try {
+      const resolvedTagIds = await onResolveOrCreateTagIds(tagNames);
+      const seen = new Set(formTagIds);
+      const additions = resolvedTagIds.filter((tagId) => {
+        if (seen.has(tagId)) return false;
+        seen.add(tagId);
+        return true;
+      });
+      formTagIds = [...formTagIds, ...additions];
+    } finally {
+      isResolvingTags = false;
+    }
     tagInput = '';
   }
 
-  function removeTag(tag: string): void {
-    formTags = formTags.filter((existing) => existing !== tag);
+  function removeTag(tagId: string): void {
+    formTagIds = formTagIds.filter((existing) => existing !== tagId);
   }
 
   function handleFormKeydown(e: KeyboardEvent) {
@@ -350,7 +391,7 @@
       e.target.id === 'student-tags'
     ) {
       e.preventDefault();
-      addTags();
+      void addTags();
       return;
     }
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -613,30 +654,30 @@
               bind:value={tagInput}
               placeholder="e.g. Honors, ELL"
               class="block min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none"
-              onblur={() => addTags()}
+              onblur={() => void addTags()}
             />
             <button
               type="button"
-              onclick={() => addTags()}
-              disabled={!tagInput.trim()}
+              onclick={() => void addTags()}
+              disabled={!tagInput.trim() || isResolvingTags}
               class="rounded-md border border-gray-300 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Add
+              {isResolvingTags ? 'Adding…' : 'Add'}
             </button>
           </div>
           <p class="mt-1 text-[11px] text-gray-500">Press Enter or separate tags with commas.</p>
           {#if formTags.length > 0}
             <div class="mt-2 flex flex-wrap gap-1.5" aria-label="Student tags">
-              {#each formTags as tag (tag)}
+              {#each formTags as tag (tag.id)}
                 <span
-                  class="inline-flex items-center gap-1 rounded-full bg-teal-50 py-1 pr-1 pl-2 text-xs font-medium text-teal-800"
+                  class="inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-2 text-xs font-medium {resolveTagBadgeClasses(tag)}"
                 >
-                  {tag}
+                  {tag.name}
                   <button
                     type="button"
-                    onclick={() => removeTag(tag)}
-                    aria-label="Remove tag {tag}"
-                    class="rounded-full p-0.5 text-teal-600 hover:bg-teal-100 hover:text-teal-900"
+                    onclick={() => removeTag(tag.id)}
+                    aria-label="Remove tag {tag.name}"
+                    class="rounded-full p-0.5 hover:bg-black/10"
                   >
                     <svg
                       class="h-3 w-3"

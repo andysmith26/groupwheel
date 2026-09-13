@@ -9,3 +9,4 @@ export * from './InMemoryPlacementRepository';
 export * from './InMemoryPreferenceRepository';
 export * from './InMemoryPeerRequestRepository';
 export * from './InMemoryObservationRepository';
+export * from './InMemoryTagRepository';

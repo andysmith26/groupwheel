@@ -22,6 +22,7 @@ export * from './placement';
 export * from './preference';
 export * from './peerRequest';
 export * from './observation';
+export * from './tag';
 export * from './analytics';
 export * from './import';
 export * from './sheetConnection';
@@ -55,3 +56,4 @@ export type { Session, SessionStatus } from './session';
 export type { Placement, PlacementType } from './placement';
 
 export type { Observation, ObservationSentiment } from './observation';
+export type { Tag } from './tag';

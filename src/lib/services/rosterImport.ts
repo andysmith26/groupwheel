@@ -19,6 +19,8 @@ export class SheetDataError extends Error {
 
 export interface RosterData {
   studentsById: Record<string, Student>;
+  /** Raw tag name strings parsed from source data, keyed by student ID. */
+  rawTagsByStudentId: Record<string, string[]>;
   preferencesById: Record<string, StudentPreference>;
   studentOrder: string[];
   /** @deprecated No longer used - kept for API compatibility */
@@ -211,6 +213,7 @@ function tryParseTabSeparatedRows(lines: string[]): ParsedRosterStudent[] | null
 
 function buildRosterData(students: ParsedRosterStudent[]): RosterData {
   const map: Record<string, Student> = {};
+  const rawTagsByStudentId: Record<string, string[]> = {};
   const order: string[] = [];
   const prefMap: Record<string, StudentPreference> = {};
 
@@ -224,10 +227,13 @@ function buildRosterData(students: ParsedRosterStudent[]): RosterData {
       firstName: student.firstName,
       preferredName: student.preferredName,
       lastName: student.lastName,
-      tags: student.tags,
+      tagIds: [],
       gender: '',
       meta: setSourceStudentId(undefined, student.sourceStudentId)
     };
+    if (student.tags && student.tags.length > 0) {
+      rawTagsByStudentId[student.id] = [...student.tags];
+    }
     order.push(student.id);
 
     prefMap[student.id] = {
@@ -241,6 +247,7 @@ function buildRosterData(students: ParsedRosterStudent[]): RosterData {
 
   return {
     studentsById: map,
+    rawTagsByStudentId,
     preferencesById: prefMap,
     studentOrder: order,
     unknownFriendIds: new Set() // Deprecated, kept for compatibility
@@ -263,6 +270,7 @@ export function parseRosterFromSheets(
   _connections: Record<string, string[]> = {} // Deprecated parameter, ignored
 ): RosterData {
   const map: Record<string, Student> = {};
+  const rawTagsByStudentId: Record<string, string[]> = {};
   const prefMap: Record<string, StudentPreference> = {};
   const order: string[] = [];
 
@@ -280,9 +288,13 @@ export function parseRosterFromSheets(
       firstName: student.firstName,
       preferredName: student.preferredName,
       lastName: student.lastName,
-      tags: normalizeStudentTags(student.tags),
+      tagIds: [],
       gender: student.gender
     };
+    const normalizedTags = normalizeStudentTags(student.tags);
+    if (normalizedTags.length > 0) {
+      rawTagsByStudentId[id] = normalizedTags;
+    }
 
     // Create empty preference - group requests will be imported separately
     prefMap[id] = {
@@ -298,6 +310,7 @@ export function parseRosterFromSheets(
 
   return {
     studentsById: map,
+    rawTagsByStudentId,
     preferencesById: prefMap,
     studentOrder: order,
     unknownFriendIds: new Set() // Deprecated, kept for compatibility

@@ -59,9 +59,9 @@ export interface Student {
   gender?: string;
 
   /**
-   * Optional teacher-defined labels for organizing or identifying a student.
+   * Optional program-scoped Tag IDs assigned to this student.
    */
-  tags?: string[];
+  tagIds?: string[];
 
   /**
    * Arbitrary metadata collected from roster import.
@@ -85,7 +85,7 @@ export function createStudent(input: {
   lastName?: string;
   gradeLevel?: string;
   gender?: string;
-  tags?: string[];
+  tagIds?: string[];
   meta?: Record<string, unknown>;
 }): Student {
   if (!input.id || typeof input.id !== 'string') {
@@ -103,7 +103,7 @@ export function createStudent(input: {
     lastName: input.lastName?.trim(),
     gradeLevel: input.gradeLevel?.trim(),
     gender: input.gender?.trim(),
-    tags: normalizeStudentTags(input.tags),
+    tagIds: input.tagIds ? [...input.tagIds] : [],
     meta: input.meta
   };
 }

@@ -11,6 +11,7 @@ import type {
   PeerRequestRepository,
   GroupTemplateRepository,
   ObservationRepository,
+  TagRepository,
   IdGenerator,
   Clock,
   GroupingAlgorithm,
@@ -32,6 +33,7 @@ import {
   InMemoryPeerRequestRepository,
   InMemoryObservationRepository
 } from '$lib/infrastructure/repositories/inMemory';
+import { InMemoryTagRepository } from '$lib/infrastructure/repositories/inMemory/InMemoryTagRepository';
 import { InMemoryGroupTemplateRepository } from '$lib/infrastructure/repositories/inMemory/InMemoryGroupTemplateRepository';
 import {
   IndexedDbScenarioRepository,
@@ -45,7 +47,8 @@ import {
   IndexedDbStaffRepository,
   IndexedDbPreferenceRepository,
   IndexedDbPeerRequestRepository,
-  IndexedDbObservationRepository
+  IndexedDbObservationRepository,
+  IndexedDbTagRepository
 } from '$lib/infrastructure/repositories/indexedDb';
 import {
   SyncedStudentRepository,
@@ -79,7 +82,8 @@ import type {
   Preference,
   PeerRequestEntry,
   GroupTemplate,
-  Observation
+  Observation,
+  Tag
 } from '$lib/domain';
 /**
  * The full set of dependencies needed by MVP use cases, backed by in-memory implementations.
@@ -101,6 +105,7 @@ export interface InMemoryEnvironment {
   peerRequestRepo: PeerRequestRepository;
   groupTemplateRepo: GroupTemplateRepository;
   observationRepo: ObservationRepository;
+  tagRepo: TagRepository;
   idGenerator: IdGenerator;
   clock: Clock;
   groupingAlgorithm: GroupingAlgorithm;
@@ -171,6 +176,7 @@ export function createInMemoryEnvironment(
     peerRequests?: PeerRequestEntry[];
     groupTemplates?: GroupTemplate[];
     observations?: Observation[];
+    tags?: Tag[];
   },
   options?: CreateEnvironmentOptions
 ): InMemoryEnvironment {
@@ -222,6 +228,9 @@ export function createInMemoryEnvironment(
   const baseObservationRepo: ObservationRepository = useIndexedDb
     ? new IndexedDbObservationRepository()
     : new InMemoryObservationRepository(seed?.observations ?? []);
+  const baseTagRepo: TagRepository = useIndexedDb
+    ? new IndexedDbTagRepository()
+    : new InMemoryTagRepository(seed?.tags ?? []);
   const baseStudentIdentityRepo: StudentIdentityRepository = useIndexedDb
     ? new IndexedDbStudentIdentityRepository()
     : new InMemoryStudentIdentityRepository();
@@ -260,6 +269,7 @@ export function createInMemoryEnvironment(
 
   // Observation repo doesn't have sync wrapper yet - use base directly
   const observationRepo: ObservationRepository = baseObservationRepo;
+  const tagRepo: TagRepository = baseTagRepo;
 
   // StudentIdentity repo doesn't have sync wrapper yet - use base directly
   const studentIdentityRepo: StudentIdentityRepository = baseStudentIdentityRepo;
@@ -325,6 +335,7 @@ export function createInMemoryEnvironment(
     peerRequestRepo,
     groupTemplateRepo,
     observationRepo,
+    tagRepo,
     idGenerator,
     clock,
     groupingAlgorithm,

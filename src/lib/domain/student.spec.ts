@@ -226,14 +226,14 @@ describe('createStudent', () => {
     expect(student.meta).toEqual(meta);
   });
 
-  it('normalizes student tags by trimming and removing case-insensitive duplicates', () => {
+  it('stores provided tag ids and keeps tag-name normalization helper behavior', () => {
     const student = createStudent({
       id: 'student-1',
       firstName: 'John',
-      tags: [' Honors ', '', 'ELL', 'honors', '  ELL  ', 'Student Leader']
+      tagIds: ['tag-1', 'tag-2']
     });
 
-    expect(student.tags).toEqual(['Honors', 'ELL', 'Student Leader']);
+    expect(student.tagIds).toEqual(['tag-1', 'tag-2']);
     expect(normalizeStudentTags(['  A  ', 'a', 'B'])).toEqual(['A', 'B']);
   });
 });

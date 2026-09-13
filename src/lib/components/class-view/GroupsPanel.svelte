@@ -5,7 +5,7 @@
    * See: project definition.md — WP5, WP6
    */
 
-  import type { Group, Student } from '$lib/domain';
+  import type { Group, Student, Tag } from '$lib/domain';
   import type { StudentPeerRequestWorkspaceSummary } from '$lib/application/useCases/getPeerRequestWorkspaceSummary';
   import type { KeyboardMoveDirection } from '$lib/components/editing/DraggableStudentCard.svelte';
   import { Alert } from '$lib/components/ui';
@@ -73,6 +73,7 @@
     studentPeerRequestSummaryById?: Map<string, StudentPeerRequestWorkspaceSummary>;
     selectedStudentRequestedPeerIds?: string[] | null;
     onOpenStudentDetail?: (studentId: string) => void;
+    tagsById?: Record<string, Tag>;
 
     // Read-only mode (published session)
     readOnly?: boolean;
@@ -112,7 +113,8 @@
     clickedStudentId = null,
     studentPeerRequestSummaryById = new Map(),
     selectedStudentRequestedPeerIds = null,
-    onOpenStudentDetail
+    onOpenStudentDetail,
+    tagsById = {}
   }: Props = $props();
 
   /** Drop handler for the bench zone — appends to end of unassigned list */
@@ -237,6 +239,7 @@
         {studentPeerRequestSummaryById}
         {selectedStudentRequestedPeerIds}
         {onOpenStudentDetail}
+        {tagsById}
         {clickedStudentId}
       />
     {/snippet}
@@ -269,6 +272,7 @@
             {studentPeerRequestSummaryById}
             {selectedStudentRequestedPeerIds}
             {onOpenStudentDetail}
+            {tagsById}
             vertical
           />
         </div>
@@ -355,6 +359,7 @@
                 {studentPeerRequestSummaryById}
                 {selectedStudentRequestedPeerIds}
                 {onOpenStudentDetail}
+                {tagsById}
                 compact
               />
             </div>

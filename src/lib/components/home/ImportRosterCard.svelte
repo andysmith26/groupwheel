@@ -20,6 +20,7 @@
     importActivity,
     importPeerRequestsFromMapping,
     matchPeerRequests,
+    resolveOrCreateTags,
     savePeerRequests
   } from '$lib/services/appEnvUseCases';
   import type { SeedingStrategy } from '$lib/services/appEnvUseCases';
@@ -279,6 +280,7 @@
     }
 
     const name = activityName.trim() || `Imported Class (${validation.validRows.length})`;
+    const programId = env.idGenerator.generateId();
     const builtStudents = validation.validRows
       .filter((row) => row.student)
       .map((row) => {
@@ -289,10 +291,22 @@
           firstName: student.firstName,
           preferredName: student.preferredName,
           lastName: student.lastName ?? '',
-          tags: student.tags,
+          rawTags: student.tags,
+          tagIds: [] as string[],
           displayName: getStudentLongName(student)
         };
       });
+
+    for (const student of builtStudents) {
+      const resolvedTags = await resolveOrCreateTags(env, {
+        programId,
+        rawTagNames: student.rawTags
+      });
+      if (isErr(resolvedTags)) {
+        throw new Error(`Failed to resolve tags for "${student.displayName}": ${resolvedTags.error.message}`);
+      }
+      student.tagIds = resolvedTags.value;
+    }
 
     const rowStudentLinks = validation.validRows
       .filter((row) => row.student)
@@ -318,6 +332,7 @@
 
     const result = await createGroupingActivity(env, {
       activityName: name,
+      programId,
       students: builtStudents,
       preferences: builtPreferences,
       groupNames: groupNames.length > 0 ? groupNames : undefined,
@@ -337,7 +352,7 @@
       firstName: student.firstName,
       preferredName: student.preferredName,
       lastName: student.lastName || undefined,
-      tags: student.tags
+      tagIds: student.tagIds
     }));
 
     if (

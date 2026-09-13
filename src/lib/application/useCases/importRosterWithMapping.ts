@@ -198,7 +198,7 @@ export async function importRosterWithMapping(
         firstName: row.student.firstName,
         preferredName: row.student.preferredName,
         lastName: row.student.lastName,
-        tags: row.student.tags,
+        tagIds: [],
         meta: {
           importRowIndex: row.rowIndex
         }

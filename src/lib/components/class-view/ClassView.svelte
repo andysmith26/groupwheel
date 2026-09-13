@@ -12,7 +12,7 @@
   import { goto } from '$app/navigation';
   import { getAppEnvContext } from '$lib/contexts/appEnv';
   import { createClassViewVm } from '$lib/stores/class-view-vm.svelte';
-  import { addStudentToPool } from '$lib/services/appEnvUseCases';
+  import { addStudentToPool, resolveOrCreateTags } from '$lib/services/appEnvUseCases';
   import { isErr } from '$lib/types/result';
   import { exportGroupsToColumnsTSV } from '$lib/utils/csvExport';
   import type { SortBy } from '$lib/utils/csvExport';
@@ -34,6 +34,7 @@
   import StudentDetailSidebar from '$lib/components/workspace/StudentDetailSidebar.svelte';
   import HistoryPopover from '$lib/components/workspace/HistoryPopover.svelte';
   import EditGroupModal from './EditGroupModal.svelte';
+  import ManageTagsPanel from './ManageTagsPanel.svelte';
   import RemoveStudentConfirmDialog from './RemoveStudentConfirmDialog.svelte';
   import DeleteSessionConfirmDialog from './DeleteSessionConfirmDialog.svelte';
   import NewSessionConfirmDialog from './NewSessionConfirmDialog.svelte';
@@ -122,6 +123,8 @@
   let program = $derived(vm.state.program);
   let students = $derived(vm.state.students);
   let studentsById = $derived(vm.state.studentsById);
+  let tags = $derived(vm.state.tags);
+  let tagsById = $derived(vm.state.tagsById);
   let view = $derived(vm.state.view);
   let pool = $derived(vm.state.pool);
   let peerRequestSummaryByStudentId = $derived(vm.state.peerRequestSummaryByStudentId);
@@ -404,6 +407,7 @@
       const exportResult = prepareWorkspaceExport(env, {
         program,
         students,
+        tags,
         preferences: vm.state.preferences,
         peerRequests,
         groups: view.groups,
@@ -443,6 +447,11 @@
 
   function handleEditGroupDelete(groupId: string) {
     vm.actions.deleteGroup(groupId);
+  }
+
+  let manageTagsOpen = $state(false);
+  function handleOpenManageTags() {
+    manageTagsOpen = true;
   }
 
   // Sort order dialog for export/print/copy actions
@@ -582,7 +591,7 @@
     lastName?: string;
     gradeLevel?: string;
     gender?: string;
-    tags?: string[];
+    tagIds?: string[];
     sourceStudentId?: string;
     preferences?: import('$lib/domain/preference').StudentPreference;
   }): Promise<boolean> {
@@ -696,7 +705,7 @@
       firstName: string;
       preferredName?: string;
       lastName: string;
-      tags?: string[];
+      rawTags?: string[];
       sourceStudentId?: string;
     }> = [];
 
@@ -707,11 +716,12 @@
           : parseRosterFromPaste(pastedText);
       parsedStudents = rosterData.studentOrder.map((id) => {
         const student = rosterData.studentsById[id];
+        const rawTags = rosterData.rawTagsByStudentId[id];
         return {
           firstName: student?.firstName ?? '',
           preferredName: student?.preferredName,
           lastName: student?.lastName ?? '',
-          tags: student?.tags,
+          rawTags,
           sourceStudentId: student ? getSourceStudentId(student) : undefined
         };
       });
@@ -735,13 +745,50 @@
     const errors: string[] = [];
     const addedStudents: typeof students = [];
 
-    for (const { firstName, preferredName, lastName, tags, sourceStudentId } of parsedStudents) {
+    const studentsToAdd: Array<{
+      firstName: string;
+      preferredName?: string;
+      lastName?: string;
+      sourceStudentId?: string;
+      tagIds: string[];
+    }> = [];
+    for (const { firstName, preferredName, lastName, rawTags, sourceStudentId } of parsedStudents) {
+      if (!program) {
+        studentsToAdd.push({
+          firstName,
+          preferredName,
+          lastName,
+          sourceStudentId,
+          tagIds: []
+        });
+        continue;
+      }
+
+      const resolvedTags = await resolveOrCreateTags(env, {
+        programId: program.id,
+        rawTagNames: rawTags
+      });
+      if (isErr(resolvedTags)) {
+        throw new Error(
+          `Failed to resolve tags for "${firstName} ${lastName}": ${resolvedTags.error.message}`
+        );
+      }
+      studentsToAdd.push({
+        firstName,
+        preferredName,
+        lastName,
+        sourceStudentId,
+        tagIds: resolvedTags.value
+      });
+    }
+
+    for (const { firstName, preferredName, lastName, sourceStudentId, tagIds } of studentsToAdd) {
       const result = await addStudentToPool(env, {
         poolId: pool.id,
         firstName,
         preferredName,
         lastName,
-        tags,
+        tagIds,
         sourceStudentId
       });
 
@@ -815,6 +862,7 @@
           onLookbackChange={(s) => vm.actions.setLookbackSessions(s)}
           onEditGroup={handleEditGroup}
           onAddGroup={handleCreateGroup}
+          onManageTags={handleOpenManageTags}
           onCopyForSpreadsheet={handleCopyForSpreadsheet}
           onSave={handleMoveToComputer}
           onPrint={handlePrint}
@@ -844,6 +892,7 @@
         onLookbackChange={(s) => vm.actions.setLookbackSessions(s)}
         onEditGroup={handleEditGroup}
         onAddGroup={handleCreateGroup}
+        onManageTags={handleOpenManageTags}
         onCopyForSpreadsheet={handleCopyForSpreadsheet}
         onSave={handleMoveToComputer}
         onPrint={handlePrint}
@@ -943,6 +992,7 @@
         <GroupsPanel
           groups={displayGroups}
           {studentsById}
+          {tagsById}
           studentCount={students.length}
           readOnly={isPublished || isViewingHistory}
           onGenerate={(groupCount) => vm.actions.generateGroups(groupCount)}
@@ -1107,11 +1157,14 @@
         preferences={selectedStudentPreferences}
         {students}
         groups={view?.groups ?? []}
+        {tags}
+        {tagsById}
         peerRequestSummary={selectedStudentPeerRequestSummary}
         {groupNameMap}
         recentGroupmates={selectedStudentRecentGroupmates}
         onClose={handleCloseStudentDetail}
         onSave={handleSaveStudent}
+        onResolveOrCreateTagIds={vm.actions.resolveOrCreateTagIds}
         onAddPeerRequest={handleCreatePeerRequest}
         onQuickEditPeerRequest={handleQuickEditPeerRequest}
         onClearPeerRequest={handleClearPeerRequest}
@@ -1178,5 +1231,16 @@
     onSave={handleEditGroupSave}
     onDelete={handleEditGroupDelete}
     onClose={() => (editingGroupId = null)}
+  />
+{/if}
+
+{#if manageTagsOpen && program}
+  <ManageTagsPanel
+    {program}
+    {tags}
+    onClose={() => (manageTagsOpen = false)}
+    onCreateTag={(input) => vm.actions.createTag(input)}
+    onUpdateTag={(tagId, changes) => vm.actions.updateTag(tagId, changes)}
+    onDeleteTag={(tagId) => vm.actions.deleteTag(tagId)}
   />
 {/if}

@@ -20,6 +20,7 @@ export * from './PreferenceRepository';
 export * from './PeerRequestRepository';
 export * from './GroupTemplateRepository';
 export * from './ObservationRepository';
+export * from './TagRepository';
 
 // Service ports
 export * from './IdGenerator';
