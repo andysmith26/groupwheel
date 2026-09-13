@@ -46,7 +46,8 @@ export function extractPeerRequestTextsFromCells(
 
 export function extractMatchNameFromCells(cells: string[], mappings: ColumnMapping[]): string {
   const displayNameIdx = getMappedColumnIndex(mappings, 'displayName');
-  if (displayNameIdx !== null) return (cells[displayNameIdx] ?? '').trim();
+  const displayName = displayNameIdx !== null ? (cells[displayNameIdx] ?? '').trim() : '';
+  if (displayName) return displayName;
   const firstNameIdx = getMappedColumnIndex(mappings, 'firstName');
   const lastNameIdx = getMappedColumnIndex(mappings, 'lastName');
   const firstName = firstNameIdx !== null ? (cells[firstNameIdx] ?? '').trim() : '';

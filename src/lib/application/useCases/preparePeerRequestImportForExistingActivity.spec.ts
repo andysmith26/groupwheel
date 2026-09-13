@@ -109,6 +109,19 @@ describe('extractMatchNameFromCells', () => {
     );
   });
 
+  it('falls back to first and last names when the display name cell is blank', () => {
+    const mappings: ColumnMapping[] = [
+      { columnIndex: 0, headerName: 'Student ID', mappedTo: 'studentId' },
+      { columnIndex: 1, headerName: 'Name', mappedTo: 'displayName' },
+      { columnIndex: 2, headerName: 'First Name', mappedTo: 'firstName' },
+      { columnIndex: 3, headerName: 'Last Name', mappedTo: 'lastName' }
+    ];
+
+    expect(extractMatchNameFromCells(['stu-1', '   ', 'Alice', 'Smith'], mappings)).toBe(
+      'Alice Smith'
+    );
+  });
+
   it('combines first and last names when no display name is mapped', () => {
     const mappings: ColumnMapping[] = [
       { columnIndex: 0, headerName: 'Student ID', mappedTo: 'studentId' },
