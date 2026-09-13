@@ -226,6 +226,15 @@ export async function createGroupingActivity(
   // -------------------------------------------------------------------------
 
   const programId = input.programId ?? deps.idGenerator.generateId();
+  if (input.programId) {
+    const existingProgram = await deps.programRepo.getById(input.programId);
+    if (existingProgram) {
+      return err({
+        type: 'PROGRAM_CREATION_FAILED',
+        message: `Program id already exists: ${input.programId}`
+      });
+    }
+  }
   const program: Program = {
     id: programId,
     name: input.activityName,

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { fade, scale } from 'svelte/transition';
   import type { Program, Tag } from '$lib/domain';
   import { TAG_COLOR_HEX, resolveTagColorHex } from '$lib/utils/tagColors';
@@ -18,6 +19,25 @@
   let newTagName = $state('');
   let error = $state<string | null>(null);
   let savingTagId = $state<string | null>(null);
+  let newTagInput = $state<HTMLInputElement | null>(null);
+
+  const TAG_COLOR_NAMES = ['Teal', 'Blue', 'Purple', 'Red', 'Amber', 'Emerald', 'Indigo', 'Pink'];
+
+  function colorNameForIndex(index: number): string {
+    const normalized = ((index % TAG_COLOR_NAMES.length) + TAG_COLOR_NAMES.length) % TAG_COLOR_NAMES.length;
+    return TAG_COLOR_NAMES[normalized] ?? `Color ${normalized + 1}`;
+  }
+
+  onMount(() => {
+    requestAnimationFrame(() => newTagInput?.focus());
+  });
+
+  function handleDialogKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onClose();
+    }
+  }
 
   async function handleCreateTag() {
     const name = newTagName.trim();
@@ -63,9 +83,11 @@
   class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
   transition:fade={{ duration: 150 }}
   onclick={onClose}
+  onkeydown={handleDialogKeydown}
   role="dialog"
   aria-modal="true"
   aria-label="Manage tags"
+  tabindex="-1"
 >
   <div
     class="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl"
@@ -84,6 +106,7 @@
       <label for="new-tag-name" class="sr-only">New tag name</label>
       <input
         id="new-tag-name"
+        bind:this={newTagInput}
         type="text"
         bind:value={newTagName}
         placeholder="New tag name"
@@ -133,12 +156,15 @@
                     : 'border-transparent hover:scale-105'}"
                   style="background-color: {hex}"
                   onclick={() => handleSetColor(tag, i)}
-                  aria-label={`Color ${i + 1} for ${tag.name}`}
+                  aria-label={`${TAG_COLOR_NAMES[i] ?? `Color ${i + 1}`} for ${tag.name}`}
                   aria-pressed={tag.colorIndex === i}
                   disabled={savingTagId === tag.id}
                 ></button>
               {/each}
             </div>
+            <p class="mt-2 text-xs text-gray-500">
+              Color: {tag.colorIndex != null ? colorNameForIndex(tag.colorIndex) : 'Auto'}
+            </p>
           </div>
         {/each}
       {/if}
