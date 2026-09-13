@@ -8,6 +8,7 @@
  */
 
 import { normalizePeerRequestText } from '$lib/domain/peerRequest';
+import type { Tag } from '$lib/domain/tag';
 import type {
   PeerRequestCandidate,
   PeerRequestResolutionAuditAction,
@@ -26,8 +27,9 @@ import type { ProgramType } from '$lib/domain/program';
  * v1: roster, preferences, scenario (groups)
  * v2: adds sessions, placements, observations, pool metadata
  * v3: adds peer requests
+ * v4: adds program tag registry and student tagIds
  */
-export const ACTIVITY_FILE_VERSION = 3;
+export const ACTIVITY_FILE_VERSION = 4;
 
 /**
  * Student data for export (subset of domain Student).
@@ -39,7 +41,7 @@ export interface ExportedStudent {
   lastName?: string;
   gradeLevel?: string;
   gender?: string;
-  tags?: string[];
+  tagIds?: string[];
   meta?: Record<string, unknown>;
 }
 
@@ -155,6 +157,7 @@ export interface ActivityExportData {
   roster: {
     students: ExportedStudent[];
   };
+  tags?: Tag[];
   preferences: ExportedPreference[];
   scenario?: ExportedScenario;
   // v2 fields
@@ -383,12 +386,23 @@ export function parseActivityFile(jsonString: string): ActivityFileValidation {
         lastName: typeof s.lastName === 'string' ? s.lastName.trim() : undefined,
         gradeLevel: typeof s.gradeLevel === 'string' ? s.gradeLevel.trim() : undefined,
         gender: typeof s.gender === 'string' ? s.gender.trim() : undefined,
-        tags: Array.isArray(s.tags)
-          ? s.tags.filter((tag): tag is string => typeof tag === 'string')
+        tagIds: Array.isArray(s.tagIds)
+          ? s.tagIds.filter((tagId): tagId is string => typeof tagId === 'string')
           : undefined,
         meta: s.meta && typeof s.meta === 'object' ? (s.meta as Record<string, unknown>) : undefined
       }))
     },
+    tags: Array.isArray(data.tags)
+      ? (data.tags as Record<string, unknown>[])
+          .filter((tag) => typeof tag.id === 'string' && typeof tag.programId === 'string')
+          .map((tag) => ({
+            id: String(tag.id),
+            programId: String(tag.programId),
+            name: typeof tag.name === 'string' ? tag.name : '',
+            colorIndex: isValidColorIndex(tag.colorIndex) ? tag.colorIndex : undefined
+          }))
+          .filter((tag) => tag.name.trim().length > 0)
+      : undefined,
     preferences: Array.isArray(data.preferences)
       ? (data.preferences as Record<string, unknown>[]).map((p) => ({
           studentId: typeof p.studentId === 'string' ? p.studentId : '',

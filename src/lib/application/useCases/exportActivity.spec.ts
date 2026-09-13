@@ -49,7 +49,8 @@ describe('exportActivity', () => {
         scenarioRepo: env.scenarioRepo,
         sessionRepo: env.sessionRepo,
         placementRepo: env.placementRepo,
-        observationRepo: env.observationRepo
+        observationRepo: env.observationRepo,
+        tagRepo: env.tagRepo
       },
       { programId: testProgram.id }
     );

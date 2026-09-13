@@ -41,7 +41,11 @@ describe('serializeActivityToJson', () => {
 
   it('should preserve all fields', () => {
     const data = validExportData();
-    data.roster.students[0].tags = ['Honors', 'ELL'];
+    data.roster.students[0].tagIds = ['tag-honors', 'tag-ell'];
+    data.tags = [
+      { id: 'tag-honors', programId: 'program-1', name: 'Honors', colorIndex: 0 },
+      { id: 'tag-ell', programId: 'program-1', name: 'ELL', colorIndex: 1 }
+    ];
     data.peerRequests = [
       {
         id: 'req-1',
@@ -69,7 +73,8 @@ describe('serializeActivityToJson', () => {
     expect(parsed.version).toBe(ACTIVITY_FILE_VERSION);
     expect(parsed.activity.name).toBe('Fall Clubs');
     expect(parsed.roster.students).toHaveLength(2);
-    expect(parsed.roster.students[0].tags).toEqual(['Honors', 'ELL']);
+    expect(parsed.roster.students[0].tagIds).toEqual(['tag-honors', 'tag-ell']);
+    expect(parsed.tags).toHaveLength(2);
     expect(parsed.peerRequests).toHaveLength(1);
   });
 });
@@ -108,7 +113,11 @@ describe('generateExportFilename', () => {
 describe('parseActivityFile', () => {
   it('should parse valid activity file', () => {
     const data = validExportData();
-    data.roster.students[0].tags = ['Honors', 'ELL'];
+    data.roster.students[0].tagIds = ['tag-honors', 'tag-ell'];
+    data.tags = [
+      { id: 'tag-honors', programId: 'program-1', name: 'Honors', colorIndex: 0 },
+      { id: 'tag-ell', programId: 'program-1', name: 'ELL', colorIndex: 1 }
+    ];
     const json = JSON.stringify(data);
     const result = parseActivityFile(json);
 
@@ -116,7 +125,22 @@ describe('parseActivityFile', () => {
     if (result.valid) {
       expect(result.data.activity.name).toBe('Fall Clubs');
       expect(result.data.roster.students).toHaveLength(2);
-      expect(result.data.roster.students[0].tags).toEqual(['Honors', 'ELL']);
+      expect(result.data.roster.students[0].tagIds).toEqual(['tag-honors', 'tag-ell']);
+      expect(result.data.tags).toHaveLength(2);
+    }
+  });
+
+  it('silently ignores legacy student.tags string arrays', () => {
+    const legacy = {
+      ...validExportData(),
+      roster: {
+        students: [{ id: 'alice', firstName: 'Alice', tags: ['Honors', 'ELL'] }]
+      }
+    };
+    const result = parseActivityFile(JSON.stringify(legacy));
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.data.roster.students[0].tagIds).toBeUndefined();
     }
   });
 

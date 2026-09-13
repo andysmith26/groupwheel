@@ -18,6 +18,7 @@ import type {
   SessionRepository,
   PlacementRepository,
   ObservationRepository,
+  TagRepository,
   IdGenerator,
   Clock
 } from '$lib/application/ports';
@@ -29,9 +30,9 @@ import type {
   Scenario,
   Session,
   Placement,
-  Observation
+  Observation,
+  Tag
 } from '$lib/domain';
-import { normalizeStudentTags } from '$lib/domain/student';
 import type { Preference, StudentPreference } from '$lib/domain/preference';
 import type { Group } from '$lib/domain/group';
 import { createPeerRequestEntry } from '$lib/domain/peerRequest';
@@ -90,6 +91,7 @@ export interface ImportActivityDeps {
   sessionRepo?: SessionRepository;
   placementRepo?: PlacementRepository;
   observationRepo?: ObservationRepository;
+  tagRepo?: TagRepository;
   idGenerator: IdGenerator;
   clock: Clock;
 }
@@ -126,6 +128,7 @@ export async function importActivity(
     // Map old student IDs to new IDs (to avoid conflicts with existing data)
     const studentIdMap = new Map<string, string>();
     const groupIdMap = new Map<string, string>();
+    const tagIdMap = new Map<string, string>();
 
     for (const exportedStudent of exportData.roster.students) {
       const newId = deps.idGenerator.generateId();
@@ -137,6 +140,13 @@ export async function importActivity(
         if (!groupIdMap.has(exportedGroup.id)) {
           const newId = deps.idGenerator.generateId();
           groupIdMap.set(exportedGroup.id, newId);
+        }
+      }
+    }
+    if (exportData.tags) {
+      for (const exportedTag of exportData.tags) {
+        if (!tagIdMap.has(exportedTag.id)) {
+          tagIdMap.set(exportedTag.id, deps.idGenerator.generateId());
         }
       }
     }
@@ -153,9 +163,9 @@ export async function importActivity(
       lastName: s.lastName ? String(s.lastName) : undefined,
       gradeLevel: s.gradeLevel ? String(s.gradeLevel) : undefined,
       gender: s.gender ? String(s.gender) : undefined,
-      tags: normalizeStudentTags(
-        Array.isArray(s.tags) ? s.tags.filter((tag): tag is string => typeof tag === 'string') : []
-      ),
+      tagIds: Array.isArray(s.tagIds)
+        ? s.tagIds.map((oldTagId) => tagIdMap.get(oldTagId)).filter((tagId): tagId is string => !!tagId)
+        : [],
       meta: s.meta ? JSON.parse(JSON.stringify(s.meta)) : undefined
     }));
 
@@ -196,6 +206,18 @@ export async function importActivity(
     };
 
     await deps.programRepo.save(program);
+
+    if (deps.tagRepo && exportData.tags && exportData.tags.length > 0) {
+      const tagsToSave: Tag[] = exportData.tags.map((tag) => ({
+        id: tagIdMap.get(tag.id) ?? deps.idGenerator.generateId(),
+        programId: program.id,
+        name: String(tag.name),
+        colorIndex: tag.colorIndex
+      }));
+      for (const tag of tagsToSave) {
+        await deps.tagRepo.save(tag);
+      }
+    }
 
     // -------------------------------------------------------------------------
     // Step 6: Create Preferences (with remapped student IDs)

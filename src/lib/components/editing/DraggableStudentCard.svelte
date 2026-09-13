@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { getStudentLongName, getStudentShortName, type Student } from '$lib/domain';
+  import { getStudentLongName, getStudentShortName, type Student, type Tag } from '$lib/domain';
   import type { StudentPeerRequestWorkspaceSummary } from '$lib/application/useCases/getPeerRequestWorkspaceSummary';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
   import { sortableItem, type Edge, type SortableDropState } from '$lib/utils/pragmatic-dnd';
+  import { resolveTagBadgeClasses } from '$lib/utils/tagColors';
 
   export type KeyboardMoveDirection = 'up' | 'down' | 'left' | 'right';
 
@@ -32,7 +33,8 @@
     allowedEdges,
     peerRequestSummary = null,
     isPeerRequested = false,
-    onOpenStudentDetail
+    onOpenStudentDetail,
+    tagsById = {}
   } = $props<{
     student: Student;
     container: string;
@@ -64,6 +66,7 @@
     isPeerRequested?: boolean;
     /** Opens the student profile without changing the canvas selection action. */
     onOpenStudentDetail?: (studentId: string) => void;
+    tagsById?: Record<string, Tag>;
   }>();
 
   const fullName = $derived(getStudentLongName(student) || student.id);
@@ -71,9 +74,17 @@
     getStudentShortName(student) || student.id.slice(0, 2).toUpperCase()
   );
   const visibleTagLimit = $derived(uiSettings.cardSize === 'sm' ? 1 : 2);
-  const visibleTags = $derived((student.tags ?? []).slice(0, visibleTagLimit));
-  const hiddenTagCount = $derived(Math.max(0, (student.tags?.length ?? 0) - visibleTags.length));
-  const tagSummary = $derived(student.tags?.length ? `. Tags: ${student.tags.join(', ')}.` : '');
+  const resolvedTags = $derived.by(() =>
+    (student.tagIds ?? [])
+      .map((tagId: string): Tag | null => tagsById[tagId] ?? null)
+      .filter((tag: Tag | null): tag is Tag => tag !== null)
+  );
+  const visibleTags = $derived(resolvedTags.slice(0, visibleTagLimit));
+  const hiddenTagCount = $derived(Math.max(0, resolvedTags.length - visibleTags.length));
+  const hiddenTagNames = $derived(resolvedTags.slice(visibleTagLimit).map((tag: Tag) => tag.name));
+  const tagSummary = $derived(
+    resolvedTags.length ? `. Tags: ${resolvedTags.map((tag: Tag) => tag.name).join(', ')}.` : ''
+  );
 
   const badgeText = $derived.by(() => {
     if (!hasPreferences) return '';
@@ -310,18 +321,18 @@
   </div>
 
   <div class="flex h-5 min-w-0 items-center gap-1 px-1" aria-label={tagSummary || undefined}>
-    {#each visibleTags as tag (tag)}
+    {#each visibleTags as tag (tag.id)}
       <span
-        class="max-w-[45%] min-w-0 truncate rounded bg-slate-100 px-1.5 py-0.5 text-[10px] leading-none font-medium text-slate-600"
-        title={tag}
+        class="max-w-[45%] min-w-0 truncate rounded px-1.5 py-0.5 text-[10px] leading-none font-medium {resolveTagBadgeClasses(tag)}"
+        title={tag.name}
       >
-        {tag}
+        {tag.name}
       </span>
     {/each}
     {#if hiddenTagCount > 0}
       <span
         class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] leading-none font-medium text-slate-500"
-        title={student.tags?.slice(visibleTagLimit).join(', ')}
+        title={hiddenTagNames.join(', ')}
       >
         +{hiddenTagCount}
       </span>

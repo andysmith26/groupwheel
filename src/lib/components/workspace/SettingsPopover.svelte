@@ -20,6 +20,7 @@
     onLookbackChange: (sessions: number) => void;
     onEditGroup: (groupId: string) => void;
     onAddGroup: () => void;
+    onManageTags: () => void;
     onClose: () => void;
   }
 
@@ -32,6 +33,7 @@
     onLookbackChange,
     onEditGroup,
     onAddGroup,
+    onManageTags,
     onClose
   }: Props = $props();
 
@@ -161,6 +163,27 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
           Add Group
+        </button>
+
+        <button
+          type="button"
+          onclick={onManageTags}
+          class="mt-1 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-teal-700 hover:bg-teal-50"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M7.5 7.5h6v6h-6v-6Zm0 0L4.5 4.5m9 9 6 6M3 21h18"
+            />
+          </svg>
+          Manage Tags
         </button>
       </div>
     {/if}

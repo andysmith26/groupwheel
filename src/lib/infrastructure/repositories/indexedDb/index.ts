@@ -17,3 +17,4 @@ export { IndexedDbStaffRepository } from './IndexedDbStaffRepository';
 export { IndexedDbPreferenceRepository } from './IndexedDbPreferenceRepository';
 export { IndexedDbPeerRequestRepository } from './IndexedDbPeerRequestRepository';
 export { IndexedDbObservationRepository } from './IndexedDbObservationRepository';
+export { IndexedDbTagRepository } from './IndexedDbTagRepository';

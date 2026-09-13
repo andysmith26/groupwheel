@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Group, Student } from '$lib/domain';
+  import type { Group, Student, Tag } from '$lib/domain';
   import type { StudentPeerRequestWorkspaceSummary } from '$lib/application/useCases/getPeerRequestWorkspaceSummary';
   import { calculateRowSpan } from '$lib/utils/groups';
   import EditableGroupColumn from './EditableGroupColumn.svelte';
@@ -57,6 +57,7 @@
     onRenameComplete,
     clickedStudentId = null,
     onOpenStudentDetail,
+    tagsById = {},
     fillHeight = false
   } = $props<{
     groups?: Group[];
@@ -104,6 +105,7 @@
     /** ID of the click-selected student (for blue border highlight). */
     clickedStudentId?: string | null;
     onOpenStudentDetail?: (studentId: string) => void;
+    tagsById?: Record<string, Tag>;
     /** When true, stretch the scroll container to fill parent height. */
     fillHeight?: boolean;
   }>();
@@ -201,6 +203,7 @@
           {studentPeerRequestSummaryById}
           {selectedRequestedPeerIdSet}
           {onOpenStudentDetail}
+          {tagsById}
         />
       {/each}
     </div>
@@ -242,6 +245,7 @@
         {studentPeerRequestSummaryById}
         {selectedRequestedPeerIdSet}
         {onOpenStudentDetail}
+        {tagsById}
       />
     {/each}
   </div>

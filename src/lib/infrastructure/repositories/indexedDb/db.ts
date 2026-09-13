@@ -8,7 +8,7 @@
  */
 
 export const DB_NAME = 'groupwheel';
-export const DB_VERSION = 8; // Bumped to 8 to add peerRequests store
+export const DB_VERSION = 9; // Bumped to 9 to add tags store
 
 /**
  * Open the IndexedDB database, creating object stores if needed.
@@ -114,6 +114,12 @@ export function openDb(): Promise<IDBDatabase> {
         peerRequestStore.createIndex('requesterStudentId', 'requesterStudentId', {
           unique: false
         });
+      }
+
+      // 14. Tags (v9)
+      if (!db.objectStoreNames.contains('tags')) {
+        const tagStore = db.createObjectStore('tags', { keyPath: 'id' });
+        tagStore.createIndex('programId', 'programId', { unique: false });
       }
     };
   });

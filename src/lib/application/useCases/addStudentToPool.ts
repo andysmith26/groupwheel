@@ -23,7 +23,7 @@ export interface AddStudentToPoolInput {
   sourceStudentId?: string;
   gradeLevel?: string;
   gender?: string;
-  tags?: string[];
+  tagIds?: string[];
   meta?: Record<string, unknown>;
 }
 
@@ -81,7 +81,7 @@ export async function addStudentToPool(
       lastName: input.lastName,
       gradeLevel: input.gradeLevel,
       gender: input.gender,
-      tags: input.tags,
+      tagIds: input.tagIds,
       meta: setSourceStudentId(input.meta, input.sourceStudentId)
     });
 

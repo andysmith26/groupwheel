@@ -66,7 +66,7 @@ describe('parseRosterFromPaste', () => {
     });
   });
 
-  it('preserves multiple tags selected in the reviewed mapping', () => {
+  it('returns raw tag names separately while student records keep empty tagIds', () => {
     const result = parseRosterFromMappedData(
       {
         headers: ['Given', 'Tags', 'School email'],
@@ -79,6 +79,7 @@ describe('parseRosterFromPaste', () => {
       ]
     );
 
-    expect(result.studentsById['alex@example.edu'].tags).toEqual(['Honors', 'ELL']);
+    expect(result.studentsById['alex@example.edu'].tagIds).toEqual([]);
+    expect(result.rawTagsByStudentId['alex@example.edu']).toEqual(['Honors', 'ELL']);
   });
 });

@@ -26,7 +26,6 @@ import type {
   Clock
 } from '$lib/application/ports';
 import type { Pool, Program, Student, Group } from '$lib/domain';
-import { normalizeStudentTags } from '$lib/domain/student';
 import type { Scenario } from '$lib/domain/scenario';
 import { createScenario } from '$lib/domain/scenario';
 import type { Preference, StudentPreference } from '$lib/domain/preference';
@@ -47,7 +46,7 @@ export interface ParsedStudent {
   lastName: string;
   displayName: string;
   grade?: string;
-  tags?: string[];
+  tagIds?: string[];
   meta?: Record<string, string>;
 }
 
@@ -98,6 +97,8 @@ export interface CreateGroupingActivityInput {
 
   /** ID of the authenticated user (for multi-tenant data isolation) */
   userId?: string;
+  /** Optional preselected program ID for upstream workflows that need it early. */
+  programId?: string;
 }
 
 // =============================================================================
@@ -197,7 +198,7 @@ export async function createGroupingActivity(
       preferredName: ps.preferredName,
       lastName: ps.lastName || undefined,
       gradeLevel: ps.grade,
-      tags: normalizeStudentTags(ps.tags),
+      tagIds: ps.tagIds ? [...ps.tagIds] : [],
       meta: ps.meta ? { ...ps.meta } : undefined
     }));
 
@@ -224,7 +225,7 @@ export async function createGroupingActivity(
   // Step 2: Create Program
   // -------------------------------------------------------------------------
 
-  const programId = deps.idGenerator.generateId();
+  const programId = input.programId ?? deps.idGenerator.generateId();
   const program: Program = {
     id: programId,
     name: input.activityName,

@@ -1,4 +1,4 @@
-import type { Group, Preference, Program, Student } from '$lib/domain';
+import type { Group, Preference, Program, Student, Tag } from '$lib/domain';
 import type { PeerRequestEntry } from '$lib/domain/peerRequest';
 import { extractStudentPreference } from '$lib/domain/preference';
 import { err, ok, type Result } from '$lib/types/result';
@@ -13,6 +13,7 @@ export type PrepareWorkspaceExportInput = {
   program: Program | null;
   students: Student[];
   preferences: Preference[];
+  tags?: Tag[];
   peerRequests?: PeerRequestEntry[];
   groups: Group[];
   algorithmConfig?: unknown;
@@ -108,10 +109,11 @@ export function prepareWorkspaceExport(
         lastName: student.lastName,
         gradeLevel: student.gradeLevel,
         gender: student.gender,
-        tags: student.tags,
+        tagIds: student.tagIds,
         meta: student.meta
       }))
     },
+    tags: input.tags ? input.tags.map((tag) => ({ ...tag })) : [],
     preferences: input.preferences.map((preference) => {
       const payload = extractStudentPreference(preference);
       return {

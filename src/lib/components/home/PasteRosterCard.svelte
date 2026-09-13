@@ -14,7 +14,11 @@
   import { parseRosterFromMappedData, parseRosterFromPaste } from '$lib/services/rosterImport';
   import { parseCsvToSheetData } from '$lib/services/googleSheets';
   import { createImportColumnMappings } from '$lib/services/importFieldMatching';
-  import { createActivityInline, addStudentToPool } from '$lib/services/appEnvUseCases';
+  import {
+    createActivityInline,
+    addStudentToPool,
+    resolveOrCreateTags
+  } from '$lib/services/appEnvUseCases';
   import { detectSimpleNameList } from '$lib/utils/pasteDetection';
   import { isErr } from '$lib/types/result';
   import SheetPreview from '$lib/components/import/SheetPreview.svelte';
@@ -112,7 +116,7 @@
       firstName: string;
       preferredName?: string;
       lastName: string;
-      tags?: string[];
+      rawTags?: string[];
       sourceStudentId?: string;
     }> = [];
 
@@ -127,7 +131,7 @@
             firstName: student?.firstName ?? '',
             preferredName: student?.preferredName,
             lastName: student?.lastName ?? '',
-            tags: student?.tags,
+            rawTags: rosterData.rawTagsByStudentId[id],
             sourceStudentId: student ? getSourceStudentId(student) : undefined
           };
         });
@@ -153,13 +157,17 @@
 
     const { program, pool } = createResult.value;
 
-    for (const { firstName, preferredName, lastName, tags, sourceStudentId } of parsedStudents) {
+    for (const { firstName, preferredName, lastName, rawTags, sourceStudentId } of parsedStudents) {
+      const resolvedTags = await resolveOrCreateTags(env, {
+        programId: program.id,
+        rawTagNames: rawTags
+      });
       await addStudentToPool(env, {
         poolId: pool.id,
         firstName,
         preferredName,
         lastName,
-        tags,
+        tagIds: resolvedTags.status === 'ok' ? resolvedTags.value : [],
         sourceStudentId
       });
     }

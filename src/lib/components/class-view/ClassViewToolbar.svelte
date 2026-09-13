@@ -34,6 +34,7 @@
     onLookbackChange?: (sessions: number) => void;
     onEditGroup?: (groupId: string) => void;
     onAddGroup?: () => void;
+    onManageTags?: () => void;
     // Share / export actions
     onCopyForSpreadsheet?: () => void;
     onSave?: () => void;
@@ -67,6 +68,7 @@
     onLookbackChange,
     onEditGroup,
     onAddGroup,
+    onManageTags,
     onCopyForSpreadsheet,
     onSave,
     onPrint,
@@ -235,6 +237,7 @@
             onLookbackChange={onLookbackChange ?? (() => {})}
             onEditGroup={onEditGroup ?? (() => {})}
             onAddGroup={onAddGroup ?? (() => {})}
+            onManageTags={onManageTags ?? (() => {})}
             onClose={() => setMenuOpen('settings', false)}
           />
         {/if}

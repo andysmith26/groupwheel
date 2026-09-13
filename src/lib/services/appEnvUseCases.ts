@@ -100,6 +100,18 @@ import {
   type ExportActivityInput,
   type ExportActivityError
 } from '$lib/application/useCases/exportActivity';
+import {
+  createTagUseCase,
+  type CreateTagInput,
+  type CreateTagError
+} from '$lib/application/useCases/createTag';
+import { updateTag as updateTagUseCase, type UpdateTagInput, type UpdateTagError } from '$lib/application/useCases/updateTag';
+import { deleteTag as deleteTagUseCase, type DeleteTagInput, type DeleteTagError } from '$lib/application/useCases/deleteTag';
+import {
+  resolveOrCreateTagsForProgram as resolveOrCreateTagsForProgramUseCase,
+  type ResolveOrCreateTagsForProgramInput,
+  type ResolveOrCreateTagsForProgramError
+} from '$lib/application/useCases/resolveOrCreateTagsForProgram';
 import type { RosterData } from '$lib/services/rosterImport';
 import type { Result } from '$lib/types/result';
 import { ok, err } from '$lib/types/result';
@@ -391,6 +403,7 @@ export async function importActivity(
       sessionRepo: env.sessionRepo,
       placementRepo: env.placementRepo,
       observationRepo: env.observationRepo,
+      tagRepo: env.tagRepo,
       idGenerator: env.idGenerator,
       clock: env.clock
     },
@@ -412,7 +425,8 @@ export async function exportActivityData(
       scenarioRepo: env.scenarioRepo,
       sessionRepo: env.sessionRepo,
       placementRepo: env.placementRepo,
-      observationRepo: env.observationRepo
+      observationRepo: env.observationRepo,
+      tagRepo: env.tagRepo
     },
     input
   );
@@ -1489,6 +1503,66 @@ export async function updateStudent(
   );
 }
 
+export async function listTagsForProgram(
+  env: InMemoryEnvironment,
+  programId: string
+): Promise<import('$lib/domain').Tag[]> {
+  return env.tagRepo.listByProgramId(programId);
+}
+
+export async function createTagForProgram(
+  env: InMemoryEnvironment,
+  input: CreateTagInput
+): Promise<Result<import('$lib/domain').Tag, CreateTagError>> {
+  return createTagUseCase(
+    {
+      tagRepo: env.tagRepo,
+      idGenerator: env.idGenerator
+    },
+    input
+  );
+}
+
+export async function updateTag(
+  env: InMemoryEnvironment,
+  input: UpdateTagInput
+): Promise<Result<import('$lib/domain').Tag, UpdateTagError>> {
+  return updateTagUseCase(
+    {
+      tagRepo: env.tagRepo
+    },
+    input
+  );
+}
+
+export async function deleteTag(
+  env: InMemoryEnvironment,
+  input: DeleteTagInput
+): Promise<Result<void, DeleteTagError>> {
+  return deleteTagUseCase(
+    {
+      tagRepo: env.tagRepo,
+      programRepo: env.programRepo,
+      poolRepo: env.poolRepo,
+      studentRepo: env.studentRepo
+    },
+    input
+  );
+}
+
+export async function resolveOrCreateTags(
+  env: InMemoryEnvironment,
+  input: ResolveOrCreateTagsForProgramInput
+): Promise<Result<string[], ResolveOrCreateTagsForProgramError>> {
+  return resolveOrCreateTagsForProgramUseCase(
+    {
+      tagRepo: env.tagRepo,
+      idGenerator: env.idGenerator
+    },
+    input
+  );
+}
+
 // Re-export student pool types
 export type {
   SetStudentActiveStatusInput,
@@ -1501,7 +1575,15 @@ export type {
   RemoveStudentFromPoolResult,
   UpdateStudentInput,
   UpdateStudentError,
-  UpdateStudentResult
+  UpdateStudentResult,
+  CreateTagInput,
+  CreateTagError,
+  UpdateTagInput,
+  UpdateTagError,
+  DeleteTagInput,
+  DeleteTagError,
+  ResolveOrCreateTagsForProgramInput,
+  ResolveOrCreateTagsForProgramError
 };
 
 // =============================================================================

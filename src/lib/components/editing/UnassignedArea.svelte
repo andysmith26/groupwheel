@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Student } from '$lib/domain';
+  import type { Student, Tag } from '$lib/domain';
   import type { StudentPeerRequestWorkspaceSummary } from '$lib/application/useCases/getPeerRequestWorkspaceSummary';
   import DraggableStudentCard, { type KeyboardMoveDirection } from './DraggableStudentCard.svelte';
   import DropIndicator from './DropIndicator.svelte';
@@ -32,6 +32,7 @@
     studentPeerRequestSummaryById = new Map<string, StudentPeerRequestWorkspaceSummary>(),
     selectedStudentRequestedPeerIds = null,
     onOpenStudentDetail,
+    tagsById = {},
     onAlphabetize,
     vertical = false,
     compact = false
@@ -62,6 +63,7 @@
     studentPeerRequestSummaryById?: Map<string, StudentPeerRequestWorkspaceSummary>;
     selectedStudentRequestedPeerIds?: string[] | null;
     onOpenStudentDetail?: (studentId: string) => void;
+    tagsById?: Record<string, Tag>;
     onAlphabetize?: () => void;
     vertical?: boolean;
     /** When true, hides the header and outer wrapper (for embedding in a parent bench zone) */
@@ -332,6 +334,7 @@
                 peerRequestSummary={studentPeerRequestSummaryById.get(studentId) ?? null}
                 isPeerRequested={selectedRequestedPeerIdSet.has(studentId)}
                 {onOpenStudentDetail}
+                {tagsById}
                 {onKeyboardPickUp}
                 {onKeyboardDrop}
                 {onKeyboardCancel}
@@ -375,6 +378,7 @@
                 peerRequestSummary={studentPeerRequestSummaryById.get(studentId) ?? null}
                 isPeerRequested={selectedRequestedPeerIdSet.has(studentId)}
                 {onOpenStudentDetail}
+                {tagsById}
                 {onKeyboardPickUp}
                 {onKeyboardDrop}
                 {onKeyboardCancel}

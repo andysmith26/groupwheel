@@ -17,7 +17,8 @@ import type {
   ScenarioRepository,
   SessionRepository,
   PlacementRepository,
-  ObservationRepository
+  ObservationRepository,
+  TagRepository
 } from '$lib/application/ports';
 import { extractStudentPreference } from '$lib/domain/preference';
 import type { Result } from '$lib/types/result';
@@ -57,6 +58,7 @@ export interface ExportActivityDeps {
   sessionRepo: SessionRepository;
   placementRepo: PlacementRepository;
   observationRepo: ObservationRepository;
+  tagRepo: TagRepository;
 }
 
 // =============================================================================
@@ -102,6 +104,8 @@ export async function exportActivity(
     // Load scenario
     const scenario = await deps.scenarioRepo.getByProgramId(input.programId);
 
+    const tags = await deps.tagRepo.listByProgramId(input.programId);
+
     // Load sessions
     const sessions = await deps.sessionRepo.listByProgramId(input.programId);
 
@@ -135,10 +139,11 @@ export async function exportActivity(
           lastName: s.lastName,
           gradeLevel: s.gradeLevel,
           gender: s.gender,
-          tags: s.tags,
+          tagIds: s.tagIds,
           meta: s.meta
         }))
       },
+      tags,
       preferences: preferences.map((pref) => {
         const payload = extractStudentPreference(pref);
         return {
