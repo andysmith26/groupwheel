@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ColumnMapping, RawSheetData, UnmatchedStudentIdRow } from '$lib/domain/import';
 import {
+  extractMatchNameFromCells,
   extractPeerRequestTextsFromCells,
   prepareUnmatchedPeerRequestRows,
   validatePeerRequestImportMappings
@@ -67,26 +68,68 @@ describe('extractPeerRequestTextsFromCells', () => {
 });
 
 describe('prepareUnmatchedPeerRequestRows', () => {
-  it('adds parsed peer request texts to unmatched rows', () => {
+  it('adds parsed peer request texts and a matching-only name to unmatched rows', () => {
     const data: RawSheetData = {
-      headers: ['Student ID', 'Peer Request 1'],
-      rows: [{ rowIndex: 2, cells: ['missing', 'Alex'] }]
+      headers: ['Student ID', 'First Name', 'Last Name', 'Peer Request 1'],
+      rows: [{ rowIndex: 2, cells: ['missing', 'Alice', 'Smith', 'Alex'] }]
     };
     const mappings: ColumnMapping[] = [
       { columnIndex: 0, headerName: 'Student ID', mappedTo: 'studentId' },
-      { columnIndex: 1, headerName: 'Peer Request 1', mappedTo: 'peerRequest1' }
+      { columnIndex: 1, headerName: 'First Name', mappedTo: 'firstName' },
+      { columnIndex: 2, headerName: 'Last Name', mappedTo: 'lastName' },
+      { columnIndex: 3, headerName: 'Peer Request 1', mappedTo: 'peerRequest1' }
     ];
     const unmatchedRows: UnmatchedStudentIdRow[] = [
-      { rowIndex: 2, sourceStudentId: 'missing', cells: ['missing', 'Alex'] }
+      { rowIndex: 2, sourceStudentId: 'missing', cells: ['missing', 'Alice', 'Smith', 'Alex'] }
     ];
 
     expect(prepareUnmatchedPeerRequestRows(data, mappings, unmatchedRows)).toEqual([
       {
         rowIndex: 2,
         sourceStudentId: 'missing',
-        cells: ['missing', 'Alex'],
+        cells: ['missing', 'Alice', 'Smith', 'Alex'],
+        matchName: 'Alice Smith',
         peerRequestTexts: ['Alex']
       }
     ]);
+  });
+});
+
+describe('extractMatchNameFromCells', () => {
+  it('prefers display name when available', () => {
+    const mappings: ColumnMapping[] = [
+      { columnIndex: 0, headerName: 'Student ID', mappedTo: 'studentId' },
+      { columnIndex: 1, headerName: 'Name', mappedTo: 'displayName' },
+      { columnIndex: 2, headerName: 'First Name', mappedTo: 'firstName' },
+      { columnIndex: 3, headerName: 'Last Name', mappedTo: 'lastName' }
+    ];
+
+    expect(extractMatchNameFromCells(['stu-1', 'Alice Smith', 'Alice', 'Jones'], mappings)).toBe(
+      'Alice Smith'
+    );
+  });
+
+  it('falls back to first and last names when the display name cell is blank', () => {
+    const mappings: ColumnMapping[] = [
+      { columnIndex: 0, headerName: 'Student ID', mappedTo: 'studentId' },
+      { columnIndex: 1, headerName: 'Name', mappedTo: 'displayName' },
+      { columnIndex: 2, headerName: 'First Name', mappedTo: 'firstName' },
+      { columnIndex: 3, headerName: 'Last Name', mappedTo: 'lastName' }
+    ];
+
+    expect(extractMatchNameFromCells(['stu-1', '   ', 'Alice', 'Smith'], mappings)).toBe(
+      'Alice Smith'
+    );
+  });
+
+  it('combines first and last names when no display name is mapped', () => {
+    const mappings: ColumnMapping[] = [
+      { columnIndex: 0, headerName: 'Student ID', mappedTo: 'studentId' },
+      { columnIndex: 1, headerName: 'First Name', mappedTo: 'firstName' },
+      { columnIndex: 2, headerName: 'Last Name', mappedTo: 'lastName' }
+    ];
+
+    expect(extractMatchNameFromCells(['stu-1', 'Alice', 'Smith'], mappings)).toBe('Alice Smith');
+    expect(extractMatchNameFromCells(['stu-1', 'Alice', ''], mappings)).toBe('Alice');
   });
 });

@@ -80,12 +80,33 @@
     selectedReady.set(requestId, !(selectedReady.get(requestId) ?? true));
   }
 
-  function setManualSelection(requestId: string, studentId: string) {
-    if (!studentId) {
-      manualSelections.delete(requestId);
-    } else {
-      manualSelections.set(requestId, studentId);
+  function confirmAllReady() {
+    for (const match of readyToConfirm) {
+      selectedReady.set(match.request.id, true);
     }
+  }
+
+  function clearAllReady() {
+    for (const match of readyToConfirm) {
+      selectedReady.set(match.request.id, false);
+    }
+  }
+
+  function setManualSelection(requestId: string, studentId: string) {
+    manualSelections.set(requestId, studentId);
+  }
+
+  function getManualSelection(match: MatchedPeerRequest): string {
+    const explicitSelection = manualSelections.get(match.request.id);
+    if (explicitSelection !== undefined) {
+      return explicitSelection;
+    }
+
+    if (match.bucket === 'NEEDS_REVIEW') {
+      return match.bestCandidate?.studentId ?? '';
+    }
+
+    return '';
   }
 
   function getSelectableStudents(requesterStudentId: string): Student[] {
@@ -132,7 +153,7 @@
     for (const match of [...needsReview, ...noMatch, ...invalid]) {
       const selectedStudentId = leaveAllUnresolved
         ? undefined
-        : manualSelections.get(match.request.id);
+        : getManualSelection(match);
       decisions.push(
         selectedStudentId
           ? { requestId: match.request.id, action: 'SET_MANUAL', studentId: selectedStudentId }
@@ -234,9 +255,29 @@
               High-confidence matches are preselected but still require confirmation.
             </p>
           </div>
-          <span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
-            {readyToConfirm.length}
-          </span>
+          <div class="flex items-center gap-3">
+            <span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
+              {readyToConfirm.length}
+            </span>
+            {#if readyToConfirm.length > 0}
+              <div class="flex items-center gap-3 text-sm">
+                <button
+                  type="button"
+                  class="text-green-800 underline hover:text-green-900"
+                  onclick={confirmAllReady}
+                >
+                  Confirm all
+                </button>
+                <button
+                  type="button"
+                  class="text-green-800 underline hover:text-green-900"
+                  onclick={clearAllReady}
+                >
+                  Clear all
+                </button>
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
 
@@ -362,8 +403,8 @@
                         {#each match.candidates as candidate (candidate.studentId)}
                           <button
                             type="button"
-                            class="flex w-full items-start justify-between rounded-md border px-3 py-2 text-left text-sm hover:border-teal hover:bg-teal-50 {manualSelections.get(
-                              match.request.id
+                            class="flex w-full items-start justify-between rounded-md border px-3 py-2 text-left text-sm hover:border-teal hover:bg-teal-50 {getManualSelection(
+                              match
                             ) === candidate.studentId
                               ? 'border-teal bg-teal-50'
                               : 'border-gray-200'}"
@@ -403,7 +444,7 @@
                       <select
                         id={`request-${match.request.id}`}
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
-                        value={manualSelections.get(match.request.id) ?? ''}
+                        value={getManualSelection(match)}
                         onchange={(event) =>
                           setManualSelection(
                             match.request.id,

@@ -13,6 +13,11 @@ describe('matchPeerRequests', () => {
   ];
 
   it('puts unique exact full-name matches into ready-to-confirm without auto-confirming them', () => {
+    const matchingStudents = [
+      students[0],
+      createStudent({ id: 'bob-1', firstName: 'Bob', lastName: 'Jones' }),
+      createStudent({ id: 'cara-2', firstName: 'Cara', lastName: 'Lopez' })
+    ];
     const request = createPeerRequestEntry({
       id: 'request-1',
       programId: 'program-1',
@@ -21,7 +26,7 @@ describe('matchPeerRequests', () => {
       rawText: 'Bob Jones'
     });
 
-    const result = matchPeerRequests({ requests: [request], students });
+    const result = matchPeerRequests({ requests: [request], students: matchingStudents });
 
     expect(result.readyToConfirm).toHaveLength(1);
     expect(result.readyToConfirm[0].bestCandidate).toMatchObject({ studentId: 'bob-1' });
@@ -95,6 +100,7 @@ describe('matchPeerRequests', () => {
 
     const result = matchPeerRequests({ requests: [request], students: matchingStudents });
 
+    expect(result.needsReview).toHaveLength(1);
     expect(result.needsReview[0].bestCandidate).toMatchObject({ studentId: 'jonathan' });
     expect(result.needsReview[0].bestCandidate?.baseScore).toBeGreaterThan(0.8);
   });
@@ -143,7 +149,7 @@ describe('matchPeerRequests', () => {
         preferredName: 'Danny',
         lastName: 'Cruz'
       }),
-      createStudent({ id: 'maria', firstName: 'Maria', preferredName: '   ', lastName: 'Cruz' })
+      createStudent({ id: 'maria', firstName: 'Maria', preferredName: '   ', lastName: 'Lopez' })
     ];
 
     const result = matchPeerRequests({ requests: [request], students: matchingStudents });
@@ -186,5 +192,24 @@ describe('matchPeerRequests', () => {
 
     expect(result.noMatch).toHaveLength(1);
     expect(result.noMatch[0].candidates).toEqual([]);
+  });
+
+  it('puts decisive near-exact matches into ready-to-confirm even when they are not perfect strings', () => {
+    const request = createPeerRequestEntry({
+      id: 'request-9',
+      programId: 'program-1',
+      requesterStudentId: 'bob-1',
+      rank: 1,
+      rawText: 'Alise Smith'
+    });
+
+    const result = matchPeerRequests({
+      requests: [request],
+      students: [students[0], students[2], students[3]]
+    });
+
+    expect(result.readyToConfirm).toHaveLength(1);
+    expect(result.readyToConfirm[0].bestCandidate).toMatchObject({ studentId: 'alice' });
+    expect(result.readyToConfirm[0].bestCandidate?.baseScore).toBeGreaterThanOrEqual(0.75);
   });
 });

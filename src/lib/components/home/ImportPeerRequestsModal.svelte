@@ -7,8 +7,7 @@
     ColumnMapping,
     MappedField,
     RawSheetData,
-    StudentIdRowLink,
-    UnmatchedStudentIdRow
+    StudentIdRowLink
   } from '$lib/domain/import';
   import { reconcileRowsByStudentId } from '$lib/domain/import';
   import { createPeerRequestColumnMappings } from '$lib/services/importFieldMatching';
@@ -17,8 +16,13 @@
   import { Button, InlineError } from '$lib/components/ui';
   import {
     prepareUnmatchedPeerRequestRows,
+    type PreparedUnmatchedPeerRequestRow,
     validatePeerRequestImportMappings
   } from '$lib/application/useCases/preparePeerRequestImportForExistingActivity';
+  import {
+    suggestStudentMatchesForRows,
+    type RowMatchSuggestion
+  } from '$lib/application/useCases/suggestStudentMatchesForRows';
   import { parseCsvToSheetData } from '$lib/services/googleSheets';
   import {
     confirmPeerRequestMatches,
@@ -46,12 +50,13 @@
   }
 
   type Step = 'mapping' | 'unmatched' | 'review';
-  type ReviewedUnmatchedRow = UnmatchedStudentIdRow & {
-    peerRequestTexts: string[];
-  };
+  type ReviewedUnmatchedRow = PreparedUnmatchedPeerRequestRow;
 
   const peerRequestFields: MappedField[] = [
     'studentId',
+    'displayName',
+    'firstName',
+    'lastName',
     'peerRequest1',
     'peerRequest2',
     'peerRequest3',
@@ -75,6 +80,7 @@
   let isBusy = $state(false);
   let matchedRowLinks = $state<StudentIdRowLink[]>([]);
   let unmatchedRows = $state<ReviewedUnmatchedRow[]>([]);
+  let unmatchedSuggestions = $state<Record<number, RowMatchSuggestion>>({});
   let unmatchedSelections = $state<Record<number, string>>({});
   let pendingPeerReview = $state<MatchPeerRequestsOutput | null>(null);
   let manualRemapCount = $state(0);
@@ -82,6 +88,15 @@
 
   let matchedRowCount = $derived(matchedRowLinks.length);
   let pasteRowCount = $derived(rawData && sourceMode === 'paste' ? rawData.rows.length : 0);
+  let highConfidenceUnmatchedRows = $derived(
+    unmatchedRows.filter((row) => unmatchedSuggestions[row.rowIndex]?.bucket === 'HIGH_CONFIDENCE')
+  );
+  let needsReviewUnmatchedRows = $derived(
+    unmatchedRows.filter((row) => unmatchedSuggestions[row.rowIndex]?.bucket === 'NEEDS_REVIEW')
+  );
+  let noMatchUnmatchedRows = $derived(
+    unmatchedRows.filter((row) => unmatchedSuggestions[row.rowIndex]?.bucket === 'NO_MATCH')
+  );
   let studentOptions = $derived(
     [...students].sort((left, right) => {
       const leftName = `${left.preferredName?.trim() || left.firstName} ${left.lastName ?? ''}`
@@ -114,6 +129,7 @@
     pasteText = '';
     selectedFileName = '';
     columnMappings = [];
+    unmatchedSuggestions = {};
     importError = '';
   }
 
@@ -155,6 +171,7 @@
     currentStep = 'mapping';
     matchedRowLinks = [];
     unmatchedRows = [];
+    unmatchedSuggestions = {};
     unmatchedSelections = {};
 
     try {
@@ -189,6 +206,49 @@
     }
 
     return validatePeerRequestImportMappings(columnMappings);
+  }
+
+  function setUnmatchedSelection(rowIndex: number, studentId: string): void {
+    unmatchedSelections = {
+      ...unmatchedSelections,
+      [rowIndex]: studentId
+    };
+  }
+
+  function getUnmatchedSuggestion(rowIndex: number): RowMatchSuggestion | undefined {
+    return unmatchedSuggestions[rowIndex];
+  }
+
+  function getBestSuggestedStudentId(rowIndex: number): string | undefined {
+    return getUnmatchedSuggestion(rowIndex)?.bestCandidate?.studentId;
+  }
+
+  function isHighConfidenceSelectionEnabled(rowIndex: number): boolean {
+    const bestCandidateStudentId = getBestSuggestedStudentId(rowIndex);
+    return !!bestCandidateStudentId && unmatchedSelections[rowIndex] === bestCandidateStudentId;
+  }
+
+  function setHighConfidenceSelection(rowIndex: number, enabled: boolean): void {
+    setUnmatchedSelection(rowIndex, enabled ? (getBestSuggestedStudentId(rowIndex) ?? '') : '');
+  }
+
+  function confirmAllHighConfidenceRows(): void {
+    const nextSelections = { ...unmatchedSelections };
+    for (const row of highConfidenceUnmatchedRows) {
+      const suggestedStudentId = getBestSuggestedStudentId(row.rowIndex);
+      if (suggestedStudentId) {
+        nextSelections[row.rowIndex] = suggestedStudentId;
+      }
+    }
+    unmatchedSelections = nextSelections;
+  }
+
+  function clearAllHighConfidenceRows(): void {
+    const nextSelections = { ...unmatchedSelections };
+    for (const row of highConfidenceUnmatchedRows) {
+      nextSelections[row.rowIndex] = '';
+    }
+    unmatchedSelections = nextSelections;
   }
 
   async function beginPeerRequestReview(
@@ -260,12 +320,31 @@
     );
 
     matchedRowLinks = reconciliation.matched;
-    unmatchedRows = prepareUnmatchedPeerRequestRows(
+    const preparedUnmatchedRows = prepareUnmatchedPeerRequestRows(
       rawData,
       columnMappings,
       reconciliation.unmatched
     );
-    unmatchedSelections = {};
+    unmatchedRows = preparedUnmatchedRows;
+    const rowSuggestions = suggestStudentMatchesForRows({
+      rows: preparedUnmatchedRows.map((row) => ({
+        rowIndex: row.rowIndex,
+        name: row.matchName
+      })),
+      students
+    });
+    unmatchedSuggestions = Object.fromEntries(
+      rowSuggestions.map((suggestion) => [suggestion.rowIndex, suggestion])
+    );
+    unmatchedSelections = Object.fromEntries(
+      rowSuggestions
+        .filter(
+          (suggestion) =>
+            (suggestion.bucket === 'HIGH_CONFIDENCE' || suggestion.bucket === 'NEEDS_REVIEW') &&
+            suggestion.bestCandidate !== undefined
+        )
+        .map((suggestion) => [suggestion.rowIndex, suggestion.bestCandidate!.studentId])
+    );
     importError = '';
 
     if (unmatchedRows.length > 0) {
@@ -288,12 +367,15 @@
 
     for (const row of unmatchedRows) {
       const selectedStudentId = unmatchedSelections[row.rowIndex]?.trim();
+      const suggestedStudentId = getBestSuggestedStudentId(row.rowIndex);
       if (selectedStudentId) {
         reviewedLinks.push({
           rowIndex: row.rowIndex,
           studentId: selectedStudentId
         });
-        nextManualRemapCount += 1;
+        if (selectedStudentId !== suggestedStudentId) {
+          nextManualRemapCount += 1;
+        }
       } else {
         nextSkippedUnmatchedRowCount += 1;
       }
@@ -449,7 +531,10 @@
         </div>
 
         <p class="mt-3 text-sm text-gray-600">
-          Map one <strong>Student ID</strong> column and one or more <strong>Peer Request</strong> columns.
+          Map one <strong>Student ID</strong> column and one or more <strong>Peer Request</strong>
+          columns. Optional <strong>Name</strong>, <strong>First Name</strong>, and
+          <strong>Last Name</strong> columns are used only for matching suggestions and are never
+          imported as roster data.
         </p>
 
         {#if sourceMode === 'paste'}
@@ -546,8 +631,8 @@
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <p class="font-medium">Some rows could not be matched by Student ID.</p>
           <p class="mt-1">
-            Matching is strict by source Student ID. Leave rows skipped or manually map them to a
-            roster student before continuing.
+            Student ID matching still runs first. For rows it cannot reconcile, name-based
+            suggestions are offered below so you can confirm or override them before continuing.
           </p>
         </div>
 
@@ -557,70 +642,321 @@
         </div>
 
         <div class="mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-          {#each unmatchedRows as row (row.rowIndex)}
-            <div class="rounded-xl border border-gray-200 p-4">
-              <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p class="text-sm font-semibold text-gray-900">Row {row.rowIndex}</p>
-                  <p class="mt-1 text-sm text-gray-600">
-                    Source Student ID:
-                    <span class="font-medium text-gray-900">{row.sourceStudentId || 'Blank'}</span>
-                  </p>
-                </div>
-                <span
-                  class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700"
-                >
-                  {row.peerRequestTexts.length} peer request{row.peerRequestTexts.length === 1
-                    ? ''
-                    : 's'}
-                </span>
+          <section class="rounded-xl border border-green-200 bg-green-50/40 p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-green-900">High-confidence matches</h3>
+                <p class="mt-1 text-sm text-green-700">
+                  These rows are preselected so you can accept them with zero extra clicks.
+                </p>
               </div>
+              <div class="flex items-center gap-3">
+                <span
+                  class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800"
+                >
+                  {highConfidenceUnmatchedRows.length}
+                </span>
+                {#if highConfidenceUnmatchedRows.length > 0}
+                  <div class="flex items-center gap-3 text-sm">
+                    <button
+                      type="button"
+                      class="text-green-800 underline hover:text-green-900"
+                      onclick={confirmAllHighConfidenceRows}
+                    >
+                      Confirm all
+                    </button>
+                    <button
+                      type="button"
+                      class="text-green-800 underline hover:text-green-900"
+                      onclick={clearAllHighConfidenceRows}
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                {/if}
+              </div>
+            </div>
 
-              <div class="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                <div>
-                  <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">
-                    Parsed peer request values
-                  </p>
+            <div class="mt-4 space-y-3">
+              {#each highConfidenceUnmatchedRows as row (row.rowIndex)}
+                {@const suggestion = getUnmatchedSuggestion(row.rowIndex)}
+                {@const bestCandidateStudentId = suggestion?.bestCandidate?.studentId}
+                <div class="rounded-xl border border-green-100 bg-white p-4">
+                  <label class="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      checked={isHighConfidenceSelectionEnabled(row.rowIndex)}
+                      disabled={!bestCandidateStudentId}
+                      onchange={(event) =>
+                        setHighConfidenceSelection(
+                          row.rowIndex,
+                          (event.target as HTMLInputElement).checked
+                        )}
+                    />
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-medium text-gray-900">
+                        {row.matchName || `Row ${row.rowIndex}`} →
+                        {formatStudentName(
+                          studentOptions.find((student) => student.id === bestCandidateStudentId) ?? {
+                            id: bestCandidateStudentId ?? 'unmatched',
+                            firstName: bestCandidateStudentId ?? 'Unmatched'
+                          }
+                        )}
+                      </p>
+                      <p class="mt-1 text-sm text-gray-600">
+                        Row {row.rowIndex} · Source Student ID:
+                        <span class="font-medium text-gray-900">{row.sourceStudentId || 'Blank'}</span>
+                      </p>
+                    </div>
+                  </label>
+
                   {#if row.peerRequestTexts.length > 0}
-                    <ul class="mt-2 space-y-1 text-sm text-gray-700">
+                    <p class="mt-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
+                      Parsed peer request values
+                    </p>
+                    <ul class="mt-1 space-y-1 text-sm text-gray-700">
                       {#each row.peerRequestTexts as value}
                         <li>{value}</li>
                       {/each}
                     </ul>
-                  {:else}
-                    <p class="mt-2 text-sm text-gray-500">
-                      No peer request values were found on this row.
-                    </p>
+                  {/if}
+
+                  {#if !isHighConfidenceSelectionEnabled(row.rowIndex)}
+                    <div class="mt-3">
+                      <label
+                        class="block text-xs font-medium tracking-wide text-gray-500 uppercase"
+                        for={`high-confidence-row-${row.rowIndex}`}
+                      >
+                        Choose a different student or skip
+                      </label>
+                      <select
+                        id={`high-confidence-row-${row.rowIndex}`}
+                        class="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
+                        value={unmatchedSelections[row.rowIndex] ?? ''}
+                        onchange={(event) =>
+                          setUnmatchedSelection(
+                            row.rowIndex,
+                            (event.target as HTMLSelectElement).value
+                          )}
+                      >
+                        <option value="">Skip this row</option>
+                        {#each studentOptions as student (student.id)}
+                          <option value={student.id}>{formatStudentName(student)}</option>
+                        {/each}
+                      </select>
+                    </div>
                   {/if}
                 </div>
-
-                <div>
-                  <label
-                    class="block text-xs font-medium tracking-wide text-gray-500 uppercase"
-                    for={`unmatched-row-${row.rowIndex}`}
-                  >
-                    Manual remap
-                  </label>
-                  <select
-                    id={`unmatched-row-${row.rowIndex}`}
-                    class="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
-                    value={unmatchedSelections[row.rowIndex] ?? ''}
-                    onchange={(event) => {
-                      unmatchedSelections = {
-                        ...unmatchedSelections,
-                        [row.rowIndex]: (event.target as HTMLSelectElement).value
-                      };
-                    }}
-                  >
-                    <option value="">Skip this row</option>
-                    {#each studentOptions as student (student.id)}
-                      <option value={student.id}>{formatStudentName(student)}</option>
-                    {/each}
-                  </select>
-                </div>
-              </div>
+              {:else}
+                <p class="text-sm text-gray-500">No high-confidence name suggestions were found.</p>
+              {/each}
             </div>
-          {/each}
+          </section>
+
+          <section class="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-amber-900">Needs review</h3>
+                <p class="mt-1 text-sm text-amber-700">
+                  Review suggested students, then fall back to a manual selection if needed.
+                </p>
+              </div>
+              <span
+                class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800"
+              >
+                {needsReviewUnmatchedRows.length}
+              </span>
+            </div>
+
+            <div class="mt-4 space-y-3">
+              {#each needsReviewUnmatchedRows as row (row.rowIndex)}
+                {@const suggestion = getUnmatchedSuggestion(row.rowIndex)}
+                <div class="rounded-xl border border-amber-100 bg-white p-4">
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p class="text-sm font-semibold text-gray-900">
+                        {row.matchName || `Row ${row.rowIndex}`}
+                      </p>
+                      <p class="mt-1 text-sm text-gray-600">
+                        Row {row.rowIndex} · Source Student ID:
+                        <span class="font-medium text-gray-900">{row.sourceStudentId || 'Blank'}</span>
+                      </p>
+                    </div>
+                    <span
+                      class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700"
+                    >
+                      {row.peerRequestTexts.length} peer request{row.peerRequestTexts.length === 1
+                        ? ''
+                        : 's'}
+                    </span>
+                  </div>
+
+                  {#if suggestion && suggestion.candidates.length > 0}
+                    <div class="mt-3 space-y-2">
+                      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                        Suggestions
+                      </p>
+                      {#each suggestion.candidates as candidate (candidate.studentId)}
+                        <button
+                          type="button"
+                          class="flex w-full items-start justify-between rounded-md border px-3 py-2 text-left text-sm hover:border-teal hover:bg-teal-50 {unmatchedSelections[
+                            row.rowIndex
+                          ] === candidate.studentId
+                            ? 'border-teal bg-teal-50'
+                            : 'border-gray-200'}"
+                          onclick={() => setUnmatchedSelection(row.rowIndex, candidate.studentId)}
+                        >
+                          <span class="font-medium text-gray-900">
+                            {formatStudentName(
+                              studentOptions.find((student) => student.id === candidate.studentId) ?? {
+                                id: candidate.studentId,
+                                firstName: candidate.studentId
+                              }
+                            )}
+                          </span>
+                          <span class="text-xs font-medium text-gray-500">{candidate.score}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+
+                  <div class="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                    <div>
+                      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                        Parsed peer request values
+                      </p>
+                      {#if row.peerRequestTexts.length > 0}
+                        <ul class="mt-2 space-y-1 text-sm text-gray-700">
+                          {#each row.peerRequestTexts as value}
+                            <li>{value}</li>
+                          {/each}
+                        </ul>
+                      {:else}
+                        <p class="mt-2 text-sm text-gray-500">
+                          No peer request values were found on this row.
+                        </p>
+                      {/if}
+                    </div>
+
+                    <div>
+                      <label
+                        class="block text-xs font-medium tracking-wide text-gray-500 uppercase"
+                        for={`needs-review-row-${row.rowIndex}`}
+                      >
+                        Manual remap
+                      </label>
+                      <select
+                        id={`needs-review-row-${row.rowIndex}`}
+                        class="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
+                        value={unmatchedSelections[row.rowIndex] ?? ''}
+                        onchange={(event) =>
+                          setUnmatchedSelection(
+                            row.rowIndex,
+                            (event.target as HTMLSelectElement).value
+                          )}
+                      >
+                        <option value="">Skip this row</option>
+                        {#each studentOptions as student (student.id)}
+                          <option value={student.id}>{formatStudentName(student)}</option>
+                        {/each}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              {:else}
+                <p class="text-sm text-gray-500">No rows currently need extra review.</p>
+              {/each}
+            </div>
+          </section>
+
+          <section class="rounded-xl border border-gray-200 bg-white p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-gray-900">No match</h3>
+                <p class="mt-1 text-sm text-gray-600">
+                  No plausible name suggestion was found, so these rows still need a manual choice.
+                </p>
+              </div>
+              <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                {noMatchUnmatchedRows.length}
+              </span>
+            </div>
+
+            <div class="mt-4 space-y-3">
+              {#each noMatchUnmatchedRows as row (row.rowIndex)}
+                <div class="rounded-xl border border-gray-200 p-4">
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p class="text-sm font-semibold text-gray-900">Row {row.rowIndex}</p>
+                      <p class="mt-1 text-sm text-gray-600">
+                        Source Student ID:
+                        <span class="font-medium text-gray-900">{row.sourceStudentId || 'Blank'}</span>
+                      </p>
+                      {#if row.matchName}
+                        <p class="mt-1 text-sm text-gray-600">
+                          Name used for matching:
+                          <span class="font-medium text-gray-900">{row.matchName}</span>
+                        </p>
+                      {/if}
+                    </div>
+                    <span
+                      class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700"
+                    >
+                      {row.peerRequestTexts.length} peer request{row.peerRequestTexts.length === 1
+                        ? ''
+                        : 's'}
+                    </span>
+                  </div>
+
+                  <div class="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                    <div>
+                      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                        Parsed peer request values
+                      </p>
+                      {#if row.peerRequestTexts.length > 0}
+                        <ul class="mt-2 space-y-1 text-sm text-gray-700">
+                          {#each row.peerRequestTexts as value}
+                            <li>{value}</li>
+                          {/each}
+                        </ul>
+                      {:else}
+                        <p class="mt-2 text-sm text-gray-500">
+                          No peer request values were found on this row.
+                        </p>
+                      {/if}
+                    </div>
+
+                    <div>
+                      <label
+                        class="block text-xs font-medium tracking-wide text-gray-500 uppercase"
+                        for={`no-match-row-${row.rowIndex}`}
+                      >
+                        Manual remap
+                      </label>
+                      <select
+                        id={`no-match-row-${row.rowIndex}`}
+                        class="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:ring-1 focus:ring-teal"
+                        value={unmatchedSelections[row.rowIndex] ?? ''}
+                        onchange={(event) =>
+                          setUnmatchedSelection(
+                            row.rowIndex,
+                            (event.target as HTMLSelectElement).value
+                          )}
+                      >
+                        <option value="">Skip this row</option>
+                        {#each studentOptions as student (student.id)}
+                          <option value={student.id}>{formatStudentName(student)}</option>
+                        {/each}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              {:else}
+                <p class="text-sm text-gray-500">Every unmatched row has at least one suggestion.</p>
+              {/each}
+            </div>
+          </section>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import {
 } from '$lib/domain/import';
 
 export interface PreparedUnmatchedPeerRequestRow extends UnmatchedStudentIdRow {
+  matchName: string;
   peerRequestTexts: string[];
 }
 
@@ -43,6 +44,17 @@ export function extractPeerRequestTextsFromCells(
     .filter((value) => value.length > 0);
 }
 
+export function extractMatchNameFromCells(cells: string[], mappings: ColumnMapping[]): string {
+  const displayNameIdx = getMappedColumnIndex(mappings, 'displayName');
+  const displayName = displayNameIdx !== null ? (cells[displayNameIdx] ?? '').trim() : '';
+  if (displayName) return displayName;
+  const firstNameIdx = getMappedColumnIndex(mappings, 'firstName');
+  const lastNameIdx = getMappedColumnIndex(mappings, 'lastName');
+  const firstName = firstNameIdx !== null ? (cells[firstNameIdx] ?? '').trim() : '';
+  const lastName = lastNameIdx !== null ? (cells[lastNameIdx] ?? '').trim() : '';
+  return [firstName, lastName].filter(Boolean).join(' ');
+}
+
 export function prepareUnmatchedPeerRequestRows(
   _data: RawSheetData,
   mappings: ColumnMapping[],
@@ -50,6 +62,7 @@ export function prepareUnmatchedPeerRequestRows(
 ): PreparedUnmatchedPeerRequestRow[] {
   return unmatchedRows.map((row) => ({
     ...row,
+    matchName: extractMatchNameFromCells(row.cells, mappings),
     peerRequestTexts: extractPeerRequestTextsFromCells(row.cells, mappings)
   }));
 }
