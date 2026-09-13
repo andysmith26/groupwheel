@@ -111,7 +111,7 @@
               <input
                 type="text"
                 value={tag.name}
-                aria-label="Tag name for {tag.name}"
+                aria-label={`Tag name for ${tag.name}`}
                 onblur={(event) => handleRename(tag, (event.target as HTMLInputElement).value)}
                 class="block min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm"
               />
@@ -133,7 +133,7 @@
                     : 'border-transparent hover:scale-105'}"
                   style="background-color: {hex}"
                   onclick={() => handleSetColor(tag, i)}
-                  aria-label="Color {i + 1} for {tag.name}"
+                  aria-label={`Color ${i + 1} for ${tag.name}`}
                   aria-pressed={tag.colorIndex === i}
                   disabled={savingTagId === tag.id}
                 ></button>

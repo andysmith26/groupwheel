@@ -359,7 +359,10 @@
       tagInput = '';
       return;
     }
-    if (!onResolveOrCreateTagIds) return;
+    if (!onResolveOrCreateTagIds) {
+      tagInput = '';
+      return;
+    }
 
     isResolvingTags = true;
     try {
