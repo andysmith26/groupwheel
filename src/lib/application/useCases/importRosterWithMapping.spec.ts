@@ -53,6 +53,37 @@ describe('importRosterWithMapping', () => {
     }
   });
 
+  it('uses mapped student IDs instead of generated IDs', async () => {
+    const rawData: RawSheetData = {
+      headers: ['First Name', 'Student ID'],
+      rows: [{ rowIndex: 2, cells: ['Alice', 'ALICE-15'] }]
+    };
+    const result = await importRosterWithMapping(
+      {
+        poolRepo: env.poolRepo,
+        studentRepo: env.studentRepo,
+        preferenceRepo: env.preferenceRepo,
+        idGenerator: env.idGenerator
+      },
+      {
+        rawData,
+        columnMappings: [
+          { columnIndex: 0, headerName: 'First Name', mappedTo: 'firstName' },
+          { columnIndex: 1, headerName: 'Student ID', mappedTo: 'studentId' }
+        ],
+        poolName: 'Test Roster',
+        poolType: 'CLASS',
+        ownerStaffId: 'owner-1'
+      }
+    );
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.students[0].id).toBe('alice-15');
+      expect(result.value.rowStudentLinks).toEqual([{ rowIndex: 2, studentId: 'alice-15' }]);
+    }
+  });
+
   it('fails when required firstName mapping is missing', async () => {
     const invalidMappings: ColumnMapping[] = [
       { columnIndex: 0, headerName: 'First Name', mappedTo: 'lastName' },
