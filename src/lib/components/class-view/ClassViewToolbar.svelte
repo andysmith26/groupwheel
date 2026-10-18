@@ -10,6 +10,7 @@
   import type { SaveStatus } from '$lib/stores/scenarioEditingStore';
   import type { Group } from '$lib/domain';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { Z } from '$lib/constants/elevation';
 
   interface Props {
     activityName: string;
@@ -107,9 +108,10 @@
 </script>
 
 <div
-  class="flex items-center justify-between border-b-2 px-4 py-2 shadow-sm {isViewingHistory
+  class="relative flex h-8 items-center justify-between border-b px-4 shadow-sm {isViewingHistory
     ? 'border-amber-400 bg-amber-50'
     : 'border-teal-400 bg-white'}"
+  style:z-index={Z.OVERLAY}
   role="toolbar"
   aria-label="Workspace toolbar"
   onkeydown={handleKeydown}
@@ -118,10 +120,10 @@
     <button
       type="button"
       onclick={onBack}
-      class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+      class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
       aria-label="Back to Home"
     >
-      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 7.5 12l8.25-7.5" />
       </svg>
     </button>
@@ -130,7 +132,7 @@
       <button
         type="button"
         onclick={onToggleRoster}
-        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors {rosterOpen
+        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors {rosterOpen
           ? 'bg-teal-50 text-teal-700'
           : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}"
         aria-label="{rosterOpen ? 'Close' : 'Open'} roster"
@@ -138,7 +140,7 @@
         title="Toggle roster"
       >
         <svg
-          class="h-5 w-5"
+          class="h-4 w-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke-width="1.5"
@@ -153,7 +155,7 @@
       </button>
     {/if}
 
-    <h1 class="min-w-0 truncate text-lg font-semibold text-gray-900">
+    <h1 class="min-w-0 truncate text-sm font-semibold text-gray-900">
       {activityName}
     </h1>
   </div>
@@ -167,7 +169,7 @@
         <button
           type="button"
           onclick={onToggleHistory}
-          class="relative flex h-9 w-9 items-center justify-center rounded-md transition-colors {historyPanelOpen
+          class="relative flex h-7 w-7 items-center justify-center rounded-md transition-colors {historyPanelOpen
             ? 'bg-teal-50 text-teal-700'
             : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}"
           aria-label="{historyPanelOpen ? 'Close' : 'Open'} session history"
@@ -175,7 +177,7 @@
           title="Session history"
         >
           <svg
-            class="h-5 w-5"
+            class="h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke-width="1.5"
@@ -200,7 +202,7 @@
           onclick={() => {
             setMenuOpen('settings', !settingsOpen);
           }}
-          class="flex h-9 w-9 items-center justify-center rounded-md transition-colors {settingsOpen
+          class="flex h-7 w-7 items-center justify-center rounded-md transition-colors {settingsOpen
             ? 'bg-teal-50 text-teal-700'
             : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}"
           aria-label="{settingsOpen ? 'Close' : 'Open'} settings"
@@ -208,7 +210,7 @@
           title="Settings"
         >
           <svg
-            class="h-5 w-5"
+            class="h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke-width="2"
@@ -250,7 +252,7 @@
           onclick={() => {
             setMenuOpen('share', !shareOpen);
           }}
-          class="flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium shadow-sm transition-colors {shareOpen
+          class="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium shadow-sm transition-colors {shareOpen
             ? 'bg-teal-700 text-white'
             : 'bg-teal-600 text-white hover:bg-teal-700'}"
           aria-label="{shareOpen ? 'Close' : 'Open'} export menu"

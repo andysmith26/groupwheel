@@ -72,33 +72,30 @@ test.describe('Drag and Drop Workspace', () => {
     expect(await studentCards.count()).toBe(10);
   });
 
-  test('maximizes short desktop canvas height while keeping workspace commands reachable', async ({
+  test('keeps the compact toolbar visible above the desktop canvas', async ({
     page
   }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     const activityName = `Compact Canvas ${Date.now()}`;
     await createActivity(page, { activityName });
 
-    // Ensure toolbar is expanded, then move mouse away to trigger hover-collapse
     const toolbar = page.getByRole('toolbar', { name: 'Workspace toolbar' });
-    await toolbar.hover();
+    await expect(toolbar).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to Home' })).toBeVisible();
 
-    // Move mouse to centre of page — triggers mouseleave on toolbar (350ms delay)
     await page.mouse.move(640, 400);
-    await page.waitForTimeout(600);
-    await expect(page.getByRole('button', { name: 'Back to Home' })).not.toBeVisible();
+    await expect(toolbar).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back to Home' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Unassigned/ })).toBeVisible();
 
     const firstGroupColumn = page.locator('.rounded-xl.border-2').first();
     await expect(firstGroupColumn).toBeVisible();
     const groupBounds = await firstGroupColumn.boundingBox();
+    const toolbarBounds = await toolbar.boundingBox();
     expect(groupBounds).not.toBeNull();
-    expect(groupBounds!.y).toBeLessThan(155);
-
-    // Hover the collapsed chip to re-expand the toolbar
-    await page.locator('[data-testid="toolbar-chip"]').hover();
-    await expect(page.getByRole('button', { name: 'Back to Home' })).toBeVisible();
+    expect(toolbarBounds).not.toBeNull();
+    expect(toolbarBounds!.height).toBe(32);
+    expect(groupBounds!.y).toBeGreaterThanOrEqual(toolbarBounds!.y + toolbarBounds!.height);
 
     const profileAction = page.getByRole('button', {
       name: "View Alice Smith's details. No peer requests."

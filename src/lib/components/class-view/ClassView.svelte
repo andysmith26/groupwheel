@@ -25,7 +25,6 @@
   import { getSourceStudentId, getStudentGivenName, getStudentLongName } from '$lib/domain/student';
   import { detectSimpleNameList } from '$lib/utils/pasteDetection';
   import ClassViewToolbar from './ClassViewToolbar.svelte';
-  import FloatingMiniToolbar from './FloatingMiniToolbar.svelte';
   import RosterPanel from './RosterPanel.svelte';
   import RosterImportModal from './RosterImportModal.svelte';
   import GroupsPanel from './GroupsPanel.svelte';
@@ -212,10 +211,6 @@
   let viewingSession = $derived(
     viewingSessionId ? (sessions.find((s) => s.id === viewingSessionId) ?? null) : null
   );
-
-  // Desktop editing mode shows the FloatingMiniToolbar; mobile/history-viewing
-  // modes use the full-width ClassViewToolbar in flex flow.
-  const canAutoHideToolbar = $derived(isDesktop && !isViewingHistory);
 
   // Map group IDs to display names for preference display
   let groupNameMap = $derived(Object.fromEntries((view?.groups ?? []).map((g) => [g.id, g.name])));
@@ -888,45 +883,13 @@
       </button>
     </div>
   {:else}
-    {#if !canAutoHideToolbar}
-      <!-- Full-width toolbar in flex flow for mobile and history-viewing mode -->
-      <div class="shrink-0">
-        <ClassViewToolbar
-          {activityName}
-          {saveStatus}
-          {lastSavedAt}
-          {hasGroups}
-          {isViewingHistory}
-          onBack={handleBack}
-          onRetrySave={handleRetrySave}
-          onToggleRoster={handleToggleRoster}
-          rosterOpen={rosterDrawerOpen}
-          onToggleHistory={handleToggleHistory}
-          {historyPanelOpen}
-          {hasHistory}
-          groups={displayGroups}
-          {avoidRecentGroupmates}
-          {lookbackSessions}
-          {publishedSessionCount}
-          onToggleAvoidance={(enabled) => vm.actions.setAvoidRecentGroupmates(enabled)}
-          onLookbackChange={(s) => vm.actions.setLookbackSessions(s)}
-          onEditGroup={handleEditGroup}
-          onAddGroup={handleCreateGroup}
-          onManageTags={handleOpenManageTags}
-          onCopyForSpreadsheet={handleCopyForSpreadsheet}
-          onSave={handleMoveToComputer}
-          onPrint={handlePrint}
-          onDisplay={handleDisplay}
-          onPublish={handleShowToClass}
-        />
-      </div>
-    {:else}
-      <!-- Floating mini-toolbar for desktop editing mode -->
-      <FloatingMiniToolbar
+    <div class="shrink-0">
+      <ClassViewToolbar
         {activityName}
         {saveStatus}
         {lastSavedAt}
         {hasGroups}
+        {isViewingHistory}
         onBack={handleBack}
         onRetrySave={handleRetrySave}
         onToggleRoster={handleToggleRoster}
@@ -949,7 +912,7 @@
         onDisplay={handleDisplay}
         onPublish={handleShowToClass}
       />
-    {/if}
+    </div>
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Center: Groups canvas (always full remaining width) -->
