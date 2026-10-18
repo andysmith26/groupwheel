@@ -6,6 +6,7 @@
  * @module application/useCases/prepareGroupingActivityImport
  */
 
+import type { MatrixPreferenceColumn } from '$lib/utils/matrixPreferenceParser';
 import type { ColumnMapping, RawSheetData } from '$lib/domain/import';
 import {
   generateStudentId,
@@ -15,6 +16,11 @@ import {
 } from '$lib/domain/import';
 import { getStudentLongName } from '$lib/domain/student';
 import { detectSimpleNameList } from '$lib/utils/pasteDetection';
+import {
+  detectMatrixFormat,
+  extractChoiceRank,
+  parseMatrixRow
+} from '$lib/utils/matrixPreferenceParser';
 import { parseCsvToSheetData } from '$lib/services/googleSheets';
 import { createImportColumnMappings } from '$lib/services/importFieldMatching';
 import type {
@@ -144,6 +150,15 @@ export function prepareChoices(
   if (rawData.headers.length === 0 || rawData.rows.length === 0) {
     return { ...base, error: 'The choices file needs a header row and at least one data row.' };
   }
+  const matrix = detectMatrixFormat(rawData);
+  if (
+    matrix.isMatrixFormat &&
+    rawData.rows.some((row) =>
+      matrix.columns.some((col) => extractChoiceRank(row.cells[col.columnIndex] ?? '') !== null)
+    )
+  ) {
+    return prepareMatrixChoices(rawData, matrix.columns, roster, base);
+  }
   const columnMappings = mappingsOverride ?? createImportColumnMappings(rawData);
   const hasPeerRequestColumns = columnMappings.some(
     (m) => m.mappedTo !== null && isPeerRequestField(m.mappedTo)
@@ -208,3 +223,85 @@ export function prepareChoices(
   };
 }
 
+
+const MAX_MATRIX_CHOICES = 5;
+
+function decodeEntities(value: string): string {
+  return value.replace(/&amp;/gi, '&').replace(/&#39;|&apos;/gi, "'").replace(/&quot;/gi, '"');
+}
+
+/**
+ * Google Forms grid format: one column per group, cells like "1st Choice".
+ * Rows are matched to the roster by student id or name found in a non-group column.
+ */
+function prepareMatrixChoices(
+  rawData: RawSheetData,
+  columns: MatrixPreferenceColumn[],
+  roster: ParsedStudent[],
+  base: PreparedChoices
+): PreparedChoices {
+  const groupCols = columns.map((c) => ({ ...c, groupName: decodeEntities(c.groupName) }));
+  const groupIdx = new Set(groupCols.map((c) => c.columnIndex));
+  const columnMappings: ColumnMapping[] = rawData.headers.map((headerName, columnIndex) => ({
+    columnIndex,
+    headerName,
+    mappedTo: null
+  }));
+  const identityCols = rawData.headers
+    .map((_, i) => i)
+    .filter((i) => !groupIdx.has(i) && !/timestamp|email/i.test(rawData.headers[i]));
+
+  const lookup = new Map<string, ParsedStudent>();
+  for (const student of roster) {
+    lookup.set(normalize(student.id), student);
+    lookup.set(normalize(student.displayName), student);
+    lookup.set(normalize(`${student.firstName} ${student.lastName}`), student);
+  }
+
+  const preferences: ParsedPreference[] = [];
+  const rowStudentLinks: PreparedChoices['rowStudentLinks'] = [];
+  const unmatchedNames: string[] = [];
+  const groupNames = new Set<string>();
+  const seen = new Set<string>();
+
+  for (const row of rawData.rows) {
+    const candidates = identityCols.map((i) => (row.cells[i] ?? '').trim()).filter(Boolean);
+    if (candidates.length === 0) continue;
+    let match: ParsedStudent | undefined;
+    for (const c of candidates) {
+      match = lookup.get(normalize(c));
+      if (match) break;
+    }
+    if (!match) {
+      unmatchedNames.push(candidates[candidates.length - 1]);
+      continue;
+    }
+    rowStudentLinks.push({ rowIndex: row.rowIndex, studentId: match.id });
+    if (seen.has(match.id)) continue;
+    const choices = parseMatrixRow(row, groupCols).rankedChoices.slice(0, MAX_MATRIX_CHOICES);
+    if (choices.length === 0) continue;
+    seen.add(match.id);
+    choices.forEach((c) => groupNames.add(c));
+    preferences.push({ studentId: match.id, likeGroupIds: choices });
+  }
+
+  const warnings: string[] = [];
+  if (unmatchedNames.length > 0) {
+    warnings.push(
+      `${unmatchedNames.length} name${unmatchedNames.length === 1 ? '' : 's'} in the choices file did not match the roster and will be skipped.`
+    );
+  }
+
+  return {
+    ...base,
+    preferences,
+    // Keep every form column as a group, even if nobody picked it
+    groupNames: Array.from(new Set([...groupCols.map((c) => c.groupName), ...groupNames])),
+    rawData,
+    columnMappings,
+    rowStudentLinks,
+    coveredCount: preferences.length,
+    unmatchedNames,
+    warnings
+  };
+}
