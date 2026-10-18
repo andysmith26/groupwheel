@@ -3,6 +3,7 @@
   import { fade, scale } from 'svelte/transition';
   import type { Program, Tag } from '$lib/domain';
   import { TAG_COLOR_HEX, resolveTagColorHex } from '$lib/utils/tagColors';
+  import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
   import { Button } from '$lib/components/ui';
 
   interface Props {
@@ -70,11 +71,16 @@
   }
 
   async function handleDelete(tag: Tag) {
-    const confirmed = window.confirm(`Delete tag "${tag.name}"? This removes it from all students.`);
+    const colorMode = cardDisplay.tagColorModes[tag.id];
+    const confirmationMessage = colorMode
+      ? `Tag "${tag.name}" is set to color card ${colorMode === 'background' ? 'backgrounds' : 'borders'}. Deleting it will remove that setting. Delete tag?`
+      : `Delete tag "${tag.name}"? This removes it from all students.`;
+    const confirmed = window.confirm(confirmationMessage);
     if (!confirmed) return;
     savingTagId = tag.id;
     const success = await onDeleteTag(tag.id);
     savingTagId = null;
+    if (success) cardDisplay.removeTag(tag.id);
     error = success ? null : 'Could not delete tag.';
   }
 </script>
