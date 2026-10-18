@@ -3,7 +3,8 @@ import {
   TAG_COLOR_HEX,
   randomColorIndex,
   resolveTagBadgeClasses,
-  resolveTagColorHex
+  resolveTagColorHex,
+  resolveTagTintHex
 } from './tagColors';
 
 describe('tagColors', () => {
@@ -36,5 +37,10 @@ describe('tagColors', () => {
     expect(resolveTagBadgeClasses({ name: 'Honors', colorIndex: 0 })).toContain('bg-');
     expect(resolveTagBadgeClasses({ name: 'Honors' })).toContain('bg-');
     expect(resolveTagBadgeClasses({ name: 'Honors', colorIndex: -1 })).toContain('bg-');
+  });
+
+  it('returns a light background tint distinct from the saturated tag color', () => {
+    expect(resolveTagTintHex({ name: 'Honors', colorIndex: 0 })).not.toBe(TAG_COLOR_HEX[0]);
+    expect(resolveTagTintHex({ name: 'Honors', colorIndex: 0 })).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });

@@ -44,6 +44,15 @@ export function resolveTagColorHex(tag: { name: string; colorIndex?: number }): 
   return getTagColorHex(tag.name);
 }
 
+export function resolveTagTintHex(tag: { name: string; colorIndex?: number }): string {
+  const color = resolveTagColorHex(tag);
+  const hex = color.slice(1);
+  const channels = [0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+  return `#${channels
+    .map((channel) => Math.round(255 * 0.8 + channel * 0.2).toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
 export function resolveTagBadgeClasses(tag: { name: string; colorIndex?: number }): string {
   if (tag.colorIndex != null) {
     return TAG_BADGE_CLASS[normalizeColorIndex(tag.colorIndex, TAG_BADGE_CLASS.length)];
