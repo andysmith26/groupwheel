@@ -44,6 +44,8 @@
   import { toastStore } from '$lib/stores/toast.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
   import { setLastActiveClubId } from '$lib/utils/lastActiveClub';
+  import { importActivity } from '$lib/services/appEnvUseCases';
+  import { parseActivityFile, readFileAsText } from '$lib/utils/activityFile';
 
   interface Props {
     activityId: string;
@@ -671,6 +673,40 @@
     hintState.dismiss('rotationAvoidance');
   }
 
+  let prefsFileInput = $state<HTMLInputElement | null>(null);
+  let importingPrefs = $state(false);
+
+  /** Optional: import a .grp/.json activity file via the existing importActivity path. */
+  async function handlePrefsFileSelect(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || importingPrefs) return;
+    importingPrefs = true;
+    try {
+      const validation = parseActivityFile(await readFileAsText(file));
+      if (!validation.valid) {
+        toastStore.error(validation.error);
+        return;
+      }
+      const result = await importActivity(env, {
+        exportData: validation.data,
+        ownerStaffId: 'owner-1'
+      });
+      if (isErr(result)) {
+        toastStore.error(result.error.message);
+        return;
+      }
+      toastStore.success(`Imported "${result.value.program.name}"`);
+      setLastActiveClubId(result.value.program.id);
+      await goto(`/activity/${result.value.program.id}`);
+    } catch (e) {
+      toastStore.error(e instanceof Error ? e.message : 'Import failed.');
+    } finally {
+      importingPrefs = false;
+      input.value = '';
+    }
+  }
+
   function openImportModal() {
     importModalOpen = true;
   }
@@ -1143,6 +1179,13 @@
       widthPx={rosterWidth}
       onClose={handleToggleRoster}
     >
+      <input
+        bind:this={prefsFileInput}
+        type="file"
+        accept=".grp,.json"
+        class="hidden"
+        onchange={handlePrefsFileSelect}
+      />
       <RosterPanel
         {students}
         {loading}
@@ -1155,6 +1198,14 @@
         {selectedStudentId}
         inactiveStudentIds={vm.state.inactiveStudentIds}
       />
+      <button
+        type="button"
+        class="w-full border-t border-gray-200 px-3 py-2 text-left text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+        onclick={() => prefsFileInput?.click()}
+        disabled={importingPrefs || loading}
+      >
+        {importingPrefs ? 'Importing…' : 'Import preferences (.grp / .json) — optional'}
+      </button>
     </OverlaySheet>
 
     <!-- Student Detail Sidebar (right) -->
