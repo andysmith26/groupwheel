@@ -11,13 +11,11 @@
     sortByLastUsed
   } from '$lib/utils/lastActiveClub';
   import { Alert } from '$lib/components/ui';
-  import ImportRosterCard from './ImportRosterCard.svelte';
 
   const env = getAppEnvContext();
   let activities = $state<ActivityDisplay[]>([]);
   let lastActiveClubId = $state<string | null>(null);
   let loading = $state(true);
-  let showNewActivity = $state(false);
   let error = $state<string | null>(null);
 
   let activeClub = $derived(
@@ -97,28 +95,18 @@
           New activity
         </h2>
         <p class="mt-3 text-sm text-gray-600">
-          Import a roster to open the canvas. Preferences can be added later.
+          Add a roster, optionally add choices, and open the canvas.
         </p>
       </div>
       <button
         type="button"
         class="min-h-12 rounded-lg bg-teal-700 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
-        onclick={() => (showNewActivity = !showNewActivity)}
-        aria-expanded={showNewActivity}
+        onclick={() => goto('/activity/new')}
       >
         New Activity
       </button>
     </section>
   </div>
-
-  {#if showNewActivity}
-    <section
-      aria-label="New activity"
-      class="rounded-xl border border-gray-200 bg-white p-5"
-    >
-      <ImportRosterCard compact onCreated={openActivity} />
-    </section>
-  {/if}
 
   <section
     aria-labelledby="club-history-title"
