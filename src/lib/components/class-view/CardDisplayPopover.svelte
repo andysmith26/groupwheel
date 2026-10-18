@@ -14,6 +14,11 @@
   let popoverEl = $state<HTMLDivElement | null>(null);
   let ready = $state(false);
   const sortedTags = $derived([...tags].sort((a, b) => a.name.localeCompare(b.name)));
+  const modeOptions: { label: string; mode: 'background' | 'border' | null }[] = [
+    { label: 'None', mode: null },
+    { label: 'Background', mode: 'background' },
+    { label: 'Border', mode: 'border' }
+  ];
 
   $effect(() => {
     const timer = setTimeout(() => {
@@ -51,7 +56,7 @@
   style:z-index={Z.OVERLAY}
   role="dialog"
   aria-label="Card display"
-  onclick={(event) => event.stopPropagation()}
+  tabindex="-1"
 >
   <div class="border-b border-gray-200 px-4 py-3">
     <h3 class="text-sm font-semibold text-gray-900">Card display</h3>
@@ -80,17 +85,19 @@
           onclick={() => {
             onClose();
             onManageTags();
-          }}
-        >Manage Tags</button>.
+          }}>Manage Tags</button
+        >.
       </p>
     {:else}
       <div class="max-h-80 space-y-2 overflow-y-auto pr-1">
         {#each sortedTags as tag (tag.id)}
           <div class="flex items-center justify-between gap-3">
             <span
-              class="max-w-36 min-w-0 truncate rounded px-1.5 py-0.5 text-xs font-medium {resolveTagBadgeClasses(tag)}"
-              title={tag.name}
-            >{tag.name}</span>
+              class="max-w-36 min-w-0 truncate rounded px-1.5 py-0.5 text-xs font-medium {resolveTagBadgeClasses(
+                tag
+              )}"
+              title={tag.name}>{tag.name}</span
+            >
             <fieldset class="shrink-0">
               <legend class="sr-only">Color for {tag.name}</legend>
               <div
@@ -98,11 +105,7 @@
                 role="radiogroup"
                 aria-label="Color for {tag.name}"
               >
-                {#each [
-                  { label: 'None', mode: null },
-                  { label: 'Background', mode: 'background' },
-                  { label: 'Border', mode: 'border' }
-                ] as option, index (option.label)}
+                {#each modeOptions as option, index (option.label)}
                   <label
                     class="cursor-pointer px-2 py-1 text-xs {index > 0
                       ? 'border-l border-gray-300'

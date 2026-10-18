@@ -49,7 +49,11 @@ export function resolveTagTintHex(tag: { name: string; colorIndex?: number }): s
   const hex = color.slice(1);
   const channels = [0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
   return `#${channels
-    .map((channel) => Math.round(255 * 0.8 + channel * 0.2).toString(16).padStart(2, '0'))
+    .map((channel) =>
+      Math.round(255 * 0.8 + channel * 0.2)
+        .toString(16)
+        .padStart(2, '0')
+    )
     .join('')}`;
 }
 

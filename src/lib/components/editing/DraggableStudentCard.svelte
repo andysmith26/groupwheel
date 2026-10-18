@@ -95,7 +95,7 @@
     const styles: string[] = [];
     if (cardTagStyling.backgroundHex) {
       const backgroundTagId = (student.tagIds ?? []).find(
-        (tagId) =>
+        (tagId: string) =>
           cardDisplay.tagColorModes[tagId] === 'background' &&
           tagsById[tagId] &&
           cardTagStyling.backgroundHex !== null
@@ -308,8 +308,8 @@
     <span
       class="pointer-events-none absolute top-0 right-0 z-10 text-sm leading-none font-bold text-amber-600"
       role="img"
-      aria-label={conflictText}
-    >!</span>
+      aria-label={conflictText}>!</span
+    >
   {/if}
   <div class="flex min-w-0 flex-1 items-center gap-1">
     <span class="group/profile relative shrink-0">
@@ -358,7 +358,9 @@
     {#if cardDisplay.showTags}
       {#each visibleTags as tag (tag.id)}
         <span
-          class="max-w-[45%] min-w-0 truncate rounded px-1.5 py-0.5 text-[10px] leading-none font-medium {resolveTagBadgeClasses(tag)}"
+          class="max-w-[45%] min-w-0 truncate rounded px-1.5 py-0.5 text-[10px] leading-none font-medium {resolveTagBadgeClasses(
+            tag
+          )}"
           title={tag.name}
         >
           {tag.name}

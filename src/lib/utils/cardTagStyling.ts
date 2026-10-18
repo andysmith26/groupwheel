@@ -29,8 +29,7 @@ export function resolveCardTagStyling(
   }
 
   return {
-    backgroundHex:
-      backgroundTags.length === 1 ? resolveTagColorHex(backgroundTags[0].tag) : null,
+    backgroundHex: backgroundTags.length === 1 ? resolveTagColorHex(backgroundTags[0].tag) : null,
     borderHex: borderTags.length === 1 ? resolveTagColorHex(borderTags[0].tag) : null,
     conflicts
   };

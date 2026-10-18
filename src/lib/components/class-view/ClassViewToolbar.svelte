@@ -120,6 +120,7 @@
   style:z-index={Z.OVERLAY}
   role="toolbar"
   aria-label="Workspace toolbar"
+  tabindex="-1"
   onkeydown={handleKeydown}
 >
   <div class="flex min-w-0 items-center gap-3">
@@ -305,7 +306,7 @@
           aria-expanded={shareOpen}
           aria-haspopup="true"
         >
-          <span class="text-sm font-medium">Export</span>
+          <span class="text-xs font-medium">Export</span>
           <svg
             class="h-4 w-4"
             fill="none"

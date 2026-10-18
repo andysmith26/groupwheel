@@ -63,10 +63,7 @@ function extractTemplate(content: string): string {
 }
 
 // Collect all Svelte files from components and routes
-const svelteFiles = [
-  ...collectSvelteFiles(COMPONENTS_DIR),
-  ...collectSvelteFiles(ROUTES_DIR)
-];
+const svelteFiles = [...collectSvelteFiles(COMPONENTS_DIR), ...collectSvelteFiles(ROUTES_DIR)];
 
 const fileContents = new Map<string, string>();
 for (const f of svelteFiles) {

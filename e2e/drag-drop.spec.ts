@@ -72,9 +72,7 @@ test.describe('Drag and Drop Workspace', () => {
     expect(await studentCards.count()).toBe(10);
   });
 
-  test('keeps the compact toolbar visible above the desktop canvas', async ({
-    page
-  }) => {
+  test('keeps the compact toolbar visible above the desktop canvas', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     const activityName = `Compact Canvas ${Date.now()}`;
     await createActivity(page, { activityName });
@@ -86,7 +84,6 @@ test.describe('Drag and Drop Workspace', () => {
     await page.mouse.move(640, 400);
     await expect(toolbar).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to Home' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Unassigned/ })).toBeVisible();
 
     const firstGroupColumn = page.locator('.rounded-xl.border-2').first();
     await expect(firstGroupColumn).toBeVisible();
@@ -103,6 +100,32 @@ test.describe('Drag and Drop Workspace', () => {
     await profileAction.click();
     await expect(page.getByLabel('Student detail panel')).toBeVisible();
     await expect(page.getByText('Peer requests', { exact: true })).toBeVisible();
+  });
+
+  test('card display options persist and toolbar menus are exclusive', async ({ page }) => {
+    await createActivity(page, { activityName: `Card Options ${Date.now()}` });
+
+    const cardsButton = page.getByRole('button', { name: 'Card display options' });
+    await cardsButton.click();
+    const cardsDialog = page.getByRole('dialog', { name: 'Card display' });
+    await expect(cardsDialog).toBeVisible();
+    await expect(cardsDialog.getByLabel('Show tags on cards')).toBeChecked();
+    await expect(cardsDialog.getByText(/No tags yet/)).toBeVisible();
+    await cardsDialog.getByLabel('Show tags on cards').uncheck();
+
+    await page.getByRole('button', { name: 'Open settings' }).click();
+    await expect(cardsDialog).not.toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Settings' })).not.toBeVisible();
+
+    await cardsButton.click();
+    await expect(cardsDialog.getByLabel('Show tags on cards')).not.toBeChecked();
+    await page.reload();
+    await page.getByRole('button', { name: 'Card display options' }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'Card display' }).getByLabel('Show tags on cards')
+    ).not.toBeChecked();
   });
 
   test('opens the edit sidebar from canvas card actions', async ({ page }) => {

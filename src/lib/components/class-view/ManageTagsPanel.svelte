@@ -10,7 +10,10 @@
     program: Program;
     tags: Tag[];
     onCreateTag: (input: { name: string; colorIndex?: number }) => Promise<boolean>;
-    onUpdateTag: (tagId: string, changes: { name?: string; colorIndex?: number }) => Promise<boolean>;
+    onUpdateTag: (
+      tagId: string,
+      changes: { name?: string; colorIndex?: number }
+    ) => Promise<boolean>;
     onDeleteTag: (tagId: string) => Promise<boolean>;
     onClose: () => void;
   }
@@ -25,7 +28,8 @@
   const TAG_COLOR_NAMES = ['Teal', 'Blue', 'Purple', 'Red', 'Amber', 'Emerald', 'Indigo', 'Pink'];
 
   function colorNameForIndex(index: number): string {
-    const normalized = ((index % TAG_COLOR_NAMES.length) + TAG_COLOR_NAMES.length) % TAG_COLOR_NAMES.length;
+    const normalized =
+      ((index % TAG_COLOR_NAMES.length) + TAG_COLOR_NAMES.length) % TAG_COLOR_NAMES.length;
     return TAG_COLOR_NAMES[normalized] ?? `Color ${normalized + 1}`;
   }
 
@@ -118,7 +122,9 @@
         placeholder="New tag name"
         class="block min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none"
       />
-      <Button variant="primary" onclick={handleCreateTag} disabled={!newTagName.trim()}>Add Tag</Button>
+      <Button variant="primary" onclick={handleCreateTag} disabled={!newTagName.trim()}
+        >Add Tag</Button
+      >
     </div>
 
     {#if error}
@@ -154,7 +160,7 @@
               </button>
             </div>
             <div class="flex gap-2">
-              {#each TAG_COLOR_HEX as hex, i}
+              {#each TAG_COLOR_HEX as hex, i (hex)}
                 <button
                   type="button"
                   class="h-7 w-7 rounded-full border-2 transition-transform {tag.colorIndex === i
