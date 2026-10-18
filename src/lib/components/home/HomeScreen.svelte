@@ -548,33 +548,6 @@
           >New Activity</span
         >
       </button>
-
-      <!-- Load activity from file card -->
-      <button
-        type="button"
-        class="group flex h-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-white p-5 shadow-sm transition-all hover:border-teal/50 hover:shadow-md focus:ring-2 focus:ring-teal focus:ring-offset-2 focus:outline-none disabled:opacity-50"
-        onclick={openImportFilePicker}
-        disabled={isImporting}
-      >
-        <div class="rounded-full bg-gray-100 p-3 transition-colors group-hover:bg-teal/10">
-          <svg
-            class="h-6 w-6 text-gray-400 transition-colors group-hover:text-teal"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-            />
-          </svg>
-        </div>
-        <span class="mt-3 text-sm font-medium text-gray-600 transition-colors group-hover:text-teal"
-          >{isImporting ? 'Loading…' : 'Load from file'}</span
-        >
-      </button>
     </div>
   {/if}
 </div>
