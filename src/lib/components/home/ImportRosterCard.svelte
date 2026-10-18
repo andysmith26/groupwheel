@@ -179,7 +179,7 @@
       const text = await readFileAsText(file);
 
       // Try JSON first
-      if (file.name.endsWith('.json') || text.trimStart().startsWith('{')) {
+      if (file.name.endsWith('.json') || file.name.endsWith('.grp') || text.trimStart().startsWith('{')) {
         const validation = parseActivityFile(text);
         if (validation.valid) {
           const d = validation.data;
@@ -482,7 +482,7 @@
   <input
     bind:this={fileInput}
     type="file"
-    accept=".csv,.tsv,.txt,.json"
+    accept=".csv,.tsv,.txt,.json,.grp"
     class="hidden"
     onchange={handleFileSelect}
   />
@@ -506,7 +506,7 @@
       Choose file
     </button>
     <p class="{compact ? 'mt-1' : 'mt-2'} text-center text-xs text-gray-400">
-      Accepts .csv, .tsv, or .json
+      Accepts .csv, .tsv, .json, or .grp
     </p>
   {:else if isReviewingPeerRequests && pendingPeerReview}
     <div class={compact ? '' : 'mt-5'}>
