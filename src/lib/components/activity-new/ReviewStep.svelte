@@ -34,7 +34,7 @@
           {#if wizard.choicesFileName}(from {wizard.choicesFileName}){/if}
         </p>
         <p class="text-xs text-gray-500">
-          {withoutChoices} without choices will start unassigned.
+          {withoutChoices} without choices.
           {#if wizard.choices.unmatchedNames.length > 0}
             {wizard.choices.unmatchedNames.length} name{wizard.choices.unmatchedNames.length === 1
               ? ''
@@ -63,6 +63,19 @@
           </li>
         {/each}
       </ul>
+    </section>
+
+    <section class="space-y-1">
+      <h3 class="text-sm font-semibold text-gray-900">Activity</h3>
+      <p class="text-sm text-gray-700">{wizard.activityName.trim()}</p>
+      <p class="text-xs text-gray-500">
+        Starting arrangement:
+        {wizard.initialPopulation === 'top-choice'
+          ? 'each student placed in their 1st choice'
+          : wizard.initialPopulation === 'random'
+            ? 'students placed randomly'
+            : 'empty groups'}
+      </p>
     </section>
 
     <section class="space-y-1">

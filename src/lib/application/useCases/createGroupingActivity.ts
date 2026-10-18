@@ -67,8 +67,9 @@ export interface ParsedPreference {
  *
  * - 'none': Create empty groups with no members assigned.
  * - 'top-choice': Assign each student who has preferences to their 1st choice group.
+ * - 'random': Deal all students into groups at random, respecting group capacities.
  */
-export type SeedingStrategy = 'none' | 'top-choice';
+export type SeedingStrategy = 'none' | 'top-choice' | 'random';
 
 /**
  * Input for creating a grouping activity.
@@ -374,6 +375,25 @@ export async function createGroupingActivity(
         const group = groupIdToGroup.get(groupId);
         if (group && (group.capacity === null || group.memberIds.length < group.capacity)) {
           group.memberIds.push(pref.studentId);
+        }
+      }
+    }
+
+    if (input.seedingStrategy === 'random') {
+      const shuffled = [...pool.memberIds];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      let cursor = 0;
+      for (const studentId of shuffled) {
+        for (let tries = 0; tries < groups.length; tries++) {
+          const group = groups[(cursor + tries) % groups.length];
+          if (group.capacity === null || group.memberIds.length < group.capacity) {
+            group.memberIds.push(studentId);
+            cursor = (cursor + tries + 1) % groups.length;
+            break;
+          }
         }
       }
     }

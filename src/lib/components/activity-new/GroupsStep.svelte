@@ -32,29 +32,10 @@
         These groups came from your choices file. Rename, remove or add groups, and optionally set a
         max size.
       {:else}
-        How many groups do you want? Rename them in place and optionally set a max size.
+        Start with these groups, then add, remove or rename them and optionally set a max size.
       {/if}
     </p>
   </div>
-
-  {#if !fromChoices}
-    <div class="flex items-center gap-3">
-      <label class="text-sm font-medium text-gray-700" for="an-group-count">Number of groups</label>
-      <input
-        id="an-group-count"
-        type="number"
-        min="1"
-        max={Math.max(wizard.students.length, 1)}
-        class="w-24 rounded-md border border-gray-300 px-3 py-1.5 text-sm"
-        value={wizard.groups.length}
-        onchange={(e) => {
-          wizard.setGroupCount(Number(e.currentTarget.value));
-          e.currentTarget.value = String(wizard.groups.length);
-        }}
-      />
-      <span class="text-xs text-gray-500">for {wizard.students.length} students</span>
-    </div>
-  {/if}
 
   <ul class="space-y-2">
     <li

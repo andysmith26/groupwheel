@@ -21,7 +21,7 @@
   import ChoicesStep from './ChoicesStep.svelte';
   import GroupsStep from './GroupsStep.svelte';
   import ReviewStep from './ReviewStep.svelte';
-  import NameStep from './NameStep.svelte';
+  import SetupStep from './SetupStep.svelte';
 
   const env = getAppEnvContext();
   const wizard = createActivityNewWizardStore();
@@ -30,8 +30,8 @@
     roster: 'Roster',
     choices: 'Choices',
     groups: 'Groups',
-    review: 'Review',
-    name: 'Name'
+    setup: 'Setup',
+    review: 'Review'
   };
 
   function openActivity(programId: string) {
@@ -56,7 +56,7 @@
         preferences: wizard.finalPreferences,
         groupNames,
         groupCapacities,
-        seedingStrategy: wizard.finalPreferences.length > 0 ? 'top-choice' : undefined,
+        seedingStrategy: wizard.initialPopulation === 'empty' ? 'none' : wizard.initialPopulation,
         ownerStaffId: 'owner-1'
       });
       if (isErr(result)) {
@@ -161,10 +161,10 @@
       <ChoicesStep {wizard} />
     {:else if wizard.step === 'groups'}
       <GroupsStep {wizard} />
+    {:else if wizard.step === 'setup'}
+      <SetupStep {wizard} />
     {:else if wizard.step === 'review'}
       <ReviewStep {wizard} />
-    {:else if wizard.step === 'name'}
-      <NameStep {wizard} onCreate={create} />
     {:else if wizard.step === 'peers' && wizard.peerReview}
       <PeerRequestMatchingReview
         readyToConfirm={wizard.peerReview.readyToConfirm}
@@ -196,7 +196,7 @@
       >
         Back
       </button>
-      {#if wizard.step !== 'name'}
+      {#if wizard.step !== 'review'}
         <button
           type="button"
           class="rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
@@ -204,6 +204,15 @@
           onclick={() => wizard.next()}
         >
           {wizard.step === 'choices' && !wizard.choices ? 'Skip' : 'Continue'}
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+          disabled={!wizard.canContinue}
+          onclick={create}
+        >
+          {wizard.submitting ? 'Creating…' : 'Create Groups'}
         </button>
       {/if}
     </div>

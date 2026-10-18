@@ -13,15 +13,19 @@ import {
   type PreparedRoster
 } from '$lib/application/useCases/prepareGroupingActivityImport';
 
-export type ActivityNewStep = 'roster' | 'choices' | 'groups' | 'review' | 'name' | 'peers';
+export type ActivityNewStep = 'roster' | 'choices' | 'groups' | 'setup' | 'review' | 'peers';
 
 export const ACTIVITY_NEW_STEPS: ActivityNewStep[] = [
   'roster',
   'choices',
   'groups',
-  'review',
-  'name'
+  'setup',
+  'review'
 ];
+
+export type InitialPopulation = 'top-choice' | 'random' | 'empty';
+
+const DEFAULT_GROUP_COUNT = 4;
 
 export interface WizardGroup {
   /** Stable key for list rendering */
@@ -75,9 +79,7 @@ export class ActivityNewWizardStore {
 
   /** Describes what the group list was seeded from; changes when roster/choices change. */
   groupsSourceKey = $derived(
-    this.groupNames.length > 0
-      ? `choices:${JSON.stringify(this.groupNames)}`
-      : `count:${this.students.length}`
+    this.groupNames.length > 0 ? `choices:${JSON.stringify(this.groupNames)}` : 'default'
   );
 
   groupsValid = $derived.by(() => {
@@ -135,6 +137,17 @@ export class ActivityNewWizardStore {
 
   warnings = $derived([...(this.roster?.warnings ?? []), ...(this.choices?.warnings ?? [])]);
 
+  /** User's explicit pick; null means use the default for the current inputs. */
+  populationChoice = $state<InitialPopulation | null>(null);
+
+  canUseTopChoice = $derived(this.finalPreferences.length > 0);
+
+  initialPopulation = $derived<InitialPopulation>(
+    this.populationChoice === 'top-choice' && !this.canUseTopChoice
+      ? 'random'
+      : (this.populationChoice ?? (this.canUseTopChoice ? 'top-choice' : 'random'))
+  );
+
   canContinue = $derived(
     this.step === 'roster'
       ? this.rosterValid
@@ -142,9 +155,9 @@ export class ActivityNewWizardStore {
         ? this.choicesValid
         : this.step === 'groups'
           ? this.groupsValid
-          : this.step === 'review'
-            ? this.rosterValid && this.choicesValid && this.groupsValid
-            : this.step === 'name'
+          : this.step === 'setup'
+            ? this.nameValid
+            : this.step === 'review'
               ? this.rosterValid &&
                 this.choicesValid &&
                 this.groupsValid &&
@@ -191,7 +204,7 @@ export class ActivityNewWizardStore {
       this.groups = this.groupNames.map((name) => this.newGroup(name, name));
     } else {
       this.groups = [];
-      this.setGroupCount(Math.max(1, Math.ceil(this.students.length / 4)));
+      this.setGroupCount(DEFAULT_GROUP_COUNT);
     }
   }
 
@@ -205,7 +218,7 @@ export class ActivityNewWizardStore {
   }
 
   setGroupCount(count: number) {
-    const target = Math.max(1, Math.min(Math.floor(count) || 1, Math.max(this.students.length, 1)));
+    const target = Math.max(1, Math.floor(count) || 1);
     if (target < this.groups.length) {
       this.groups = this.groups.slice(0, target);
       return;
