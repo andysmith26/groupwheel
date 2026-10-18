@@ -670,7 +670,9 @@
             <div class="mt-2 flex flex-wrap gap-1.5" aria-label="Student tags">
               {#each formTags as tag (tag.id)}
                 <span
-                  class="inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-2 text-xs font-medium {resolveTagBadgeClasses(tag)}"
+                  class="inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-2 text-xs font-medium {resolveTagBadgeClasses(
+                    tag
+                  )}"
                 >
                   {tag.name}
                   <button
