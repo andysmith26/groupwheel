@@ -47,6 +47,7 @@ export interface ParsedStudent {
   displayName: string;
   grade?: string;
   tagIds?: string[];
+  rawTags?: string[];
   meta?: Record<string, string>;
 }
 

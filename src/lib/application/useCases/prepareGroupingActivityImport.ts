@@ -150,7 +150,8 @@ export function prepareRoster(text: string, mappingsOverride?: ColumnMapping[]):
       id:
         row.student.sourceStudentId?.trim().toLowerCase() ||
         generateStudentId(row.student.firstName, row.student.lastName, row.rowIndex),
-      preferredName: row.student.preferredName
+      preferredName: row.student.preferredName,
+      rawTags: row.student.tags
     });
     students.push(student);
     rowStudentLinks.push({ rowIndex: row.rowIndex, studentId: student.id });

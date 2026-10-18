@@ -153,6 +153,38 @@ test.describe('Drag and Drop Workspace', () => {
     await expect(page.locator('[data-student-id][aria-label*="Tags: IEP, Math"]')).toHaveCount(1);
   });
 
+  test('keeps multiple tag columns when creating an activity from a roster file', async ({
+    page
+  }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'New Activity' }).click();
+    await page.waitForURL(/\/activity\/new$/);
+    await page.getByLabel('Roster file').setInputFiles({
+      name: 'student list by grade.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(
+        'First Name,Student Grade Level,Preferred Name,Last Name,Gender\nAgnes,7th Grade,Aggie,Abbott,Female\nBlair,8th Grade,,Baker,Male'
+      )
+    });
+
+    const mappings = page.locator('select');
+    await mappings.nth(1).selectOption('tags');
+    await mappings.nth(4).selectOption('tags');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Skip' }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel('Activity name').fill(`Roster Tags ${Date.now()}`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Create Groups' }).click();
+
+    await expect(
+      page.locator('[data-student-id][aria-label*="Tags: 7th Grade, Female"]')
+    ).toHaveCount(1);
+    await expect(
+      page.locator('[data-student-id][aria-label*="Tags: 8th Grade, Male"]')
+    ).toHaveCount(1);
+  });
+
   test('opens the edit sidebar from canvas card actions', async ({ page }) => {
     const activityName = `Canvas Student Details ${Date.now()}`;
     await createActivity(page, { activityName });
