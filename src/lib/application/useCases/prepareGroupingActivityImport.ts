@@ -69,10 +69,7 @@ function buildStudent(
 }
 
 /** Parse roster text (pasted or from a file) into students. */
-export function prepareRoster(
-  text: string,
-  mappingsOverride?: ColumnMapping[]
-): PreparedRoster {
+export function prepareRoster(text: string, mappingsOverride?: ColumnMapping[]): PreparedRoster {
   const empty: PreparedRoster = { students: [], rowStudentLinks: [], warnings: [] };
   if (!text.trim()) return { ...empty, error: 'Add a roster to continue.' };
 

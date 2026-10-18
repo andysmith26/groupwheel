@@ -8,9 +8,7 @@ describe('prepareGroupingActivityImport', () => {
   });
 
   it('uses the mapped student ID for imported roster rows', () => {
-    const result = prepareRoster(
-      'First Name,Last Name,Student ID\nAlice,Smith,ALICE-15'
-    );
+    const result = prepareRoster('First Name,Last Name,Student ID\nAlice,Smith,ALICE-15');
 
     expect(result.students[0].id).toBe('alice-15');
     expect(result.rowStudentLinks).toEqual([{ rowIndex: 2, studentId: 'alice-15' }]);

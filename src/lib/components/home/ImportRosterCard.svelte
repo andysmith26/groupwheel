@@ -179,7 +179,11 @@
       const text = await readFileAsText(file);
 
       // Try JSON first
-      if (file.name.endsWith('.json') || file.name.endsWith('.grp') || text.trimStart().startsWith('{')) {
+      if (
+        file.name.endsWith('.json') ||
+        file.name.endsWith('.grp') ||
+        text.trimStart().startsWith('{')
+      ) {
         const validation = parseActivityFile(text);
         if (validation.valid) {
           const d = validation.data;
@@ -306,7 +310,9 @@
         rawTagNames: student.rawTags
       });
       if (isErr(resolvedTags)) {
-        throw new Error(`Failed to resolve tags for "${student.displayName}": ${resolvedTags.error.message}`);
+        throw new Error(
+          `Failed to resolve tags for "${student.displayName}": ${resolvedTags.error.message}`
+        );
       }
       student.tagIds = resolvedTags.value;
     }
@@ -315,7 +321,9 @@
       rowIndex,
       studentId: id
     }));
-    const studentIdByRowIndex = new Map(rowStudentLinks.map(({ rowIndex, studentId }) => [rowIndex, studentId]));
+    const studentIdByRowIndex = new Map(
+      rowStudentLinks.map(({ rowIndex, studentId }) => [rowIndex, studentId])
+    );
 
     const builtPreferences = validation.validRows
       .filter((row) => row.student && row.choices && row.choices.length > 0)

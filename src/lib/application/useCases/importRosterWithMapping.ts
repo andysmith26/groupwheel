@@ -29,8 +29,7 @@ import {
   hasRequiredMappings,
   getMissingRequiredFields,
   hasDuplicateMappings,
-  validateMappedData,
-  generateStudentId
+  validateMappedData
 } from '$lib/domain/import';
 import { createPool } from '$lib/domain/pool';
 import { createStudent } from '$lib/domain/student';
