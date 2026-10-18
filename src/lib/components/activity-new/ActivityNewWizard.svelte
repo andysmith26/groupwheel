@@ -19,6 +19,7 @@
   } from '$lib/stores/activityNewWizard.svelte';
   import RosterStep from './RosterStep.svelte';
   import ChoicesStep from './ChoicesStep.svelte';
+  import GroupsStep from './GroupsStep.svelte';
   import ReviewStep from './ReviewStep.svelte';
   import NameStep from './NameStep.svelte';
 
@@ -28,6 +29,7 @@
   const stepLabels: Record<string, string> = {
     roster: 'Roster',
     choices: 'Choices',
+    groups: 'Groups',
     review: 'Review',
     name: 'Name'
   };
@@ -43,18 +45,18 @@
     wizard.error = null;
     try {
       const programId = env.idGenerator.generateId();
-      const hasChoiceGroups = wizard.groupNames.length > 0;
-      const defaultGroupCount = Math.max(1, Math.ceil(wizard.students.length / 4));
-      const groupNames = hasChoiceGroups
-        ? wizard.groupNames
-        : Array.from({ length: defaultGroupCount }, (_, i) => `Group ${i + 1}`);
+      const groupNames = wizard.finalGroups.map((g) => g.name);
+      const groupCapacities = Object.fromEntries(
+        wizard.finalGroups.map((g) => [g.name, g.capacity])
+      );
       const result = await createGroupingActivity(env, {
         activityName: wizard.activityName.trim(),
         programId,
         students: wizard.students,
-        preferences: wizard.preferences,
+        preferences: wizard.finalPreferences,
         groupNames,
-        seedingStrategy: hasChoiceGroups ? 'top-choice' : undefined,
+        groupCapacities,
+        seedingStrategy: wizard.finalPreferences.length > 0 ? 'top-choice' : undefined,
         ownerStaffId: 'owner-1'
       });
       if (isErr(result)) {
@@ -136,7 +138,7 @@
   let stepIndex = $derived(ACTIVITY_NEW_STEPS.indexOf(wizard.step));
 </script>
 
-<div class="mx-auto max-w-6xl space-y-6 p-4">
+<div class="mx-auto max-w-screen-2xl space-y-6 p-4">
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold text-gray-900">New activity</h1>
     <a href="/" class="text-sm text-gray-500 hover:text-gray-700">Cancel</a>
@@ -157,6 +159,8 @@
       <RosterStep {wizard} />
     {:else if wizard.step === 'choices'}
       <ChoicesStep {wizard} />
+    {:else if wizard.step === 'groups'}
+      <GroupsStep {wizard} />
     {:else if wizard.step === 'review'}
       <ReviewStep {wizard} />
     {:else if wizard.step === 'name'}

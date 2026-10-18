@@ -86,6 +86,9 @@ export interface CreateGroupingActivityInput {
   /** Group names extracted from the import file (e.g. unique choice values from CSV) */
   groupNames?: string[];
 
+  /** Optional max sizes keyed by group name (unlisted groups have no limit) */
+  groupCapacities?: Record<string, number | null>;
+
   /** How to seed initial group assignments. Defaults to 'none'. */
   seedingStrategy?: SeedingStrategy;
 
@@ -324,7 +327,7 @@ export async function createGroupingActivity(
       return {
         id,
         name,
-        capacity: null,
+        capacity: input.groupCapacities?.[name] ?? null,
         memberIds: [],
         colorIndex: index
       };
@@ -369,7 +372,7 @@ export async function createGroupingActivity(
         if (!groupId) continue;
 
         const group = groupIdToGroup.get(groupId);
-        if (group) {
+        if (group && (group.capacity === null || group.memberIds.length < group.capacity)) {
           group.memberIds.push(pref.studentId);
         }
       }

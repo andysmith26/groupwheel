@@ -31,6 +31,7 @@ export async function createActivity(
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Skip' }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
   await page.locator('#an-name').fill(activityName);
 
   await Promise.all([
