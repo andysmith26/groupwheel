@@ -105,6 +105,9 @@ export function prepareRoster(
   for (const row of validation.validRows) {
     if (!row.student) continue;
     const student = buildStudent(row.student.firstName, row.student.lastName, row.rowIndex, {
+      id:
+        row.student.sourceStudentId?.trim().toLowerCase() ||
+        generateStudentId(row.student.firstName, row.student.lastName, row.rowIndex),
       preferredName: row.student.preferredName
     });
     students.push(student);
@@ -207,4 +210,3 @@ export function prepareChoices(
     warnings
   };
 }
-

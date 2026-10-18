@@ -187,8 +187,8 @@ export async function importRosterWithMapping(
   for (const row of validation.validRows) {
     if (!row.student) continue;
 
-    // Generate a unique student ID
-    const studentId = deps.idGenerator.generateId();
+    const studentId =
+      row.student.sourceStudentId?.trim().toLowerCase() || deps.idGenerator.generateId();
     studentIdMap.set(row.rowIndex, studentId);
     rowStudentLinks.push({ rowIndex: row.rowIndex, studentId });
 

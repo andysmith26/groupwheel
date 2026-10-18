@@ -285,8 +285,11 @@
       .filter((row) => row.student)
       .map((row) => {
         const student = row.student!;
-        const id = generateStudentId(student.firstName, student.lastName, row.rowIndex);
+        const id =
+          student.sourceStudentId?.trim().toLowerCase() ||
+          generateStudentId(student.firstName, student.lastName, row.rowIndex);
         return {
+          rowIndex: row.rowIndex,
           id,
           firstName: student.firstName,
           preferredName: student.preferredName,
@@ -308,17 +311,16 @@
       student.tagIds = resolvedTags.value;
     }
 
-    const rowStudentLinks = validation.validRows
-      .filter((row) => row.student)
-      .map((row) => ({
-        rowIndex: row.rowIndex,
-        studentId: generateStudentId(row.student!.firstName, row.student!.lastName, row.rowIndex)
-      }));
+    const rowStudentLinks = builtStudents.map(({ rowIndex, id }) => ({
+      rowIndex,
+      studentId: id
+    }));
+    const studentIdByRowIndex = new Map(rowStudentLinks.map(({ rowIndex, studentId }) => [rowIndex, studentId]));
 
     const builtPreferences = validation.validRows
       .filter((row) => row.student && row.choices && row.choices.length > 0)
       .map((row) => ({
-        studentId: generateStudentId(row.student!.firstName, row.student!.lastName, row.rowIndex),
+        studentId: studentIdByRowIndex.get(row.rowIndex)!,
         likeGroupIds: row.choices ?? []
       }));
 
