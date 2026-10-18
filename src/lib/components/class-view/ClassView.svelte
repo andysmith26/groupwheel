@@ -909,6 +909,7 @@
         onEditGroup={handleEditGroup}
         onAddGroup={handleCreateGroup}
         onManageTags={handleOpenManageTags}
+        {tags}
         onCopyForSpreadsheet={handleCopyForSpreadsheet}
         onSave={handleMoveToComputer}
         onPrint={handlePrint}

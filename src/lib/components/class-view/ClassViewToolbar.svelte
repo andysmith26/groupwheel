@@ -6,10 +6,12 @@
 
   import SaveStatusIndicator from '$lib/components/editing/SaveStatusIndicator.svelte';
   import SettingsPopover from '$lib/components/workspace/SettingsPopover.svelte';
+  import CardDisplayPopover from './CardDisplayPopover.svelte';
   import ShareDropdown from './ShareDropdown.svelte';
   import type { SaveStatus } from '$lib/stores/scenarioEditingStore';
-  import type { Group } from '$lib/domain';
+  import type { Group, Tag } from '$lib/domain';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
   import { Z } from '$lib/constants/elevation';
 
   interface Props {
@@ -36,6 +38,7 @@
     onEditGroup?: (groupId: string) => void;
     onAddGroup?: () => void;
     onManageTags?: () => void;
+    tags?: Tag[];
     // Share / export actions
     onCopyForSpreadsheet?: () => void;
     onSave?: () => void;
@@ -70,6 +73,7 @@
     onEditGroup,
     onAddGroup,
     onManageTags,
+    tags = [],
     onCopyForSpreadsheet,
     onSave,
     onPrint,
@@ -80,24 +84,26 @@
   }: Props = $props();
 
   let settingsOpen = $state(false);
+  let cardsOpen = $state(false);
   let shareOpen = $state(false);
 
-  function setMenuOpen(menu: 'settings' | 'share', isOpen: boolean) {
-    if (menu === 'settings') {
-      settingsOpen = isOpen;
-      if (isOpen) shareOpen = false;
-    } else {
-      shareOpen = isOpen;
-      if (isOpen) settingsOpen = false;
-    }
-    onMenuOpenChange?.(settingsOpen || shareOpen);
+  const hasCardDisplayOptions = $derived(
+    !cardDisplay.showTags || Object.keys(cardDisplay.tagColorModes).length > 0
+  );
+
+  function setMenuOpen(menu: 'settings' | 'cards' | 'share', isOpen: boolean) {
+    settingsOpen = menu === 'settings' ? isOpen : isOpen ? false : settingsOpen;
+    cardsOpen = menu === 'cards' ? isOpen : isOpen ? false : cardsOpen;
+    shareOpen = menu === 'share' ? isOpen : isOpen ? false : shareOpen;
+    onMenuOpenChange?.(settingsOpen || cardsOpen || shareOpen);
   }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
 
-    if (settingsOpen || shareOpen) {
+    if (settingsOpen || cardsOpen || shareOpen) {
       settingsOpen = false;
+      cardsOpen = false;
       shareOpen = false;
       onMenuOpenChange?.(false);
       return;
@@ -162,6 +168,46 @@
 
   <div class="flex items-center gap-2">
     <SaveStatusIndicator status={saveStatus} {lastSavedAt} onRetry={onRetrySave} />
+
+    {#if hasGroups}
+      <div class="relative">
+        <button
+          type="button"
+          onclick={() => setMenuOpen('cards', !cardsOpen)}
+          class="relative flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium transition-colors {cardsOpen
+            ? 'bg-teal-50 text-teal-700'
+            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}"
+          aria-label={cardsOpen ? 'Close card display' : 'Card display options'}
+          aria-expanded={cardsOpen}
+          aria-haspopup="dialog"
+          title="Cards"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <rect x="4" y="5" width="16" height="14" rx="2" />
+            <path stroke-linecap="round" d="M8 9h8M8 13h5" />
+          </svg>
+          <span>Cards</span>
+          {#if hasCardDisplayOptions}
+            <span class="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-teal-500"></span>
+          {/if}
+        </button>
+
+        {#if cardsOpen}
+          <CardDisplayPopover
+            {tags}
+            onManageTags={onManageTags ?? (() => {})}
+            onClose={() => setMenuOpen('cards', false)}
+          />
+        {/if}
+      </div>
+    {/if}
 
     {#if hasGroups && !isViewingHistory}
       <!-- History toggle -->
