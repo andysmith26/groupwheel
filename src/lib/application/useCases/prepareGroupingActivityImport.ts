@@ -69,10 +69,7 @@ function buildStudent(
 }
 
 /** Parse roster text (pasted or from a file) into students. */
-export function prepareRoster(
-  text: string,
-  mappingsOverride?: ColumnMapping[]
-): PreparedRoster {
+export function prepareRoster(text: string, mappingsOverride?: ColumnMapping[]): PreparedRoster {
   const empty: PreparedRoster = { students: [], rowStudentLinks: [], warnings: [] };
   if (!text.trim()) return { ...empty, error: 'Add a roster to continue.' };
 
@@ -105,6 +102,9 @@ export function prepareRoster(
   for (const row of validation.validRows) {
     if (!row.student) continue;
     const student = buildStudent(row.student.firstName, row.student.lastName, row.rowIndex, {
+      id:
+        row.student.sourceStudentId?.trim().toLowerCase() ||
+        generateStudentId(row.student.firstName, row.student.lastName, row.rowIndex),
       preferredName: row.student.preferredName
     });
     students.push(student);
@@ -207,4 +207,3 @@ export function prepareChoices(
     warnings
   };
 }
-
