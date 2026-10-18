@@ -8,6 +8,7 @@
     createGroupingActivity,
     importPeerRequestsFromMapping,
     matchPeerRequests,
+    resolveOrCreateTags,
     savePeerRequests
   } from '$lib/services/appEnvUseCases';
   import type { PeerRequestReviewDecision } from '$lib/application/useCases/confirmPeerRequestMatches';
@@ -49,10 +50,23 @@
       const groupCapacities = Object.fromEntries(
         wizard.finalGroups.map((g) => [g.name, g.capacity])
       );
+      const students: typeof wizard.students = [];
+      for (const student of wizard.students) {
+        const resolvedTags = await resolveOrCreateTags(env, {
+          programId,
+          rawTagNames: student.rawTags
+        });
+        if (isErr(resolvedTags)) {
+          throw new Error(
+            `Failed to resolve tags for "${student.displayName}": ${resolvedTags.error.message}`
+          );
+        }
+        students.push({ ...student, tagIds: resolvedTags.value });
+      }
       const result = await createGroupingActivity(env, {
         activityName: wizard.activityName.trim(),
         programId,
-        students: wizard.students,
+        students,
         preferences: wizard.finalPreferences,
         groupNames,
         groupCapacities,
@@ -78,7 +92,7 @@
           return;
         }
         if (extraction.value.entries.length > 0) {
-          const students = wizard.students.map((s) => ({
+          const peerStudents = students.map((s) => ({
             id: s.id,
             firstName: s.firstName,
             preferredName: s.preferredName,
@@ -87,7 +101,7 @@
           }));
           const matched = await matchPeerRequests(env, {
             requests: extraction.value.entries,
-            students
+            students: peerStudents
           });
           if (isErr(matched)) {
             wizard.error = 'Unable to match peer requests.';
@@ -95,7 +109,7 @@
           }
           wizard.peerReview = matched.value;
           wizard.peerProgramId = createdId;
-          wizard.peerStudents = students;
+          wizard.peerStudents = peerStudents;
           wizard.step = 'peers';
           return;
         }

@@ -235,13 +235,14 @@ export function getMissingRequiredFields(mappings: ColumnMapping[]): MappedField
 }
 
 /**
- * Validate that no field is mapped to multiple columns.
+ * Validate that single-value fields are not mapped to multiple columns.
+ * Tags are multi-value and can intentionally be sourced from several columns.
  */
 export function hasDuplicateMappings(mappings: ColumnMapping[]): MappedField[] {
   const fieldCounts = new Map<MappedField, number>();
 
   for (const mapping of mappings) {
-    if (mapping.mappedTo && mapping.mappedTo !== 'ignore') {
+    if (mapping.mappedTo && mapping.mappedTo !== 'ignore' && mapping.mappedTo !== 'tags') {
       const count = fieldCounts.get(mapping.mappedTo) || 0;
       fieldCounts.set(mapping.mappedTo, count + 1);
     }
@@ -408,14 +409,18 @@ export function validateMappedData(
           : firstNameIdx === undefined
             ? nameParts.slice(1).join(' ')
             : '';
-      const tagsIdx = fieldToColumn.get('tags');
-      const tags =
-        tagsIdx !== undefined
-          ? (row.cells[tagsIdx] ?? '')
-              .split(/[,;|]/)
-              .map((tag) => tag.trim())
-              .filter(Boolean)
-          : [];
+      const tags = Array.from(
+        new Set(
+          mappings
+            .filter((mapping) => mapping.mappedTo === 'tags')
+            .flatMap((mapping) =>
+              (row.cells[mapping.columnIndex] ?? '')
+                .split(/[,;|]/)
+                .map((tag) => tag.trim())
+                .filter(Boolean)
+            )
+        )
+      );
       const studentIdIdx = fieldToColumn.get('studentId');
       const sourceStudentId =
         studentIdIdx !== undefined ? (row.cells[studentIdIdx] ?? '').trim() : '';

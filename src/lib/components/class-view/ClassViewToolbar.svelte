@@ -6,10 +6,13 @@
 
   import SaveStatusIndicator from '$lib/components/editing/SaveStatusIndicator.svelte';
   import SettingsPopover from '$lib/components/workspace/SettingsPopover.svelte';
+  import CardDisplayPopover from './CardDisplayPopover.svelte';
   import ShareDropdown from './ShareDropdown.svelte';
   import type { SaveStatus } from '$lib/stores/scenarioEditingStore';
-  import type { Group } from '$lib/domain';
+  import type { Group, Tag } from '$lib/domain';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
+  import { Z } from '$lib/constants/elevation';
 
   interface Props {
     activityName: string;
@@ -35,6 +38,7 @@
     onEditGroup?: (groupId: string) => void;
     onAddGroup?: () => void;
     onManageTags?: () => void;
+    tags?: Tag[];
     // Share / export actions
     onCopyForSpreadsheet?: () => void;
     onSave?: () => void;
@@ -69,6 +73,7 @@
     onEditGroup,
     onAddGroup,
     onManageTags,
+    tags = [],
     onCopyForSpreadsheet,
     onSave,
     onPrint,
@@ -79,24 +84,26 @@
   }: Props = $props();
 
   let settingsOpen = $state(false);
+  let cardsOpen = $state(false);
   let shareOpen = $state(false);
 
-  function setMenuOpen(menu: 'settings' | 'share', isOpen: boolean) {
-    if (menu === 'settings') {
-      settingsOpen = isOpen;
-      if (isOpen) shareOpen = false;
-    } else {
-      shareOpen = isOpen;
-      if (isOpen) settingsOpen = false;
-    }
-    onMenuOpenChange?.(settingsOpen || shareOpen);
+  const hasCardDisplayOptions = $derived(
+    !cardDisplay.showTags || Object.keys(cardDisplay.tagColorModes).length > 0
+  );
+
+  function setMenuOpen(menu: 'settings' | 'cards' | 'share', isOpen: boolean) {
+    settingsOpen = menu === 'settings' ? isOpen : isOpen ? false : settingsOpen;
+    cardsOpen = menu === 'cards' ? isOpen : isOpen ? false : cardsOpen;
+    shareOpen = menu === 'share' ? isOpen : isOpen ? false : shareOpen;
+    onMenuOpenChange?.(settingsOpen || cardsOpen || shareOpen);
   }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
 
-    if (settingsOpen || shareOpen) {
+    if (settingsOpen || cardsOpen || shareOpen) {
       settingsOpen = false;
+      cardsOpen = false;
       shareOpen = false;
       onMenuOpenChange?.(false);
       return;
@@ -107,21 +114,23 @@
 </script>
 
 <div
-  class="flex items-center justify-between border-b-2 px-4 py-2 shadow-sm {isViewingHistory
+  class="relative flex h-8 items-center justify-between border-b px-4 shadow-sm {isViewingHistory
     ? 'border-amber-400 bg-amber-50'
     : 'border-teal-400 bg-white'}"
+  style:z-index={Z.OVERLAY}
   role="toolbar"
   aria-label="Workspace toolbar"
+  tabindex="-1"
   onkeydown={handleKeydown}
 >
   <div class="flex min-w-0 items-center gap-3">
     <button
       type="button"
       onclick={onBack}
-      class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+      class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
       aria-label="Back to Home"
     >
-      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 7.5 12l8.25-7.5" />
       </svg>
     </button>
@@ -130,7 +139,7 @@
       <button
         type="button"
         onclick={onToggleRoster}
-        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors {rosterOpen
+        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors {rosterOpen
           ? 'bg-teal-50 text-teal-700'
           : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}"
         aria-label="{rosterOpen ? 'Close' : 'Open'} roster"
@@ -138,7 +147,7 @@
         title="Toggle roster"
       >
         <svg
-          class="h-5 w-5"
+          class="h-4 w-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke-width="1.5"
@@ -153,7 +162,7 @@
       </button>
     {/if}
 
-    <h1 class="min-w-0 truncate text-lg font-semibold text-gray-900">
+    <h1 class="min-w-0 truncate text-sm font-semibold text-gray-900">
       {activityName}
     </h1>
   </div>
@@ -161,13 +170,53 @@
   <div class="flex items-center gap-2">
     <SaveStatusIndicator status={saveStatus} {lastSavedAt} onRetry={onRetrySave} />
 
+    {#if hasGroups}
+      <div class="relative">
+        <button
+          type="button"
+          onclick={() => setMenuOpen('cards', !cardsOpen)}
+          class="relative flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium transition-colors {cardsOpen
+            ? 'bg-teal-50 text-teal-700'
+            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}"
+          aria-label={cardsOpen ? 'Close card display' : 'Card display options'}
+          aria-expanded={cardsOpen}
+          aria-haspopup="dialog"
+          title="Cards"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <rect x="4" y="5" width="16" height="14" rx="2" />
+            <path stroke-linecap="round" d="M8 9h8M8 13h5" />
+          </svg>
+          <span>Cards</span>
+          {#if hasCardDisplayOptions}
+            <span class="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-teal-500"></span>
+          {/if}
+        </button>
+
+        {#if cardsOpen}
+          <CardDisplayPopover
+            {tags}
+            onManageTags={onManageTags ?? (() => {})}
+            onClose={() => setMenuOpen('cards', false)}
+          />
+        {/if}
+      </div>
+    {/if}
+
     {#if hasGroups && !isViewingHistory}
       <!-- History toggle -->
       {#if uiSettings.useExperimentalFeatures && onToggleHistory}
         <button
           type="button"
           onclick={onToggleHistory}
-          class="relative flex h-9 w-9 items-center justify-center rounded-md transition-colors {historyPanelOpen
+          class="relative flex h-7 w-7 items-center justify-center rounded-md transition-colors {historyPanelOpen
             ? 'bg-teal-50 text-teal-700'
             : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}"
           aria-label="{historyPanelOpen ? 'Close' : 'Open'} session history"
@@ -175,7 +224,7 @@
           title="Session history"
         >
           <svg
-            class="h-5 w-5"
+            class="h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke-width="1.5"
@@ -200,7 +249,7 @@
           onclick={() => {
             setMenuOpen('settings', !settingsOpen);
           }}
-          class="flex h-9 w-9 items-center justify-center rounded-md transition-colors {settingsOpen
+          class="flex h-7 w-7 items-center justify-center rounded-md transition-colors {settingsOpen
             ? 'bg-teal-50 text-teal-700'
             : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}"
           aria-label="{settingsOpen ? 'Close' : 'Open'} settings"
@@ -208,7 +257,7 @@
           title="Settings"
         >
           <svg
-            class="h-5 w-5"
+            class="h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke-width="2"
@@ -250,14 +299,14 @@
           onclick={() => {
             setMenuOpen('share', !shareOpen);
           }}
-          class="flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium shadow-sm transition-colors {shareOpen
+          class="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium shadow-sm transition-colors {shareOpen
             ? 'bg-teal-700 text-white'
             : 'bg-teal-600 text-white hover:bg-teal-700'}"
           aria-label="{shareOpen ? 'Close' : 'Open'} export menu"
           aria-expanded={shareOpen}
           aria-haspopup="true"
         >
-          <span class="text-sm font-medium">Export</span>
+          <span class="text-xs font-medium">Export</span>
           <svg
             class="h-4 w-4"
             fill="none"

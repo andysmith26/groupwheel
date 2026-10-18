@@ -225,6 +225,7 @@ export interface ClassViewVm {
     updateTag: (tagId: string, changes: { name?: string; colorIndex?: number }) => Promise<boolean>;
     deleteTag: (tagId: string) => Promise<boolean>;
     resolveOrCreateTagIds: (rawTagNames: readonly string[] | undefined) => Promise<string[]>;
+    refreshTags: () => Promise<void>;
 
     // Keyboard drag-drop
     keyboardPickUp: (studentId: string, container: string, index: number) => void;
@@ -251,7 +252,15 @@ export interface ClassViewVm {
     exitProjection: () => void;
 
     // Quick Start upgrade (WP11)
-    upgradeRoster: (students: Array<{ firstName: string; lastName: string }>) => Promise<boolean>;
+    upgradeRoster: (
+      students: Array<{
+        firstName: string;
+        preferredName?: string;
+        lastName: string;
+        tagIds?: string[];
+        sourceStudentId?: string;
+      }>
+    ) => Promise<boolean>;
 
     // Session lifecycle
     publishSession: () => Promise<void>;
@@ -1343,6 +1352,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     rebuildStudentsById();
     state.hasPlaceholderStudents = false;
     await refreshPeerRequests();
+    await refreshTags();
 
     if (countsMatch && state.editingStore && state.view) {
       // Remap student IDs in existing groups to preserve structure
@@ -1639,6 +1649,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       updateTag: updateTagAction,
       deleteTag: deleteTagAction,
       resolveOrCreateTagIds,
+      refreshTags,
       keyboardPickUp,
       keyboardDrop,
       keyboardCancel,

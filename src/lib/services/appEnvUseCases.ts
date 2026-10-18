@@ -538,6 +538,7 @@ export async function importRosterWithMapping(
       poolRepo: env.poolRepo,
       studentRepo: env.studentRepo,
       preferenceRepo: env.preferenceRepo,
+      tagRepo: env.tagRepo,
       idGenerator: env.idGenerator
     },
     input

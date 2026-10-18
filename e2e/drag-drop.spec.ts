@@ -72,33 +72,27 @@ test.describe('Drag and Drop Workspace', () => {
     expect(await studentCards.count()).toBe(10);
   });
 
-  test('maximizes short desktop canvas height while keeping workspace commands reachable', async ({
-    page
-  }) => {
+  test('keeps the compact toolbar visible above the desktop canvas', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     const activityName = `Compact Canvas ${Date.now()}`;
     await createActivity(page, { activityName });
 
-    // Ensure toolbar is expanded, then move mouse away to trigger hover-collapse
     const toolbar = page.getByRole('toolbar', { name: 'Workspace toolbar' });
-    await toolbar.hover();
+    await expect(toolbar).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to Home' })).toBeVisible();
 
-    // Move mouse to centre of page — triggers mouseleave on toolbar (350ms delay)
     await page.mouse.move(640, 400);
-    await page.waitForTimeout(600);
-    await expect(page.getByRole('button', { name: 'Back to Home' })).not.toBeVisible();
-    await expect(page.getByRole('button', { name: /Unassigned/ })).toBeVisible();
+    await expect(toolbar).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back to Home' })).toBeVisible();
 
     const firstGroupColumn = page.locator('.rounded-xl.border-2').first();
     await expect(firstGroupColumn).toBeVisible();
     const groupBounds = await firstGroupColumn.boundingBox();
+    const toolbarBounds = await toolbar.boundingBox();
     expect(groupBounds).not.toBeNull();
-    expect(groupBounds!.y).toBeLessThan(155);
-
-    // Hover the collapsed chip to re-expand the toolbar
-    await page.locator('[data-testid="toolbar-chip"]').hover();
-    await expect(page.getByRole('button', { name: 'Back to Home' })).toBeVisible();
+    expect(toolbarBounds).not.toBeNull();
+    expect(toolbarBounds!.height).toBe(32);
+    expect(groupBounds!.y).toBeGreaterThanOrEqual(toolbarBounds!.y + toolbarBounds!.height);
 
     const profileAction = page.getByRole('button', {
       name: "View Alice Smith's details. No peer requests."
@@ -106,6 +100,89 @@ test.describe('Drag and Drop Workspace', () => {
     await profileAction.click();
     await expect(page.getByLabel('Student detail panel')).toBeVisible();
     await expect(page.getByText('Peer requests', { exact: true })).toBeVisible();
+  });
+
+  test('card display options persist and toolbar menus are exclusive', async ({ page }) => {
+    await createActivity(page, { activityName: `Card Options ${Date.now()}` });
+
+    const cardsButton = page.getByRole('button', { name: 'Card display options' });
+    await cardsButton.click();
+    const cardsDialog = page.getByRole('dialog', { name: 'Card display' });
+    await expect(cardsDialog).toBeVisible();
+    await expect(cardsDialog.getByLabel('Show tags on cards')).toBeChecked();
+    await expect(cardsDialog.getByText(/No tags yet/)).toBeVisible();
+    await cardsDialog.getByLabel('Show tags on cards').uncheck();
+
+    await page.getByRole('button', { name: 'Open settings' }).click();
+    await expect(cardsDialog).not.toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Settings' })).not.toBeVisible();
+
+    await cardsButton.click();
+    await expect(cardsDialog.getByLabel('Show tags on cards')).not.toBeChecked();
+    await page.reload();
+    await page.getByRole('button', { name: 'Card display options' }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'Card display' }).getByLabel('Show tags on cards')
+    ).not.toBeChecked();
+  });
+
+  test('shows tags from multiple imported roster columns on the canvas', async ({ page }) => {
+    await createActivity(page, {
+      activityName: `Imported Tags ${Date.now()}`,
+      students: ['River Otter', 'Moss Finch']
+    });
+
+    await page.getByRole('button', { name: 'Open roster' }).click();
+    await page.getByRole('button', { name: /Add real names\? Import your roster/ }).click();
+    const importDialog = page.getByRole('dialog', { name: 'Import roster' });
+    await importDialog
+      .locator('textarea')
+      .fill(
+        'First Name\tLast Name\tSupport\tProgram\tStudent ID\nAlex\tTagger\tELL\tReading\talex-tagger\nCasey\tReader\tIEP\tMath\tcasey-reader'
+      );
+    const mappings = importDialog.locator('select');
+    await mappings.nth(2).selectOption('tags');
+    await mappings.nth(3).selectOption('tags');
+    await importDialog.getByRole('button', { name: 'Import', exact: true }).click();
+
+    await expect(page.locator('[data-student-id][aria-label*="Tags: ELL, Reading"]')).toHaveCount(
+      1
+    );
+    await expect(page.locator('[data-student-id][aria-label*="Tags: IEP, Math"]')).toHaveCount(1);
+  });
+
+  test('keeps multiple tag columns when creating an activity from a roster file', async ({
+    page
+  }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'New Activity' }).click();
+    await page.waitForURL(/\/activity\/new$/);
+    await page.getByLabel('Roster file').setInputFiles({
+      name: 'student list by grade.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(
+        'First Name,Student Grade Level,Preferred Name,Last Name,Gender\nAgnes,7th Grade,Aggie,Abbott,Female\nBlair,8th Grade,,Baker,Male'
+      )
+    });
+
+    const mappings = page.locator('select');
+    await mappings.nth(1).selectOption('tags');
+    await mappings.nth(4).selectOption('tags');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Skip' }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel('Activity name').fill(`Roster Tags ${Date.now()}`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Create Groups' }).click();
+
+    await expect(
+      page.locator('[data-student-id][aria-label*="Tags: 7th Grade, Female"]')
+    ).toHaveCount(1);
+    await expect(
+      page.locator('[data-student-id][aria-label*="Tags: 8th Grade, Male"]')
+    ).toHaveCount(1);
   });
 
   test('opens the edit sidebar from canvas card actions', async ({ page }) => {

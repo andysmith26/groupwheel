@@ -3,13 +3,17 @@
   import { fade, scale } from 'svelte/transition';
   import type { Program, Tag } from '$lib/domain';
   import { TAG_COLOR_HEX, resolveTagColorHex } from '$lib/utils/tagColors';
+  import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
   import { Button } from '$lib/components/ui';
 
   interface Props {
     program: Program;
     tags: Tag[];
     onCreateTag: (input: { name: string; colorIndex?: number }) => Promise<boolean>;
-    onUpdateTag: (tagId: string, changes: { name?: string; colorIndex?: number }) => Promise<boolean>;
+    onUpdateTag: (
+      tagId: string,
+      changes: { name?: string; colorIndex?: number }
+    ) => Promise<boolean>;
     onDeleteTag: (tagId: string) => Promise<boolean>;
     onClose: () => void;
   }
@@ -24,7 +28,8 @@
   const TAG_COLOR_NAMES = ['Teal', 'Blue', 'Purple', 'Red', 'Amber', 'Emerald', 'Indigo', 'Pink'];
 
   function colorNameForIndex(index: number): string {
-    const normalized = ((index % TAG_COLOR_NAMES.length) + TAG_COLOR_NAMES.length) % TAG_COLOR_NAMES.length;
+    const normalized =
+      ((index % TAG_COLOR_NAMES.length) + TAG_COLOR_NAMES.length) % TAG_COLOR_NAMES.length;
     return TAG_COLOR_NAMES[normalized] ?? `Color ${normalized + 1}`;
   }
 
@@ -70,11 +75,16 @@
   }
 
   async function handleDelete(tag: Tag) {
-    const confirmed = window.confirm(`Delete tag "${tag.name}"? This removes it from all students.`);
+    const colorMode = cardDisplay.tagColorModes[tag.id];
+    const confirmationMessage = colorMode
+      ? `Tag "${tag.name}" is set to color card ${colorMode === 'background' ? 'backgrounds' : 'borders'}. Deleting it will remove that setting. Delete tag?`
+      : `Delete tag "${tag.name}"? This removes it from all students.`;
+    const confirmed = window.confirm(confirmationMessage);
     if (!confirmed) return;
     savingTagId = tag.id;
     const success = await onDeleteTag(tag.id);
     savingTagId = null;
+    if (success) cardDisplay.removeTag(tag.id);
     error = success ? null : 'Could not delete tag.';
   }
 </script>
@@ -112,7 +122,9 @@
         placeholder="New tag name"
         class="block min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none"
       />
-      <Button variant="primary" onclick={handleCreateTag} disabled={!newTagName.trim()}>Add Tag</Button>
+      <Button variant="primary" onclick={handleCreateTag} disabled={!newTagName.trim()}
+        >Add Tag</Button
+      >
     </div>
 
     {#if error}
@@ -148,7 +160,7 @@
               </button>
             </div>
             <div class="flex gap-2">
-              {#each TAG_COLOR_HEX as hex, i}
+              {#each TAG_COLOR_HEX as hex, i (hex)}
                 <button
                   type="button"
                   class="h-7 w-7 rounded-full border-2 transition-transform {tag.colorIndex === i

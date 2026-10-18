@@ -82,4 +82,21 @@ describe('parseRosterFromPaste', () => {
     expect(result.studentsById['alex@example.edu'].tagIds).toEqual([]);
     expect(result.rawTagsByStudentId['alex@example.edu']).toEqual(['Honors', 'ELL']);
   });
+
+  it('collects values from multiple columns mapped to tags', () => {
+    const result = parseRosterFromMappedData(
+      {
+        headers: ['Given', 'Support', 'Program', 'School email'],
+        rows: [{ rowIndex: 2, cells: ['Alex', 'ELL', 'Math; Science', 'alex@example.edu'] }]
+      },
+      [
+        { columnIndex: 0, headerName: 'Given', mappedTo: 'firstName' },
+        { columnIndex: 1, headerName: 'Support', mappedTo: 'tags' },
+        { columnIndex: 2, headerName: 'Program', mappedTo: 'tags' },
+        { columnIndex: 3, headerName: 'School email', mappedTo: 'studentId' }
+      ]
+    );
+
+    expect(result.rawTagsByStudentId['alex@example.edu']).toEqual(['ELL', 'Math', 'Science']);
+  });
 });

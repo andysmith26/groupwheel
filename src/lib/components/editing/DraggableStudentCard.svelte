@@ -2,8 +2,10 @@
   import { getStudentLongName, getStudentShortName, type Student, type Tag } from '$lib/domain';
   import type { StudentPeerRequestWorkspaceSummary } from '$lib/application/useCases/getPeerRequestWorkspaceSummary';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
   import { sortableItem, type Edge, type SortableDropState } from '$lib/utils/pragmatic-dnd';
-  import { resolveTagBadgeClasses } from '$lib/utils/tagColors';
+  import { resolveTagBadgeClasses, resolveTagTintHex } from '$lib/utils/tagColors';
+  import { resolveCardTagStyling } from '$lib/utils/cardTagStyling';
 
   export type KeyboardMoveDirection = 'up' | 'down' | 'left' | 'right';
 
@@ -85,6 +87,30 @@
   const tagSummary = $derived(
     resolvedTags.length ? `. Tags: ${resolvedTags.map((tag: Tag) => tag.name).join(', ')}.` : ''
   );
+  const cardTagStyling = $derived(
+    resolveCardTagStyling(student, tagsById, cardDisplay.tagColorModes)
+  );
+  const cardInlineStyle = $derived.by(() => {
+    if (selectedCardClass || peerRequestHighlightClass || isPickedUp) return '';
+    const styles: string[] = [];
+    if (cardTagStyling.backgroundHex) {
+      const backgroundTagId = (student.tagIds ?? []).find(
+        (tagId: string) =>
+          cardDisplay.tagColorModes[tagId] === 'background' &&
+          tagsById[tagId] &&
+          cardTagStyling.backgroundHex !== null
+      );
+      const backgroundTag = backgroundTagId ? tagsById[backgroundTagId] : undefined;
+      if (backgroundTag) {
+        styles.push(`background-color: ${resolveTagTintHex(backgroundTag)}`);
+      }
+    }
+    if (cardTagStyling.borderHex) {
+      styles.push(`border-color: ${cardTagStyling.borderHex}`, 'border-width: 2px');
+    }
+    return styles.join('; ');
+  });
+  const conflictText = $derived(cardTagStyling.conflicts.join(' '));
 
   const badgeText = $derived.by(() => {
     if (!hasPreferences) return '';
@@ -251,7 +277,7 @@
   }}
   tabindex={readonly ? (onStudentClick ? 0 : -1) : 0}
   role={readonly ? (onStudentClick ? 'button' : undefined) : 'button'}
-  aria-label="{fullName}{tagSummary}{readonly
+  aria-label="{fullName}{tagSummary}{conflictText ? `. ${conflictText}` : ''}{readonly
     ? onStudentClick
       ? '. Click to view profile.'
       : ''
@@ -259,8 +285,9 @@
       ? '. Press arrow keys to move, Enter to drop, Escape to cancel.'
       : '. Press Enter to pick up.'}"
   aria-pressed={readonly ? undefined : isPickedUp}
+  title={conflictText || undefined}
   data-student-id={student.id}
-  style="width: var(--card-width, 136px); height: var(--card-height, 60px); padding: var(--card-padding, 2px);"
+  style="width: var(--card-width, 136px); height: var(--card-height, 60px); padding: var(--card-padding, 2px); {cardInlineStyle}"
   class={`group relative mx-auto flex flex-col overflow-visible rounded-md border text-sm shadow-sm transition duration-150 ease-out ${!peerRequestHighlightClass && !selectedCardClass ? 'bg-white' : ''} ${
     readonly
       ? onStudentClick
@@ -277,6 +304,13 @@
       : undefined
     : handleClick}
 >
+  {#if conflictText}
+    <span
+      class="pointer-events-none absolute top-0 right-0 z-10 text-sm leading-none font-bold text-amber-600"
+      role="img"
+      aria-label={conflictText}>!</span
+    >
+  {/if}
   <div class="flex min-w-0 flex-1 items-center gap-1">
     <span class="group/profile relative shrink-0">
       <button
@@ -321,21 +355,25 @@
   </div>
 
   <div class="flex h-5 min-w-0 items-center gap-1 px-1" aria-label={tagSummary || undefined}>
-    {#each visibleTags as tag (tag.id)}
-      <span
-        class="max-w-[45%] min-w-0 truncate rounded px-1.5 py-0.5 text-[10px] leading-none font-medium {resolveTagBadgeClasses(tag)}"
-        title={tag.name}
-      >
-        {tag.name}
-      </span>
-    {/each}
-    {#if hiddenTagCount > 0}
-      <span
-        class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] leading-none font-medium text-slate-500"
-        title={hiddenTagNames.join(', ')}
-      >
-        +{hiddenTagCount}
-      </span>
+    {#if cardDisplay.showTags}
+      {#each visibleTags as tag (tag.id)}
+        <span
+          class="max-w-[45%] min-w-0 truncate rounded px-1.5 py-0.5 text-[10px] leading-none font-medium {resolveTagBadgeClasses(
+            tag
+          )}"
+          title={tag.name}
+        >
+          {tag.name}
+        </span>
+      {/each}
+      {#if hiddenTagCount > 0}
+        <span
+          class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] leading-none font-medium text-slate-500"
+          title={hiddenTagNames.join(', ')}
+        >
+          +{hiddenTagCount}
+        </span>
+      {/if}
     {/if}
   </div>
 </div>

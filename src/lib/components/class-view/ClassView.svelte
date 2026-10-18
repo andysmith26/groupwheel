@@ -25,7 +25,6 @@
   import { getSourceStudentId, getStudentGivenName, getStudentLongName } from '$lib/domain/student';
   import { detectSimpleNameList } from '$lib/utils/pasteDetection';
   import ClassViewToolbar from './ClassViewToolbar.svelte';
-  import FloatingMiniToolbar from './FloatingMiniToolbar.svelte';
   import RosterPanel from './RosterPanel.svelte';
   import RosterImportModal from './RosterImportModal.svelte';
   import GroupsPanel from './GroupsPanel.svelte';
@@ -43,6 +42,7 @@
   import { hintState } from '$lib/stores/hintState.svelte';
   import { toastStore } from '$lib/stores/toast.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
   import { setLastActiveClubId } from '$lib/utils/lastActiveClub';
   import { importActivity } from '$lib/services/appEnvUseCases';
   import { parseActivityFile, readFileAsText } from '$lib/utils/activityFile';
@@ -213,10 +213,6 @@
     viewingSessionId ? (sessions.find((s) => s.id === viewingSessionId) ?? null) : null
   );
 
-  // Desktop editing mode shows the FloatingMiniToolbar; mobile/history-viewing
-  // modes use the full-width ClassViewToolbar in flex flow.
-  const canAutoHideToolbar = $derived(isDesktop && !isViewingHistory);
-
   // Map group IDs to display names for preference display
   let groupNameMap = $derived(Object.fromEntries((view?.groups ?? []).map((g) => [g.id, g.name])));
 
@@ -278,6 +274,7 @@
 
   onMount(() => {
     setLastActiveClubId(activityId);
+    cardDisplay.load(activityId);
     void initializeActivity();
   });
 
@@ -289,6 +286,7 @@
   }
 
   onDestroy(() => {
+    cardDisplay.reset();
     vm.actions.dispose();
   });
 
@@ -785,7 +783,27 @@
 
     // WP11: If current roster is all placeholders, upgrade instead of append
     if (hasPlaceholderStudents || replaceRosterOnImport) {
-      const upgraded = await vm.actions.upgradeRoster(parsedStudents);
+      const studentsForUpgrade = [];
+      for (const student of parsedStudents) {
+        let tagIds: string[] = [];
+        if (program && student.rawTags?.length) {
+          const resolvedTags = await resolveOrCreateTags(env, {
+            programId: program.id,
+            rawTagNames: student.rawTags
+          });
+          if (isErr(resolvedTags)) {
+            throw new Error(
+              `Failed to resolve tags for "${student.firstName} ${student.lastName}": ${resolvedTags.error.message}`
+            );
+          }
+          tagIds = resolvedTags.value;
+        }
+        studentsForUpgrade.push({
+          ...student,
+          tagIds
+        });
+      }
+      const upgraded = await vm.actions.upgradeRoster(studentsForUpgrade);
       if (!upgraded) {
         throw new Error(vm.state.generationError ?? 'Could not replace the roster.');
       }
@@ -849,6 +867,8 @@
       }
     }
 
+    await vm.actions.refreshTags();
+
     // Refresh students in VM state
     if (addedStudents.length > 0) {
       vm.state.students = [...vm.state.students, ...addedStudents];
@@ -888,45 +908,13 @@
       </button>
     </div>
   {:else}
-    {#if !canAutoHideToolbar}
-      <!-- Full-width toolbar in flex flow for mobile and history-viewing mode -->
-      <div class="shrink-0">
-        <ClassViewToolbar
-          {activityName}
-          {saveStatus}
-          {lastSavedAt}
-          {hasGroups}
-          {isViewingHistory}
-          onBack={handleBack}
-          onRetrySave={handleRetrySave}
-          onToggleRoster={handleToggleRoster}
-          rosterOpen={rosterDrawerOpen}
-          onToggleHistory={handleToggleHistory}
-          {historyPanelOpen}
-          {hasHistory}
-          groups={displayGroups}
-          {avoidRecentGroupmates}
-          {lookbackSessions}
-          {publishedSessionCount}
-          onToggleAvoidance={(enabled) => vm.actions.setAvoidRecentGroupmates(enabled)}
-          onLookbackChange={(s) => vm.actions.setLookbackSessions(s)}
-          onEditGroup={handleEditGroup}
-          onAddGroup={handleCreateGroup}
-          onManageTags={handleOpenManageTags}
-          onCopyForSpreadsheet={handleCopyForSpreadsheet}
-          onSave={handleMoveToComputer}
-          onPrint={handlePrint}
-          onDisplay={handleDisplay}
-          onPublish={handleShowToClass}
-        />
-      </div>
-    {:else}
-      <!-- Floating mini-toolbar for desktop editing mode -->
-      <FloatingMiniToolbar
+    <div class="shrink-0">
+      <ClassViewToolbar
         {activityName}
         {saveStatus}
         {lastSavedAt}
         {hasGroups}
+        {isViewingHistory}
         onBack={handleBack}
         onRetrySave={handleRetrySave}
         onToggleRoster={handleToggleRoster}
@@ -943,13 +931,14 @@
         onEditGroup={handleEditGroup}
         onAddGroup={handleCreateGroup}
         onManageTags={handleOpenManageTags}
+        {tags}
         onCopyForSpreadsheet={handleCopyForSpreadsheet}
         onSave={handleMoveToComputer}
         onPrint={handlePrint}
         onDisplay={handleDisplay}
         onPublish={handleShowToClass}
       />
-    {/if}
+    </div>
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Center: Groups canvas (always full remaining width) -->

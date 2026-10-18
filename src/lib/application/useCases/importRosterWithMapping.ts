@@ -15,7 +15,8 @@ import type {
   PoolRepository,
   StudentRepository,
   PreferenceRepository,
-  IdGenerator
+  IdGenerator,
+  TagRepository
 } from '$lib/application/ports';
 import type { Pool, PoolType, Student } from '$lib/domain';
 import type { Preference, StudentPreference } from '$lib/domain/preference';
@@ -33,8 +34,9 @@ import {
 } from '$lib/domain/import';
 import { createPool } from '$lib/domain/pool';
 import { createStudent } from '$lib/domain/student';
+import { resolveOrCreateTagsForProgram } from './resolveOrCreateTagsForProgram';
 import type { Result } from '$lib/types/result';
-import { ok, err } from '$lib/types/result';
+import { isErr, ok, err } from '$lib/types/result';
 
 // =============================================================================
 // Input Types
@@ -100,6 +102,7 @@ export interface ImportRosterWithMappingDeps {
   studentRepo: StudentRepository;
   preferenceRepo: PreferenceRepository;
   idGenerator: IdGenerator;
+  tagRepo?: TagRepository;
 }
 
 // =============================================================================
@@ -186,6 +189,24 @@ export async function importRosterWithMapping(
   for (const row of validation.validRows) {
     if (!row.student) continue;
 
+    let tagIds: string[] = [];
+    if (input.programId && row.student.tags?.length) {
+      if (!deps.tagRepo) {
+        return err({
+          type: 'INTERNAL_ERROR',
+          message: 'Tag repository is required to import student tags.'
+        });
+      }
+      const resolvedTags = await resolveOrCreateTagsForProgram(
+        { tagRepo: deps.tagRepo, idGenerator: deps.idGenerator },
+        { programId: input.programId, rawTagNames: row.student.tags }
+      );
+      if (isErr(resolvedTags)) {
+        return err({ type: 'INTERNAL_ERROR', message: resolvedTags.error.message });
+      }
+      tagIds = resolvedTags.value;
+    }
+
     const studentId =
       row.student.sourceStudentId?.trim().toLowerCase() || deps.idGenerator.generateId();
     studentIdMap.set(row.rowIndex, studentId);
@@ -197,7 +218,7 @@ export async function importRosterWithMapping(
         firstName: row.student.firstName,
         preferredName: row.student.preferredName,
         lastName: row.student.lastName,
-        tagIds: [],
+        tagIds,
         meta: {
           importRowIndex: row.rowIndex
         }

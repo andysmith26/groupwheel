@@ -352,6 +352,25 @@ describe('validateMappedData', () => {
     });
   });
 
+  it('allows multiple tag columns and combines their values', () => {
+    const data: RawSheetData = {
+      headers: ['First Name', 'Support', 'Program'],
+      rows: [{ rowIndex: 2, cells: ['Alex', 'ELL', 'Math; Science'] }]
+    };
+    const mappings: ColumnMapping[] = [
+      { columnIndex: 0, headerName: 'First Name', mappedTo: 'firstName' },
+      { columnIndex: 1, headerName: 'Support', mappedTo: 'tags' },
+      { columnIndex: 2, headerName: 'Program', mappedTo: 'tags' }
+    ];
+
+    expect(hasDuplicateMappings(mappings)).toEqual([]);
+    expect(validateMappedData(data, mappings).validRows[0].student?.tags).toEqual([
+      'ELL',
+      'Math',
+      'Science'
+    ]);
+  });
+
   it('handles rows with missing lastName', () => {
     const data: RawSheetData = {
       headers: ['First', 'Choice'],
