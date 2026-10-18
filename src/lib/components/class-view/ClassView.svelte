@@ -42,6 +42,7 @@
   import { hintState } from '$lib/stores/hintState.svelte';
   import { toastStore } from '$lib/stores/toast.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
   import { setLastActiveClubId } from '$lib/utils/lastActiveClub';
   import { importActivity } from '$lib/services/appEnvUseCases';
   import { parseActivityFile, readFileAsText } from '$lib/utils/activityFile';
@@ -273,6 +274,7 @@
 
   onMount(() => {
     setLastActiveClubId(activityId);
+    cardDisplay.load(activityId);
     void initializeActivity();
   });
 
@@ -284,6 +286,7 @@
   }
 
   onDestroy(() => {
+    cardDisplay.reset();
     vm.actions.dispose();
   });
 
