@@ -53,6 +53,40 @@ describe('importRosterWithMapping', () => {
     }
   });
 
+  it('resolves tags from multiple mapped columns onto the imported students', async () => {
+    const result = await importRosterWithMapping(
+      {
+        poolRepo: env.poolRepo,
+        studentRepo: env.studentRepo,
+        preferenceRepo: env.preferenceRepo,
+        tagRepo: env.tagRepo,
+        idGenerator: env.idGenerator
+      },
+      {
+        rawData: {
+          headers: ['First Name', 'Support', 'Program'],
+          rows: [{ rowIndex: 2, cells: ['Alex', 'ELL', 'Math; Science'] }]
+        },
+        columnMappings: [
+          { columnIndex: 0, headerName: 'First Name', mappedTo: 'firstName' },
+          { columnIndex: 1, headerName: 'Support', mappedTo: 'tags' },
+          { columnIndex: 2, headerName: 'Program', mappedTo: 'tags' }
+        ],
+        poolName: 'Tagged Roster',
+        poolType: 'CLASS',
+        ownerStaffId: 'owner-1',
+        programId: 'program-1'
+      }
+    );
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+
+    const importedStudent = result.value.students[0];
+    expect(importedStudent.tagIds).toHaveLength(3);
+    expect(await env.tagRepo.listByProgramId('program-1')).toHaveLength(3);
+  });
+
   it('uses mapped student IDs instead of generated IDs', async () => {
     const rawData: RawSheetData = {
       headers: ['First Name', 'Student ID'],

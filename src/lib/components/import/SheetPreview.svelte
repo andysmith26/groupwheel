@@ -69,6 +69,7 @@
 
   // Check if a field is already mapped to another column
   function isFieldMapped(field: MappedField, excludeColumnIndex: number): boolean {
+    if (field === 'tags') return false;
     return mappings.some((m) => m.mappedTo === field && m.columnIndex !== excludeColumnIndex);
   }
 

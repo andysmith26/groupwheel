@@ -783,7 +783,27 @@
 
     // WP11: If current roster is all placeholders, upgrade instead of append
     if (hasPlaceholderStudents || replaceRosterOnImport) {
-      const upgraded = await vm.actions.upgradeRoster(parsedStudents);
+      const studentsForUpgrade = [];
+      for (const student of parsedStudents) {
+        let tagIds: string[] = [];
+        if (program && student.rawTags?.length) {
+          const resolvedTags = await resolveOrCreateTags(env, {
+            programId: program.id,
+            rawTagNames: student.rawTags
+          });
+          if (isErr(resolvedTags)) {
+            throw new Error(
+              `Failed to resolve tags for "${student.firstName} ${student.lastName}": ${resolvedTags.error.message}`
+            );
+          }
+          tagIds = resolvedTags.value;
+        }
+        studentsForUpgrade.push({
+          ...student,
+          tagIds
+        });
+      }
+      const upgraded = await vm.actions.upgradeRoster(studentsForUpgrade);
       if (!upgraded) {
         throw new Error(vm.state.generationError ?? 'Could not replace the roster.');
       }

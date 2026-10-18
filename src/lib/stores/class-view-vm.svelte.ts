@@ -251,7 +251,15 @@ export interface ClassViewVm {
     exitProjection: () => void;
 
     // Quick Start upgrade (WP11)
-    upgradeRoster: (students: Array<{ firstName: string; lastName: string }>) => Promise<boolean>;
+    upgradeRoster: (
+      students: Array<{
+        firstName: string;
+        preferredName?: string;
+        lastName: string;
+        tagIds?: string[];
+        sourceStudentId?: string;
+      }>
+    ) => Promise<boolean>;
 
     // Session lifecycle
     publishSession: () => Promise<void>;
