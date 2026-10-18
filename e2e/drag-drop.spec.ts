@@ -128,6 +128,31 @@ test.describe('Drag and Drop Workspace', () => {
     ).not.toBeChecked();
   });
 
+  test('shows tags from multiple imported roster columns on the canvas', async ({ page }) => {
+    await createActivity(page, {
+      activityName: `Imported Tags ${Date.now()}`,
+      students: ['River Otter', 'Moss Finch']
+    });
+
+    await page.getByRole('button', { name: 'Open roster' }).click();
+    await page.getByRole('button', { name: /Add real names\? Import your roster/ }).click();
+    const importDialog = page.getByRole('dialog', { name: 'Import roster' });
+    await importDialog
+      .locator('textarea')
+      .fill(
+        'First Name\tLast Name\tSupport\tProgram\tStudent ID\nAlex\tTagger\tELL\tReading\talex-tagger\nCasey\tReader\tIEP\tMath\tcasey-reader'
+      );
+    const mappings = importDialog.locator('select');
+    await mappings.nth(2).selectOption('tags');
+    await mappings.nth(3).selectOption('tags');
+    await importDialog.getByRole('button', { name: 'Import', exact: true }).click();
+
+    await expect(page.locator('[data-student-id][aria-label*="Tags: ELL, Reading"]')).toHaveCount(
+      1
+    );
+    await expect(page.locator('[data-student-id][aria-label*="Tags: IEP, Math"]')).toHaveCount(1);
+  });
+
   test('opens the edit sidebar from canvas card actions', async ({ page }) => {
     const activityName = `Canvas Student Details ${Date.now()}`;
     await createActivity(page, { activityName });

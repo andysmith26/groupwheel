@@ -867,6 +867,8 @@
       }
     }
 
+    await vm.actions.refreshTags();
+
     // Refresh students in VM state
     if (addedStudents.length > 0) {
       vm.state.students = [...vm.state.students, ...addedStudents];
