@@ -43,13 +43,18 @@
     wizard.error = null;
     try {
       const programId = env.idGenerator.generateId();
+      const hasChoiceGroups = wizard.groupNames.length > 0;
+      const defaultGroupCount = Math.max(1, Math.ceil(wizard.students.length / 4));
+      const groupNames = hasChoiceGroups
+        ? wizard.groupNames
+        : Array.from({ length: defaultGroupCount }, (_, i) => `Group ${i + 1}`);
       const result = await createGroupingActivity(env, {
         activityName: wizard.activityName.trim(),
         programId,
         students: wizard.students,
         preferences: wizard.preferences,
-        groupNames: wizard.groupNames.length > 0 ? wizard.groupNames : undefined,
-        seedingStrategy: wizard.groupNames.length > 0 ? 'top-choice' : undefined,
+        groupNames,
+        seedingStrategy: hasChoiceGroups ? 'top-choice' : undefined,
         ownerStaffId: 'owner-1'
       });
       if (isErr(result)) {

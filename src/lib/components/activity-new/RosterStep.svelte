@@ -49,6 +49,7 @@
     id="an-roster-file"
     label="Roster file"
     fileName={wizard.rosterFileName}
+    hasContent={wizard.rosterText.trim().length > 0}
     {onFile}
     onClear={() => wizard.setRoster('', null)}
   />

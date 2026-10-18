@@ -42,7 +42,6 @@ export async function createActivity(
   if (!match) throw new Error('Could not extract the activity ID from the current URL');
 
   if (generateGroups) {
-    await page.getByRole('button', { name: 'Make Groups' }).click();
     await page.locator('[data-student-id]').first().waitFor();
   }
 

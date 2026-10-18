@@ -4,6 +4,7 @@
     label,
     accept = '.csv,.tsv,.txt',
     fileName = null,
+    hasContent = false,
     onFile,
     onClear
   }: {
@@ -11,6 +12,7 @@
     label: string;
     accept?: string;
     fileName?: string | null;
+    hasContent?: boolean;
     onFile: (file: File) => void;
     onClear?: () => void;
   } = $props();
@@ -63,7 +65,7 @@
       {/if}
     </div>
     <div class="flex shrink-0 items-center gap-2">
-      {#if fileName && onClear}
+      {#if (fileName || hasContent) && onClear}
         <button type="button" class="text-xs text-gray-500 underline" onclick={onClear}>
           Remove
         </button>

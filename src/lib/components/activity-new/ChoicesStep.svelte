@@ -51,6 +51,7 @@
     id="an-choices-file"
     label="Choices file"
     fileName={wizard.choicesFileName}
+    hasContent={wizard.choicesText.trim().length > 0}
     {onFile}
     onClear={() => wizard.clearChoices()}
   />

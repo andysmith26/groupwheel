@@ -23,7 +23,11 @@
     </div>
     <div>
       <dt class="font-medium">Groups</dt>
-      <dd>{wizard.groupNames.length > 0 ? wizard.groupNames.join(', ') : 'None'}</dd>
+      <dd>
+        {wizard.groupNames.length > 0
+          ? wizard.groupNames.join(', ')
+          : `${Math.max(1, Math.ceil(wizard.students.length / 4))} numbered groups (Group 1, Group 2, …)`}
+      </dd>
     </div>
     <div>
       <dt class="font-medium">Peer requests</dt>
