@@ -50,9 +50,24 @@ export interface PreparedChoices {
   /** Roster students with at least one choice */
   coveredCount: number;
   hasPeerRequestColumns: boolean;
+  /** Present for Google Form grid imports (one column per group, cells like "1st Choice") */
+  matrix?: MatrixChoicesInfo;
   unmatchedNames: string[];
   warnings: string[];
   error?: string;
+}
+
+export interface MatrixChoicesInfo {
+  /** Column used to match rows to the roster (auto-detected unless overridden) */
+  identityColumnIndex: number | null;
+  /** Columns the user may pick from (every non-group column) */
+  identityColumnOptions: Array<{ index: number; header: string }>;
+  /** A few rows showing how choices were matched */
+  preview: Array<{
+    rawValue: string;
+    studentName: string | null;
+    choices: string[];
+  }>;
 }
 
 function normalize(value: string): string {
@@ -75,10 +90,7 @@ function buildStudent(
 }
 
 /** Parse roster text (pasted or from a file) into students. */
-export function prepareRoster(
-  text: string,
-  mappingsOverride?: ColumnMapping[]
-): PreparedRoster {
+export function prepareRoster(text: string, mappingsOverride?: ColumnMapping[]): PreparedRoster {
   const empty: PreparedRoster = { students: [], rowStudentLinks: [], warnings: [] };
   if (!text.trim()) return { ...empty, error: 'Add a roster to continue.' };
 
@@ -133,7 +145,8 @@ export function prepareRoster(
 export function prepareChoices(
   text: string,
   roster: ParsedStudent[],
-  mappingsOverride?: ColumnMapping[]
+  mappingsOverride?: ColumnMapping[],
+  matrixIdentityColumn?: number
 ): PreparedChoices {
   const base: PreparedChoices = {
     preferences: [],
@@ -157,7 +170,7 @@ export function prepareChoices(
       matrix.columns.some((col) => extractChoiceRank(row.cells[col.columnIndex] ?? '') !== null)
     )
   ) {
-    return prepareMatrixChoices(rawData, matrix.columns, roster, base);
+    return prepareMatrixChoices(rawData, matrix.columns, roster, base, matrixIdentityColumn);
   }
   const columnMappings = mappingsOverride ?? createImportColumnMappings(rawData);
   const hasPeerRequestColumns = columnMappings.some(
@@ -223,11 +236,13 @@ export function prepareChoices(
   };
 }
 
-
 const MAX_MATRIX_CHOICES = 5;
 
 function decodeEntities(value: string): string {
-  return value.replace(/&amp;/gi, '&').replace(/&#39;|&apos;/gi, "'").replace(/&quot;/gi, '"');
+  return value
+    .replace(/&amp;/gi, '&')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"');
 }
 
 /**
@@ -238,7 +253,8 @@ function prepareMatrixChoices(
   rawData: RawSheetData,
   columns: MatrixPreferenceColumn[],
   roster: ParsedStudent[],
-  base: PreparedChoices
+  base: PreparedChoices,
+  identityOverride?: number
 ): PreparedChoices {
   const groupCols = columns.map((c) => ({ ...c, groupName: decodeEntities(c.groupName) }));
   const groupIdx = new Set(groupCols.map((c) => c.columnIndex));
@@ -247,15 +263,32 @@ function prepareMatrixChoices(
     headerName,
     mappedTo: null
   }));
-  const identityCols = rawData.headers
-    .map((_, i) => i)
-    .filter((i) => !groupIdx.has(i) && !/timestamp|email/i.test(rawData.headers[i]));
+  const identityOptions = rawData.headers
+    .map((header, index) => ({ index, header }))
+    .filter((o) => !groupIdx.has(o.index));
 
   const lookup = new Map<string, ParsedStudent>();
   for (const student of roster) {
     lookup.set(normalize(student.id), student);
     lookup.set(normalize(student.displayName), student);
     lookup.set(normalize(`${student.firstName} ${student.lastName}`), student);
+  }
+  const cellOf = (row: RawSheetData['rows'][number], i: number) =>
+    decodeEntities((row.cells[i] ?? '').trim());
+
+  // Auto-pick the column whose values match the most roster students
+  let identityColumnIndex: number | null = null;
+  if (identityOverride !== undefined && identityOptions.some((o) => o.index === identityOverride)) {
+    identityColumnIndex = identityOverride;
+  } else {
+    let best = 0;
+    for (const o of identityOptions) {
+      const hits = rawData.rows.filter((r) => lookup.has(normalize(cellOf(r, o.index)))).length;
+      if (hits > best) {
+        best = hits;
+        identityColumnIndex = o.index;
+      }
+    }
   }
 
   const preferences: ParsedPreference[] = [];
@@ -264,21 +297,23 @@ function prepareMatrixChoices(
   const groupNames = new Set<string>();
   const seen = new Set<string>();
 
+  const preview: MatrixChoicesInfo['preview'] = [];
+
   for (const row of rawData.rows) {
-    const candidates = identityCols.map((i) => (row.cells[i] ?? '').trim()).filter(Boolean);
-    if (candidates.length === 0) continue;
-    let match: ParsedStudent | undefined;
-    for (const c of candidates) {
-      match = lookup.get(normalize(c));
-      if (match) break;
+    const rawValue = identityColumnIndex === null ? '' : cellOf(row, identityColumnIndex);
+    if (!rawValue) continue;
+    const match = lookup.get(normalize(rawValue));
+    const ranked = parseMatrixRow(row, groupCols).rankedChoices.slice(0, MAX_MATRIX_CHOICES);
+    if (preview.length < 3) {
+      preview.push({ rawValue, studentName: match?.displayName ?? null, choices: ranked });
     }
     if (!match) {
-      unmatchedNames.push(candidates[candidates.length - 1]);
+      unmatchedNames.push(rawValue);
       continue;
     }
     rowStudentLinks.push({ rowIndex: row.rowIndex, studentId: match.id });
     if (seen.has(match.id)) continue;
-    const choices = parseMatrixRow(row, groupCols).rankedChoices.slice(0, MAX_MATRIX_CHOICES);
+    const choices = ranked;
     if (choices.length === 0) continue;
     seen.add(match.id);
     choices.forEach((c) => groupNames.add(c));
@@ -301,6 +336,7 @@ function prepareMatrixChoices(
     columnMappings,
     rowStudentLinks,
     coveredCount: preferences.length,
+    matrix: { identityColumnIndex, identityColumnOptions: identityOptions, preview },
     unmatchedNames,
     warnings
   };

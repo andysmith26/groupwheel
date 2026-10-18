@@ -56,6 +56,54 @@
     onClear={() => wizard.clearChoices()}
   />
 
+  {#if wizard.choices?.matrix}
+    {@const matrix = wizard.choices.matrix}
+    <div class="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
+      <p class="text-sm text-gray-700">
+        Google Form grid detected: each column is a group and cells hold ranks like "1st Choice".
+      </p>
+      <label class="block text-sm font-medium text-gray-700" for="an-choices-id-col">
+        Student ID column (used to match the roster)
+      </label>
+      <select
+        id="an-choices-id-col"
+        class="rounded-md border border-gray-300 px-2 py-1 text-sm"
+        value={matrix.identityColumnIndex ?? ''}
+        onchange={(e) => {
+          const v = e.currentTarget.value;
+          wizard.choicesMatrixIdentityColumn = v === '' ? undefined : Number(v);
+        }}
+      >
+        {#if matrix.identityColumnIndex === null}
+          <option value="">No match found — pick a column</option>
+        {/if}
+        {#each matrix.identityColumnOptions as opt (opt.index)}
+          <option value={opt.index}>{opt.header}</option>
+        {/each}
+      </select>
+      {#if matrix.preview.length > 0}
+        <p class="text-sm font-medium text-gray-700">Preview of matched choices</p>
+        <ul class="space-y-1 text-sm">
+          {#each matrix.preview as p, i (i)}
+            <li>
+              {#if p.studentName}
+                <span class="font-medium">{p.studentName}</span>
+              {:else}
+                <span class="text-red-600">No roster match for "{p.rawValue}"</span>
+              {/if}
+              →
+              {#if p.choices.length > 0}
+                {p.choices.map((c, n) => `${n + 1}. ${c}`).join(', ')}
+              {:else}
+                <span class="text-gray-500">no choices</span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+  {/if}
+
   {#if wizard.choices}
     <SheetPreview
       data={wizard.choices.rawData}
