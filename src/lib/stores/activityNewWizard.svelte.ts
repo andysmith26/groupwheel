@@ -47,6 +47,10 @@ export class ActivityNewWizardStore {
   choicesText = $state('');
   choicesFileName = $state<string | null>(null);
   choicesMappingsOverride = $state<ColumnMapping[] | undefined>(undefined);
+  /** Student ID column for Google Form grid imports; undefined = auto-detect */
+  choicesIdColumn = $state<number | undefined>(undefined);
+  /** studentId -> chosen rowIndex for duplicate submissions; unset = latest row */
+  choicesDuplicateSelections = $state<Record<string, number>>({});
 
   activityName = $state('');
   loading = $state(false);
@@ -66,7 +70,10 @@ export class ActivityNewWizardStore {
 
   choices = $derived<PreparedChoices | null>(
     this.choicesText.trim() && this.students.length > 0
-      ? prepareChoices(this.choicesText, this.students, this.choicesMappingsOverride)
+      ? prepareChoices(this.choicesText, this.students, this.choicesMappingsOverride, {
+          idColumn: this.choicesIdColumn,
+          duplicateSelections: this.choicesDuplicateSelections
+        })
       : null
   );
 
@@ -180,6 +187,8 @@ export class ActivityNewWizardStore {
     this.choicesText = text;
     this.choicesFileName = fileName;
     this.choicesMappingsOverride = undefined;
+    this.choicesIdColumn = undefined;
+    this.choicesDuplicateSelections = {};
   }
 
   clearChoices() {
