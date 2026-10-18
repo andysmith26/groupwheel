@@ -9,7 +9,6 @@ import type { Student } from '$lib/domain';
 import {
   prepareChoices,
   prepareRoster,
-  type DuplicateStrategy,
   type PreparedChoices,
   type PreparedRoster
 } from '$lib/application/useCases/prepareGroupingActivityImport';
@@ -50,7 +49,8 @@ export class ActivityNewWizardStore {
   choicesMappingsOverride = $state<ColumnMapping[] | undefined>(undefined);
   /** Student ID column for Google Form grid imports; undefined = auto-detect */
   choicesIdColumn = $state<number | undefined>(undefined);
-  choicesDuplicateStrategy = $state<DuplicateStrategy>('latest');
+  /** studentId -> chosen rowIndex for duplicate submissions; unset = latest row */
+  choicesDuplicateSelections = $state<Record<string, number>>({});
 
   activityName = $state('');
   loading = $state(false);
@@ -72,7 +72,7 @@ export class ActivityNewWizardStore {
     this.choicesText.trim() && this.students.length > 0
       ? prepareChoices(this.choicesText, this.students, this.choicesMappingsOverride, {
           idColumn: this.choicesIdColumn,
-          duplicates: this.choicesDuplicateStrategy
+          duplicateSelections: this.choicesDuplicateSelections
         })
       : null
   );
@@ -188,7 +188,7 @@ export class ActivityNewWizardStore {
     this.choicesFileName = fileName;
     this.choicesMappingsOverride = undefined;
     this.choicesIdColumn = undefined;
-    this.choicesDuplicateStrategy = 'latest';
+    this.choicesDuplicateSelections = {};
   }
 
   clearChoices() {

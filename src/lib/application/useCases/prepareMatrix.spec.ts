@@ -46,8 +46,10 @@ describe('prepareChoices matrix (Google Form)', () => {
     expect(m.samples[0].rawCells.map((c) => c.header)).toContain('Your First & Last Name');
   });
 
-  it('supports first-row duplicate strategy and manual id column', () => {
-    const first = prepareChoices(text, roster, undefined, { duplicates: 'first' });
+  it('supports per-student duplicate selection and manual id column', () => {
+    const first = prepareChoices(text, roster, undefined, {
+      duplicateSelections: { 'ann@x.org': 2 }
+    });
     expect(first.preferences[0].likeGroupIds).toEqual(['Book Club', 'Car Club']);
     const manual = prepareChoices(text, roster, undefined, { idColumn: 2 });
     expect(manual.matrix!.idColumnIndex).toBe(2);

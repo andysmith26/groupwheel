@@ -143,38 +143,38 @@
             Duplicate submissions ({matrix.duplicates.length}
             {matrix.duplicates.length === 1 ? 'student' : 'students'} with multiple rows)
           </p>
-          <div class="flex flex-wrap gap-4 text-sm text-gray-700">
-            <label class="flex items-center gap-1">
-              <input
-                type="radio"
-                name="an-choices-dupes"
-                checked={matrix.duplicateStrategy === 'latest'}
-                onchange={() => (wizard.choicesDuplicateStrategy = 'latest')}
-              />
-              Use the latest row (last in file)
-            </label>
-            <label class="flex items-center gap-1">
-              <input
-                type="radio"
-                name="an-choices-dupes"
-                checked={matrix.duplicateStrategy === 'first'}
-                onchange={() => (wizard.choicesDuplicateStrategy = 'first')}
-              />
-              Use the first row
-            </label>
-          </div>
+          <p class="text-xs text-gray-600">
+            Pick which row to use for each student. Latest is the default.
+          </p>
           <ul class="space-y-1 text-xs">
             {#each matrix.duplicates as dupe (dupe.studentId)}
               <li class="rounded border border-gray-200 bg-white p-2">
                 <span class="font-medium">{dupe.studentName}</span>
-                <ul class="mt-1 space-y-0.5">
+                <div
+                  class="mt-1 space-y-0.5"
+                  role="radiogroup"
+                  aria-label="Row to use for {dupe.studentName}"
+                >
                   {#each dupe.rows as r (r.rowIndex)}
-                    <li class={r.used ? 'text-gray-900' : 'text-gray-400 line-through'}>
-                      Row {r.rowIndex}: {r.choices.map((c, n) => `${n + 1}. ${c}`).join(', ')}
-                      {r.used ? '(used)' : ''}
-                    </li>
+                    <label
+                      class="flex items-start gap-1 {r.used ? 'text-gray-900' : 'text-gray-500'}"
+                    >
+                      <input
+                        type="radio"
+                        name="an-choices-dupe-{dupe.studentId}"
+                        checked={r.used}
+                        onchange={() =>
+                          (wizard.choicesDuplicateSelections = {
+                            ...wizard.choicesDuplicateSelections,
+                            [dupe.studentId]: r.rowIndex
+                          })}
+                      />
+                      <span>
+                        Row {r.rowIndex}: {r.choices.map((c, n) => `${n + 1}. ${c}`).join(', ')}
+                      </span>
+                    </label>
                   {/each}
-                </ul>
+                </div>
               </li>
             {/each}
           </ul>

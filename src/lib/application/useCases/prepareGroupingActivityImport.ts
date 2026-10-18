@@ -57,13 +57,11 @@ export interface PreparedChoices {
   error?: string;
 }
 
-export type DuplicateStrategy = 'latest' | 'first';
-
 export interface ChoicesImportOptions {
   /** Column holding the student ID for Google Form grid imports (auto-detected when omitted) */
   idColumn?: number;
-  /** Which row wins when several rows share a student ID (default 'latest') */
-  duplicates?: DuplicateStrategy;
+  /** studentId -> rowIndex chosen when several rows share a student ID (default: latest row) */
+  duplicateSelections?: Record<string, number>;
 }
 
 export interface MatrixChoicesInfo {
@@ -71,7 +69,6 @@ export interface MatrixChoicesInfo {
   idColumnIndex: number | null;
   /** Columns the user may pick from (every non-group column) */
   idColumnOptions: Array<{ index: number; header: string }>;
-  duplicateStrategy: DuplicateStrategy;
   stats: {
     totalRows: number;
     matchedRows: number;
@@ -320,7 +317,6 @@ function prepareMatrixChoices(
     }
   }
 
-  const strategy = options.duplicates ?? 'latest';
   const rowStudentLinks: PreparedChoices['rowStudentLinks'] = [];
   const unmatchedNames: string[] = [];
   const stats = {
@@ -374,7 +370,8 @@ function prepareMatrixChoices(
   const duplicates: MatrixChoicesInfo['duplicates'] = [];
   const groupNames = new Set<string>();
   for (const [studentId, rows] of candidates) {
-    const chosen = strategy === 'first' ? rows[0] : rows[rows.length - 1];
+    const selected = options.duplicateSelections?.[studentId];
+    const chosen = rows.find((r) => r.rowIndex === selected) ?? rows[rows.length - 1];
     chosen.choices.forEach((c) => groupNames.add(c));
     preferences.push({ studentId, likeGroupIds: chosen.choices });
     if (rows.length > 1) {
@@ -407,7 +404,6 @@ function prepareMatrixChoices(
     matrix: {
       idColumnIndex,
       idColumnOptions,
-      duplicateStrategy: strategy,
       stats,
       samples,
       duplicates
