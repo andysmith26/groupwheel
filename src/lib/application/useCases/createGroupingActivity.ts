@@ -67,8 +67,9 @@ export interface ParsedPreference {
  *
  * - 'none': Create empty groups with no members assigned.
  * - 'top-choice': Assign each student who has preferences to their 1st choice group.
+ * - 'random': Deal all students into groups at random, respecting group capacities.
  */
-export type SeedingStrategy = 'none' | 'top-choice';
+export type SeedingStrategy = 'none' | 'top-choice' | 'random';
 
 /**
  * Input for creating a grouping activity.
@@ -85,6 +86,9 @@ export interface CreateGroupingActivityInput {
 
   /** Group names extracted from the import file (e.g. unique choice values from CSV) */
   groupNames?: string[];
+
+  /** Optional max sizes keyed by group name (unlisted groups have no limit) */
+  groupCapacities?: Record<string, number | null>;
 
   /** How to seed initial group assignments. Defaults to 'none'. */
   seedingStrategy?: SeedingStrategy;
@@ -324,7 +328,7 @@ export async function createGroupingActivity(
       return {
         id,
         name,
-        capacity: null,
+        capacity: input.groupCapacities?.[name] ?? null,
         memberIds: [],
         colorIndex: index
       };
@@ -369,8 +373,27 @@ export async function createGroupingActivity(
         if (!groupId) continue;
 
         const group = groupIdToGroup.get(groupId);
-        if (group) {
+        if (group && (group.capacity === null || group.memberIds.length < group.capacity)) {
           group.memberIds.push(pref.studentId);
+        }
+      }
+    }
+
+    if (input.seedingStrategy === 'random') {
+      const shuffled = [...pool.memberIds];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      let cursor = 0;
+      for (const studentId of shuffled) {
+        for (let tries = 0; tries < groups.length; tries++) {
+          const group = groups[(cursor + tries) % groups.length];
+          if (group.capacity === null || group.memberIds.length < group.capacity) {
+            group.memberIds.push(studentId);
+            cursor = (cursor + tries + 1) % groups.length;
+            break;
+          }
         }
       }
     }

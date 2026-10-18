@@ -19,26 +19,30 @@ interface CreateActivityOptions {
   generateGroups?: boolean;
 }
 
-/** Create an activity through the current home-page roster flow. */
+/** Create an activity through the /activity/new wizard. */
 export async function createActivity(
   page: Page,
   { activityName, students = DEFAULT_STUDENTS, generateGroups = true }: CreateActivityOptions
 ): Promise<string> {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Paste roster' }).click();
-  await page.locator('#ps-name').fill(activityName);
-  await page.locator('#ps-paste').fill(students.join('\n'));
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.waitForURL(/\/activity\/new$/);
+  await page.locator('#an-roster-paste').fill(students.join('\n'));
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Skip' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.locator('#an-name').fill(activityName);
+  await page.getByRole('button', { name: 'Continue' }).click();
 
   await Promise.all([
-    page.waitForURL(/\/activity\/[^/?]+(?:\?.*)?$/),
-    page.getByRole('button', { name: 'Create Activity' }).click()
+    page.waitForURL(/\/activity\/(?!new)[^/?]+(?:\?.*)?$/),
+    page.getByRole('button', { name: 'Create Groups' }).click()
   ]);
 
   const match = page.url().match(/\/activity\/([^/?]+)/);
   if (!match) throw new Error('Could not extract the activity ID from the current URL');
 
   if (generateGroups) {
-    await page.getByRole('button', { name: 'Make Groups' }).click();
     await page.locator('[data-student-id]').first().waitFor();
   }
 
