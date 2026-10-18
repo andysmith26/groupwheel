@@ -695,7 +695,7 @@
           {/if}
         </div>
 
-        {#if mode === 'edit' && student && showExperimentalFields}
+        {#if mode === 'edit' && student}
           <fieldset class="space-y-3 border-t border-gray-200 pt-4">
             <legend class="text-xs font-semibold tracking-wide text-gray-700 uppercase">
               Group preferences
@@ -790,29 +790,34 @@
             </div>
           </fieldset>
 
-          <fieldset class="space-y-2 border-t border-gray-200 pt-4">
-            <legend class="text-xs font-semibold tracking-wide text-gray-700 uppercase">
-              Peer preferences
-            </legend>
-            <p class="text-[11px] text-gray-500">Avoid peers are used as grouping constraints.</p>
-            {#if availablePeers.length > 0}
-              <div class="max-h-36 space-y-1 overflow-y-auto pr-1">
-                {#each availablePeers as peer (peer.id)}
-                  <label class="flex items-center gap-2 text-xs text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={formAvoidStudentIds.includes(peer.id)}
-                      onchange={(event) =>
-                        toggleAvoidPeer(peer.id, (event.currentTarget as HTMLInputElement).checked)}
-                    />
-                    Avoid {getStudentDisplayName(peer)}
-                  </label>
-                {/each}
-              </div>
-            {:else}
-              <p class="text-[11px] text-gray-500">No other students are in this roster.</p>
-            {/if}
-          </fieldset>
+          {#if showExperimentalFields}
+            <fieldset class="space-y-2 border-t border-gray-200 pt-4">
+              <legend class="text-xs font-semibold tracking-wide text-gray-700 uppercase">
+                Peer preferences
+              </legend>
+              <p class="text-[11px] text-gray-500">Avoid peers are used as grouping constraints.</p>
+              {#if availablePeers.length > 0}
+                <div class="max-h-36 space-y-1 overflow-y-auto pr-1">
+                  {#each availablePeers as peer (peer.id)}
+                    <label class="flex items-center gap-2 text-xs text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formAvoidStudentIds.includes(peer.id)}
+                        onchange={(event) =>
+                          toggleAvoidPeer(
+                            peer.id,
+                            (event.currentTarget as HTMLInputElement).checked
+                          )}
+                      />
+                      Avoid {getStudentDisplayName(peer)}
+                    </label>
+                  {/each}
+                </div>
+              {:else}
+                <p class="text-[11px] text-gray-500">No other students are in this roster.</p>
+              {/if}
+            </fieldset>
+          {/if}
         {/if}
 
         {#if mode === 'edit' && student && effectivePeerRequestSummary}
@@ -1020,26 +1025,59 @@
             </div>
           </div>
 
-          <!-- Current Preferences -->
-          {#if preferences}
-            {@const likeGroups = preferences.likeGroupIds ?? []}
+          <!-- Group Preferences -->
+          {@const likeGroups = preferences?.likeGroupIds ?? []}
+          {@const avoidGroups = preferences?.avoidGroupIds ?? []}
+          <section class="rounded-md border border-gray-200 p-3">
+            <div class="mb-2 flex items-center justify-between gap-2">
+              <h3 class="text-xs font-semibold tracking-wide text-gray-700 uppercase">
+                Group preferences
+              </h3>
+              {#if !readOnly}
+                <button
+                  type="button"
+                  onclick={onEditMode}
+                  class="text-xs font-medium text-teal-700 hover:text-teal-900"
+                >
+                  Edit preferences
+                </button>
+              {/if}
+            </div>
             {#if likeGroups.length > 0}
               <div>
-                <h3 class="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
-                  Preferences
-                </h3>
-                <div class="flex flex-wrap gap-1.5">
-                  {#each likeGroups as choice, i}
+                <p class="text-[10px] font-medium tracking-wide text-gray-500 uppercase">
+                  Preferred groups
+                </p>
+                <ol class="mt-1 space-y-1">
+                  {#each likeGroups as groupId, index (groupId)}
+                    <li class="text-xs text-gray-700">
+                      <span class="mr-1 font-medium text-gray-500">{index + 1}.</span>
+                      {groupNameMap[groupId] ?? groupId}
+                    </li>
+                  {/each}
+                </ol>
+              </div>
+            {/if}
+            {#if avoidGroups.length > 0}
+              <div class="mt-2">
+                <p class="text-[10px] font-medium tracking-wide text-gray-500 uppercase">
+                  Groups to avoid
+                </p>
+                <div class="mt-1 flex flex-wrap gap-1.5">
+                  {#each avoidGroups as groupId (groupId)}
                     <span
-                      class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700"
+                      class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700"
                     >
-                      {i + 1}. {groupNameMap[choice] ?? choice}
+                      {groupNameMap[groupId] ?? groupId}
                     </span>
                   {/each}
                 </div>
               </div>
             {/if}
-          {/if}
+            {#if likeGroups.length === 0 && avoidGroups.length === 0}
+              <p class="text-xs text-gray-500">No group preferences set.</p>
+            {/if}
+          </section>
 
           <!-- Recent Groupmates (from current activity pairing stats) -->
           {#if recentGroupmates.length > 0}
