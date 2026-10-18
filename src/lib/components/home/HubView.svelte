@@ -56,56 +56,66 @@
     <Alert variant="error" dismissible onDismiss={() => (error = null)}>{error}</Alert>
   {/if}
 
-  <section
-    aria-labelledby="hub-title"
-    class="overflow-hidden rounded-2xl bg-gradient-to-br from-teal-700 to-teal-900 text-white shadow-lg"
-  >
-    <div class="grid gap-8 p-6 sm:grid-cols-[1fr_auto] sm:items-center sm:p-10">
+  <div class="grid gap-4 sm:grid-cols-2">
+    <section
+      aria-labelledby="continue-title"
+      class="flex flex-col justify-between gap-6 rounded-2xl bg-gradient-to-br from-teal-700 to-teal-900 p-6 text-white shadow-lg"
+    >
       <div>
-        <h1 id="hub-title" class="text-3xl font-bold tracking-tight">Groupwheel</h1>
+        <h1 id="continue-title" class="text-sm font-semibold tracking-[0.16em] text-teal-100 uppercase">
+          Continue with
+        </h1>
         {#if activeClub}
-          <p class="mt-4 text-xl font-semibold">{activeClub.program.name}</p>
+          <p class="mt-3 text-2xl font-bold">{activeClub.program.name}</p>
           <p class="mt-1 text-sm text-teal-100">
             {activeClub.studentCount}
             {activeClub.studentCount === 1 ? 'member' : 'members'}
           </p>
         {:else if loading}
-          <p class="mt-4 text-sm text-teal-100">Loading saved activities…</p>
+          <p class="mt-3 text-sm text-teal-100">Loading saved activities…</p>
         {:else}
-          <p class="mt-4 text-sm text-teal-100">Start a new activity with your roster.</p>
+          <p class="mt-3 text-sm text-teal-100">No previous activity yet.</p>
         {/if}
       </div>
-      <div class="flex flex-col gap-2">
-        {#if activeClub}
-          <button
-            type="button"
-            class="min-h-12 rounded-lg bg-white px-6 py-3 text-base font-semibold text-teal-900 shadow-sm transition hover:bg-teal-50 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-teal-800"
-            onclick={() => openActivity(activeClub.program.id)}
-          >
-            Open Canvas
-          </button>
-        {/if}
+      {#if activeClub}
         <button
           type="button"
-          class="min-h-12 rounded-lg border border-white/60 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10 focus:ring-2 focus:ring-white focus:outline-none"
-          onclick={() => (showNewActivity = !showNewActivity)}
-          aria-expanded={showNewActivity}
+          class="min-h-12 rounded-lg bg-white px-6 py-3 text-base font-semibold text-teal-900 shadow-sm transition hover:bg-teal-50 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-teal-800"
+          onclick={() => openActivity(activeClub.program.id)}
         >
-          New Activity
+          Open Canvas
         </button>
+      {/if}
+    </section>
+
+    <section
+      aria-labelledby="new-activity-title"
+      class="flex flex-col justify-between gap-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+    >
+      <div>
+        <h2 id="new-activity-title" class="text-sm font-semibold tracking-[0.16em] text-gray-500 uppercase">
+          New activity
+        </h2>
+        <p class="mt-3 text-sm text-gray-600">
+          Import a roster to open the canvas. Preferences can be added later.
+        </p>
       </div>
-    </div>
-  </section>
+      <button
+        type="button"
+        class="min-h-12 rounded-lg bg-teal-700 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
+        onclick={() => (showNewActivity = !showNewActivity)}
+        aria-expanded={showNewActivity}
+      >
+        New Activity
+      </button>
+    </section>
+  </div>
 
   {#if showNewActivity}
     <section
       aria-label="New activity"
       class="rounded-xl border border-gray-200 bg-white p-5"
     >
-      <h2 class="text-lg font-semibold text-gray-900">New Activity</h2>
-      <p class="mt-1 text-sm text-gray-500">
-        Import a roster to open the canvas. Preferences can be added later.
-      </p>
       <ImportRosterCard compact onCreated={openActivity} />
     </section>
   {/if}
