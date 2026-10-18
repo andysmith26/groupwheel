@@ -47,8 +47,6 @@ export class ActivityNewWizardStore {
   choicesText = $state('');
   choicesFileName = $state<string | null>(null);
   choicesMappingsOverride = $state<ColumnMapping[] | undefined>(undefined);
-  /** Manual student-ID column choice for Google Form grid imports */
-  choicesMatrixIdentityColumn = $state<number | undefined>(undefined);
 
   activityName = $state('');
   loading = $state(false);
@@ -68,12 +66,7 @@ export class ActivityNewWizardStore {
 
   choices = $derived<PreparedChoices | null>(
     this.choicesText.trim() && this.students.length > 0
-      ? prepareChoices(
-          this.choicesText,
-          this.students,
-          this.choicesMappingsOverride,
-          this.choicesMatrixIdentityColumn
-        )
+      ? prepareChoices(this.choicesText, this.students, this.choicesMappingsOverride)
       : null
   );
 
@@ -187,7 +180,6 @@ export class ActivityNewWizardStore {
     this.choicesText = text;
     this.choicesFileName = fileName;
     this.choicesMappingsOverride = undefined;
-    this.choicesMatrixIdentityColumn = undefined;
   }
 
   clearChoices() {

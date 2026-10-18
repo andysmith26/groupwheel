@@ -58,10 +58,8 @@ export interface PreparedChoices {
 }
 
 export interface MatrixChoicesInfo {
-  /** Column used to match rows to the roster (auto-detected unless overridden) */
+  /** Column used to match rows to the roster (auto-detected) */
   identityColumnIndex: number | null;
-  /** Columns the user may pick from (every non-group column) */
-  identityColumnOptions: Array<{ index: number; header: string }>;
   /** A few rows showing how choices were matched */
   preview: Array<{
     rawValue: string;
@@ -145,8 +143,7 @@ export function prepareRoster(text: string, mappingsOverride?: ColumnMapping[]):
 export function prepareChoices(
   text: string,
   roster: ParsedStudent[],
-  mappingsOverride?: ColumnMapping[],
-  matrixIdentityColumn?: number
+  mappingsOverride?: ColumnMapping[]
 ): PreparedChoices {
   const base: PreparedChoices = {
     preferences: [],
@@ -170,7 +167,7 @@ export function prepareChoices(
       matrix.columns.some((col) => extractChoiceRank(row.cells[col.columnIndex] ?? '') !== null)
     )
   ) {
-    return prepareMatrixChoices(rawData, matrix.columns, roster, base, matrixIdentityColumn);
+    return prepareMatrixChoices(rawData, matrix.columns, roster, base);
   }
   const columnMappings = mappingsOverride ?? createImportColumnMappings(rawData);
   const hasPeerRequestColumns = columnMappings.some(
@@ -253,8 +250,7 @@ function prepareMatrixChoices(
   rawData: RawSheetData,
   columns: MatrixPreferenceColumn[],
   roster: ParsedStudent[],
-  base: PreparedChoices,
-  identityOverride?: number
+  base: PreparedChoices
 ): PreparedChoices {
   const groupCols = columns.map((c) => ({ ...c, groupName: decodeEntities(c.groupName) }));
   const groupIdx = new Set(groupCols.map((c) => c.columnIndex));
@@ -278,16 +274,12 @@ function prepareMatrixChoices(
 
   // Auto-pick the column whose values match the most roster students
   let identityColumnIndex: number | null = null;
-  if (identityOverride !== undefined && identityOptions.some((o) => o.index === identityOverride)) {
-    identityColumnIndex = identityOverride;
-  } else {
-    let best = 0;
-    for (const o of identityOptions) {
-      const hits = rawData.rows.filter((r) => lookup.has(normalize(cellOf(r, o.index)))).length;
-      if (hits > best) {
-        best = hits;
-        identityColumnIndex = o.index;
-      }
+  let best = 0;
+  for (const o of identityOptions) {
+    const hits = rawData.rows.filter((r) => lookup.has(normalize(cellOf(r, o.index)))).length;
+    if (hits > best) {
+      best = hits;
+      identityColumnIndex = o.index;
     }
   }
 
@@ -336,7 +328,7 @@ function prepareMatrixChoices(
     columnMappings,
     rowStudentLinks,
     coveredCount: preferences.length,
-    matrix: { identityColumnIndex, identityColumnOptions: identityOptions, preview },
+    matrix: { identityColumnIndex, preview },
     unmatchedNames,
     warnings
   };
