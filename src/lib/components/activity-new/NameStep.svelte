@@ -1,10 +1,7 @@
 <script lang="ts">
   import type { ActivityNewWizardStore } from '$lib/stores/activityNewWizard.svelte';
 
-  let {
-    wizard,
-    onCreate
-  }: { wizard: ActivityNewWizardStore; onCreate: () => void } = $props();
+  let { wizard, onCreate }: { wizard: ActivityNewWizardStore; onCreate: () => void } = $props();
 </script>
 
 <form

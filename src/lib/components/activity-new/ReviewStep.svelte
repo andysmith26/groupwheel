@@ -28,7 +28,9 @@
     <div>
       <dt class="font-medium">Peer requests</dt>
       <dd>
-        {wizard.choices?.hasPeerRequestColumns ? 'Will be reviewed after creating' : 'None detected'}
+        {wizard.choices?.hasPeerRequestColumns
+          ? 'Will be reviewed after creating'
+          : 'None detected'}
       </dd>
     </div>
   </dl>

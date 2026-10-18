@@ -1,14 +1,13 @@
 <script lang="ts">
   import { readFileAsText } from '$lib/utils/activityFile';
+  import FileDropzone from './FileDropzone.svelte';
   import SheetPreview from '$lib/components/import/SheetPreview.svelte';
   import type { MappedField } from '$lib/domain/import';
   import type { ActivityNewWizardStore } from '$lib/stores/activityNewWizard.svelte';
 
   let { wizard }: { wizard: ActivityNewWizardStore } = $props();
 
-  async function onFile(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+  async function onFile(file: File) {
     try {
       wizard.setChoices(await readFileAsText(file), file.name);
     } catch {
@@ -34,21 +33,34 @@
     </p>
   </div>
 
-  <input id="an-choices-file" type="file" accept=".csv,.tsv,.txt" onchange={onFile} aria-label="Choices file" />
-  {#if wizard.choicesFileName}
-    <p class="text-xs text-gray-500">
-      {wizard.choicesFileName}
-      <button type="button" class="ml-2 underline" onclick={() => wizard.clearChoices()}>
-        Remove
-      </button>
-    </p>
-  {/if}
+  <div>
+    <label class="block text-sm font-medium text-gray-700" for="an-choices-paste">
+      Paste choices
+    </label>
+    <textarea
+      id="an-choices-paste"
+      rows="6"
+      class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+      placeholder="First Name,Last Name,1st Choice,2nd Choice"
+      value={wizard.choicesText}
+      oninput={(e) => wizard.setChoices(e.currentTarget.value, null)}
+    ></textarea>
+  </div>
+
+  <FileDropzone
+    id="an-choices-file"
+    label="Choices file"
+    fileName={wizard.choicesFileName}
+    {onFile}
+    onClear={() => wizard.clearChoices()}
+  />
 
   {#if wizard.choices}
     <SheetPreview
       data={wizard.choices.rawData}
       mappings={wizard.choices.columnMappings}
-      maxPreviewRows={5}
+      maxPreviewRows={8}
+      uniformColumnWidth
       onMappingChange={onMapping}
     />
     {#if wizard.choices.error}

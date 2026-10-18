@@ -131,7 +131,7 @@
   let stepIndex = $derived(ACTIVITY_NEW_STEPS.indexOf(wizard.step));
 </script>
 
-<div class="mx-auto max-w-2xl space-y-6 p-4">
+<div class="mx-auto max-w-6xl space-y-6 p-4">
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold text-gray-900">New activity</h1>
     <a href="/" class="text-sm text-gray-500 hover:text-gray-700">Cancel</a>
