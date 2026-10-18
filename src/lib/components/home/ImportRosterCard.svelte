@@ -179,7 +179,11 @@
       const text = await readFileAsText(file);
 
       // Try JSON first
-      if (file.name.endsWith('.json') || file.name.endsWith('.grp') || text.trimStart().startsWith('{')) {
+      if (
+        file.name.endsWith('.json') ||
+        file.name.endsWith('.grp') ||
+        text.trimStart().startsWith('{')
+      ) {
         const validation = parseActivityFile(text);
         if (validation.valid) {
           const d = validation.data;
@@ -285,8 +289,11 @@
       .filter((row) => row.student)
       .map((row) => {
         const student = row.student!;
-        const id = generateStudentId(student.firstName, student.lastName, row.rowIndex);
+        const id =
+          student.sourceStudentId?.trim().toLowerCase() ||
+          generateStudentId(student.firstName, student.lastName, row.rowIndex);
         return {
+          rowIndex: row.rowIndex,
           id,
           firstName: student.firstName,
           preferredName: student.preferredName,
@@ -303,22 +310,25 @@
         rawTagNames: student.rawTags
       });
       if (isErr(resolvedTags)) {
-        throw new Error(`Failed to resolve tags for "${student.displayName}": ${resolvedTags.error.message}`);
+        throw new Error(
+          `Failed to resolve tags for "${student.displayName}": ${resolvedTags.error.message}`
+        );
       }
       student.tagIds = resolvedTags.value;
     }
 
-    const rowStudentLinks = validation.validRows
-      .filter((row) => row.student)
-      .map((row) => ({
-        rowIndex: row.rowIndex,
-        studentId: generateStudentId(row.student!.firstName, row.student!.lastName, row.rowIndex)
-      }));
+    const rowStudentLinks = builtStudents.map(({ rowIndex, id }) => ({
+      rowIndex,
+      studentId: id
+    }));
+    const studentIdByRowIndex = new Map(
+      rowStudentLinks.map(({ rowIndex, studentId }) => [rowIndex, studentId])
+    );
 
     const builtPreferences = validation.validRows
       .filter((row) => row.student && row.choices && row.choices.length > 0)
       .map((row) => ({
-        studentId: generateStudentId(row.student!.firstName, row.student!.lastName, row.rowIndex),
+        studentId: studentIdByRowIndex.get(row.rowIndex)!,
         likeGroupIds: row.choices ?? []
       }));
 
