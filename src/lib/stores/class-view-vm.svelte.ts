@@ -251,7 +251,7 @@ export interface ClassViewVm {
     exitProjection: () => void;
 
     // Quick Start upgrade (WP11)
-    upgradeRoster: (students: Array<{ firstName: string; lastName: string }>) => Promise<void>;
+    upgradeRoster: (students: Array<{ firstName: string; lastName: string }>) => Promise<boolean>;
 
     // Session lifecycle
     publishSession: () => Promise<void>;
@@ -1014,7 +1014,9 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
     return true;
   }
 
-  async function resolveOrCreateTagIds(rawTagNames: readonly string[] | undefined): Promise<string[]> {
+  async function resolveOrCreateTagIds(
+    rawTagNames: readonly string[] | undefined
+  ): Promise<string[]> {
     if (!state.program) return [];
     const result = await resolveOrCreateTags(state.env, {
       programId: state.program.id,
@@ -1320,8 +1322,8 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       tagIds?: string[];
       sourceStudentId?: string;
     }>
-  ): Promise<void> {
-    if (!state.pool) return;
+  ): Promise<boolean> {
+    if (!state.pool) return false;
 
     const result = await upgradeQuickStartRoster(state.env, {
       poolId: state.pool.id,
@@ -1330,7 +1332,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
 
     if (isErr(result)) {
       state.generationError = result.error.message;
-      return;
+      return false;
     }
 
     const { newStudents, countsMatch, idMapping } = result.value;
@@ -1360,6 +1362,7 @@ export function createClassViewVm(env: AppEnvContext): ClassViewVm {
       state.generationHistory = [];
       state.selectedHistoryIndex = -1;
     }
+    return true;
   }
 
   // --- Publish state ---

@@ -9,9 +9,9 @@
    */
 
   import { browser } from '$app/environment';
-  import HomeScreen from '$lib/components/home/HomeScreen.svelte';
+  import HubView from '$lib/components/home/HubView.svelte';
 </script>
 
 {#if browser}
-  <HomeScreen />
+  <HubView />
 {/if}

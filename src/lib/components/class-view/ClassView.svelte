@@ -10,6 +10,7 @@
 
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { getAppEnvContext } from '$lib/contexts/appEnv';
   import { createClassViewVm } from '$lib/stores/class-view-vm.svelte';
   import { addStudentToPool, resolveOrCreateTags } from '$lib/services/appEnvUseCases';
@@ -42,6 +43,7 @@
   import { hintState } from '$lib/stores/hintState.svelte';
   import { toastStore } from '$lib/stores/toast.svelte';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
+  import { setLastActiveClubId } from '$lib/utils/lastActiveClub';
 
   interface Props {
     activityId: string;
@@ -53,6 +55,7 @@
   let vm = createClassViewVm(env);
 
   let importModalOpen = $state(false);
+  let replaceRosterOnImport = $derived($page.url.searchParams.get('replaceRoster') === 'true');
 
   // Roster drawer: persist open/closed state per activity in localStorage
   const rosterStorageKey = `groupwheel:roster:${activityId}`;
@@ -272,8 +275,16 @@
   });
 
   onMount(() => {
-    vm.actions.init(activityId);
+    setLastActiveClubId(activityId);
+    void initializeActivity();
   });
+
+  async function initializeActivity() {
+    await vm.actions.init(activityId);
+    if ($page.url.searchParams.get('action') === 'import' && vm.state.pool) {
+      importModalOpen = true;
+    }
+  }
 
   onDestroy(() => {
     vm.actions.dispose();
@@ -737,8 +748,11 @@
     }
 
     // WP11: If current roster is all placeholders, upgrade instead of append
-    if (hasPlaceholderStudents) {
-      await vm.actions.upgradeRoster(parsedStudents);
+    if (hasPlaceholderStudents || replaceRosterOnImport) {
+      const upgraded = await vm.actions.upgradeRoster(parsedStudents);
+      if (!upgraded) {
+        throw new Error(vm.state.generationError ?? 'Could not replace the roster.');
+      }
       return;
     }
 
@@ -1182,7 +1196,12 @@
   {/if}
 </div>
 
-<RosterImportModal open={importModalOpen} onClose={closeImportModal} onImport={handleImport} />
+<RosterImportModal
+  open={importModalOpen}
+  replaceRoster={replaceRosterOnImport}
+  onClose={closeImportModal}
+  onImport={handleImport}
+/>
 
 {#if comparison && !comparison.isGenerating && view && currentAnalytics}
   <ScenarioComparison
