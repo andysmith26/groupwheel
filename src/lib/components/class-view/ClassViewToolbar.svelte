@@ -6,12 +6,10 @@
 
   import SaveStatusIndicator from '$lib/components/editing/SaveStatusIndicator.svelte';
   import SettingsPopover from '$lib/components/workspace/SettingsPopover.svelte';
-  import CardDisplayPopover from './CardDisplayPopover.svelte';
   import ShareDropdown from './ShareDropdown.svelte';
   import type { SaveStatus } from '$lib/stores/scenarioEditingStore';
   import type { Group, Tag } from '$lib/domain';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
-  import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
   import { Z } from '$lib/constants/elevation';
 
   interface Props {
@@ -73,7 +71,6 @@
     onEditGroup,
     onAddGroup,
     onManageTags,
-    tags = [],
     onCopyForSpreadsheet,
     onSave,
     onPrint,
@@ -84,26 +81,19 @@
   }: Props = $props();
 
   let settingsOpen = $state(false);
-  let cardsOpen = $state(false);
   let shareOpen = $state(false);
 
-  const hasCardDisplayOptions = $derived(
-    !cardDisplay.showTags || Object.keys(cardDisplay.tagColorModes).length > 0
-  );
-
-  function setMenuOpen(menu: 'settings' | 'cards' | 'share', isOpen: boolean) {
+  function setMenuOpen(menu: 'settings' | 'share', isOpen: boolean) {
     settingsOpen = menu === 'settings' ? isOpen : isOpen ? false : settingsOpen;
-    cardsOpen = menu === 'cards' ? isOpen : isOpen ? false : cardsOpen;
     shareOpen = menu === 'share' ? isOpen : isOpen ? false : shareOpen;
-    onMenuOpenChange?.(settingsOpen || cardsOpen || shareOpen);
+    onMenuOpenChange?.(settingsOpen || shareOpen);
   }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
 
-    if (settingsOpen || cardsOpen || shareOpen) {
+    if (settingsOpen || shareOpen) {
       settingsOpen = false;
-      cardsOpen = false;
       shareOpen = false;
       onMenuOpenChange?.(false);
       return;
@@ -170,44 +160,31 @@
   <div class="flex items-center gap-2">
     <SaveStatusIndicator status={saveStatus} {lastSavedAt} onRetry={onRetrySave} />
 
-    {#if hasGroups}
-      <div class="relative">
-        <button
-          type="button"
-          onclick={() => setMenuOpen('cards', !cardsOpen)}
-          class="relative flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium transition-colors {cardsOpen
-            ? 'bg-teal-50 text-teal-700'
-            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}"
-          aria-label={cardsOpen ? 'Close card display' : 'Card display options'}
-          aria-expanded={cardsOpen}
-          aria-haspopup="dialog"
-          title="Cards"
+    {#if !isViewingHistory}
+      <button
+        type="button"
+        onclick={() => onManageTags?.()}
+        class="flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+        aria-label="Manage Tags"
+        title="Manage Tags"
+      >
+        <svg
+          class="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          aria-hidden="true"
         >
-          <svg
-            class="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <rect x="4" y="5" width="16" height="14" rx="2" />
-            <path stroke-linecap="round" d="M8 9h8M8 13h5" />
-          </svg>
-          <span>Cards</span>
-          {#if hasCardDisplayOptions}
-            <span class="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-teal-500"></span>
-          {/if}
-        </button>
-
-        {#if cardsOpen}
-          <CardDisplayPopover
-            {tags}
-            onManageTags={onManageTags ?? (() => {})}
-            onClose={() => setMenuOpen('cards', false)}
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z"
           />
-        {/if}
-      </div>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z" />
+        </svg>
+        <span>Manage Tags</span>
+      </button>
     {/if}
 
     {#if hasGroups && !isViewingHistory}
@@ -286,7 +263,6 @@
             onLookbackChange={onLookbackChange ?? (() => {})}
             onEditGroup={onEditGroup ?? (() => {})}
             onAddGroup={onAddGroup ?? (() => {})}
-            onManageTags={onManageTags ?? (() => {})}
             onClose={() => setMenuOpen('settings', false)}
           />
         {/if}

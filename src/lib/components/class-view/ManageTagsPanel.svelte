@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fade, scale } from 'svelte/transition';
+  import { fly } from 'svelte/transition';
   import type { Program, Tag } from '$lib/domain';
-  import { TAG_COLOR_HEX, resolveTagColorHex } from '$lib/utils/tagColors';
+  import { TAG_COLOR_HEX, TAG_COLOR_NAMES, resolveTagColorHex } from '$lib/utils/tagColors';
   import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
   import { Button } from '$lib/components/ui';
 
@@ -24,8 +24,6 @@
   let error = $state<string | null>(null);
   let savingTagId = $state<string | null>(null);
   let newTagInput = $state<HTMLInputElement | null>(null);
-
-  const TAG_COLOR_NAMES = ['Teal', 'Blue', 'Purple', 'Red', 'Amber', 'Emerald', 'Indigo', 'Pink'];
 
   function colorNameForIndex(index: number): string {
     const normalized =
@@ -74,6 +72,12 @@
     error = success ? null : 'Could not update tag color.';
   }
 
+  const MODE_OPTIONS: { mode: 'background' | 'border' | null; label: string }[] = [
+    { mode: null, label: 'None' },
+    { mode: 'background', label: 'Background' },
+    { mode: 'border', label: 'Border' }
+  ];
+
   async function handleDelete(tag: Tag) {
     const colorMode = cardDisplay.tagColorModes[tag.id];
     const confirmationMessage = colorMode
@@ -89,21 +93,16 @@
   }
 </script>
 
-<div
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-  transition:fade={{ duration: 150 }}
-  onclick={onClose}
-  onkeydown={handleDialogKeydown}
+<svelte:window onkeydown={handleDialogKeydown} />
+
+<aside
+  class="fixed top-10 right-0 bottom-0 z-40 w-full max-w-sm overflow-y-auto border-l border-gray-200 bg-white p-4 shadow-xl"
+  transition:fly={{ x: 320, duration: 150 }}
   role="dialog"
-  aria-modal="true"
+  aria-modal="false"
   aria-label="Manage tags"
-  tabindex="-1"
 >
-  <div
-    class="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl"
-    transition:scale={{ duration: 150, start: 0.95 }}
-    onclick={(e) => e.stopPropagation()}
-  >
+  <div>
     <div class="mb-4 flex items-center justify-between">
       <div>
         <h3 class="text-lg font-semibold text-gray-900">Manage Tags</h3>
@@ -131,7 +130,7 @@
       <p class="mb-3 text-sm text-red-600">{error}</p>
     {/if}
 
-    <div class="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+    <div class="space-y-3">
       {#if tags.length === 0}
         <p class="text-sm text-gray-500">No tags yet.</p>
       {:else}
@@ -159,7 +158,36 @@
                 Delete
               </button>
             </div>
-            <div class="flex gap-2">
+            <div class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+              <label class="flex items-center gap-1.5 text-xs text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={cardDisplay.isTagVisible(tag.id)}
+                  onchange={(event) =>
+                    cardDisplay.setTagVisible(tag.id, event.currentTarget.checked)}
+                  aria-label={`Show ${tag.name} on cards`}
+                />
+                Show on cards
+              </label>
+              <div
+                class="flex items-center gap-2 text-xs text-gray-700"
+                role="radiogroup"
+                aria-label={`Color mode for ${tag.name}`}
+              >
+                {#each MODE_OPTIONS as option (option.label)}
+                  <label class="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name={`tag-mode-${tag.id}`}
+                      checked={(cardDisplay.tagColorModes[tag.id] ?? null) === option.mode}
+                      onchange={() => cardDisplay.setTagColorMode(tag.id, option.mode)}
+                    />
+                    {option.label}
+                  </label>
+                {/each}
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
               {#each TAG_COLOR_HEX as hex, i (hex)}
                 <button
                   type="button"
@@ -182,4 +210,4 @@
       {/if}
     </div>
   </div>
-</div>
+</aside>

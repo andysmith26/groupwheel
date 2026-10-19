@@ -1,30 +1,35 @@
 export type TagColorMode = 'background' | 'border';
 
 interface StoredCardDisplay {
-  showTags: boolean;
+  hiddenTagIds: Record<string, true>;
   tagColorModes: Record<string, TagColorMode>;
 }
 
-const DEFAULT_SHOW_TAGS = true;
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
-function isStoredCardDisplay(value: unknown): value is StoredCardDisplay {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const candidate = value as Record<string, unknown>;
-  if (typeof candidate.showTags !== 'boolean') return false;
-  if (
-    typeof candidate.tagColorModes !== 'object' ||
-    candidate.tagColorModes === null ||
-    Array.isArray(candidate.tagColorModes)
-  ) {
-    return false;
+function parseStoredCardDisplay(value: unknown): StoredCardDisplay | null {
+  if (!isPlainObject(value)) return null;
+  const modes = value.tagColorModes;
+  if (!isPlainObject(modes)) return null;
+  if (!Object.values(modes).every((mode) => mode === 'background' || mode === 'border')) {
+    return null;
   }
-  return Object.values(candidate.tagColorModes).every(
-    (mode) => mode === 'background' || mode === 'border'
-  );
+  const hidden: Record<string, true> = {};
+  if (value.hiddenTagIds !== undefined) {
+    if (!isPlainObject(value.hiddenTagIds)) return null;
+    for (const [id, flag] of Object.entries(value.hiddenTagIds)) {
+      if (flag !== true) return null;
+      hidden[id] = true;
+    }
+  }
+  // Legacy `showTags` is intentionally ignored.
+  return { hiddenTagIds: hidden, tagColorModes: modes as Record<string, TagColorMode> };
 }
 
 export class CardDisplayStore {
-  showTags = $state(DEFAULT_SHOW_TAGS);
+  hiddenTagIds = $state<Record<string, true>>({});
   tagColorModes = $state<Record<string, TagColorMode>>({});
   private activityId: string | null = null;
 
@@ -36,23 +41,34 @@ export class CardDisplayStore {
     try {
       const raw = localStorage.getItem(this.storageKey);
       if (!raw) return;
-      const parsed: unknown = JSON.parse(raw);
-      if (!isStoredCardDisplay(parsed)) return;
-      this.showTags = parsed.showTags;
-      this.tagColorModes = { ...parsed.tagColorModes };
+      const parsed = parseStoredCardDisplay(JSON.parse(raw));
+      if (!parsed) return;
+      this.hiddenTagIds = parsed.hiddenTagIds;
+      this.tagColorModes = parsed.tagColorModes;
     } catch {
       /* ignore */
     }
   }
 
   reset(): void {
-    this.showTags = DEFAULT_SHOW_TAGS;
+    this.hiddenTagIds = {};
     this.tagColorModes = {};
     this.activityId = null;
   }
 
-  setShowTags(value: boolean): void {
-    this.showTags = value;
+  isTagVisible(tagId: string): boolean {
+    return !(tagId in this.hiddenTagIds);
+  }
+
+  setTagVisible(tagId: string, visible: boolean): void {
+    if (this.isTagVisible(tagId) === visible) return;
+    const hidden = { ...this.hiddenTagIds };
+    if (visible) {
+      delete hidden[tagId];
+    } else {
+      hidden[tagId] = true;
+    }
+    this.hiddenTagIds = hidden;
     this.persist();
   }
 
@@ -68,10 +84,15 @@ export class CardDisplayStore {
   }
 
   removeTag(tagId: string): void {
-    if (!(tagId in this.tagColorModes)) return;
+    const inModes = tagId in this.tagColorModes;
+    const inHidden = tagId in this.hiddenTagIds;
+    if (!inModes && !inHidden) return;
     const modes = { ...this.tagColorModes };
     delete modes[tagId];
+    const hidden = { ...this.hiddenTagIds };
+    delete hidden[tagId];
     this.tagColorModes = modes;
+    this.hiddenTagIds = hidden;
     this.persist();
   }
 
@@ -84,7 +105,7 @@ export class CardDisplayStore {
     try {
       localStorage.setItem(
         this.storageKey,
-        JSON.stringify({ showTags: this.showTags, tagColorModes: this.tagColorModes })
+        JSON.stringify({ hiddenTagIds: this.hiddenTagIds, tagColorModes: this.tagColorModes })
       );
     } catch {
       /* ignore */

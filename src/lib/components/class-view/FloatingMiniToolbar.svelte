@@ -395,7 +395,6 @@
             onLookbackChange={onLookbackChange ?? (() => {})}
             onEditGroup={onEditGroup ?? (() => {})}
             onAddGroup={onAddGroup ?? (() => {})}
-            onManageTags={onManageTags ?? (() => {})}
             onClose={() => setMenuOpen('settings', false)}
           />
         {/if}

@@ -19,12 +19,12 @@ export function resolveCardTagStyling(
 
   if (backgroundTags.length > 1) {
     conflicts.push(
-      `Conflicting background colors: ${backgroundTags.map(({ tag }) => tag.name).join(', ')}. Change one in Cards options.`
+      `Conflicting background colors: ${backgroundTags.map(({ tag }) => tag.name).join(', ')}. Change one in Manage Tags.`
     );
   }
   if (borderTags.length > 1) {
     conflicts.push(
-      `Conflicting border colors: ${borderTags.map(({ tag }) => tag.name).join(', ')}. Change one in Cards options.`
+      `Conflicting border colors: ${borderTags.map(({ tag }) => tag.name).join(', ')}. Change one in Manage Tags.`
     );
   }
 
