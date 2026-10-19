@@ -4,7 +4,8 @@
   import { getAppEnvContext } from '$lib/contexts/appEnv';
   import type { ActivityDisplay } from '$lib/application/useCases/listActivities';
   import { isErr } from '$lib/types/result';
-  import { listActivities } from '$lib/services/appEnvUseCases';
+  import { listActivities, importActivity } from '$lib/services/appEnvUseCases';
+  import { parseActivityFile, readFileAsText } from '$lib/utils/activityFile';
   import {
     resolveMostRecentId,
     setLastActiveClubId,
@@ -17,6 +18,9 @@
   let lastActiveClubId = $state<string | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let importFileInput = $state<HTMLInputElement>();
+  let isImporting = $state(false);
+  let importSuccess = $state<string | null>(null);
 
   let activeClub = $derived(
     activities.find((activity) => activity.program.id === lastActiveClubId) ?? null
@@ -39,6 +43,39 @@
     loading = false;
   }
 
+  async function handleImportFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    error = null;
+    importSuccess = null;
+    isImporting = true;
+
+    try {
+      const validation = parseActivityFile(await readFileAsText(file));
+      if (!validation.valid) {
+        error = validation.error;
+        return;
+      }
+      const result = await importActivity(env, {
+        exportData: validation.data,
+        ownerStaffId: 'owner-1'
+      });
+      if (isErr(result)) {
+        error = result.error.message;
+        return;
+      }
+      importSuccess = `Imported "${result.value.program.name}" with ${result.value.studentsImported} students`;
+      await loadActivities();
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Import failed.';
+    } finally {
+      isImporting = false;
+      input.value = '';
+    }
+  }
+
   function openActivity(programId: string) {
     setLastActiveClubId(programId);
     void goto(`/activity/${programId}`);
@@ -50,6 +87,20 @@
 </svelte:head>
 
 <div class="mx-auto max-w-5xl space-y-6 p-4">
+  <input
+    bind:this={importFileInput}
+    type="file"
+    accept=".json,application/json"
+    class="hidden"
+    onchange={handleImportFile}
+  />
+
+  {#if importSuccess}
+    <Alert variant="success" dismissible onDismiss={() => (importSuccess = null)}>
+      {importSuccess}
+    </Alert>
+  {/if}
+
   {#if error}
     <Alert variant="error" dismissible onDismiss={() => (error = null)}>{error}</Alert>
   {/if}
@@ -100,7 +151,15 @@
       </div>
       <button
         type="button"
-        class="min-h-12 rounded-lg bg-teal-700 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
+        class="min-h-12 rounded-lg bg-teal-700 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
+        onclick={() => importFileInput?.click()}
+        disabled={isImporting}
+      >
+        {isImporting ? 'Loading…' : 'Load from file'}
+      </button>
+      <button
+        type="button"
+        class="min-h-12 rounded-lg border border-gray-300 bg-white px-6 py-3 text-base font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
         onclick={() => goto('/activity/new')}
       >
         New Activity
