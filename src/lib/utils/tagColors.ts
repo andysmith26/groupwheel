@@ -1,40 +1,32 @@
-export const TAG_COLOR_NAMES = [
-  'Teal',
-  'Blue',
-  'Purple',
-  'Red',
-  'Amber',
-  'Emerald',
-  'Indigo',
-  'Pink',
-  'Orange',
-  'Lime',
-  'Cyan',
-  'Sky',
-  'Violet',
-  'Fuchsia',
-  'Rose',
-  'Slate'
+export const TAG_COLORS: { name: string; hex: string }[] = [
+  { name: 'Teal', hex: '#0d9488' },
+  { name: 'Blue', hex: '#2563eb' },
+  { name: 'Purple', hex: '#7c3aed' },
+  { name: 'Red', hex: '#dc2626' },
+  { name: 'Amber', hex: '#b45309' },
+  { name: 'Emerald', hex: '#059669' },
+  { name: 'Indigo', hex: '#4338ca' },
+  { name: 'Pink', hex: '#be185d' },
+  { name: 'Orange', hex: '#ea580c' },
+  { name: 'Lime', hex: '#65a30d' },
+  { name: 'Cyan', hex: '#0891b2' },
+  { name: 'Sky', hex: '#0284c7' },
+  { name: 'Fuchsia', hex: '#a21caf' },
+  { name: 'Rose', hex: '#e11d48' },
+  { name: 'Yellow', hex: '#ca8a04' },
+  { name: 'Green', hex: '#16a34a' },
+  { name: 'Violet', hex: '#9333ea' },
+  { name: 'Navy', hex: '#1e3a8a' },
+  { name: 'Forest', hex: '#115e59' },
+  { name: 'Maroon', hex: '#7f1d1d' },
+  { name: 'Light Gray', hex: '#9ca3af' },
+  { name: 'Medium Gray', hex: '#6b7280' },
+  { name: 'Dark Gray', hex: '#4b5563' },
+  { name: 'Charcoal', hex: '#1f2937' }
 ];
 
-export const TAG_COLOR_HEX = [
-  '#0d9488', // teal-600
-  '#2563eb', // blue-600
-  '#7c3aed', // purple-600
-  '#dc2626', // red-600
-  '#b45309', // amber-700
-  '#059669', // emerald-600
-  '#4338ca', // indigo-700
-  '#be185d', // pink-700
-  '#ea580c', // orange-600
-  '#65a30d', // lime-600
-  '#0891b2', // cyan-600
-  '#0284c7', // sky-600
-  '#a21caf', // fuchsia-700
-  '#9333ea', // violet-600
-  '#e11d48', // rose-600
-  '#475569' // slate-600
-];
+export const TAG_COLOR_NAMES = TAG_COLORS.map((color) => color.name);
+export const TAG_COLOR_HEX = TAG_COLORS.map((color) => color.hex);
 
 const TINT_WHITE_BLEND = 0.92;
 
