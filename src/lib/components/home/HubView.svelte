@@ -151,18 +151,18 @@
       </div>
       <button
         type="button"
-        class="min-h-12 rounded-lg bg-teal-700 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
-        onclick={() => goto('/activity/new')}
-      >
-        New Activity
-      </button>
-      <button
-        type="button"
-        class="min-h-12 rounded-lg border border-gray-300 bg-white px-6 py-3 text-base font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
+        class="min-h-12 rounded-lg bg-teal-700 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
         onclick={() => importFileInput?.click()}
         disabled={isImporting}
       >
         {isImporting ? 'Loading…' : 'Load from file'}
+      </button>
+      <button
+        type="button"
+        class="min-h-12 rounded-lg border border-gray-300 bg-white px-6 py-3 text-base font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 focus:outline-none"
+        onclick={() => goto('/activity/new')}
+      >
+        New Activity
       </button>
     </section>
   </div>
