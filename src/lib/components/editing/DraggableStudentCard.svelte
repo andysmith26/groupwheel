@@ -343,15 +343,15 @@
       class={`relative min-w-0 flex-1 overflow-visible rounded-md bg-transparent px-1 py-0 font-semibold ${textTone}`}
     >
       <span class="block truncate text-left leading-none" title={fullName}>{compactLabel}</span>
-      {#if hasPreferences && badgeText}
-        <span
-          class={`absolute -top-2 -left-0.5 z-10 rounded px-0.5 text-[9px] leading-tight font-bold ${badgeClass}`}
-          aria-label={badgeAriaLabel}
-        >
-          {badgeText}
-        </span>
-      {/if}
     </div>
+    {#if hasPreferences && badgeText}
+      <span
+        class={`shrink-0 rounded px-0.5 text-[9px] leading-tight font-bold ${badgeClass}`}
+        aria-label={badgeAriaLabel}
+      >
+        {badgeText}
+      </span>
+    {/if}
   </div>
 
   <div class="flex h-5 min-w-0 items-center gap-1 px-1" aria-label={tagSummary || undefined}>
