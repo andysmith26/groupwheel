@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   TAG_COLOR_HEX,
   randomColorIndex,
-  resolveTagBadgeClasses,
+  resolveTagBadgeStyle,
   resolveTagColorHex,
   resolveTagTintHex
 } from './tagColors';
@@ -33,10 +33,20 @@ describe('tagColors', () => {
     vi.restoreAllMocks();
   });
 
-  it('resolves badge classes with fallback', () => {
-    expect(resolveTagBadgeClasses({ name: 'Honors', colorIndex: 0 })).toContain('bg-');
-    expect(resolveTagBadgeClasses({ name: 'Honors' })).toContain('bg-');
-    expect(resolveTagBadgeClasses({ name: 'Honors', colorIndex: -1 })).toContain('bg-');
+  it('has an expanded palette', () => {
+    expect(TAG_COLOR_HEX.length).toBeGreaterThanOrEqual(16);
+  });
+
+  it('resolves badge styles with fallback', () => {
+    expect(resolveTagBadgeStyle({ name: 'Honors', colorIndex: 0 })).toContain('background-color');
+    expect(resolveTagBadgeStyle({ name: 'Honors' })).toBe(resolveTagBadgeStyle({ name: 'Honors' }));
+    expect(resolveTagBadgeStyle({ name: 'Honors', colorIndex: -1 })).toContain('color:');
+  });
+
+  it('uses a very light tint', () => {
+    const tint = resolveTagTintHex({ name: 'Honors', colorIndex: 3 });
+    const channels = [1, 3, 5].map((i) => parseInt(tint.slice(i, i + 2), 16));
+    expect(Math.min(...channels)).toBeGreaterThanOrEqual(255 * 0.9);
   });
 
   it('returns a light background tint distinct from the saturated tag color', () => {

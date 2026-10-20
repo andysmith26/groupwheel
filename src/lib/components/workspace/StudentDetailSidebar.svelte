@@ -29,7 +29,7 @@
   import Skeleton from '$lib/components/ui/Skeleton.svelte';
   import { Button, InlineError } from '$lib/components/ui';
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
-  import { resolveTagBadgeClasses } from '$lib/utils/tagColors';
+  import { resolveTagBadgeStyle } from '$lib/utils/tagColors';
 
   interface RecentGroupmate {
     studentName: string;
@@ -670,7 +670,8 @@
             <div class="mt-2 flex flex-wrap gap-1.5" aria-label="Student tags">
               {#each formTags as tag (tag.id)}
                 <span
-                  class="inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-2 text-xs font-medium {resolveTagBadgeClasses(tag)}"
+                  class="inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-2 text-xs font-medium"
+                  style={resolveTagBadgeStyle(tag)}
                 >
                   {tag.name}
                   <button

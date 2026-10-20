@@ -57,7 +57,7 @@ describe('resolveCardTagStyling', () => {
     ).toEqual({
       backgroundHex: null,
       borderHex: null,
-      conflicts: ['Conflicting background colors: ELL, IEP. Change one in Cards options.']
+      conflicts: ['Conflicting background colors: ELL, IEP. Change one in Manage Tags.']
     });
   });
 
@@ -70,7 +70,7 @@ describe('resolveCardTagStyling', () => {
     ).toEqual({
       backgroundHex: null,
       borderHex: null,
-      conflicts: ['Conflicting border colors: ELL, IEP. Change one in Cards options.']
+      conflicts: ['Conflicting border colors: ELL, IEP. Change one in Manage Tags.']
     });
   });
 
@@ -84,7 +84,7 @@ describe('resolveCardTagStyling', () => {
     ).toEqual({
       backgroundHex: null,
       borderHex: resolveTagColorHex(tags[2]),
-      conflicts: ['Conflicting background colors: ELL, IEP. Change one in Cards options.']
+      conflicts: ['Conflicting background colors: ELL, IEP. Change one in Manage Tags.']
     });
   });
 

@@ -4,7 +4,7 @@
   import { uiSettings } from '$lib/stores/uiSettings.svelte';
   import { cardDisplay } from '$lib/stores/cardDisplay.svelte';
   import { sortableItem, type Edge, type SortableDropState } from '$lib/utils/pragmatic-dnd';
-  import { resolveTagBadgeClasses, resolveTagTintHex } from '$lib/utils/tagColors';
+  import { resolveTagBadgeStyle, resolveTagTintHex } from '$lib/utils/tagColors';
   import { resolveCardTagStyling } from '$lib/utils/cardTagStyling';
 
   export type KeyboardMoveDirection = 'up' | 'down' | 'left' | 'right';
@@ -81,9 +81,10 @@
       .map((tagId: string): Tag | null => tagsById[tagId] ?? null)
       .filter((tag: Tag | null): tag is Tag => tag !== null)
   );
-  const visibleTags = $derived(resolvedTags.slice(0, visibleTagLimit));
-  const hiddenTagCount = $derived(Math.max(0, resolvedTags.length - visibleTags.length));
-  const hiddenTagNames = $derived(resolvedTags.slice(visibleTagLimit).map((tag: Tag) => tag.name));
+  const shownTags = $derived(resolvedTags.filter((tag: Tag) => cardDisplay.isTagVisible(tag.id)));
+  const visibleTags = $derived(shownTags.slice(0, visibleTagLimit));
+  const hiddenTagCount = $derived(Math.max(0, shownTags.length - visibleTags.length));
+  const hiddenTagNames = $derived(shownTags.slice(visibleTagLimit).map((tag: Tag) => tag.name));
   const tagSummary = $derived(
     resolvedTags.length ? `. Tags: ${resolvedTags.map((tag: Tag) => tag.name).join(', ')}.` : ''
   );
@@ -106,7 +107,7 @@
       }
     }
     if (cardTagStyling.borderHex) {
-      styles.push(`border-color: ${cardTagStyling.borderHex}`, 'border-width: 2px');
+      styles.push(`box-shadow: inset 0 0 0 3px ${cardTagStyling.borderHex}`);
     }
     return styles.join('; ');
   });
@@ -355,25 +356,22 @@
   </div>
 
   <div class="flex h-5 min-w-0 items-center gap-1 px-1" aria-label={tagSummary || undefined}>
-    {#if cardDisplay.showTags}
-      {#each visibleTags as tag (tag.id)}
-        <span
-          class="max-w-[45%] min-w-0 truncate rounded px-1.5 py-0.5 text-[10px] leading-none font-medium {resolveTagBadgeClasses(
-            tag
-          )}"
-          title={tag.name}
-        >
-          {tag.name}
-        </span>
-      {/each}
-      {#if hiddenTagCount > 0}
-        <span
-          class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] leading-none font-medium text-slate-500"
-          title={hiddenTagNames.join(', ')}
-        >
-          +{hiddenTagCount}
-        </span>
-      {/if}
+    {#each visibleTags as tag (tag.id)}
+      <span
+        class="max-w-[45%] min-w-0 truncate rounded px-1.5 py-0.5 text-[10px] leading-none font-medium"
+        style={resolveTagBadgeStyle(tag)}
+        title={tag.name}
+      >
+        {tag.name}
+      </span>
+    {/each}
+    {#if hiddenTagCount > 0}
+      <span
+        class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] leading-none font-medium text-slate-500"
+        title={hiddenTagNames.join(', ')}
+      >
+        +{hiddenTagCount}
+      </span>
     {/if}
   </div>
 </div>
